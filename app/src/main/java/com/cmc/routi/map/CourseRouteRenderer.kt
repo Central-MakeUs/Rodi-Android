@@ -4,6 +4,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Typeface
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import com.cmc.routi.R
@@ -22,6 +25,7 @@ import com.kakao.vectormap.route.RouteLineStyle
 import com.kakao.vectormap.route.RouteLineStyles
 import com.kakao.vectormap.route.RouteLineStylesSet
 import androidx.core.graphics.toColorInt
+import androidx.core.graphics.createBitmap
 
 private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
 private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
@@ -76,9 +80,8 @@ private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: In
 
 private fun Context.vectorToBitmap(@DrawableRes iconRes: Int, sizeDp: Int): Bitmap {
     val sizePx = (sizeDp * resources.displayMetrics.density).toInt()
-    val drawable = ContextCompat.getDrawable(this, iconRes)
-        ?: return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-    val bm = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val drawable = ContextCompat.getDrawable(this, iconRes) ?: return createBitmap(1, 1)
+    val bm = createBitmap(sizePx, sizePx)
     val canvas = Canvas(bm)
     drawable.setBounds(0, 0, sizePx, sizePx)
     drawable.draw(canvas)
@@ -105,4 +108,75 @@ private fun KakaoMap.fitTo(points: List<LatLng>) {
     if (pts.size >= 2) {
         moveCamera(CameraUpdateFactory.fitMapPoints(pts, FIT_PADDING_PX), CameraAnimation.from(400))
     }
+}
+
+// primary500 = #6C5CFF
+private const val CHIP_BG_COLOR = 0xFF6C5CFF.toInt()
+private const val CHIP_TEXT_SIZE_SP = 12f
+private const val CHIP_PADDING_H_DP = 10f
+private const val CHIP_PADDING_V_DP = 4f
+
+/**
+ * 필터링된 코스 목록의 출발지에 장소 칩(이름 라벨)을 지도에 표시한다.
+ * 이전 레이블은 모두 제거된 뒤 다시 그린다.
+ * 칩 탭 이벤트는 [KakaoMap.setOnLabelClickListener]로 처리하고,
+ * 각 라벨의 tag 에 course.id 를 저장한다.
+ */
+fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
+    clearCourse()
+    val density = context.resources.displayMetrics.density
+    courses.forEach { course ->
+        val bitmap = createChipBitmap(course.courseNickname, density)
+        addChipAt(
+            context = context,
+            position = LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng),
+            bitmap = bitmap,
+            tag = course.id,
+        )
+    }
+}
+
+private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitmap, tag: String) {
+    val manager = labelManager ?: return
+    val layer = manager.layer ?: return
+    val style = LabelStyle.from(bitmap)
+    val styles = manager.addLabelStyles(LabelStyles.from(style))
+    val options = LabelOptions.from(position).setStyles(styles).setTag(tag)
+    layer.addLabel(options)
+}
+
+private fun createChipBitmap(text: String, density: Float): Bitmap {
+    val paddingH = (CHIP_PADDING_H_DP * density)
+    val paddingV = (CHIP_PADDING_V_DP * density)
+    val textSizePx = CHIP_TEXT_SIZE_SP * density
+
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.textSize = textSizePx
+        typeface = Typeface.DEFAULT
+        color = AndroidColor.WHITE
+        textAlign = Paint.Align.LEFT
+    }
+
+    val textWidth = textPaint.measureText(text)
+    val fm = textPaint.fontMetrics
+    val textHeight = fm.descent - fm.ascent
+
+    val width = (textWidth + paddingH * 2).toInt().coerceAtLeast(1)
+    val height = (textHeight + paddingV * 2).toInt().coerceAtLeast(1)
+
+    val bitmap = createBitmap(width, height)
+    val canvas = Canvas(bitmap)
+
+    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = CHIP_BG_COLOR
+        style = Paint.Style.FILL
+    }
+    val radius = height / 2f
+    canvas.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), radius, radius, bgPaint)
+
+    val textX = paddingH
+    val textY = paddingV - fm.ascent
+    canvas.drawText(text, textX, textY, textPaint)
+
+    return bitmap
 }
