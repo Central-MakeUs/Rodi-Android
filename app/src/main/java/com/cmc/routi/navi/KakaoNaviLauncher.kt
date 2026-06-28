@@ -37,7 +37,7 @@ object KakaoNaviLauncher {
             y = "%.6f".format(course.destination.lat),
         )
 
-        val viaList = (listOf(course.origin) + course.waypoints).map { p ->
+        val viaList = (listOf(course.origin) + course.waypointPoints).map { p ->
             Location(name = p.name, x = "%.6f".format(p.lng), y = "%.6f".format(p.lat))
         }
 

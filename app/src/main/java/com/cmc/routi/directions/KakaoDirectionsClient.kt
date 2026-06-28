@@ -43,7 +43,7 @@ object KakaoDirectionsClient {
     )
 
     suspend fun getRoute(course: Course): RouteResult =
-        getRoute(course.origin, course.waypoints, course.destination)
+        getRoute(course.origin, course.waypointPoints, course.destination)
 
     suspend fun getRoute(
         origin: CoursePoint,

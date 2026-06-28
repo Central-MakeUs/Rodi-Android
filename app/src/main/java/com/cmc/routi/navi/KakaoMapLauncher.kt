@@ -40,7 +40,7 @@ object KakaoMapLauncher {
 
     /** 출발지(vp) → 경유지(vp2..) → 목적지(ep). 최대 경유지 5개 안에서 [origin + waypoints] 를 채운다. */
     internal fun buildRouteUri(course: Course): String {
-        val viaPoints = (listOf(course.origin) + course.waypoints).take(MAX_VIA_COUNT)
+        val viaPoints = (listOf(course.origin) + course.waypointPoints).take(MAX_VIA_COUNT)
         val params = buildList {
             viaPoints.forEachIndexed { i, point ->
                 val key = if (i == 0) "vp" else "vp${i + 1}" // vp, vp2, vp3, vp4, vp5
