@@ -1,13 +1,14 @@
 package com.cmc.routi.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -15,11 +16,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,69 +30,120 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.cmc.routi.R
 import com.cmc.routi.navi.NaviApp
 import com.cmc.routi.ui.theme.RoutiTheme
-import androidx.compose.ui.tooling.preview.Preview
+
+enum class NaviPickerMode {
+    SELECT,
+    INSTALL
+}
 
 /**
- * 내비게이션 앱 선택 시트.
- * 카카오맵 / 카카오내비 카드 중 선택 후 "이번만" 또는 "항상"으로 실행.
- * "항상" 선택 시 [NaviPreference]에 저장해 다음 실행부터 시트 없이 바로 진행.
+ * 내비게이션 앱 선택 다이얼로그.
+ * 하단에 띄워지는 부유형 다이얼로그 형태로 구현.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NaviPickerSheet(
+    mode: NaviPickerMode = NaviPickerMode.SELECT,
     onDismiss: () -> Unit,
     onSelect: (app: NaviApp, always: Boolean) -> Unit,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedApp by remember { mutableStateOf<NaviApp?>(null) }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = RoutiTheme.colors.white,
-        dragHandle = null,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        NaviPickerContent(
-            selectedApp = selectedApp,
-            onAppSelect = { selectedApp = it },
-            onConfirm = { app, always ->
-                onSelect(app, always)
-            },
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                color = RoutiTheme.colors.white
+            ) {
+                NaviPickerContent(
+                    mode = mode,
+                    onClose = onDismiss,
+                    selectedApp = selectedApp,
+                    onAppSelect = { selectedApp = it },
+                    onConfirm = { app, always ->
+                        onSelect(app, always)
+                    },
+                )
+            }
+        }
     }
 }
 
 @Composable
 private fun NaviPickerContent(
+    mode: NaviPickerMode,
+    onClose: () -> Unit,
     selectedApp: NaviApp?,
     onAppSelect: (NaviApp) -> Unit,
     onConfirm: (app: NaviApp, always: Boolean) -> Unit,
 ) {
     val canConfirm = selectedApp != null
+    val title = when (mode) {
+        NaviPickerMode.SELECT -> "내비게이션 앱을 선택하세요"
+        NaviPickerMode.INSTALL -> "길 안내를 위해 내비게이션 앱\n설치가 필요합니다."
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 20.dp)
-            .padding(top = 40.dp, bottom = 8.dp),
+            .padding(bottom = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
-            "내비게이션 앱을 선택하세요",
-            style = RoutiTheme.typography.headline1,
-            color = RoutiTheme.colors.black,
-        )
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier.align(Alignment.TopEnd),
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_x),
+                    contentDescription = "닫기",
+                    tint = RoutiTheme.colors.black,
+                    modifier = Modifier
+                        .padding(top = 16.dp, end = 16.dp)
+                        .size(24.dp),
+                )
+            }
+            Column(
+                modifier = Modifier.align(Alignment.TopCenter),
+            ) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Text(
+                    text = title,
+                    style = RoutiTheme.typography.headline1,
+                    color = RoutiTheme.colors.black,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+
         Spacer(Modifier.height(20.dp))
 
         // 앱 카드 가로 배치
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.Center,
         ) {
-            NaviApp.entries.forEach { app ->
+            NaviApp.entries.forEachIndexed { index, app ->
+                if (index > 0) Spacer(Modifier.width(32.dp))
                 NaviAppCard(
                     app = app,
                     isSelected = selectedApp == app,
@@ -101,46 +152,51 @@ private fun NaviPickerContent(
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        if (mode == NaviPickerMode.SELECT) {
+            Spacer(Modifier.height(16.dp))
 
-        // 이번만 | 항상 버튼
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            // 이번만 | 항상 버튼 (가로 배치된 두 개의 독립된 버튼)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                // 이번만 버튼
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .border(1.dp, RoutiTheme.colors.gray200, RoundedCornerShape(8.dp))
                         .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, false) } },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "이번만",
-                        style = RoutiTheme.typography.body1SemiBold,
+                        style = RoutiTheme.typography.button1,
                         color = if (canConfirm) RoutiTheme.colors.black else RoutiTheme.colors.gray400,
                     )
                 }
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(RoutiTheme.colors.gray200),
-                )
+
+                // 항상 버튼
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (canConfirm) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray200)
                         .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, true) } },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "항상",
-                        style = RoutiTheme.typography.body1SemiBold,
-                        color = if (canConfirm) RoutiTheme.colors.black else RoutiTheme.colors.gray400,
+                        style = RoutiTheme.typography.button1,
+                        color = if (canConfirm) RoutiTheme.colors.white else RoutiTheme.colors.gray400,
                     )
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
     }
 }
 
@@ -156,22 +212,27 @@ private fun NaviAppCard(
     }
     Column(
         modifier = Modifier
-            .width(120.dp)
+            .width(100.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (isSelected) RoutiTheme.colors.gray100 else RoutiTheme.colors.white)
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .clickable(onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = app.label,
-            tint = Color.Unspecified,
+        Box(
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(12.dp)),
-        )
+                .size(72.dp)
+                .clip(RoundedCornerShape(16.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = app.label,
+                tint = Color.Unspecified,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp)),
+            )
+        }
         Text(
             app.label,
             style = RoutiTheme.typography.body3Medium,
@@ -182,10 +243,26 @@ private fun NaviAppCard(
 
 @Preview(showBackground = true)
 @Composable
-fun NaviPickerContentSelectedPreview() {
+fun NaviPickerSelectPreview() {
     RoutiTheme {
         NaviPickerContent(
+            mode = NaviPickerMode.SELECT,
+            onClose = {},
             selectedApp = NaviApp.KAKAOMAP,
+            onAppSelect = {},
+            onConfirm = { _, _ -> },
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun NaviPickerInstallPreview() {
+    RoutiTheme {
+        NaviPickerContent(
+            mode = NaviPickerMode.INSTALL,
+            onClose = {},
+            selectedApp = null,
             onAppSelect = {},
             onConfirm = { _, _ -> },
         )

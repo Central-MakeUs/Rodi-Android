@@ -2,19 +2,16 @@ package com.cmc.routi.home
 
 import android.Manifest
 import android.content.Intent
-import com.kakao.vectormap.MapGravity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +26,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -38,6 +36,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,19 +44,18 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalRippleConfiguration
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,16 +73,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
@@ -99,9 +94,9 @@ import com.cmc.routi.data.SampleCourses
 import com.cmc.routi.directions.KakaoDirectionsClient.RouteResult
 import com.cmc.routi.location.awaitCurrentLocation
 import com.cmc.routi.location.hasLocationPermission
-import com.cmc.routi.map.clearCourse
 import com.cmc.routi.map.rememberMapViewWithLifecycle
 import com.cmc.routi.map.renderCourse
+import com.cmc.routi.map.renderCourseChips
 import com.cmc.routi.model.Course
 import com.cmc.routi.model.Difficulty
 import com.cmc.routi.navi.KakaoMapLauncher
@@ -113,7 +108,9 @@ import com.kakao.vectormap.GestureType
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
 import com.kakao.vectormap.LatLng
+import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
+import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.launch
 
@@ -151,6 +148,12 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         if (permissionGranted) currentLocation = context.awaitCurrentLocation()
     }
 
+    // 위치 정보를 ViewModel에 전달 (거리 필터링용)
+    LaunchedEffect(currentLocation) {
+        val loc = currentLocation ?: return@LaunchedEffect
+        vm.onLocationUpdate(loc.latitude, loc.longitude)
+    }
+
     val screenHeightDp = LocalConfiguration.current.screenHeightDp
     val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
     val density = LocalDensity.current
@@ -166,6 +169,13 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
             }
         }
         map.setOnCameraMoveEndListener { _, _, _ -> }
+        // 장소 칩 탭 → 코스 상세 진입
+        map.setOnLabelClickListener { _, _, label ->
+            val courseId = label.tag as? String ?: return@setOnLabelClickListener true
+            vm.onCourseClick(courseId)
+            isAtCurrentLocation = false
+            true
+        }
     }
 
     LaunchedEffect(kakaoMap, currentLocation) {
@@ -181,11 +191,12 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute) {
+    // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 레이어 업데이트
+    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, state.filteredCourses) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = state.selectedCourse
         if (course == null) {
-            map.clearCourse()
+            map.renderCourseChips(context, state.filteredCourses)
         } else {
             val route = state.selectedRoute
             map.renderCourse(context, course, route?.points, route?.snappedPoints ?: emptyList())
@@ -233,21 +244,19 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    // 리스트 모드 풀스크린 시에만 코너 0dp로 자연스럽게 전환 (리컴포지션 없이 Shape 내부에서 계산)
     val sheetShape = remember(density) {
         object : Shape {
             override fun createOutline(
                 size: Size,
                 layoutDirection: LayoutDirection,
-                density: Density
+                density: Density,
             ): Outline {
                 val offset = sheetOffsetPx
                 val radiusPx = if (
-                    state.selectedCourse == null && 
-                    offset != Float.MAX_VALUE && 
+                    state.selectedCourse == null &&
+                    offset != Float.MAX_VALUE &&
                     scaffoldHeightPx > 0
                 ) {
-                    // 최상단 150px 구간에서 20dp -> 0dp로 부드럽게 펴짐
                     val fraction = (offset / 150f).coerceIn(0f, 1f)
                     with(density) { (20f * fraction).dp.toPx() }
                 } else {
@@ -257,8 +266,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                     RoundRect(
                         rect = Rect(0f, 0f, size.width, size.height),
                         topLeft = CornerRadius(radiusPx, radiusPx),
-                        topRight = CornerRadius(radiusPx, radiusPx)
-                    )
+                        topRight = CornerRadius(radiusPx, radiusPx),
+                    ),
                 )
             }
         }
@@ -306,48 +315,54 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             .background(RoutiTheme.colors.handleBar),
                     )
                 }
-            val handleHeightDp = 24.dp
-            val handleHeightPx = with(density) { handleHeightDp.toPx() }
-            val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
-            val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
+                val handleHeightDp = 24.dp
+                val handleHeightPx = with(density) { handleHeightDp.toPx() }
+                val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
+                val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
 
-            val visibleHeightDp = with(density) {
-                if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                    maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
-                } else {
-                    Dp.Unspecified
+                val visibleHeightDp = with(density) {
+                    if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
+                        maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
+                    } else {
+                        Dp.Unspecified
+                    }
                 }
-            }
 
-            val selectedCourse = state.selectedCourse
-            if (selectedCourse == null) {
                 val listState = rememberLazyListState()
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified)
-                ) {
-                    CourseListContent(
-                        courses = state.courses,
-                        onCourseClick = { id ->
-                            vm.onCourseClick(id)
-                            isAtCurrentLocation = false
+                val selectedCourse = state.selectedCourse
+                if (selectedCourse == null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
+                    ) {
+                        if (state.filteredCourses.isEmpty()) {
+                            CourseEmptyContent()
+                        } else {
+                            CourseListContent(
+                                courses = state.filteredCourses,
+                                onCourseClick = { id ->
+                                    vm.onCourseClick(id)
+                                    isAtCurrentLocation = false
+                                },
+                                expandFraction = expandFraction,
+                                onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                                listState = listState,
+                                modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
+                                    visibleHeightDp
+                                ) else Modifier,
+                            )
+                        }
+                    }
+                } else {
+                    CourseDetailContent(
+                        course = selectedCourse,
+                        route = state.selectedRoute,
+                        isRouting = state.isRouting,
+                        onDismiss = {
+                            vm.onDismissDetail()
+                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
                         },
-                        expandFraction = expandFraction,
-                        onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
-                        listState = listState,
-                        modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(visibleHeightDp) else Modifier
-                    )
-                }
-            } else {
-                CourseDetailContent(
-                            course = selectedCourse,
-                            route = state.selectedRoute,
-                            isRouting = state.isRouting,
-                            onDismiss = {
-                                vm.onDismissDetail()
-                                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                            },
                         onNavigate = {
                             val saved = NaviPreference.getAlways(context)
                             val kakaoMapInstalled = runCatching {
@@ -407,6 +422,16 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                 },
             )
 
+            // 거리 필터 바 — 지도 상단 중앙에 부유
+            DistanceFilterBar(
+                selectedKm = state.distanceFilterKm,
+                onSelect = { vm.onDistanceFilterChange(it) },
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp),
+            )
+
             // 현위치 버튼 — 시트 우상단 위 12dp에 부유
             if (sheetOffsetPx != Float.MAX_VALUE) {
                 val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
@@ -424,6 +449,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             val loc = currentLocation ?: SEOUL
                             kakaoMap?.moveCamera(
                                 CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
+                                CameraAnimation.from(250),
                             )
                             isAtCurrentLocation = true
                         },
@@ -445,6 +471,44 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                 naviCourse = null
             },
         )
+    }
+}
+
+@Composable
+private fun DistanceFilterBar(
+    selectedKm: Int?,
+    onSelect: (Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val options: List<Pair<String, Int?>> = listOf(
+        "전체" to null,
+        "3km" to 3,
+        "5km" to 5,
+        "10km" to 10,
+    )
+    Surface(
+        modifier = modifier.height(38.dp),
+        shape = RoundedCornerShape(50),
+        color = RoutiTheme.colors.white,
+        shadowElevation = 4.dp,
+    ) {
+        Row(modifier = Modifier.padding(4.dp)) {
+            options.forEach { (label, km) ->
+                val selected = selectedKm == km
+                Surface(
+                    onClick = { onSelect(km) },
+                    shape = RoundedCornerShape(50),
+                    color = if (selected) RoutiTheme.colors.primary600 else Color.Transparent,
+                ) {
+                    Text(
+                        text = label,
+                        style = RoutiTheme.typography.body1Medium,
+                        color = if (selected) RoutiTheme.colors.white else RoutiTheme.colors.gray600,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -479,7 +543,6 @@ private fun CourseListContent(
 ) {
     Column(modifier = modifier) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            // 피크: TopStart에 고정, 아래 20dp만 패딩
             Text(
                 "연습코스",
                 style = RoutiTheme.typography.headline1,
@@ -489,7 +552,6 @@ private fun CourseListContent(
                     .padding(start = 16.dp, bottom = 20.dp)
                     .graphicsLayer { alpha = 1f - expandFraction },
             )
-            // 전체화면: 56dp 앱바 (expandFraction > 0 일 때만 레이아웃에 포함)
             if (expandFraction > 0f) {
                 Box(
                     modifier = Modifier
@@ -544,9 +606,35 @@ private fun CourseListContent(
                 }
             }
             item {
-                Spacer(Modifier.navigationBarsPadding().height(8.dp))
+                Spacer(
+                    Modifier
+                        .navigationBarsPadding()
+                        .height(8.dp),
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun CourseEmptyContent() {
+    Column(
+        modifier = Modifier.fillMaxWidth().height(330.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
+            style = RoutiTheme.typography.headline1,
+            color = RoutiTheme.colors.gray800,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요.",
+            style = RoutiTheme.typography.body3Medium,
+            color = RoutiTheme.colors.gray800,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -570,17 +658,17 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
         )
         RatingRegionRow(
             rating = course.rating,
-            region = course.region,
+            region = course.regionDisplay,
             onChevronClick = { addressExpanded = !addressExpanded },
         )
         if (addressExpanded) {
             ExpandableAddressCard(
-                roadAddress = course.roadAddress,
-                jibunAddress = course.jibunAddress,
+                roadAddress = course.roadAddress.shortenRoadAddress(),
+                jibunAddress = course.jibunAddress.shortenJibunAddress(),
             )
             Spacer(modifier = Modifier.height(0.5.dp))
         } else {
-            TagRow(difficulty = course.difficulty, tags = course.tags)
+            TagRow(difficulty = course.difficultyEnum, tags = course.tags)
             Spacer(modifier = Modifier.height(8.dp))
             SummaryBox(text = course.summary, bgColor = RoutiTheme.colors.gray50)
         }
@@ -603,7 +691,6 @@ private fun CourseDetailContent(
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding(),
     ) {
-        // 제목 + ✕
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -635,14 +722,14 @@ private fun CourseDetailContent(
         ) {
             RatingRegionRow(
                 rating = course.rating,
-                region = course.region,
+                region = course.regionDisplay,
                 onChevronClick = { addressExpanded = !addressExpanded },
             )
             if (addressExpanded) {
                 Spacer(modifier = Modifier.height(2.dp))
                 ExpandableAddressCard(
-                    roadAddress = course.roadAddress,
-                    jibunAddress = course.jibunAddress,
+                    roadAddress = course.roadAddress.shortenRoadAddress(),
+                    jibunAddress = course.jibunAddress.shortenJibunAddress(),
                 )
             } else {
                 Text(
@@ -650,7 +737,7 @@ private fun CourseDetailContent(
                     style = RoutiTheme.typography.body3Medium,
                     color = RoutiTheme.colors.gray800,
                 )
-                TagRow(difficulty = course.difficulty, tags = course.tags)
+                TagRow(difficulty = course.difficultyEnum, tags = course.tags)
 
                 Spacer(Modifier.height(8.dp))
 
@@ -756,7 +843,7 @@ private fun ExpandableAddressCard(
 }
 
 @Composable
-private fun TagRow(difficulty: Difficulty, tags: Set<Any>) {
+private fun TagRow(difficulty: Difficulty, tags: Set<com.cmc.routi.model.PracticeTag>) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         DifficultyTag(difficulty)
         tags.take(2).filterIsInstance<com.cmc.routi.model.PracticeTag>().forEach { tag ->
@@ -858,10 +945,10 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                     text = roleLabel,
                     style = RoutiTheme.typography.caption1Medium.copy(fontWeight = roleLabelWeight),
                     color = roleLabelColor,
-                    modifier = Modifier.width(54.dp)
+                    modifier = Modifier.width(54.dp),
                 )
                 Text(
-                    text = point.name,
+                    text = point.name.stripCityPrefix(),
                     style = RoutiTheme.typography.caption1Medium,
                     color = RoutiTheme.colors.gray800,
                     maxLines = 1,
@@ -886,6 +973,89 @@ private fun distanceText(route: RouteResult?, isRouting: Boolean): String = when
     else -> "주행거리 · ${route.totalDistanceMeters}m"
 }
 
+// ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
+
+private val CITY_PREFIXES = listOf(
+    "서울특별시", "부산광역시", "대구광역시", "인천광역시", "광주광역시",
+    "대전광역시", "울산광역시", "세종특별자치시", "강원특별자치도", "경기도",
+    "충청남도", "충청북도", "전라남도", "전라북도", "경상남도", "경상북도",
+    "제주특별자치도", "서울", "부산", "대구", "인천", "광주", "대전", "울산",
+    "세종", "강원", "경기", "제주"
+)
+
+/** 시/도 레벨 접두어만 제거 (구·군·동은 유지). VerticalStepList용. */
+private fun String.stripCityPrefix(): String {
+    val s = trim()
+    CITY_PREFIXES.forEach { city -> if (s.startsWith("$city ")) return s.removePrefix("$city ").trim() }
+    return s
+}
+
+/** 시/도 + 구/군 접두어까지 제거. 공백 구분 주소용. */
+private fun String.stripCityAndDistrict(): String =
+    stripCityPrefix().replace(Regex("^[가-힣0-9]+[구군]\\s+"), "")
+
+/** 도로명 주소를 짧게 표시. "마포나루길 467 스타벅스" 형태. */
+private fun String.shortenRoadAddress(): String {
+    if (isBlank()) return this
+    return if (contains(',')) shortenCommaRoad() else stripCityAndDistrict()
+}
+
+private fun String.shortenCommaRoad(): String {
+    val parts = split(',').map { it.trim() }.filter {
+        it.isNotEmpty() && !it.matches(Regex("\\d{5}")) && it != "대한민국"
+    }
+    // 도로명: 로/길/대로 로 끝나는 토큰
+    val roadIdx = parts.indexOfFirst { p ->
+        p.endsWith("로") || p.endsWith("길") || p.endsWith("대로") ||
+        Regex("로\\d|길\\d").containsMatchIn(p)
+    }
+    if (roadIdx < 0) return parts.firstOrNull() ?: this
+
+    val road = parts[roadIdx]
+    // 번지: 도로명 바로 앞 토큰이 숫자/지하 면 사용
+    val number = parts.getOrNull(roadIdx - 1)
+        ?.takeIf { it.matches(Regex("\\d+(-\\d+)?|지하\\s*\\d+")) }
+    // 건물명: 첫 토큰이 숫자·행정구역 접미사가 아닌 경우
+    val building = parts.firstOrNull()?.takeIf { first ->
+        parts.indexOf(first) != roadIdx &&
+        !first.matches(Regex("\\d.*")) &&
+        !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
+        !first.endsWith("읍") && !first.endsWith("면") &&
+        !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
+    }
+
+    return buildString {
+        append(road)
+        if (number != null) append(" $number")
+        if (building != null) append(" $building")
+    }
+}
+
+/** 지번 주소를 짧게 표시. "망원동 205-4" 형태. */
+private fun String.shortenJibunAddress(): String {
+    if (isBlank()) return this
+
+    // 공백 구분 형식: "xxx동 번지" 패턴 탐색
+    if (!contains(',')) {
+        val match = Regex("([가-힣]+(?:동|리))\\s+(\\d+(?:-\\d+)?)").find(this)
+        if (match != null) return "${match.groupValues[1]} ${match.groupValues[2]}"
+        return stripCityAndDistrict()
+    }
+
+    // 쉼표 형식: 동/리 토큰 + 번지 토큰
+    val parts = split(',').map { it.trim() }.filter {
+        it.isNotEmpty() && !it.matches(Regex("\\d{5}")) && it != "대한민국"
+    }
+    val dong = parts.firstOrNull { it.endsWith("동") || it.endsWith("리") }
+    val num  = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
+
+    return when {
+        dong != null && num != null -> "$dong $num"
+        dong != null -> dong
+        else -> shortenCommaRoad() // 동이 없으면 도로명으로 폴백
+    }
+}
+
 @Composable
 private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
     RoutiTheme {
@@ -893,7 +1063,7 @@ private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color.LightGray)
-                .padding(top = 40.dp), // 뒷배경 맵 공간 시뮬레이션
+                .padding(top = 40.dp),
         ) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -916,7 +1086,6 @@ private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
                                 .background(RoutiTheme.colors.handleBar),
                         )
                     }
-                    // 콘텐츠
                     content()
                 }
             }
@@ -978,6 +1147,23 @@ fun MyLocationButtonPreview() {
         ) {
             MyLocationButton(isActive = false, onClick = {})
             MyLocationButton(isActive = true, onClick = {})
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DistanceFilterBarPreview() {
+    RoutiTheme {
+        Column(
+            modifier = Modifier
+                .background(Color.LightGray)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            DistanceFilterBar(selectedKm = null, onSelect = {})
+            DistanceFilterBar(selectedKm = 3, onSelect = {})
+            DistanceFilterBar(selectedKm = 5, onSelect = {})
         }
     }
 }

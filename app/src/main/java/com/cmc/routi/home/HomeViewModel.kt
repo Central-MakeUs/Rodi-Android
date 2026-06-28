@@ -11,6 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.math.asin
+import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 class HomeViewModel : ViewModel() {
 
@@ -19,26 +24,38 @@ class HomeViewModel : ViewModel() {
         val selectedCourseId: String? = null,
         val routeByCourse: Map<String, RouteResult> = emptyMap(),
         val isRouting: Boolean = false,
+        val distanceFilterKm: Int? = null,    // null=전체, 3, 5, 10
+        val userLat: Double? = null,
+        val userLng: Double? = null,
     ) {
         val selectedCourse: Course? get() = courses.firstOrNull { it.id == selectedCourseId }
         val selectedRoute: RouteResult? get() = selectedCourseId?.let { routeByCourse[it] }
+
+        val filteredCourses: List<Course>
+            get() {
+                val km = distanceFilterKm ?: return courses
+                val lat = userLat ?: return courses
+                val lng = userLng ?: return courses
+                val limitM = km * 1000.0
+                return courses.filter { course ->
+                    haversineMeters(lat, lng, course.startWaypoint.lat, course.startWaypoint.lng) <= limitM
+                }
+            }
     }
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    /** ✕ 탭: 상세 모드 → 리스트 모드 */
     fun onDismissDetail() {
         _state.update { it.copy(selectedCourseId = null) }
     }
 
-    /** 코스 탭: 상세 모드 진입. 이미 선택된 코스라도 deselect 없이 유지(✕로만 닫음). */
     fun onCourseClick(id: String) {
         val current = _state.value
         if (current.selectedCourseId == id) return
         _state.update { it.copy(selectedCourseId = id) }
 
-        if (current.routeByCourse.containsKey(id)) return // 캐시 있음
+        if (current.routeByCourse.containsKey(id)) return
         val course = current.courses.firstOrNull { it.id == id } ?: return
         _state.update { it.copy(isRouting = true) }
         viewModelScope.launch {
@@ -49,6 +66,26 @@ class HomeViewModel : ViewModel() {
                     isRouting = false,
                 )
             }
+        }
+    }
+
+    fun onDistanceFilterChange(km: Int?) {
+        _state.update { it.copy(distanceFilterKm = km) }
+    }
+
+    fun onLocationUpdate(lat: Double, lng: Double) {
+        _state.update { it.copy(userLat = lat, userLng = lng) }
+    }
+
+    companion object {
+        private fun haversineMeters(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+            val r = 6_371_000.0
+            val φ1 = Math.toRadians(lat1)
+            val φ2 = Math.toRadians(lat2)
+            val dφ = Math.toRadians(lat2 - lat1)
+            val dλ = Math.toRadians(lng2 - lng1)
+            val a = sin(dφ / 2).pow(2) + cos(φ1) * cos(φ2) * sin(dλ / 2).pow(2)
+            return 2 * r * asin(sqrt(a))
         }
     }
 }
