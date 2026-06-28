@@ -2,7 +2,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Android 11+ 패키지 가시성: 카카오맵/카카오내비 설치 여부 확인 및 딥링크 실행용 -->
+    <queries>
+        <package android:name="net.daum.android.map" />
+        <package android:name="com.locnall.KimGiSa" />
+    </queries>
+
     <application
+        android:name=".RoutiApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
