@@ -27,6 +27,7 @@ val RoutiFontFamily = FontFamily(
 data class RoutiTypography(
     val headline1: TextStyle,       // Bold 18
     val body1SemiBold: TextStyle,   // SemiBold 16
+    val body1Medium: TextStyle,
     val body3Medium: TextStyle,     // Medium 14
     val body3SemiBold: TextStyle,   // SemiBold 14
     val caption1Regular: TextStyle, // Regular 13
@@ -52,6 +53,7 @@ private fun routiStyle(
 val DefaultRoutiTypography = RoutiTypography(
     headline1 = routiStyle(18, FontWeight.Bold),
     body1SemiBold = routiStyle(16, FontWeight.SemiBold),
+    body1Medium = routiStyle(16, FontWeight.Medium),
     body3Medium = routiStyle(14, FontWeight.Medium),
     body3SemiBold = routiStyle(14, FontWeight.SemiBold),
     caption1Regular = routiStyle(13, FontWeight.Normal),
