@@ -6,7 +6,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.cmc.routi.home.HomeScreen
+import com.cmc.routi.ui.AppRoot
 import com.cmc.routi.ui.theme.RoutiTheme
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +18,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             RoutiTheme {
-                HomeScreen()
+                AppRoot()
             }
         }
     }
