@@ -111,7 +111,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dororong.rodi.R
 import com.dororong.rodi.data.SampleCourses
 import com.dororong.rodi.directions.KakaoDirectionsClient.RouteResult
-import com.dororong.rodi.entry.TermsWebViewScreen
+import com.dororong.rodi.entry.TermsDocument
+import com.dororong.rodi.entry.TermsDocuments
+import com.dororong.rodi.entry.TermsWebView
 import com.dororong.rodi.location.awaitCurrentLocation
 import com.dororong.rodi.location.hasLocationPermission
 import com.dororong.rodi.map.rememberMapViewWithLifecycle
@@ -144,17 +146,6 @@ private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 private val SEOUL = LatLng.from(37.5563, 126.9220)
 private var hasLoadedMapInSession = false
 
-private data class TermsLink(
-    val title: String,
-    val url: String,
-)
-
-private val HOME_TERMS_LINKS = listOf(
-    TermsLink("서비스 이용약관", "https://sites.google.com/view/dororong/홈"),
-    TermsLink("개인정보처리방침", "https://sites.google.com/view/dorororongg/홈"),
-    TermsLink("위치기반 서비스 이용약관", "https://sites.google.com/view/dororonggg/홈"),
-)
-
 private enum class MapScreenState {
     Loading,
     Ready,
@@ -175,7 +166,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
-    var selectedTermsLink by remember { mutableStateOf<TermsLink?>(null) }
+    var selectedTermsDocument by remember { mutableStateOf<TermsDocument?>(null) }
     val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
     var mapScreenState by remember {
         mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
@@ -576,23 +567,22 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    if (selectedTermsLink != null) {
-        BackHandler { selectedTermsLink = null }
+    if (selectedTermsDocument != null) {
+        BackHandler { selectedTermsDocument = null }
     } else if (showSettings) {
         BackHandler { showSettings = false }
     }
 
-    val termsLink = selectedTermsLink
-    if (termsLink != null) {
-        TermsWebViewScreen(
-            title = termsLink.title,
-            url = termsLink.url,
-            onBack = { selectedTermsLink = null },
+    val termsDocument = selectedTermsDocument
+    if (termsDocument != null) {
+        TermsWebView(
+            url = termsDocument.url,
+            modifier = Modifier.fillMaxSize(),
         )
     } else if (showSettings) {
         SettingsTermsScreen(
             onBack = { showSettings = false },
-            onTermsClick = { selectedTermsLink = it },
+            onTermsClick = { selectedTermsDocument = it },
         )
     }
 
@@ -912,7 +902,7 @@ private fun SettingsButton(onClick: () -> Unit) {
 @Composable
 private fun SettingsTermsScreen(
     onBack: () -> Unit,
-    onTermsClick: (TermsLink) -> Unit,
+    onTermsClick: (TermsDocument) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -956,16 +946,16 @@ private fun SettingsTermsScreen(
             Spacer(Modifier.height(8.dp))
 
             Column(modifier = Modifier.fillMaxWidth()) {
-                HOME_TERMS_LINKS.forEach { link ->
+                TermsDocuments.ALL.forEach { document ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onTermsClick(link) }
+                            .clickable { onTermsClick(document) }
                             .padding(horizontal = 16.dp, vertical = 18.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = link.title,
+                            text = document.title,
                             style = RoutiTheme.typography.body3Medium,
                             color = RoutiTheme.colors.gray900,
                             modifier = Modifier.weight(1f),

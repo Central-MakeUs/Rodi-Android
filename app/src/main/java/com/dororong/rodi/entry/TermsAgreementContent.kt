@@ -65,26 +65,26 @@ fun TermsAgreementContent(
 
         CheckRow(
             checked = service,
-            text = "서비스 이용약관(필수)",
+            text = TermsDocuments.SERVICE.requiredTitle,
             onToggle = onServiceToggle,
             trailingChevron = true,
-            onChevronClick = { onTermsClick("https://sites.google.com/view/dororong/홈") },
+            onChevronClick = { onTermsClick(TermsDocuments.SERVICE.url) },
             modifier = Modifier.padding(start = 16.dp),
         )
         CheckRow(
             checked = privacy,
-            text = "개인정보처리방침(필수)",
+            text = TermsDocuments.PRIVACY.requiredTitle,
             onToggle = onPrivacyToggle,
             trailingChevron = true,
-            onChevronClick = { onTermsClick("https://sites.google.com/view/dorororongg/홈") },
+            onChevronClick = { onTermsClick(TermsDocuments.PRIVACY.url) },
             modifier = Modifier.padding(start = 16.dp),
         )
         CheckRow(
             checked = location,
-            text = "위치기반 서비스 이용약관(필수)",
+            text = TermsDocuments.LOCATION.requiredTitle,
             onToggle = onLocationToggle,
             trailingChevron = true,
-            onChevronClick = { onTermsClick("https://sites.google.com/view/dororonggg/홈") },
+            onChevronClick = { onTermsClick(TermsDocuments.LOCATION.url) },
             modifier = Modifier.padding(start = 16.dp),
         )
     }
