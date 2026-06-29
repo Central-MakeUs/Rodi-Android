@@ -13,7 +13,7 @@ val kakaoNativeAppKey: String = localProperties.getProperty("KAKAO_NATIVE_APP_KE
 val kakaoRestApiKey: String = localProperties.getProperty("KAKAO_REST_API_KEY", "")
 
 android {
-    namespace = "com.cmc.routi"
+    namespace = "com.dororong.rodi"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -21,11 +21,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.cmc.routi"
+        applicationId = "com.dororong.rodi"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0-alpha.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
