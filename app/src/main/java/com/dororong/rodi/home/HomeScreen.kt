@@ -167,6 +167,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     var isAtCurrentLocation by remember { mutableStateOf(false) }
     var showSettings by rememberSaveable { mutableStateOf(false) }
     var selectedTermsDocument by remember { mutableStateOf<TermsDocument?>(null) }
+    var initialCameraMap by remember { mutableStateOf<KakaoMap?>(null) }
+    var hasMovedToCurrentLocation by remember { mutableStateOf(false) }
     val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
     var mapScreenState by remember {
         mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
@@ -232,7 +234,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(kakaoMap, currentLocation, sheetPeekHeightPx, state.selectedCourseId) {
+    LaunchedEffect(kakaoMap, sheetPeekHeightPx) {
         val map = kakaoMap ?: return@LaunchedEffect
         map.setPadding(0, 0, 0, sheetPeekHeightPx)
         map.logo?.setPosition(
@@ -240,8 +242,19 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
             logoMarginPx,
             logoMarginPx,
         )
-        if (state.selectedCourseId == null) {
+    }
+
+    LaunchedEffect(kakaoMap, currentLocation) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        if (initialCameraMap !== map) {
+            initialCameraMap = map
+            hasMovedToCurrentLocation = currentLocation != null
             map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation ?: SEOUL, DEFAULT_ZOOM))
+            return@LaunchedEffect
+        }
+        if (!hasMovedToCurrentLocation && currentLocation != null) {
+            hasMovedToCurrentLocation = true
+            map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation, DEFAULT_ZOOM))
         }
     }
 
@@ -1130,7 +1143,7 @@ private fun StableMeasuredDetailSheet(
     content: @Composable (Modifier) -> Unit,
 ) {
     val density = LocalDensity.current
-    var measuredHeightPx by rememberSaveable(itemKey) { mutableStateOf<Float?>(null) }
+    var measuredHeightPx by rememberSaveable(itemKey, maxHeight.value) { mutableStateOf<Float?>(null) }
     val measuredHeightDp = measuredHeightPx?.let { with(density) { it.toDp() } }
     val maxHeightModifier = if (maxHeight.isSpecified && maxHeight > 0.dp) {
         Modifier.heightIn(max = maxHeight)
