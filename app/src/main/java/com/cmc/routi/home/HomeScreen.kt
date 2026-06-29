@@ -1,14 +1,21 @@
 package com.cmc.routi.home
 
 import android.Manifest
+import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -38,8 +45,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,18 +52,17 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +72,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -77,6 +82,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
@@ -118,10 +126,20 @@ import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val DEFAULT_ZOOM = 13
+private const val HOME_PREFS = "routi_home_prefs"
+private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 private val SEOUL = LatLng.from(37.5563, 126.9220)
+private var hasLoadedMapInSession = false
+
+private enum class MapScreenState {
+    Loading,
+    Ready,
+    NetworkError,
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,6 +155,11 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     var naviCourse by remember { mutableStateOf<Course?>(null) }
     var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
+    val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
+    var mapScreenState by remember {
+        mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
+    }
+    var mapRetryKey by remember { mutableIntStateOf(0) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -175,7 +198,18 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                 isAtCurrentLocation = false
             }
         }
-        map.setOnCameraMoveEndListener { _, _, _ -> }
+        map.setOnCameraMoveEndListener { movedMap, _, _ ->
+            if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
+                coroutineScope.launch {
+                    delay(1_500)
+                    if (kakaoMap === movedMap && mapScreenState == MapScreenState.Loading) {
+                        hasLoadedMapInSession = true
+                        context.markMapLoaded()
+                        mapScreenState = MapScreenState.Ready
+                    }
+                }
+            }
+        }
         // 장소 칩 탭 → 코스 상세 진입
         map.setOnLabelClickListener { _, _, label ->
             val courseId = label.tag as? Int ?: return@setOnLabelClickListener true
@@ -195,6 +229,17 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         )
         if (state.selectedCourseId == null) {
             map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation ?: SEOUL, DEFAULT_ZOOM))
+        }
+    }
+
+    LaunchedEffect(kakaoMap, mapScreenState) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        if (mapScreenState != MapScreenState.Loading) return@LaunchedEffect
+        delay(5_000)
+        if (kakaoMap === map && mapScreenState == MapScreenState.Loading) {
+            hasLoadedMapInSession = true
+            context.markMapLoaded()
+            mapScreenState = MapScreenState.Ready
         }
     }
 
@@ -282,208 +327,228 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    BottomSheetScaffold(
-        modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = peekHeight,
-        sheetContainerColor = RoutiTheme.colors.white,
-        sheetShadowElevation = 8.dp,
-        sheetShape = sheetShape,
-        sheetSwipeEnabled = false,
-        sheetDragHandle = null,
-        sheetContent = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // 커스텀 드래그 핸들
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 12.dp)
-                        .draggable(
-                            state = rememberDraggableState { },
-                            orientation = Orientation.Vertical,
-                            onDragStopped = { velocity ->
-                                if (velocity < -200f) scaffoldState.bottomSheetState.expand()
-                                else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
-                            },
-                        )
-                        .graphicsLayer {
-                            val offset = sheetOffsetPx
-                            alpha = if (offset != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                                (offset / 150f).coerceIn(0f, 1f)
-                            } else {
-                                1f
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(60.dp)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(RoutiTheme.colors.handleBar),
-                    )
-                }
-                val handleHeightDp = 24.dp
-                val handleHeightPx = with(density) { handleHeightDp.toPx() }
-                val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
-                val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
-
-                val visibleHeightDp = with(density) {
-                    if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                        maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
-                    } else {
-                        Dp.Unspecified
-                    }
-                }
-
-                val listState = rememberLazyListState()
-                val selectedCourse = state.selectedCourse
-                if (selectedCourse == null) {
+    Box(Modifier.fillMaxSize()) {
+        BottomSheetScaffold(
+            modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = peekHeight,
+            sheetContainerColor = RoutiTheme.colors.white,
+            sheetShadowElevation = 8.dp,
+            sheetShape = sheetShape,
+            sheetSwipeEnabled = false,
+            sheetDragHandle = null,
+            sheetContent = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // 커스텀 드래그 핸들
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
-                    ) {
-                        if (state.filteredCourses.isEmpty()) {
-                            CourseEmptyContent()
-                        } else {
-                            CourseListContent(
-                                courses = state.filteredCourses,
-                                onCourseClick = { id ->
-                                    vm.onCourseClick(id)
-                                    isAtCurrentLocation = false
+                            .padding(top = 8.dp, bottom = 12.dp)
+                            .draggable(
+                                state = rememberDraggableState { },
+                                orientation = Orientation.Vertical,
+                                onDragStopped = { velocity ->
+                                    if (velocity < -200f) scaffoldState.bottomSheetState.expand()
+                                    else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
                                 },
-                                expandFraction = expandFraction,
-                                onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
-                                listState = listState,
-                                modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
-                                    visibleHeightDp
-                                ) else Modifier,
                             )
-                        }
+                            .graphicsLayer {
+                                val offset = sheetOffsetPx
+                                alpha = if (offset != Float.MAX_VALUE && scaffoldHeightPx > 0) {
+                                    (offset / 150f).coerceIn(0f, 1f)
+                                } else {
+                                    1f
+                                }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(RoutiTheme.colors.handleBar),
+                        )
                     }
-                } else {
-                    val dismissDetail: () -> Unit = {
-                        vm.onDismissDetail()
-                        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                    }
-                    val navigate: () -> Unit = {
-                        val saved = NaviPreference.getAlways(context)
-                        val kakaoMapInstalled = runCatching {
-                            context.packageManager.getPackageInfo("net.daum.android.map", 0); true
-                        }.getOrDefault(false)
-                        val kakaoNaviInstalled = runCatching {
-                            context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
-                        }.getOrDefault(false)
-                        when {
-                            saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
-                                KakaoMapLauncher.launch(context, selectedCourse)
+                    val handleHeightDp = 24.dp
+                    val handleHeightPx = with(density) { handleHeightDp.toPx() }
+                    val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
+                    val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
 
-                            saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
-                                KakaoNaviLauncher.launch(context, selectedCourse)
-
-                            kakaoMapInstalled && kakaoNaviInstalled ->
-                                naviCourse = selectedCourse
-
-                            kakaoMapInstalled ->
-                                KakaoMapLauncher.launch(context, selectedCourse)
-
-                            kakaoNaviInstalled ->
-                                KakaoNaviLauncher.launch(context, selectedCourse)
-
-                            else -> installNaviCourse = selectedCourse
-                        }
-                    }
-                    FixedInitialHeightDetailSheet(
-                        itemKey = selectedCourse.id,
-                        maxHeight = boxHeightDp,
-                    ) { modifier, isHeightFixed ->
-                        if (selectedCourse.isParking) {
-                            ParkingDetailContent(
-                                course = selectedCourse,
-                                onDismiss = dismissDetail,
-                                onNavigate = navigate,
-                                modifier = modifier,
-                                isHeightFixed = isHeightFixed,
-                            )
+                    val visibleHeightDp = with(density) {
+                        if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
+                            maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
                         } else {
-                            CourseDetailContent(
-                                course = selectedCourse,
-                                route = state.selectedRoute,
-                                isRouting = state.isRouting,
-                                onDismiss = dismissDetail,
-                                onNavigate = navigate,
-                                modifier = modifier,
-                            )
+                            Dp.Unspecified
+                        }
+                    }
+
+                    val listState = rememberLazyListState()
+                    val selectedCourse = state.selectedCourse
+                    if (selectedCourse == null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
+                        ) {
+                            if (state.filteredCourses.isEmpty()) {
+                                CourseEmptyContent()
+                            } else {
+                                CourseListContent(
+                                    courses = state.filteredCourses,
+                                    onCourseClick = { id ->
+                                        vm.onCourseClick(id)
+                                        isAtCurrentLocation = false
+                                    },
+                                    expandFraction = expandFraction,
+                                    onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                                    listState = listState,
+                                    modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
+                                        visibleHeightDp,
+                                    ) else Modifier,
+                                )
+                            }
+                        }
+                    } else {
+                        val dismissDetail: () -> Unit = {
+                            vm.onDismissDetail()
+                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                        }
+                        val navigate: () -> Unit = {
+                            val saved = NaviPreference.getAlways(context)
+                            val kakaoMapInstalled = runCatching {
+                                context.packageManager.getPackageInfo("net.daum.android.map", 0); true
+                            }.getOrDefault(false)
+                            val kakaoNaviInstalled = runCatching {
+                                context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
+                            }.getOrDefault(false)
+                            when {
+                                saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
+                                    KakaoMapLauncher.launch(context, selectedCourse)
+
+                                saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
+                                    KakaoNaviLauncher.launch(context, selectedCourse)
+
+                                kakaoMapInstalled && kakaoNaviInstalled ->
+                                    naviCourse = selectedCourse
+
+                                kakaoMapInstalled ->
+                                    KakaoMapLauncher.launch(context, selectedCourse)
+
+                                kakaoNaviInstalled ->
+                                    KakaoNaviLauncher.launch(context, selectedCourse)
+
+                                else -> installNaviCourse = selectedCourse
+                            }
+                        }
+                        FixedInitialHeightDetailSheet(
+                            itemKey = selectedCourse.id,
+                            maxHeight = boxHeightDp,
+                        ) { modifier, isHeightFixed ->
+                            if (selectedCourse.isParking) {
+                                ParkingDetailContent(
+                                    course = selectedCourse,
+                                    onDismiss = dismissDetail,
+                                    onNavigate = navigate,
+                                    modifier = modifier,
+                                    isHeightFixed = isHeightFixed,
+                                )
+                            } else {
+                                CourseDetailContent(
+                                    course = selectedCourse,
+                                    route = state.selectedRoute,
+                                    isRouting = state.isRouting,
+                                    onDismiss = dismissDetail,
+                                    onNavigate = navigate,
+                                    modifier = modifier,
+                                )
+                            }
                         }
                     }
                 }
-            }
-        },
-    ) {
-        Box(Modifier.fillMaxSize()) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = {
-                    mapView.start(
-                        object : MapLifeCycleCallback() {
-                            override fun onMapDestroy() {}
-                            override fun onMapError(error: Exception?) {}
-                        },
-                        object : KakaoMapReadyCallback() {
-                            override fun onMapReady(map: KakaoMap) {
-                                kakaoMap = map
-                            }
+            },
+        ) {
+            Box(Modifier.fillMaxSize()) {
+                key(mapRetryKey) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = {
+                            mapView.start(
+                                object : MapLifeCycleCallback() {
+                                    override fun onMapDestroy() {}
+                                    override fun onMapError(error: Exception?) {
+                                        kakaoMap = null
+                                        mapScreenState = MapScreenState.NetworkError
+                                    }
+                                },
+                                object : KakaoMapReadyCallback() {
+                                    override fun onMapReady(map: KakaoMap) {
+                                        kakaoMap = map
+                                    }
 
-                            override fun getPosition(): LatLng = SEOUL
-                            override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                    override fun getPosition(): LatLng = SEOUL
+                                    override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                },
+                            )
+                            mapView
                         },
                     )
-                    mapView
+                }
+
+                // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
+                AnimatedVisibility(
+                    visible = state.selectedCourse == null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 12.dp),
+                ) {
+                    DistanceFilterBar(
+                        selectedKm = state.distanceFilterKm,
+                        onSelect = { vm.onDistanceFilterChange(it) },
+                    )
+                }
+
+                // 현위치 버튼 — 시트 우상단 위 12dp에 부유
+                if (sheetOffsetPx != Float.MAX_VALUE) {
+                    val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(end = 12.dp)
+                            .absoluteOffset(y = buttonTopDp)
+                            .size(40.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MyLocationButton(
+                            isActive = isAtCurrentLocation,
+                            onClick = {
+                                val loc = currentLocation ?: SEOUL
+                                kakaoMap?.moveCamera(
+                                    CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
+                                    CameraAnimation.from(250),
+                                )
+                                isAtCurrentLocation = true
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        when (mapScreenState) {
+            MapScreenState.Loading -> MapLoadingScreen()
+            MapScreenState.NetworkError -> MapNetworkErrorScreen(
+                onRetry = {
+                    mapScreenState = MapScreenState.Loading
+                    kakaoMap = null
+                    mapRetryKey += 1
                 },
             )
 
-            // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
-            AnimatedVisibility(
-                visible = state.selectedCourse == null,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .statusBarsPadding()
-                    .padding(top = 12.dp),
-            ) {
-                DistanceFilterBar(
-                    selectedKm = state.distanceFilterKm,
-                    onSelect = { vm.onDistanceFilterChange(it) },
-                )
-            }
-
-            // 현위치 버튼 — 시트 우상단 위 12dp에 부유
-            if (sheetOffsetPx != Float.MAX_VALUE) {
-                val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(end = 12.dp)
-                        .absoluteOffset(y = buttonTopDp)
-                        .size(40.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    MyLocationButton(
-                        isActive = isAtCurrentLocation,
-                        onClick = {
-                            val loc = currentLocation ?: SEOUL
-                            kakaoMap?.moveCamera(
-                                CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
-                                CameraAnimation.from(250),
-                            )
-                            isAtCurrentLocation = true
-                        },
-                    )
-                }
-            }
+            MapScreenState.Ready -> Unit
         }
     }
 
@@ -551,6 +616,227 @@ private fun DistanceFilterBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MapLoadingScreen(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(RoutiTheme.colors.white),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .absoluteOffset(y = (-33).dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            RoutiLoadingIndicator()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "지도를 불러오고 있어요",
+                style = RoutiTheme.typography.body1SemiBold,
+                color = RoutiTheme.colors.gray800,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "잠시만 기다려 주세요.",
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.gray800,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+@Composable
+private fun MapNetworkErrorScreen(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(RoutiTheme.colors.white),
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .absoluteOffset(y = (-30).dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            MapUnavailableIcon()
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "지도를 불러올 수 없어요",
+                style = RoutiTheme.typography.body1SemiBold,
+                color = RoutiTheme.colors.gray800,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "현재 위치 정보를 확인하기 위해\n네트워크 연결 상태를 확인해 주세요.",
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.gray800,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        RoutiNetworkSnackbar(
+            onRetry = onRetry,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 106.dp),
+        )
+    }
+}
+
+@Composable
+private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "map_loading")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = LinearEasing),
+        ),
+        label = "map_loading_rotation",
+    )
+    val colors = listOf(
+        RoutiTheme.colors.primary600,
+        Color(0xFFF4F4FF),
+        RoutiTheme.colors.primary50,
+        Color(0xFFDBD9FF),
+        RoutiTheme.colors.primary200,
+        RoutiTheme.colors.primary300,
+        RoutiTheme.colors.primary400,
+        RoutiTheme.colors.primary500,
+    )
+
+    Canvas(modifier = modifier.size(39.dp)) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val strokeWidth = 3.dp.toPx()
+        val lineLength = 12.dp.toPx()
+        colors.forEachIndexed { index, color ->
+            rotate(degrees = rotation + index * 45f, pivot = center) {
+                drawLine(
+                    color = color,
+                    start = Offset(center.x, 0f),
+                    end = Offset(center.x, lineLength),
+                    strokeWidth = strokeWidth,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapUnavailableIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(60.dp)) {
+        val purple = Color(0xFF5640FF)
+        val center = Offset(size.width / 2f, size.height / 2f)
+        drawCircle(color = Color(0xFFF0EFFF), radius = size.minDimension / 2f)
+        drawCircle(
+            color = purple,
+            radius = 12.dp.toPx(),
+            center = center,
+            style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round),
+        )
+        drawLine(
+            color = purple,
+            start = Offset(center.x - 15.dp.toPx(), center.y - 15.dp.toPx()),
+            end = Offset(center.x + 15.dp.toPx(), center.y + 15.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = purple,
+            start = Offset(center.x - 16.dp.toPx(), center.y - 2.dp.toPx()),
+            end = Offset(center.x + 16.dp.toPx(), center.y - 8.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = purple,
+            start = Offset(center.x - 10.dp.toPx(), center.y - 10.dp.toPx()),
+            end = Offset(center.x - 10.dp.toPx(), center.y + 12.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawLine(
+            color = purple,
+            start = Offset(center.x + 9.dp.toPx(), center.y - 12.dp.toPx()),
+            end = Offset(center.x + 9.dp.toPx(), center.y + 11.dp.toPx()),
+            strokeWidth = 2.2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+    }
+}
+
+@Composable
+private fun RoutiNetworkSnackbar(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(68.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = RoutiTheme.colors.gray800,
+        shadowElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            SnackbarAlertIcon()
+            Text(
+                text = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.white,
+                modifier = Modifier.weight(1f),
+            )
+            Surface(
+                onClick = onRetry,
+                shape = RoundedCornerShape(8.dp),
+                color = RoutiTheme.colors.primary600,
+            ) {
+                Text(
+                    text = "새로고침",
+                    style = RoutiTheme.typography.caption2SemiBold,
+                    color = RoutiTheme.colors.white,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SnackbarAlertIcon(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(24.dp)) {
+        val color = Color.White
+        val center = Offset(size.width / 2f, size.height / 2f)
+        drawCircle(
+            color = color,
+            radius = 9.5.dp.toPx(),
+            center = center,
+            style = Stroke(width = 2.dp.toPx()),
+        )
+        drawLine(
+            color = color,
+            start = Offset(center.x, center.y - 5.dp.toPx()),
+            end = Offset(center.x, center.y + 2.dp.toPx()),
+            strokeWidth = 2.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+        drawCircle(color = color, radius = 1.3.dp.toPx(), center = Offset(center.x, center.y + 6.dp.toPx()))
     }
 }
 
@@ -661,7 +947,9 @@ private fun CourseListContent(
 @Composable
 private fun CourseEmptyContent() {
     Column(
-        modifier = Modifier.fillMaxWidth().height(330.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(330.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -1354,6 +1642,17 @@ private fun formatFee(minutes: Int?, fee: Int?): String {
     return "${minutes}분 ･ ${"%,d".format(fee)}원"
 }
 
+private fun Context.hasLoadedMapBefore(): Boolean =
+    getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
+        .getBoolean(KEY_HAS_LOADED_MAP, false)
+
+private fun Context.markMapLoaded() {
+    getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
+        .edit()
+        .putBoolean(KEY_HAS_LOADED_MAP, true)
+        .apply()
+}
+
 // ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
 
 private val CITY_PREFIXES = listOf(
@@ -1361,7 +1660,7 @@ private val CITY_PREFIXES = listOf(
     "대전광역시", "울산광역시", "세종특별자치시", "강원특별자치도", "경기도",
     "충청남도", "충청북도", "전라남도", "전라북도", "경상남도", "경상북도",
     "제주특별자치도", "서울", "부산", "대구", "인천", "광주", "대전", "울산",
-    "세종", "강원", "경기", "제주"
+    "세종", "강원", "경기", "제주",
 )
 
 /** 시/도 레벨 접두어만 제거 (구·군·동은 유지). VerticalStepList용. */
@@ -1388,7 +1687,7 @@ private fun String.shortenCommaRoad(): String {
     // 도로명: 로/길/대로 로 끝나는 토큰
     val roadIdx = parts.indexOfFirst { p ->
         p.endsWith("로") || p.endsWith("길") || p.endsWith("대로") ||
-        Regex("로\\d|길\\d").containsMatchIn(p)
+                Regex("로\\d|길\\d").containsMatchIn(p)
     }
     if (roadIdx < 0) return parts.firstOrNull() ?: this
 
@@ -1399,10 +1698,10 @@ private fun String.shortenCommaRoad(): String {
     // 건물명: 첫 토큰이 숫자·행정구역 접미사가 아닌 경우
     val building = parts.firstOrNull()?.takeIf { first ->
         parts.indexOf(first) != roadIdx &&
-        !first.matches(Regex("\\d.*")) &&
-        !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
-        !first.endsWith("읍") && !first.endsWith("면") &&
-        !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
+                !first.matches(Regex("\\d.*")) &&
+                !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
+                !first.endsWith("읍") && !first.endsWith("면") &&
+                !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
     }
 
     return buildString {
@@ -1428,7 +1727,7 @@ private fun String.shortenJibunAddress(): String {
         it.isNotEmpty() && !it.matches(Regex("\\d{5}")) && it != "대한민국"
     }
     val dong = parts.firstOrNull { it.endsWith("동") || it.endsWith("리") }
-    val num  = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
+    val num = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
 
     return when {
         dong != null && num != null -> "$dong $num"
@@ -1546,5 +1845,21 @@ fun DistanceFilterBarPreview() {
             DistanceFilterBar(selectedKm = 3, onSelect = {})
             DistanceFilterBar(selectedKm = 5, onSelect = {})
         }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+fun MapLoadingScreenPreview() {
+    RoutiTheme {
+        MapLoadingScreen()
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+fun MapNetworkErrorScreenPreview() {
+    RoutiTheme {
+        MapNetworkErrorScreen(onRetry = {})
     }
 }
