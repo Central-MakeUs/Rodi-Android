@@ -36,8 +36,12 @@ object KakaoNaviLauncher {
             y = "%.6f".format(course.destination.lat),
         )
 
-        val viaList = (listOf(course.origin) + course.waypointPoints).map { p ->
-            Location(name = p.name, x = "%.6f".format(p.lng), y = "%.6f".format(p.lat))
+        val viaList = if (course.isParking) {
+            emptyList()
+        } else {
+            (listOf(course.origin) + course.waypointPoints).map { p ->
+                Location(name = p.name, x = "%.6f".format(p.lng), y = "%.6f".format(p.lat))
+            }
         }
 
         val intent = NaviClient.instance.navigateIntent(

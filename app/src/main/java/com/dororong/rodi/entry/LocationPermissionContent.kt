@@ -36,7 +36,7 @@ fun LocationPermissionContent(
     EntryScaffold(
         currentStep = 1,
         onBack = null,
-        buttonText = "허용하기",
+        buttonText = "계속하기",
         buttonEnabled = true,
         onButtonClick = {
             launcher.launch(
