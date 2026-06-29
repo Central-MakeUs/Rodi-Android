@@ -34,12 +34,25 @@ fun EntryFlow(
             )
 
             EntryStep.TERMS -> TermsAgreementContent(
+                service = viewModel.serviceTermsChecked,
+                privacy = viewModel.privacyTermsChecked,
+                location = viewModel.locationTermsChecked,
+                onAllToggle = viewModel::setAllTermsChecked,
+                onServiceToggle = viewModel::toggleServiceTerms,
+                onPrivacyToggle = viewModel::togglePrivacyTerms,
+                onLocationToggle = viewModel::toggleLocationTerms,
                 onBack = { viewModel.back() },
                 onNext = viewModel::next,
                 onTermsClick = { url -> viewModel.openWebView(url) },
             )
 
             EntryStep.PRECAUTIONS -> DrivingPrecautionsContent(
+                license = viewModel.licenseChecked,
+                companion = viewModel.companionChecked,
+                agree = viewModel.precautionAgreementChecked,
+                onLicenseToggle = viewModel::toggleLicense,
+                onCompanionToggle = viewModel::toggleCompanion,
+                onAgreeToggle = viewModel::togglePrecautionAgreement,
                 onBack = { viewModel.back() },
                 onComplete = { viewModel.complete(onComplete) },
             )

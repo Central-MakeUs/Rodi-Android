@@ -24,6 +24,54 @@ class EntryViewModel(app: Application) : AndroidViewModel(app) {
     var webViewUrl by mutableStateOf("")
         private set
 
+    var serviceTermsChecked by mutableStateOf(false)
+        private set
+
+    var privacyTermsChecked by mutableStateOf(false)
+        private set
+
+    var locationTermsChecked by mutableStateOf(false)
+        private set
+
+    var licenseChecked by mutableStateOf(false)
+        private set
+
+    var companionChecked by mutableStateOf(false)
+        private set
+
+    var precautionAgreementChecked by mutableStateOf(false)
+        private set
+
+    fun setAllTermsChecked(checked: Boolean) {
+        serviceTermsChecked = checked
+        privacyTermsChecked = checked
+        locationTermsChecked = checked
+    }
+
+    fun toggleServiceTerms() {
+        serviceTermsChecked = !serviceTermsChecked
+    }
+
+    fun togglePrivacyTerms() {
+        privacyTermsChecked = !privacyTermsChecked
+    }
+
+    fun toggleLocationTerms() {
+        locationTermsChecked = !locationTermsChecked
+    }
+
+    fun toggleLicense() {
+        licenseChecked = !licenseChecked
+    }
+
+    fun toggleCompanion() {
+        companionChecked = !companionChecked
+    }
+
+    fun togglePrecautionAgreement() {
+        precautionAgreementChecked = !precautionAgreementChecked
+    }
+
     fun next() {
         step = when (step) {
             EntryStep.LOCATION -> EntryStep.TERMS

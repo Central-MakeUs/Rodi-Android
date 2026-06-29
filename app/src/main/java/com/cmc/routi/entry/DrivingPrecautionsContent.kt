@@ -14,10 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -36,13 +32,16 @@ import com.cmc.routi.ui.theme.RoutiTheme
  */
 @Composable
 fun DrivingPrecautionsContent(
+    license: Boolean,
+    companion: Boolean,
+    agree: Boolean,
+    onLicenseToggle: () -> Unit,
+    onCompanionToggle: () -> Unit,
+    onAgreeToggle: () -> Unit,
     onBack: () -> Unit,
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var license by rememberSaveable { mutableStateOf(false) }
-    var companion by rememberSaveable { mutableStateOf(false) }
-    var agree by rememberSaveable { mutableStateOf(false) }
     val allChecked = license && companion && agree
 
     EntryScaffold(
@@ -98,21 +97,21 @@ fun DrivingPrecautionsContent(
             CheckRow(
                 checked = license,
                 text = "본인은 유효한 자동차 운전면허(제1·2종 보통 이상)를 소지한 만 18세 이상임을 확인합니다.",
-                onToggle = { license = !license },
+                onToggle = onLicenseToggle,
                 textColor = RoutiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
             CheckRow(
                 checked = companion,
                 text = "연습운전면허 소지자는 운전경력 2년 이상의 동승자와 함께 이용해야 함을 확인합니다.",
-                onToggle = { companion = !companion },
+                onToggle = onCompanionToggle,
                 textColor = RoutiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
             CheckRow(
                 checked = agree,
                 text = "위 내용을 확인하고 동의합니다.",
-                onToggle = { agree = !agree },
+                onToggle = onAgreeToggle,
                 textColor = RoutiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
@@ -136,6 +135,15 @@ private fun warningText() = buildAnnotatedString {
 @Composable
 private fun DrivingPrecautionsPreview() {
     RoutiTheme {
-        DrivingPrecautionsContent(onBack = {}, onComplete = {})
+        DrivingPrecautionsContent(
+            license = false,
+            companion = false,
+            agree = false,
+            onLicenseToggle = {},
+            onCompanionToggle = {},
+            onAgreeToggle = {},
+            onBack = {},
+            onComplete = {},
+        )
     }
 }

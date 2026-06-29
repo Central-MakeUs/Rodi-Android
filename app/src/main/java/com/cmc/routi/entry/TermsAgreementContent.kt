@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,14 +21,18 @@ import com.cmc.routi.ui.theme.RoutiTheme
  */
 @Composable
 fun TermsAgreementContent(
+    service: Boolean,
+    privacy: Boolean,
+    location: Boolean,
+    onAllToggle: (Boolean) -> Unit,
+    onServiceToggle: () -> Unit,
+    onPrivacyToggle: () -> Unit,
+    onLocationToggle: () -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit,
     onTermsClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var service by rememberSaveable { mutableStateOf(false) }
-    var privacy by rememberSaveable { mutableStateOf(false) }
-    var location by rememberSaveable { mutableStateOf(false) }
     val allChecked = service && privacy && location
 
     EntryScaffold(
@@ -52,10 +52,7 @@ fun TermsAgreementContent(
         CheckRow(
             checked = allChecked,
             text = "약관 전체 동의",
-            onToggle = {
-                val next = !allChecked
-                service = next; privacy = next; location = next
-            },
+            onToggle = { onAllToggle(!allChecked) },
             modifier = Modifier
                 .height(50.dp)
                 .border(
@@ -70,7 +67,7 @@ fun TermsAgreementContent(
         CheckRow(
             checked = service,
             text = "서비스 이용약관(필수)",
-            onToggle = { service = !service },
+            onToggle = onServiceToggle,
             trailingChevron = true,
             onChevronClick = { onTermsClick("https://sites.google.com/view/dororong/홈") },
             modifier = Modifier.padding(start = 16.dp).statusBarsPadding(),
@@ -78,7 +75,7 @@ fun TermsAgreementContent(
         CheckRow(
             checked = privacy,
             text = "개인정보 수집·이용 동의(필수)",
-            onToggle = { privacy = !privacy },
+            onToggle = onPrivacyToggle,
             trailingChevron = true,
             onChevronClick = { onTermsClick("https://sites.google.com/view/dorororongg/홈") },
             modifier = Modifier.padding(start = 16.dp).statusBarsPadding(),
@@ -86,7 +83,7 @@ fun TermsAgreementContent(
         CheckRow(
             checked = location,
             text = "위치기반 서비스 이용약관(필수)",
-            onToggle = { location = !location },
+            onToggle = onLocationToggle,
             trailingChevron = true,
             onChevronClick = { onTermsClick("https://sites.google.com/view/dororonggg/홈") },
             modifier = Modifier.padding(start = 16.dp).statusBarsPadding(),
@@ -98,6 +95,17 @@ fun TermsAgreementContent(
 @Composable
 private fun TermsAgreementPreview() {
     RoutiTheme {
-        TermsAgreementContent(onBack = {}, onNext = {}, onTermsClick = {})
+        TermsAgreementContent(
+            service = false,
+            privacy = false,
+            location = false,
+            onAllToggle = {},
+            onServiceToggle = {},
+            onPrivacyToggle = {},
+            onLocationToggle = {},
+            onBack = {},
+            onNext = {},
+            onTermsClick = {},
+        )
     }
 }
