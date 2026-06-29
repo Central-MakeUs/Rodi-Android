@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,7 +45,6 @@ fun TermsWebView(
     val view = LocalView.current
     var loadError by remember(url) { mutableStateOf<String?>(null) }
     var retryCount by remember(url) { mutableIntStateOf(0) }
-    var webView by remember(url) { mutableStateOf<WebView?>(null) }
 
     DisposableEffect(view) {
         val activity = view.context.findActivity()
@@ -66,17 +66,6 @@ fun TermsWebView(
         }
     }
 
-    DisposableEffect(url) {
-        onDispose {
-            webView?.apply {
-                stopLoading()
-                webViewClient = WebViewClient()
-                destroy()
-            }
-            webView = null
-        }
-    }
-
     if (loadError != null) {
         TermsWebViewError(
             message = loadError.orEmpty(),
@@ -94,55 +83,74 @@ fun TermsWebView(
             .fillMaxSize()
             .background(ComposeColor.Black),
     ) {
-        AndroidView(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-            factory = { context ->
-                WebView(context).apply {
-                    webView = this
-                    settings.apply {
-                        javaScriptEnabled = true
-                        domStorageEnabled = true
-                        databaseEnabled = true
+        key(url) {
+            var webView by remember { mutableStateOf<WebView?>(null) }
 
-                        loadWithOverviewMode = true
-                        useWideViewPort = true
-
-                        javaScriptCanOpenWindowsAutomatically = true
-                        mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
-
-                        userAgentString = WebSettings.getDefaultUserAgent(context)
+            DisposableEffect(Unit) {
+                onDispose {
+                    webView?.apply {
+                        stopLoading()
+                        webViewClient = WebViewClient()
+                        destroy()
                     }
+                    webView = null
+                }
+            }
 
-                    CookieManager.getInstance().setAcceptCookie(true)
+            AndroidView(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
+                factory = { context ->
+                    WebView(context).apply {
+                        webView = this
+                        settings.apply {
+                            javaScriptEnabled = true
+                            domStorageEnabled = true
+                            databaseEnabled = true
 
-                    webViewClient = object : WebViewClient() {
-                        override fun onReceivedError(
-                            view: WebView?,
-                            request: WebResourceRequest?,
-                            error: WebResourceError?
-                        ) {
-                            super.onReceivedError(view, request, error)
-                            Log.e(
-                                "NotionWebView",
-                                "Error: ${error?.description}"
-                            )
-                            if (request?.isForMainFrame == true) {
-                                if (retryCount == 0) {
-                                    retryCount = 1
-                                    view?.reload()
-                                } else {
-                                    loadError = error?.description?.toString() ?: "약관 페이지를 불러오지 못했어요."
+                            loadWithOverviewMode = true
+                            useWideViewPort = true
+
+                            javaScriptCanOpenWindowsAutomatically = true
+                            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+
+                            userAgentString = WebSettings.getDefaultUserAgent(context)
+                        }
+
+                        CookieManager.getInstance().setAcceptCookie(true)
+
+                        webViewClient = object : WebViewClient() {
+                            override fun onReceivedError(
+                                view: WebView?,
+                                request: WebResourceRequest?,
+                                error: WebResourceError?
+                            ) {
+                                super.onReceivedError(view, request, error)
+                                Log.e(
+                                    "NotionWebView",
+                                    "Error: ${error?.description}"
+                                )
+                                if (request?.isForMainFrame == true) {
+                                    if (retryCount == 0) {
+                                        retryCount = 1
+                                        view?.reload()
+                                    } else {
+                                        loadError = error?.description?.toString() ?: "약관 페이지를 불러오지 못했어요."
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    loadUrl(url)
-                }
-            },
-        )
+                        loadUrl(url)
+                    }
+                },
+                update = { view ->
+                    webView = view
+                    if (view.url != url) view.loadUrl(url)
+                },
+            )
+        }
     }
 }
 
