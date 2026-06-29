@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cmc.routi.R
@@ -984,7 +985,7 @@ private fun FixedInitialHeightDetailSheet(
         if (measuredHeightPx <= 0f) return@onGloballyPositioned
 
         val maxHeightPx = with(density) {
-            if (maxHeight != Dp.Unspecified && maxHeight > 0.dp) {
+            if (maxHeight.isSpecified && maxHeight > 0.dp) {
                 maxHeight.toPx()
             } else {
                 Float.POSITIVE_INFINITY
@@ -1595,7 +1596,8 @@ private fun ParkingDetail?.toParkingFeeInfo(): ParkingFeeInfo {
 
 private fun String?.extractFeeNumber(key: String): Int? {
     val value = this ?: return null
-    val match = Regex("'$key'\\s*:\\s*(\\d+)").find(value) ?: return null
+    val escapedKey = Regex.escape(key)
+    val match = Regex("""["']$escapedKey["']\s*:\s*(\d+)""").find(value) ?: return null
     return match.groupValues[1].toIntOrNull()
 }
 

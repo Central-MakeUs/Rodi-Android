@@ -56,7 +56,7 @@ class HomeViewModel : ViewModel() {
         if (current.selectedCourseId == id) return
         _state.update { it.copy(selectedCourseId = id) }
 
-        if (current.routeByCourse.containsKey(id)) return
+        if (current.routeByCourse.containsKey(id) || id in current.routingCourseIds) return
         val course = current.courses.firstOrNull { it.id == id } ?: return
         if (course.isParking) return
         _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
