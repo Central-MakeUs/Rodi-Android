@@ -87,6 +87,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -151,7 +152,6 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    val mapView = rememberMapViewWithLifecycle()
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(false) }
@@ -473,6 +473,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         ) {
             Box(Modifier.fillMaxSize()) {
                 key(mapRetryKey) {
+                    val mapView = rememberMapViewWithLifecycle()
+
                     AndroidView(
                         modifier = Modifier.fillMaxSize(),
                         factory = {
@@ -627,7 +629,8 @@ private fun MapLoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(RoutiTheme.colors.white),
+            .background(RoutiTheme.colors.white)
+            .consumeTouches(),
     ) {
         Column(
             modifier = Modifier
@@ -661,9 +664,15 @@ private fun MapNetworkErrorScreen(
 ) {
     Box(
         modifier = modifier
-            .fillMaxSize()
-            .background(RoutiTheme.colors.white),
+            .fillMaxSize(),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(RoutiTheme.colors.white)
+                .consumeTouches(),
+        )
+
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
@@ -697,6 +706,15 @@ private fun MapNetworkErrorScreen(
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 106.dp),
         )
+    }
+}
+
+private fun Modifier.consumeTouches(): Modifier = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent()
+            event.changes.forEach { it.consume() }
+        }
     }
 }
 
