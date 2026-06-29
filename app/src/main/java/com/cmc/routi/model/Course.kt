@@ -2,6 +2,11 @@ package com.cmc.routi.model
 
 enum class WaypointType { START, WAYPOINT, END }
 
+enum class RoutiItemType(val serverValue: String) {
+    COURSE("course"),
+    PARKING("parking"),
+}
+
 /** 코스를 구성하는 한 지점. 좌표는 WGS84(위경도). */
 data class CoursePoint(
     val name: String,
@@ -17,8 +22,64 @@ data class Waypoint(
     val lat: Double,
     val lng: Double,
     val address: String,
-    val jibunAddress: String = address,
+    val jibunAddress: String? = null,
     val category: String,
+)
+
+/** 서버 응답의 result.items 원소와 맞춘 통합 추천 아이템. */
+data class RoutiItem(
+    val id: Int,
+    val type: RoutiItemType,
+    val name: String,
+    val address: String,
+    val jibunAddress: String?,
+    val lat: Double?,
+    val lng: Double?,
+    val rating: Int,
+    val difficultyScore: Int,
+    val tags: List<String>,
+    val summary: String,
+    val cautions: List<String>,
+    val recommendedTime: String?,
+    val distanceKm: Double?,
+    val estimatedMinutes: Int?,
+    val parking: ParkingDetail?,
+    val course: RouteDetail?,
+)
+
+data class RouteDetail(
+    val points: List<RoutePoint>,
+)
+
+data class RoutePoint(
+    val id: Int,
+    val sequence: Int,
+    val role: WaypointType,
+    val name: String,
+    val address: String,
+    val jibunAddress: String?,
+    val lat: Double,
+    val lng: Double,
+)
+
+data class ParkingDetail(
+    val managementNo: String?,
+    val parkingType: String?,
+    val capacity: Int?,
+    val isFree: Boolean,
+    val feeInfo: String?,
+    val operatingHours: OperatingHours?,
+    val paymentMethods: List<String>,
+    val hasAccessibleSpace: Boolean,
+    val phone: String?,
+    val operator: String?,
+    val note: String?,
+)
+
+data class OperatingHours(
+    val weekday: String?,
+    val saturday: String?,
+    val holiday: String?,
 )
 
 /** 코스 특징 (서버 포맷). */
@@ -79,7 +140,7 @@ fun CourseFeatures.toPracticeTags(): Set<PracticeTag> = buildSet {
  * 추후 서버 데이터로 교체한다.
  */
 data class Course(
-    val id: String,
+    val id: Int,
     val courseName: String,
     val courseNickname: String,
     val areaName: String,
@@ -95,10 +156,14 @@ data class Course(
     val caution: String,
     val bestTime: String,
     val enrichedDescription: String,
+    val parkingDetail: ParkingDetail? = null,
+    val itemType: RoutiItemType = RoutiItemType.COURSE,
 ) {
     // ── UI 편의 프로퍼티 ────────────────────────────────────────────────
 
     val title: String get() = courseName
+
+    val isParking: Boolean get() = itemType == RoutiItemType.PARKING
 
     val regionDisplay: String get() {
         val cityName = when (region) {
@@ -163,5 +228,5 @@ data class Course(
         get() = listOf(origin) + waypointPoints + destination
 
     val roadAddress: String get() = startWaypoint.address
-    val jibunAddress: String get() = startWaypoint.jibunAddress
+    val jibunAddress: String get() = startWaypoint.jibunAddress.orEmpty()
 }

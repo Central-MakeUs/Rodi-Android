@@ -20,10 +20,10 @@ import kotlin.math.sqrt
 class HomeViewModel : ViewModel() {
 
     data class UiState(
-        val courses: List<Course> = SampleCourses.ALL,
-        val selectedCourseId: String? = null,
-        val routeByCourse: Map<String, RouteResult> = emptyMap(),
-        val routingCourseIds: Set<String> = emptySet(),
+        val courses: List<Course> = SampleCourses.ROUTI_COURSES,
+        val selectedCourseId: Int? = null,
+        val routeByCourse: Map<Int, RouteResult> = emptyMap(),
+        val routingCourseIds: Set<Int> = emptySet(),
         val distanceFilterKm: Int? = null,    // null=전체, 3, 5, 10
         val userLat: Double? = null,
         val userLng: Double? = null,
@@ -51,13 +51,14 @@ class HomeViewModel : ViewModel() {
         _state.update { it.copy(selectedCourseId = null) }
     }
 
-    fun onCourseClick(id: String) {
+    fun onCourseClick(id: Int) {
         val current = _state.value
         if (current.selectedCourseId == id) return
         _state.update { it.copy(selectedCourseId = id) }
 
-        if (current.routeByCourse.containsKey(id)) return
+        if (current.routeByCourse.containsKey(id) || id in current.routingCourseIds) return
         val course = current.courses.firstOrNull { it.id == id } ?: return
+        if (course.isParking) return
         _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
         viewModelScope.launch {
             val result = KakaoDirectionsClient.getRoute(course)

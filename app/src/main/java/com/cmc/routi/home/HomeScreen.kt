@@ -4,7 +4,10 @@ import android.Manifest
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,7 +38,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -43,12 +45,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -64,12 +64,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -85,6 +88,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cmc.routi.R
@@ -97,6 +101,8 @@ import com.cmc.routi.map.renderCourse
 import com.cmc.routi.map.renderCourseChips
 import com.cmc.routi.model.Course
 import com.cmc.routi.model.Difficulty
+import com.cmc.routi.model.ParkingDetail
+import com.cmc.routi.model.PracticeTag
 import com.cmc.routi.navi.KakaoMapLauncher
 import com.cmc.routi.navi.KakaoNaviLauncher
 import com.cmc.routi.navi.NaviApp
@@ -170,7 +176,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         map.setOnCameraMoveEndListener { _, _, _ -> }
         // 장소 칩 탭 → 코스 상세 진입
         map.setOnLabelClickListener { _, _, label ->
-            val courseId = label.tag as? String ?: return@setOnLabelClickListener true
+            val courseId = label.tag as? Int ?: return@setOnLabelClickListener true
             vm.onCourseClick(courseId)
             isAtCurrentLocation = false
             true
@@ -196,6 +202,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         val course = state.selectedCourse
         if (course == null) {
             map.renderCourseChips(context, state.filteredCourses)
+        } else if (course.isParking) {
+            map.renderCourseChips(context, listOf(course))
         } else {
             val route = state.selectedRoute
             map.renderCourse(context, course, route?.points, route?.snappedPoints ?: emptyList())
@@ -348,48 +356,66 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
                                 listState = listState,
                                 modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
-                                    visibleHeightDp
+                                    visibleHeightDp,
                                 ) else Modifier,
                             )
                         }
                     }
                 } else {
-                    CourseDetailContent(
-                        course = selectedCourse,
-                        route = state.selectedRoute,
-                        isRouting = state.isRouting,
-                        onDismiss = {
-                            vm.onDismissDetail()
-                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                        },
-                        onNavigate = {
-                            val saved = NaviPreference.getAlways(context)
-                            val kakaoMapInstalled = runCatching {
-                                context.packageManager.getPackageInfo("net.daum.android.map", 0); true
-                            }.getOrDefault(false)
-                            val kakaoNaviInstalled = runCatching {
-                                context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
-                            }.getOrDefault(false)
-                            when {
-                                saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
-                                    KakaoMapLauncher.launch(context, selectedCourse)
+                    val dismissDetail: () -> Unit = {
+                        vm.onDismissDetail()
+                        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                    }
+                    val navigate: () -> Unit = {
+                        val saved = NaviPreference.getAlways(context)
+                        val kakaoMapInstalled = runCatching {
+                            context.packageManager.getPackageInfo("net.daum.android.map", 0); true
+                        }.getOrDefault(false)
+                        val kakaoNaviInstalled = runCatching {
+                            context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
+                        }.getOrDefault(false)
+                        when {
+                            saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
+                                KakaoMapLauncher.launch(context, selectedCourse)
 
-                                saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
-                                    KakaoNaviLauncher.launch(context, selectedCourse)
+                            saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
+                                KakaoNaviLauncher.launch(context, selectedCourse)
 
-                                kakaoMapInstalled && kakaoNaviInstalled ->
-                                    naviCourse = selectedCourse
+                            kakaoMapInstalled && kakaoNaviInstalled ->
+                                naviCourse = selectedCourse
 
-                                kakaoMapInstalled ->
-                                    KakaoMapLauncher.launch(context, selectedCourse)
+                            kakaoMapInstalled ->
+                                KakaoMapLauncher.launch(context, selectedCourse)
 
-                                kakaoNaviInstalled ->
-                                    KakaoNaviLauncher.launch(context, selectedCourse)
+                            kakaoNaviInstalled ->
+                                KakaoNaviLauncher.launch(context, selectedCourse)
 
-                                else -> installNaviCourse = selectedCourse
-                            }
-                        },
-                    )
+                            else -> installNaviCourse = selectedCourse
+                        }
+                    }
+                    FixedInitialHeightDetailSheet(
+                        itemKey = selectedCourse.id,
+                        maxHeight = boxHeightDp,
+                    ) { modifier, isHeightFixed ->
+                        if (selectedCourse.isParking) {
+                            ParkingDetailContent(
+                                course = selectedCourse,
+                                onDismiss = dismissDetail,
+                                onNavigate = navigate,
+                                modifier = modifier,
+                                isHeightFixed = isHeightFixed,
+                            )
+                        } else {
+                            CourseDetailContent(
+                                course = selectedCourse,
+                                route = state.selectedRoute,
+                                isRouting = state.isRouting,
+                                onDismiss = dismissDetail,
+                                onNavigate = navigate,
+                                modifier = modifier,
+                            )
+                        }
+                    }
                 }
             }
         },
@@ -416,15 +442,21 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                 },
             )
 
-            // 거리 필터 바 — 지도 상단 중앙에 부유
-            DistanceFilterBar(
-                selectedKm = state.distanceFilterKm,
-                onSelect = { vm.onDistanceFilterChange(it) },
+            // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
+            AnimatedVisibility(
+                visible = state.selectedCourse == null,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
                     .padding(top = 12.dp),
-            )
+            ) {
+                DistanceFilterBar(
+                    selectedKm = state.distanceFilterKm,
+                    onSelect = { vm.onDistanceFilterChange(it) },
+                )
+            }
 
             // 현위치 버튼 — 시트 우상단 위 12dp에 부유
             if (sheetOffsetPx != Float.MAX_VALUE) {
@@ -543,7 +575,7 @@ private fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
 @Composable
 private fun CourseListContent(
     courses: List<Course>,
-    onCourseClick: (String) -> Unit,
+    onCourseClick: (Int) -> Unit,
     expandFraction: Float = 0f,
     onCollapse: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
@@ -627,7 +659,9 @@ private fun CourseListContent(
 @Composable
 private fun CourseEmptyContent() {
     Column(
-        modifier = Modifier.fillMaxWidth().height(330.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(330.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -684,17 +718,51 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
 }
 
 @Composable
+private fun FixedInitialHeightDetailSheet(
+    itemKey: Int,
+    maxHeight: Dp,
+    content: @Composable (modifier: Modifier, isHeightFixed: Boolean) -> Unit,
+) {
+    val density = LocalDensity.current
+    var fixedHeightPx by rememberSaveable(itemKey) { mutableStateOf<Float?>(null) }
+    val fixedHeightDp = fixedHeightPx?.let { with(density) { it.toDp() } }
+
+    val measuringModifier = Modifier.onGloballyPositioned { coordinates ->
+        if (fixedHeightPx != null) return@onGloballyPositioned
+
+        val measuredHeightPx = coordinates.size.height.toFloat()
+        if (measuredHeightPx <= 0f) return@onGloballyPositioned
+
+        val maxHeightPx = with(density) {
+            if (maxHeight.isSpecified && maxHeight > 0.dp) {
+                maxHeight.toPx()
+            } else {
+                Float.POSITIVE_INFINITY
+            }
+        }
+        fixedHeightPx = measuredHeightPx.coerceAtMost(maxHeightPx)
+    }
+
+    if (fixedHeightDp == null) {
+        content(measuringModifier, false)
+    } else {
+        content(Modifier.height(fixedHeightDp), true)
+    }
+}
+
+@Composable
 private fun CourseDetailContent(
     course: Course,
     route: RouteResult?,
     isRouting: Boolean,
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding(),
@@ -783,6 +851,243 @@ private fun CourseDetailContent(
 }
 
 @Composable
+private fun ParkingDetailContent(
+    course: Course,
+    onDismiss: () -> Unit,
+    onNavigate: () -> Unit,
+    modifier: Modifier = Modifier,
+    isHeightFixed: Boolean = false,
+) {
+    val parking = course.parkingDetail
+    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+    var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                course.title,
+                style = RoutiTheme.typography.headline1,
+                color = RoutiTheme.colors.black,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_x),
+                    contentDescription = "닫기",
+                    tint = RoutiTheme.colors.black,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (isHeightFixed) Modifier.weight(1f) else Modifier)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                RatingRegionRow(
+                    rating = course.rating,
+                    region = course.regionDisplay,
+                    onChevronClick = { addressExpanded = !addressExpanded },
+                )
+                if (addressExpanded) {
+                    ExpandableAddressCard(
+                        roadAddress = course.roadAddress.shortenRoadAddress(),
+                        jibunAddress = course.jibunAddress.shortenJibunAddress(),
+                    )
+                } else {
+                    ParkingMetaRow(
+                        parking = parking,
+                        hoursExpanded = hoursExpanded,
+                        onHoursClick = { hoursExpanded = !hoursExpanded },
+                    )
+                    if (hoursExpanded) {
+                        ParkingHoursRows(parking = parking)
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                    ParkingCapacityRow(capacity = parking?.capacity)
+                    DifficultyTag(course.difficultyEnum)
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(thickness = 1.dp, color = RoutiTheme.colors.primary100)
+            Spacer(Modifier.height(13.dp))
+
+            ParkingFeeSection(
+                parking = parking,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Button(
+                onClick = onNavigate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RoutiTheme.colors.primary600,
+                    contentColor = RoutiTheme.colors.white,
+                ),
+            ) {
+                Text("경로 안내", style = RoutiTheme.typography.button1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParkingMetaRow(
+    parking: ParkingDetail?,
+    hoursExpanded: Boolean,
+    onHoursClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = parking.parkingTypeDisplay(),
+            style = RoutiTheme.typography.body3Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Row(
+            modifier = Modifier.clickable(onClick = onHoursClick),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = parking.operatingSummary(),
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.gray800,
+            )
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_down),
+                contentDescription = if (hoursExpanded) "영업시간 접기" else "영업시간 보기",
+                tint = RoutiTheme.colors.gray800,
+                modifier = Modifier
+                    .size(14.dp)
+                    .graphicsLayer { rotationZ = if (hoursExpanded) 180f else 0f },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParkingCapacityRow(capacity: Int?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("총 주차 면수", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text(
+            text = capacity?.let { "${it}대" } ?: "해당항목없음",
+            style = RoutiTheme.typography.body3Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+    }
+}
+
+@Composable
+private fun ParkingHoursRows(parking: ParkingDetail?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        val hours = parking?.operatingHours
+        ParkingInfoRow("평일", hours?.weekday.toDisplayHours())
+        ParkingInfoRow("토요일", hours?.saturday.toDisplayHours())
+        ParkingInfoRow("일요일", hours?.holiday.toDisplayHours())
+        ParkingInfoRow("공휴일", hours?.holiday.toDisplayHours())
+    }
+}
+
+@Composable
+private fun ParkingFeeSection(
+    parking: ParkingDetail?,
+    modifier: Modifier = Modifier,
+) {
+    val fee = remember(parking?.feeInfo, parking?.isFree) { parking.toParkingFeeInfo() }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("요금 안내", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ParkingInfoRow("초기무료", fee.initialFree)
+            ParkingInfoRow("기본요금", fee.base)
+            ParkingInfoRow("추가요금", fee.additional)
+            ParkingInfoRow("할증기준시간", fee.surcharge)
+        }
+    }
+}
+
+@Composable
+private fun ParkingInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = RoutiTheme.typography.caption1Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+        DashedInfoDivider(
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .weight(1f)
+                .height(1.dp),
+        )
+        Text(
+            text = value,
+            style = RoutiTheme.typography.body3SemiBold,
+            color = RoutiTheme.colors.gray800,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
+private fun DashedInfoDivider(modifier: Modifier = Modifier) {
+    val color = RoutiTheme.colors.gray400.copy(alpha = 0.35f)
+    Box(
+        modifier = modifier.drawBehind {
+            val segment = 6.dp.toPx()
+            drawLine(
+                color = color,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(segment, segment), 0f),
+            )
+        },
+    )
+}
+
+@Composable
 private fun RatingRegionRow(
     rating: Double,
     region: String,
@@ -851,10 +1156,10 @@ private fun ExpandableAddressCard(
 }
 
 @Composable
-private fun TagRow(difficulty: Difficulty, tags: Set<com.cmc.routi.model.PracticeTag>) {
+private fun TagRow(difficulty: Difficulty, tags: Set<PracticeTag>) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         DifficultyTag(difficulty)
-        tags.take(2).filterIsInstance<com.cmc.routi.model.PracticeTag>().forEach { tag ->
+        tags.take(2).forEach { tag ->
             PracticeTagChip(tag.label)
         }
     }
@@ -980,6 +1285,76 @@ private fun distanceText(route: RouteResult?, isRouting: Boolean): String = when
     else -> "주행거리 · ${route.totalDistanceMeters}m"
 }
 
+private data class ParkingFeeInfo(
+    val initialFree: String,
+    val base: String,
+    val additional: String,
+    val surcharge: String = "해당항목없음",
+)
+
+private fun ParkingDetail?.parkingTypeDisplay(): String = when {
+    this == null -> "공영주차장"
+    isFree -> "무료 주차장"
+    parkingType?.isNotBlank() == true -> "공영주차장"
+    else -> "공영주차장"
+}
+
+private fun ParkingDetail?.operatingSummary(): String {
+    val weekday = this?.operatingHours?.weekday.orEmpty()
+    if (weekday.isBlank()) return "영업시간 정보 없음"
+    val normalized = weekday.replace(" ", "")
+    if (normalized.startsWith("00:00") && (normalized.endsWith("23:59") || normalized.endsWith("24:00"))) {
+        return "24시간 영업"
+    }
+    return "${normalized.substringBefore("-")}에 영업 시작"
+}
+
+private fun String?.toDisplayHours(): String {
+    val value = this?.trim().orEmpty()
+    if (value.isBlank()) return "해당항목없음"
+    return value.replace("-", " - ")
+}
+
+private fun ParkingDetail?.toParkingFeeInfo(): ParkingFeeInfo {
+    if (this == null) {
+        return ParkingFeeInfo(
+            initialFree = "해당항목없음",
+            base = "해당항목없음",
+            additional = "해당항목없음",
+        )
+    }
+    if (isFree) {
+        return ParkingFeeInfo(
+            initialFree = "무료",
+            base = "무료",
+            additional = "해당항목없음",
+        )
+    }
+
+    val baseMinutes = feeInfo.extractFeeNumber("baseMinutes")
+    val baseFee = feeInfo.extractFeeNumber("baseFee")
+    val addMinutes = feeInfo.extractFeeNumber("addUnitMinutes")
+    val addFee = feeInfo.extractFeeNumber("addUnitFee")
+
+    return ParkingFeeInfo(
+        initialFree = note?.takeIf { it.contains("무료") } ?: "해당항목없음",
+        base = formatFee(baseMinutes, baseFee),
+        additional = formatFee(addMinutes, addFee),
+    )
+}
+
+private fun String?.extractFeeNumber(key: String): Int? {
+    val value = this ?: return null
+    val escapedKey = Regex.escape(key)
+    val match = Regex("""["']$escapedKey["']\s*:\s*(\d+)""").find(value) ?: return null
+    return match.groupValues[1].toIntOrNull()
+}
+
+private fun formatFee(minutes: Int?, fee: Int?): String {
+    if (minutes == null || fee == null) return "해당항목없음"
+    return "${minutes}분 ･ ${"%,d".format(fee)}원"
+}
+
 // ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
 
 private val CITY_PREFIXES = listOf(
@@ -987,7 +1362,7 @@ private val CITY_PREFIXES = listOf(
     "대전광역시", "울산광역시", "세종특별자치시", "강원특별자치도", "경기도",
     "충청남도", "충청북도", "전라남도", "전라북도", "경상남도", "경상북도",
     "제주특별자치도", "서울", "부산", "대구", "인천", "광주", "대전", "울산",
-    "세종", "강원", "경기", "제주"
+    "세종", "강원", "경기", "제주",
 )
 
 /** 시/도 레벨 접두어만 제거 (구·군·동은 유지). VerticalStepList용. */
@@ -1014,7 +1389,7 @@ private fun String.shortenCommaRoad(): String {
     // 도로명: 로/길/대로 로 끝나는 토큰
     val roadIdx = parts.indexOfFirst { p ->
         p.endsWith("로") || p.endsWith("길") || p.endsWith("대로") ||
-        Regex("로\\d|길\\d").containsMatchIn(p)
+                Regex("로\\d|길\\d").containsMatchIn(p)
     }
     if (roadIdx < 0) return parts.firstOrNull() ?: this
 
@@ -1025,10 +1400,10 @@ private fun String.shortenCommaRoad(): String {
     // 건물명: 첫 토큰이 숫자·행정구역 접미사가 아닌 경우
     val building = parts.firstOrNull()?.takeIf { first ->
         parts.indexOf(first) != roadIdx &&
-        !first.matches(Regex("\\d.*")) &&
-        !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
-        !first.endsWith("읍") && !first.endsWith("면") &&
-        !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
+                !first.matches(Regex("\\d.*")) &&
+                !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
+                !first.endsWith("읍") && !first.endsWith("면") &&
+                !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
     }
 
     return buildString {
@@ -1054,7 +1429,7 @@ private fun String.shortenJibunAddress(): String {
         it.isNotEmpty() && !it.matches(Regex("\\d{5}")) && it != "대한민국"
     }
     val dong = parts.firstOrNull { it.endsWith("동") || it.endsWith("리") }
-    val num  = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
+    val num = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
 
     return when {
         dong != null && num != null -> "$dong $num"
