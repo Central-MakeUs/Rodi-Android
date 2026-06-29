@@ -1,10 +1,14 @@
 package com.cmc.routi.home
 
 import android.Manifest
+import android.widget.Space
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -36,6 +40,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fitInside
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -65,11 +71,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -98,6 +106,7 @@ import com.cmc.routi.map.renderCourseChips
 import com.cmc.routi.model.Course
 import com.cmc.routi.model.Difficulty
 import com.cmc.routi.model.ParkingDetail
+import com.cmc.routi.model.PracticeTag
 import com.cmc.routi.navi.KakaoMapLauncher
 import com.cmc.routi.navi.KakaoNaviLauncher
 import com.cmc.routi.navi.NaviApp
@@ -389,10 +398,21 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                         }
                     }
                     if (selectedCourse.isParking) {
+                        val parkingSheetHeight = remember(selectedCourse.id) { mutableStateOf<Dp?>(null) }
+                        LaunchedEffect(selectedCourse.id, visibleHeightDp) {
+                            if (
+                                parkingSheetHeight.value == null &&
+                                visibleHeightDp != Dp.Unspecified &&
+                                visibleHeightDp > 0.dp
+                            ) {
+                                parkingSheetHeight.value = visibleHeightDp
+                            }
+                        }
                         ParkingDetailContent(
                             course = selectedCourse,
                             onDismiss = dismissDetail,
                             onNavigate = navigate,
+                            modifier = parkingSheetHeight.value?.let { Modifier.height(it) } ?: Modifier,
                         )
                     } else {
                         CourseDetailContent(
@@ -429,15 +449,21 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                 },
             )
 
-            // 거리 필터 바 — 지도 상단 중앙에 부유
-            DistanceFilterBar(
-                selectedKm = state.distanceFilterKm,
-                onSelect = { vm.onDistanceFilterChange(it) },
+            // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
+            AnimatedVisibility(
+                visible = state.selectedCourse == null,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
                     .padding(top = 12.dp),
-            )
+            ) {
+                DistanceFilterBar(
+                    selectedKm = state.distanceFilterKm,
+                    onSelect = { vm.onDistanceFilterChange(it) },
+                )
+            }
 
             // 현위치 버튼 — 시트 우상단 위 12dp에 부유
             if (sheetOffsetPx != Float.MAX_VALUE) {
@@ -800,15 +826,15 @@ private fun ParkingDetailContent(
     course: Course,
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val parking = course.parkingDetail
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
     var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
             .navigationBarsPadding(),
     ) {
         Row(
@@ -838,58 +864,65 @@ private fun ParkingDetailContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
         ) {
-            RatingRegionRow(
-                rating = course.rating,
-                region = course.regionDisplay,
-                onChevronClick = { addressExpanded = !addressExpanded },
-            )
-            if (addressExpanded) {
-                Spacer(modifier = Modifier.height(2.dp))
-                ExpandableAddressCard(
-                    roadAddress = course.roadAddress.shortenRoadAddress(),
-                    jibunAddress = course.jibunAddress.shortenJibunAddress(),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                RatingRegionRow(
+                    rating = course.rating,
+                    region = course.regionDisplay,
+                    onChevronClick = { addressExpanded = !addressExpanded },
                 )
-            } else {
-                ParkingMetaRow(
-                    parking = parking,
-                    hoursExpanded = hoursExpanded,
-                    onHoursClick = { hoursExpanded = !hoursExpanded },
-                )
-                if (hoursExpanded) {
-                    ParkingHoursRows(parking = parking)
+                if (addressExpanded) {
+                    ExpandableAddressCard(
+                        roadAddress = course.roadAddress.shortenRoadAddress(),
+                        jibunAddress = course.jibunAddress.shortenJibunAddress(),
+                    )
+                } else {
+                    ParkingMetaRow(
+                        parking = parking,
+                        hoursExpanded = hoursExpanded,
+                        onHoursClick = { hoursExpanded = !hoursExpanded },
+                    )
+                    if (hoursExpanded) {
+                        ParkingHoursRows(parking = parking)
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                    ParkingCapacityRow(capacity = parking?.capacity)
+                    DifficultyTag(course.difficultyEnum)
                 }
-                ParkingCapacityRow(capacity = parking?.capacity)
-                DifficultyTag(course.difficultyEnum)
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
-        HorizontalDivider(thickness = 1.dp, color = RoutiTheme.colors.primary100)
-        Spacer(Modifier.height(13.dp))
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(thickness = 1.dp, color = RoutiTheme.colors.primary100)
+            Spacer(Modifier.height(13.dp))
 
-        ParkingFeeSection(
-            parking = parking,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
+            ParkingFeeSection(
+                parking = parking,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = onNavigate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = RoutiTheme.colors.primary600,
-                contentColor = RoutiTheme.colors.white,
-            ),
-        ) {
-            Text("경로 안내", style = RoutiTheme.typography.button1)
+            Button(
+                onClick = onNavigate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(8.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RoutiTheme.colors.primary600,
+                    contentColor = RoutiTheme.colors.white,
+                ),
+            ) {
+                Text("경로 안내", style = RoutiTheme.typography.button1)
+            }
         }
     }
 }
@@ -992,12 +1025,11 @@ private fun ParkingInfoRow(label: String, value: String) {
             style = RoutiTheme.typography.caption1Medium,
             color = RoutiTheme.colors.gray800,
         )
-        HorizontalDivider(
+        DashedInfoDivider(
             modifier = Modifier
                 .padding(horizontal = 8.dp)
-                .weight(1f),
-            thickness = 1.dp,
-            color = RoutiTheme.colors.gray400.copy(alpha = 0.35f),
+                .weight(1f)
+                .height(1.dp),
         )
         Text(
             text = value,
@@ -1006,6 +1038,23 @@ private fun ParkingInfoRow(label: String, value: String) {
             textAlign = TextAlign.End,
         )
     }
+}
+
+@Composable
+private fun DashedInfoDivider(modifier: Modifier = Modifier) {
+    val color = RoutiTheme.colors.gray400.copy(alpha = 0.35f)
+    Box(
+        modifier = modifier.drawBehind {
+            val segment = 6.dp.toPx()
+            drawLine(
+                color = color,
+                start = Offset(0f, size.height / 2f),
+                end = Offset(size.width, size.height / 2f),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(segment, segment), 0f),
+            )
+        },
+    )
 }
 
 @Composable
@@ -1077,10 +1126,10 @@ private fun ExpandableAddressCard(
 }
 
 @Composable
-private fun TagRow(difficulty: Difficulty, tags: Set<com.cmc.routi.model.PracticeTag>) {
+private fun TagRow(difficulty: Difficulty, tags: Set<PracticeTag>) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         DifficultyTag(difficulty)
-        tags.take(2).filterIsInstance<com.cmc.routi.model.PracticeTag>().forEach { tag ->
+        tags.take(2).forEach { tag ->
             PracticeTagChip(tag.label)
         }
     }

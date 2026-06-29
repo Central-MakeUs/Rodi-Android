@@ -126,7 +126,11 @@ fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
     clearCourse()
     val density = context.resources.displayMetrics.density
     courses.forEach { course ->
-        val bitmap = createChipBitmap(course.courseNickname, density)
+        val bitmap = if (course.isParking) {
+            context.vectorToBitmap(R.drawable.ic_pin_park, sizeDp = 34)
+        } else {
+            createChipBitmap(course.courseNickname, density)
+        }
         addChipAt(
             context = context,
             position = LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng),
