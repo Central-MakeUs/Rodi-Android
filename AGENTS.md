@@ -4,7 +4,7 @@
 > 출시 후 멀티모듈 클린아키텍처로 리팩터링 예정.
 
 ## Project
-- Package: `com.cmc.routi`
+- Package: `com.dororong.rodi`
 - minSdk: 30 / compileSdk: 36
 
 ## Key Commands

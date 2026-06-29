@@ -24,5 +24,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ROUTI"
+rootProject.name = "Rodi"
 include(":app")
