@@ -725,7 +725,7 @@ private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
     Canvas(modifier = modifier.size(39.dp)) {
         val center = Offset(size.width / 2f, size.height / 2f)
         val strokeWidth = 3.dp.toPx()
-        val lineLength = 12.dp.toPx()
+        val lineLength = 10.dp.toPx()
         colors.forEachIndexed { index, color ->
             rotate(degrees = rotation + index * 45f, pivot = center) {
                 drawLine(
