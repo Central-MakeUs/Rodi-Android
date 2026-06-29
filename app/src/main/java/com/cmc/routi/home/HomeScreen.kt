@@ -97,6 +97,7 @@ import com.cmc.routi.map.renderCourse
 import com.cmc.routi.map.renderCourseChips
 import com.cmc.routi.model.Course
 import com.cmc.routi.model.Difficulty
+import com.cmc.routi.model.ParkingDetail
 import com.cmc.routi.navi.KakaoMapLauncher
 import com.cmc.routi.navi.KakaoNaviLauncher
 import com.cmc.routi.navi.NaviApp
@@ -170,7 +171,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         map.setOnCameraMoveEndListener { _, _, _ -> }
         // 장소 칩 탭 → 코스 상세 진입
         map.setOnLabelClickListener { _, _, label ->
-            val courseId = label.tag as? String ?: return@setOnLabelClickListener true
+            val courseId = label.tag as? Int ?: return@setOnLabelClickListener true
             vm.onCourseClick(courseId)
             isAtCurrentLocation = false
             true
@@ -196,6 +197,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         val course = state.selectedCourse
         if (course == null) {
             map.renderCourseChips(context, state.filteredCourses)
+        } else if (course.isParking) {
+            map.renderCourseChips(context, listOf(course))
         } else {
             val route = state.selectedRoute
             map.renderCourse(context, course, route?.points, route?.snappedPoints ?: emptyList())
@@ -354,42 +357,52 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                         }
                     }
                 } else {
-                    CourseDetailContent(
-                        course = selectedCourse,
-                        route = state.selectedRoute,
-                        isRouting = state.isRouting,
-                        onDismiss = {
-                            vm.onDismissDetail()
-                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                        },
-                        onNavigate = {
-                            val saved = NaviPreference.getAlways(context)
-                            val kakaoMapInstalled = runCatching {
-                                context.packageManager.getPackageInfo("net.daum.android.map", 0); true
-                            }.getOrDefault(false)
-                            val kakaoNaviInstalled = runCatching {
-                                context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
-                            }.getOrDefault(false)
-                            when {
-                                saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
-                                    KakaoMapLauncher.launch(context, selectedCourse)
+                    val dismissDetail: () -> Unit = {
+                        vm.onDismissDetail()
+                        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                    }
+                    val navigate: () -> Unit = {
+                        val saved = NaviPreference.getAlways(context)
+                        val kakaoMapInstalled = runCatching {
+                            context.packageManager.getPackageInfo("net.daum.android.map", 0); true
+                        }.getOrDefault(false)
+                        val kakaoNaviInstalled = runCatching {
+                            context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
+                        }.getOrDefault(false)
+                        when {
+                            saved == NaviApp.KAKAOMAP && kakaoMapInstalled ->
+                                KakaoMapLauncher.launch(context, selectedCourse)
 
-                                saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
-                                    KakaoNaviLauncher.launch(context, selectedCourse)
+                            saved == NaviApp.KAKAONAVI && kakaoNaviInstalled ->
+                                KakaoNaviLauncher.launch(context, selectedCourse)
 
-                                kakaoMapInstalled && kakaoNaviInstalled ->
-                                    naviCourse = selectedCourse
+                            kakaoMapInstalled && kakaoNaviInstalled ->
+                                naviCourse = selectedCourse
 
-                                kakaoMapInstalled ->
-                                    KakaoMapLauncher.launch(context, selectedCourse)
+                            kakaoMapInstalled ->
+                                KakaoMapLauncher.launch(context, selectedCourse)
 
-                                kakaoNaviInstalled ->
-                                    KakaoNaviLauncher.launch(context, selectedCourse)
+                            kakaoNaviInstalled ->
+                                KakaoNaviLauncher.launch(context, selectedCourse)
 
-                                else -> installNaviCourse = selectedCourse
-                            }
-                        },
-                    )
+                            else -> installNaviCourse = selectedCourse
+                        }
+                    }
+                    if (selectedCourse.isParking) {
+                        ParkingDetailContent(
+                            course = selectedCourse,
+                            onDismiss = dismissDetail,
+                            onNavigate = navigate,
+                        )
+                    } else {
+                        CourseDetailContent(
+                            course = selectedCourse,
+                            route = state.selectedRoute,
+                            isRouting = state.isRouting,
+                            onDismiss = dismissDetail,
+                            onNavigate = navigate,
+                        )
+                    }
                 }
             }
         },
@@ -543,7 +556,7 @@ private fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
 @Composable
 private fun CourseListContent(
     courses: List<Course>,
-    onCourseClick: (String) -> Unit,
+    onCourseClick: (Int) -> Unit,
     expandFraction: Float = 0f,
     onCollapse: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
@@ -783,6 +796,219 @@ private fun CourseDetailContent(
 }
 
 @Composable
+private fun ParkingDetailContent(
+    course: Course,
+    onDismiss: () -> Unit,
+    onNavigate: () -> Unit,
+) {
+    val parking = course.parkingDetail
+    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+    var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .navigationBarsPadding(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                course.title,
+                style = RoutiTheme.typography.headline1,
+                color = RoutiTheme.colors.black,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_x),
+                    contentDescription = "닫기",
+                    tint = RoutiTheme.colors.black,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            RatingRegionRow(
+                rating = course.rating,
+                region = course.regionDisplay,
+                onChevronClick = { addressExpanded = !addressExpanded },
+            )
+            if (addressExpanded) {
+                Spacer(modifier = Modifier.height(2.dp))
+                ExpandableAddressCard(
+                    roadAddress = course.roadAddress.shortenRoadAddress(),
+                    jibunAddress = course.jibunAddress.shortenJibunAddress(),
+                )
+            } else {
+                ParkingMetaRow(
+                    parking = parking,
+                    hoursExpanded = hoursExpanded,
+                    onHoursClick = { hoursExpanded = !hoursExpanded },
+                )
+                if (hoursExpanded) {
+                    ParkingHoursRows(parking = parking)
+                }
+                ParkingCapacityRow(capacity = parking?.capacity)
+                DifficultyTag(course.difficultyEnum)
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider(thickness = 1.dp, color = RoutiTheme.colors.primary100)
+        Spacer(Modifier.height(13.dp))
+
+        ParkingFeeSection(
+            parking = parking,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        Button(
+            onClick = onNavigate,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = RoutiTheme.colors.primary600,
+                contentColor = RoutiTheme.colors.white,
+            ),
+        ) {
+            Text("경로 안내", style = RoutiTheme.typography.button1)
+        }
+    }
+}
+
+@Composable
+private fun ParkingMetaRow(
+    parking: ParkingDetail?,
+    hoursExpanded: Boolean,
+    onHoursClick: () -> Unit,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = parking.parkingTypeDisplay(),
+            style = RoutiTheme.typography.body3Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Row(
+            modifier = Modifier.clickable(onClick = onHoursClick),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = parking.operatingSummary(),
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.gray800,
+            )
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron_down),
+                contentDescription = if (hoursExpanded) "영업시간 접기" else "영업시간 보기",
+                tint = RoutiTheme.colors.gray800,
+                modifier = Modifier
+                    .size(14.dp)
+                    .graphicsLayer { rotationZ = if (hoursExpanded) 180f else 0f },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ParkingCapacityRow(capacity: Int?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text("총 주차 면수", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text(
+            text = capacity?.let { "${it}대" } ?: "해당항목없음",
+            style = RoutiTheme.typography.body3Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+    }
+}
+
+@Composable
+private fun ParkingHoursRows(parking: ParkingDetail?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        val hours = parking?.operatingHours
+        ParkingInfoRow("평일", hours?.weekday.toDisplayHours())
+        ParkingInfoRow("토요일", hours?.saturday.toDisplayHours())
+        ParkingInfoRow("일요일", hours?.holiday.toDisplayHours())
+        ParkingInfoRow("공휴일", hours?.holiday.toDisplayHours())
+    }
+}
+
+@Composable
+private fun ParkingFeeSection(
+    parking: ParkingDetail?,
+    modifier: Modifier = Modifier,
+) {
+    val fee = remember(parking?.feeInfo, parking?.isFree) { parking.toParkingFeeInfo() }
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("요금 안내", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ParkingInfoRow("초기무료", fee.initialFree)
+            ParkingInfoRow("기본요금", fee.base)
+            ParkingInfoRow("추가요금", fee.additional)
+            ParkingInfoRow("할증기준시간", fee.surcharge)
+        }
+    }
+}
+
+@Composable
+private fun ParkingInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = RoutiTheme.typography.caption1Medium,
+            color = RoutiTheme.colors.gray800,
+        )
+        HorizontalDivider(
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .weight(1f),
+            thickness = 1.dp,
+            color = RoutiTheme.colors.gray400.copy(alpha = 0.35f),
+        )
+        Text(
+            text = value,
+            style = RoutiTheme.typography.body3SemiBold,
+            color = RoutiTheme.colors.gray800,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+@Composable
 private fun RatingRegionRow(
     rating: Double,
     region: String,
@@ -978,6 +1204,75 @@ private fun distanceText(route: RouteResult?, isRouting: Boolean): String = when
     isRouting || route == null -> "주행거리 · 측정 중…"
     route.totalDistanceMeters >= 1000 -> "주행거리 · ${"%.1f".format(route.totalDistanceMeters / 1000.0)}km"
     else -> "주행거리 · ${route.totalDistanceMeters}m"
+}
+
+private data class ParkingFeeInfo(
+    val initialFree: String,
+    val base: String,
+    val additional: String,
+    val surcharge: String = "해당항목없음",
+)
+
+private fun ParkingDetail?.parkingTypeDisplay(): String = when {
+    this == null -> "공영주차장"
+    isFree -> "무료 주차장"
+    parkingType?.isNotBlank() == true -> "공영주차장"
+    else -> "공영주차장"
+}
+
+private fun ParkingDetail?.operatingSummary(): String {
+    val weekday = this?.operatingHours?.weekday.orEmpty()
+    if (weekday.isBlank()) return "영업시간 정보 없음"
+    val normalized = weekday.replace(" ", "")
+    if (normalized.startsWith("00:00") && (normalized.endsWith("23:59") || normalized.endsWith("24:00"))) {
+        return "24시간 영업"
+    }
+    return "${normalized.substringBefore("-")}에 영업 시작"
+}
+
+private fun String?.toDisplayHours(): String {
+    val value = this?.trim().orEmpty()
+    if (value.isBlank()) return "해당항목없음"
+    return value.replace("-", " - ")
+}
+
+private fun ParkingDetail?.toParkingFeeInfo(): ParkingFeeInfo {
+    if (this == null) {
+        return ParkingFeeInfo(
+            initialFree = "해당항목없음",
+            base = "해당항목없음",
+            additional = "해당항목없음",
+        )
+    }
+    if (isFree) {
+        return ParkingFeeInfo(
+            initialFree = "무료",
+            base = "무료",
+            additional = "해당항목없음",
+        )
+    }
+
+    val baseMinutes = feeInfo.extractFeeNumber("baseMinutes")
+    val baseFee = feeInfo.extractFeeNumber("baseFee")
+    val addMinutes = feeInfo.extractFeeNumber("addUnitMinutes")
+    val addFee = feeInfo.extractFeeNumber("addUnitFee")
+
+    return ParkingFeeInfo(
+        initialFree = note?.takeIf { it.contains("무료") } ?: "해당항목없음",
+        base = formatFee(baseMinutes, baseFee),
+        additional = formatFee(addMinutes, addFee),
+    )
+}
+
+private fun String?.extractFeeNumber(key: String): Int? {
+    val value = this ?: return null
+    val match = Regex("'$key'\\s*:\\s*(\\d+)").find(value) ?: return null
+    return match.groupValues[1].toIntOrNull()
+}
+
+private fun formatFee(minutes: Int?, fee: Int?): String {
+    if (minutes == null || fee == null) return "해당항목없음"
+    return "${minutes}분 ･ ${"%,d".format(fee)}원"
 }
 
 // ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
