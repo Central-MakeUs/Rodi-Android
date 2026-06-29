@@ -23,13 +23,14 @@ class HomeViewModel : ViewModel() {
         val courses: List<Course> = SampleCourses.ALL,
         val selectedCourseId: String? = null,
         val routeByCourse: Map<String, RouteResult> = emptyMap(),
-        val isRouting: Boolean = false,
+        val routingCourseIds: Set<String> = emptySet(),
         val distanceFilterKm: Int? = null,    // null=전체, 3, 5, 10
         val userLat: Double? = null,
         val userLng: Double? = null,
     ) {
         val selectedCourse: Course? get() = courses.firstOrNull { it.id == selectedCourseId }
         val selectedRoute: RouteResult? get() = selectedCourseId?.let { routeByCourse[it] }
+        val isRouting: Boolean get() = selectedCourseId in routingCourseIds
 
         val filteredCourses: List<Course>
             get() {
@@ -57,13 +58,13 @@ class HomeViewModel : ViewModel() {
 
         if (current.routeByCourse.containsKey(id)) return
         val course = current.courses.firstOrNull { it.id == id } ?: return
-        _state.update { it.copy(isRouting = true) }
+        _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
         viewModelScope.launch {
             val result = KakaoDirectionsClient.getRoute(course)
             _state.update {
                 it.copy(
                     routeByCourse = it.routeByCourse + (id to result),
-                    isRouting = false,
+                    routingCourseIds = it.routingCourseIds - id,
                 )
             }
         }

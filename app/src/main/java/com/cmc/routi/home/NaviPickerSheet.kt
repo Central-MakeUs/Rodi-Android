@@ -196,6 +196,25 @@ private fun NaviPickerContent(
                     )
                 }
             }
+        } else {
+            Spacer(Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 40.dp)
+                    .height(42.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (canConfirm) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray200)
+                    .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, false) } },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "설치하기",
+                    style = RoutiTheme.typography.button1,
+                    color = if (canConfirm) RoutiTheme.colors.white else RoutiTheme.colors.gray400,
+                )
+            }
         }
     }
 }

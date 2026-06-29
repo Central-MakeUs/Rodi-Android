@@ -1,7 +1,6 @@
 package com.cmc.routi.home
 
 import android.Manifest
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -87,7 +86,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cmc.routi.R
 import com.cmc.routi.data.SampleCourses
@@ -129,6 +127,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(false) }
     var naviCourse by remember { mutableStateOf<Course?>(null) }
+    var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -387,12 +386,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 kakaoNaviInstalled ->
                                     KakaoNaviLauncher.launch(context, selectedCourse)
 
-                                else -> context.startActivity(
-                                    Intent(
-                                        Intent.ACTION_VIEW,
-                                        "market://details?id=net.daum.android.map".toUri(),
-                                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                                )
+                                else -> installNaviCourse = selectedCourse
                             }
                         },
                     )
@@ -469,6 +463,20 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                     NaviApp.KAKAONAVI -> KakaoNaviLauncher.launch(context, course)
                 }
                 naviCourse = null
+            },
+        )
+    }
+
+    installNaviCourse?.let {
+        NaviPickerSheet(
+            mode = NaviPickerMode.INSTALL,
+            onDismiss = { installNaviCourse = null },
+            onSelect = { app, _ ->
+                when (app) {
+                    NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
+                    NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
+                }
+                installNaviCourse = null
             },
         )
     }
@@ -830,13 +838,13 @@ private fun ExpandableAddressCard(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("도로명", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray600)
-                Text(roadAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.black)
+                Text(roadAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("지번", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray600)
-                Text(jibunAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray700)
+                Text(jibunAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
             }
         }
     }
@@ -854,12 +862,11 @@ private fun TagRow(difficulty: Difficulty, tags: Set<com.cmc.routi.model.Practic
 
 @Composable
 private fun DifficultyTag(difficulty: Difficulty) {
-    // TODO: 색상 확정 후 변경
     val bgColor = when (difficulty) {
-        Difficulty.LV1 -> Color(0xFFD6F5D6)
-        Difficulty.LV2 -> Color(0xFFD6EAF5)
-        Difficulty.LV3 -> Color(0xFFFFF3D6)
-        Difficulty.LV4 -> Color(0xFFFFE5D6)
+        Difficulty.LV1 -> Color(0xFFCDF2F6)
+        Difficulty.LV2 -> Color(0xFFD0F7DF)
+        Difficulty.LV3 -> Color(0xFFFFF6A4)
+        Difficulty.LV4 -> Color(0xFFFFE6C0)
         Difficulty.LV5 -> Color(0xFFFFD6D6)
     }
     Surface(shape = RoundedCornerShape(2.dp), color = bgColor) {
