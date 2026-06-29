@@ -39,7 +39,7 @@ data class RoutiColors(
 
 val LightRoutiColors = RoutiColors(
     primary50 = Color(0xFFF0EFFF),
-    primary100 = Color(0xFFF5F5F0),
+    primary100 = Color(0xFFDBD9FF),
     primary200 = Color(0xFFBAB6FF),
     primary300 = Color(0xFF9D97FF),
     primary400 = Color(0xFF8278FF),

@@ -229,34 +229,45 @@ private fun NaviAppCard(
         NaviApp.KAKAOMAP -> R.drawable.img_navi_kakaomap
         NaviApp.KAKAONAVI -> R.drawable.img_navi_kakaonavi
     }
-    Column(
+    Box(
         modifier = Modifier
             .width(100.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(16.dp)),
-            contentAlignment = Alignment.Center,
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = app.label,
-                tint = Color.Unspecified,
+            Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp)),
+                    .size(72.dp)
+                    .clip(RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = app.label,
+                    tint = Color.Unspecified,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(12.dp)),
+                )
+            }
+            Text(
+                app.label,
+                style = RoutiTheme.typography.body3Medium,
+                color = RoutiTheme.colors.black,
             )
         }
-        Text(
-            app.label,
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.black,
-        )
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(RoutiTheme.colors.gray400.copy(alpha = 0.24f)),
+            )
+        }
     }
 }
 

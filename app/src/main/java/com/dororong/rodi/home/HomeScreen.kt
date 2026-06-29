@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.edit
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.LinearEasing
@@ -33,6 +34,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -93,6 +95,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -107,6 +111,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.dororong.rodi.R
 import com.dororong.rodi.data.SampleCourses
 import com.dororong.rodi.directions.KakaoDirectionsClient.RouteResult
+import com.dororong.rodi.entry.TermsWebViewScreen
 import com.dororong.rodi.location.awaitCurrentLocation
 import com.dororong.rodi.location.hasLocationPermission
 import com.dororong.rodi.map.rememberMapViewWithLifecycle
@@ -116,6 +121,7 @@ import com.dororong.rodi.model.Course
 import com.dororong.rodi.model.Difficulty
 import com.dororong.rodi.model.ParkingDetail
 import com.dororong.rodi.model.PracticeTag
+import com.dororong.rodi.model.Waypoint
 import com.dororong.rodi.navi.KakaoMapLauncher
 import com.dororong.rodi.navi.KakaoNaviLauncher
 import com.dororong.rodi.navi.NaviApp
@@ -131,13 +137,23 @@ import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.core.content.edit
 
 private const val DEFAULT_ZOOM = 13
 private const val HOME_PREFS = "routi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 private val SEOUL = LatLng.from(37.5563, 126.9220)
 private var hasLoadedMapInSession = false
+
+private data class TermsLink(
+    val title: String,
+    val url: String,
+)
+
+private val HOME_TERMS_LINKS = listOf(
+    TermsLink("서비스 이용약관", "https://sites.google.com/view/dororong/홈"),
+    TermsLink("개인정보처리방침", "https://sites.google.com/view/dorororongg/홈"),
+    TermsLink("위치기반 서비스 이용약관", "https://sites.google.com/view/dororonggg/홈"),
+)
 
 private enum class MapScreenState {
     Loading,
@@ -158,6 +174,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     var naviCourse by remember { mutableStateOf<Course?>(null) }
     var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var selectedTermsLink by remember { mutableStateOf<TermsLink?>(null) }
     val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
     var mapScreenState by remember {
         mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
@@ -189,10 +207,11 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
 
     val screenHeightDp = LocalConfiguration.current.screenHeightDp
     val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
+    val sheetPeekHeight = if (state.selectedCourse == null) peekHeight else 1.dp
     val density = LocalDensity.current
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
+    val sheetPeekHeightPx = with(density) { sheetPeekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
-    val logoBottomPx = peekHeightPx + with(density) { 16.dp.toPx() }
 
     LaunchedEffect(kakaoMap) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -222,9 +241,9 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(kakaoMap, currentLocation) {
+    LaunchedEffect(kakaoMap, currentLocation, sheetPeekHeightPx, state.selectedCourseId) {
         val map = kakaoMap ?: return@LaunchedEffect
-        map.setPadding(0, 0, 0, peekHeightPx)
+        map.setPadding(0, 0, 0, sheetPeekHeightPx)
         map.logo?.setPosition(
             MapGravity.BOTTOM or MapGravity.LEFT,
             logoMarginPx,
@@ -334,7 +353,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         BottomSheetScaffold(
             modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
             scaffoldState = scaffoldState,
-            sheetPeekHeight = peekHeight,
+            sheetPeekHeight = sheetPeekHeight,
             sheetContainerColor = RoutiTheme.colors.white,
             sheetShadowElevation = 8.dp,
             sheetShape = sheetShape,
@@ -444,17 +463,16 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 else -> installNaviCourse = selectedCourse
                             }
                         }
-                        FixedInitialHeightDetailSheet(
+                        StableMeasuredDetailSheet(
                             itemKey = selectedCourse.id,
                             maxHeight = boxHeightDp,
-                        ) { modifier, isHeightFixed ->
+                        ) { detailModifier ->
                             if (selectedCourse.isParking) {
                                 ParkingDetailContent(
                                     course = selectedCourse,
                                     onDismiss = dismissDetail,
                                     onNavigate = navigate,
-                                    modifier = modifier,
-                                    isHeightFixed = isHeightFixed,
+                                    modifier = detailModifier,
                                 )
                             } else {
                                 CourseDetailContent(
@@ -463,7 +481,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                     isRouting = state.isRouting,
                                     onDismiss = dismissDetail,
                                     onNavigate = navigate,
-                                    modifier = modifier,
+                                    modifier = detailModifier,
                                 )
                             }
                         }
@@ -516,17 +534,18 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                     )
                 }
 
-                // 현위치 버튼 — 시트 우상단 위 12dp에 부유
+                // 설정/현위치 버튼 — 시트 우상단 위 12dp에 부유
                 if (sheetOffsetPx != Float.MAX_VALUE) {
                     val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
-                    Box(
+                    Column(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(end = 12.dp)
-                            .absoluteOffset(y = buttonTopDp)
-                            .size(40.dp),
-                        contentAlignment = Alignment.Center,
+                            .absoluteOffset(y = buttonTopDp - 48.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
+                        SettingsButton(onClick = { showSettings = true })
                         MyLocationButton(
                             isActive = isAtCurrentLocation,
                             onClick = {
@@ -555,6 +574,26 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
 
             MapScreenState.Ready -> Unit
         }
+    }
+
+    if (selectedTermsLink != null) {
+        BackHandler { selectedTermsLink = null }
+    } else if (showSettings) {
+        BackHandler { showSettings = false }
+    }
+
+    val termsLink = selectedTermsLink
+    if (termsLink != null) {
+        TermsWebViewScreen(
+            title = termsLink.title,
+            url = termsLink.url,
+            onBack = { selectedTermsLink = null },
+        )
+    } else if (showSettings) {
+        SettingsTermsScreen(
+            onBack = { showSettings = false },
+            onTermsClick = { selectedTermsLink = it },
+        )
     }
 
     naviCourse?.let { course ->
@@ -599,24 +638,31 @@ private fun DistanceFilterBar(
         "10km" to 10,
     )
     Surface(
-        modifier = modifier.height(38.dp),
+        modifier = modifier,
         shape = RoundedCornerShape(50),
         color = RoutiTheme.colors.white,
+        border = BorderStroke(1.dp, RoutiTheme.colors.primary100),
         shadowElevation = 4.dp,
     ) {
-        Row(modifier = Modifier.padding(4.dp)) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             options.forEach { (label, km) ->
                 val selected = selectedKm == km
-                Surface(
-                    onClick = { onSelect(km) },
-                    shape = RoundedCornerShape(50),
-                    color = if (selected) RoutiTheme.colors.primary600 else Color.Transparent,
+                val shape = RoundedCornerShape(50)
+                Box(
+                    modifier = Modifier
+                        .clip(shape)
+                        .background(if (selected) RoutiTheme.colors.primary600 else Color.Transparent)
+                        .clickable { onSelect(km) }
+                        .padding(horizontal = 20.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
                         style = RoutiTheme.typography.body1Medium,
                         color = if (selected) RoutiTheme.colors.white else RoutiTheme.colors.gray600,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
                     )
                 }
             }
@@ -842,6 +888,107 @@ private fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun SettingsButton(onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .size(40.dp)
+            .semantics { contentDescription = "설정" },
+        shape = CircleShape,
+        color = RoutiTheme.colors.white,
+        shadowElevation = 2.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                painter = painterResource(R.drawable.ic_settings),
+                contentDescription = null,
+                tint = RoutiTheme.colors.gray900,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsTermsScreen(
+    onBack: () -> Unit,
+    onTermsClick: (TermsLink) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = RoutiTheme.colors.white,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron_left),
+                        contentDescription = "뒤로",
+                        tint = RoutiTheme.colors.black,
+                    )
+                }
+                Text(
+                    text = "설정",
+                    style = RoutiTheme.typography.headline1,
+                    color = RoutiTheme.colors.black,
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            Text(
+                text = "약관 및 정책",
+                style = RoutiTheme.typography.body1SemiBold,
+                color = RoutiTheme.colors.black,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                HOME_TERMS_LINKS.forEach { link ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onTermsClick(link) }
+                            .padding(horizontal = 16.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = link.title,
+                            style = RoutiTheme.typography.body3Medium,
+                            color = RoutiTheme.colors.gray900,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_chevron_right),
+                            contentDescription = null,
+                            tint = RoutiTheme.colors.gray600,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = 1.dp,
+                        color = RoutiTheme.colors.gray100,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun CourseListContent(
     courses: List<Course>,
     onCourseClick: (Int) -> Unit,
@@ -987,35 +1134,41 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
 }
 
 @Composable
-private fun FixedInitialHeightDetailSheet(
+private fun StableMeasuredDetailSheet(
     itemKey: Int,
     maxHeight: Dp,
-    content: @Composable (modifier: Modifier, isHeightFixed: Boolean) -> Unit,
+    content: @Composable (Modifier) -> Unit,
 ) {
     val density = LocalDensity.current
-    var fixedHeightPx by rememberSaveable(itemKey) { mutableStateOf<Float?>(null) }
-    val fixedHeightDp = fixedHeightPx?.let { with(density) { it.toDp() } }
-
-    val measuringModifier = Modifier.onGloballyPositioned { coordinates ->
-        if (fixedHeightPx != null) return@onGloballyPositioned
-
-        val measuredHeightPx = coordinates.size.height.toFloat()
-        if (measuredHeightPx <= 0f) return@onGloballyPositioned
-
-        val maxHeightPx = with(density) {
-            if (maxHeight.isSpecified && maxHeight > 0.dp) {
-                maxHeight.toPx()
-            } else {
-                Float.POSITIVE_INFINITY
-            }
-        }
-        fixedHeightPx = measuredHeightPx.coerceAtMost(maxHeightPx)
+    var measuredHeightPx by rememberSaveable(itemKey) { mutableStateOf<Float?>(null) }
+    val measuredHeightDp = measuredHeightPx?.let { with(density) { it.toDp() } }
+    val maxHeightModifier = if (maxHeight.isSpecified && maxHeight > 0.dp) {
+        Modifier.heightIn(max = maxHeight)
+    } else {
+        Modifier
     }
 
-    if (fixedHeightDp == null) {
-        content(measuringModifier, false)
+    if (measuredHeightDp == null) {
+        content(
+            Modifier
+                .fillMaxWidth()
+                .then(maxHeightModifier)
+                .onGloballyPositioned { coordinates ->
+                    val heightPx = coordinates.size.height.toFloat()
+                    if (heightPx <= 0f || measuredHeightPx != null) return@onGloballyPositioned
+                    val maxHeightPx = with(density) {
+                        if (maxHeight.isSpecified && maxHeight > 0.dp) maxHeight.toPx() else Float.POSITIVE_INFINITY
+                    }
+                    measuredHeightPx = heightPx.coerceAtMost(maxHeightPx)
+                },
+        )
     } else {
-        content(Modifier.height(fixedHeightDp), true)
+        content(
+            Modifier
+                .fillMaxWidth()
+                .height(measuredHeightDp)
+                .then(maxHeightModifier),
+        )
     }
 }
 
@@ -1125,7 +1278,6 @@ private fun ParkingDetailContent(
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
-    isHeightFixed: Boolean = false,
 ) {
     val parking = course.parkingDetail
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
@@ -1134,6 +1286,7 @@ private fun ParkingDetailContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
             .navigationBarsPadding(),
     ) {
         Row(
@@ -1160,12 +1313,7 @@ private fun ParkingDetailContent(
             }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (isHeightFixed) Modifier.weight(1f) else Modifier)
-                .verticalScroll(rememberScrollState()),
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1490,7 +1638,7 @@ private fun SummaryBox(
 
 @Composable
 private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
-    val points = course.allPoints
+    val points = course.waypoints.sortedBy { it.order }
     Column(modifier = modifier) {
         points.forEachIndexed { i, point ->
             val isStart = i == 0
@@ -1529,10 +1677,12 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                     modifier = Modifier.width(54.dp),
                 )
                 Text(
-                    text = point.name.stripCityPrefix(),
+                    text = point.displayStepAddress(),
                     style = RoutiTheme.typography.caption1Medium,
                     color = RoutiTheme.colors.gray800,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
             }
             if (!isEnd) {
@@ -1655,6 +1805,23 @@ private fun String.stripCityPrefix(): String {
 /** 시/도 + 구/군 접두어까지 제거. 공백 구분 주소용. */
 private fun String.stripCityAndDistrict(): String =
     stripCityPrefix().replace(Regex("^[가-힣0-9]+[구군]\\s+"), "")
+
+private fun Waypoint.displayStepAddress(): String {
+    val source = address.takeIf { it.isNotBlank() } ?: name
+    return source.toRoadNameWithNumberOrShortName()
+}
+
+private fun String.toRoadNameWithNumberOrShortName(): String {
+    val compact = stripCityAndDistrict().trim()
+    if (compact.isBlank()) return trim()
+
+    val roadMatch = Regex("""^(.+?(?:대로|로|길))\s+(\d+(?:-\d+)?)""").find(compact)
+    if (roadMatch != null) {
+        return "${roadMatch.groupValues[1]} ${roadMatch.groupValues[2]}"
+    }
+
+    return compact
+}
 
 /** 도로명 주소를 짧게 표시. "마포나루길 467 스타벅스" 형태. */
 private fun String.shortenRoadAddress(): String {
