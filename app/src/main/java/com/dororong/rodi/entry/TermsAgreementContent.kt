@@ -73,7 +73,7 @@ fun TermsAgreementContent(
         )
         CheckRow(
             checked = privacy,
-            text = "개인정보 수집·이용 동의(필수)",
+            text = "개인정보처리방침(필수)",
             onToggle = onPrivacyToggle,
             trailingChevron = true,
             onChevronClick = { onTermsClick("https://sites.google.com/view/dorororongg/홈") },
