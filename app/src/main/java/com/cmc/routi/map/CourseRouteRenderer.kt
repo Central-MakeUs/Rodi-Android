@@ -136,7 +136,7 @@ fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
     }
 }
 
-private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitmap, tag: String) {
+private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitmap, tag: Int) {
     val manager = labelManager ?: return
     val layer = manager.layer ?: return
     val style = LabelStyle.from(bitmap)
