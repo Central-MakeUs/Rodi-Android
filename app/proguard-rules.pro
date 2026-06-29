@@ -24,7 +24,8 @@
 # 지도 런타임은 SDK 콜백, JNI, SDK 클래스명으로 로드되는 asset에 의존한다.
 -keep class com.kakao.vectormap.** { *; }
 -keep class com.kakao.sdk.** { *; }
--dontwarn com.kakao.**
+-dontwarn com.kakao.vectormap.**
+-dontwarn com.kakao.sdk.**
 
 # DataStore와 lifecycle-aware coroutine dispatch에서 사용하는 Kotlin coroutines의
 # ServiceLoader 항목과 내부 volatile 필드를 보존한다.

@@ -15,7 +15,6 @@ local.properties
 
 # Android build outputs
 captures/
-**/release/
 *.apk
 *.ap_
 *.aab
