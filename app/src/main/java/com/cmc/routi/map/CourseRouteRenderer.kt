@@ -3,12 +3,13 @@ package com.cmc.routi.map
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color as AndroidColor
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 import com.cmc.routi.R
 import com.cmc.routi.model.Course
 import com.kakao.vectormap.KakaoMap
@@ -18,14 +19,12 @@ import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.kakao.vectormap.label.LabelOptions
 import com.kakao.vectormap.label.LabelStyle
 import com.kakao.vectormap.label.LabelStyles
-import com.kakao.vectormap.label.LabelTextBuilder
 import com.kakao.vectormap.route.RouteLineOptions
 import com.kakao.vectormap.route.RouteLineSegment
 import com.kakao.vectormap.route.RouteLineStyle
 import com.kakao.vectormap.route.RouteLineStyles
 import com.kakao.vectormap.route.RouteLineStylesSet
-import androidx.core.graphics.toColorInt
-import androidx.core.graphics.createBitmap
+import android.graphics.Color as AndroidColor
 
 private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
 private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
@@ -125,9 +124,10 @@ private const val CHIP_PADDING_V_DP = 4f
 fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
     clearCourse()
     val density = context.resources.displayMetrics.density
+    val parkingBitmap by lazy { context.vectorToBitmap(R.drawable.ic_pin_park, sizeDp = 34) }
     courses.forEach { course ->
         val bitmap = if (course.isParking) {
-            context.vectorToBitmap(R.drawable.ic_pin_park, sizeDp = 34)
+            parkingBitmap
         } else {
             createChipBitmap(course.courseNickname, density)
         }

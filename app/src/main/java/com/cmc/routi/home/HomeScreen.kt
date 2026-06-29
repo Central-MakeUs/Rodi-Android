@@ -38,8 +38,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,12 +45,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -91,6 +88,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.cmc.routi.R
@@ -358,7 +356,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
                                 listState = listState,
                                 modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
-                                    visibleHeightDp
+                                    visibleHeightDp,
                                 ) else Modifier,
                             )
                         }
@@ -661,7 +659,9 @@ private fun CourseListContent(
 @Composable
 private fun CourseEmptyContent() {
     Column(
-        modifier = Modifier.fillMaxWidth().height(330.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(330.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -734,7 +734,7 @@ private fun FixedInitialHeightDetailSheet(
         if (measuredHeightPx <= 0f) return@onGloballyPositioned
 
         val maxHeightPx = with(density) {
-            if (maxHeight != Dp.Unspecified && maxHeight > 0.dp) {
+            if (maxHeight.isSpecified && maxHeight > 0.dp) {
                 maxHeight.toPx()
             } else {
                 Float.POSITIVE_INFINITY
@@ -1345,7 +1345,8 @@ private fun ParkingDetail?.toParkingFeeInfo(): ParkingFeeInfo {
 
 private fun String?.extractFeeNumber(key: String): Int? {
     val value = this ?: return null
-    val match = Regex("'$key'\\s*:\\s*(\\d+)").find(value) ?: return null
+    val escapedKey = Regex.escape(key)
+    val match = Regex("""["']$escapedKey["']\s*:\s*(\d+)""").find(value) ?: return null
     return match.groupValues[1].toIntOrNull()
 }
 
@@ -1361,7 +1362,7 @@ private val CITY_PREFIXES = listOf(
     "대전광역시", "울산광역시", "세종특별자치시", "강원특별자치도", "경기도",
     "충청남도", "충청북도", "전라남도", "전라북도", "경상남도", "경상북도",
     "제주특별자치도", "서울", "부산", "대구", "인천", "광주", "대전", "울산",
-    "세종", "강원", "경기", "제주"
+    "세종", "강원", "경기", "제주",
 )
 
 /** 시/도 레벨 접두어만 제거 (구·군·동은 유지). VerticalStepList용. */
@@ -1388,7 +1389,7 @@ private fun String.shortenCommaRoad(): String {
     // 도로명: 로/길/대로 로 끝나는 토큰
     val roadIdx = parts.indexOfFirst { p ->
         p.endsWith("로") || p.endsWith("길") || p.endsWith("대로") ||
-        Regex("로\\d|길\\d").containsMatchIn(p)
+                Regex("로\\d|길\\d").containsMatchIn(p)
     }
     if (roadIdx < 0) return parts.firstOrNull() ?: this
 
@@ -1399,10 +1400,10 @@ private fun String.shortenCommaRoad(): String {
     // 건물명: 첫 토큰이 숫자·행정구역 접미사가 아닌 경우
     val building = parts.firstOrNull()?.takeIf { first ->
         parts.indexOf(first) != roadIdx &&
-        !first.matches(Regex("\\d.*")) &&
-        !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
-        !first.endsWith("읍") && !first.endsWith("면") &&
-        !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
+                !first.matches(Regex("\\d.*")) &&
+                !first.endsWith("동") && !first.endsWith("구") && !first.endsWith("시") &&
+                !first.endsWith("읍") && !first.endsWith("면") &&
+                !first.endsWith("로") && !first.endsWith("길") && !first.endsWith("대로")
     }
 
     return buildString {
@@ -1428,7 +1429,7 @@ private fun String.shortenJibunAddress(): String {
         it.isNotEmpty() && !it.matches(Regex("\\d{5}")) && it != "대한민국"
     }
     val dong = parts.firstOrNull { it.endsWith("동") || it.endsWith("리") }
-    val num  = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
+    val num = parts.firstOrNull { it.matches(Regex("\\d+(-\\d+)?")) }
 
     return when {
         dong != null && num != null -> "$dong $num"
