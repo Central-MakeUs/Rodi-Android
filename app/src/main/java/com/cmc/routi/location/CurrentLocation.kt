@@ -4,6 +4,8 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Location
+import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -11,6 +13,8 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
+
+private const val MAX_CACHED_LOCATION_AGE_MILLIS = 2 * 60 * 1000L
 
 /** 위치 권한(FINE 또는 COARSE)이 하나라도 허용돼 있는지. */
 fun Context.hasLocationPermission(): Boolean {
@@ -28,12 +32,12 @@ suspend fun Context.awaitCurrentLocation(): LatLng? {
     if (!hasLocationPermission()) return null
     val client = LocationServices.getFusedLocationProviderClient(this)
 
-    val last = suspendCancellableCoroutine<LatLng?> { cont ->
+    val last = suspendCancellableCoroutine<Location?> { cont ->
         client.lastLocation
-            .addOnSuccessListener { loc -> cont.resume(loc?.let { LatLng.from(it.latitude, it.longitude) }) }
+            .addOnSuccessListener { loc -> cont.resume(loc) }
             .addOnFailureListener { cont.resume(null) }
     }
-    if (last != null) return last
+    if (last != null && last.isFreshEnough()) return LatLng.from(last.latitude, last.longitude)
 
     val cts = CancellationTokenSource()
     return suspendCancellableCoroutine { cont ->
@@ -42,4 +46,13 @@ suspend fun Context.awaitCurrentLocation(): LatLng? {
             .addOnFailureListener { cont.resume(null) }
         cont.invokeOnCancellation { cts.cancel() }
     }
+}
+
+private fun Location.isFreshEnough(): Boolean {
+    val ageMillis = if (elapsedRealtimeNanos > 0L) {
+        (SystemClock.elapsedRealtimeNanos() - elapsedRealtimeNanos) / 1_000_000L
+    } else {
+        System.currentTimeMillis() - time
+    }
+    return ageMillis in 0..MAX_CACHED_LOCATION_AGE_MILLIS
 }
