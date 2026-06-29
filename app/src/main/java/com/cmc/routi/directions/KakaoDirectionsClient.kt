@@ -28,6 +28,7 @@ object KakaoDirectionsClient {
 
     private const val TAG = "KakaoDirections"
     private const val BASE_URL = "https://apis-navi.kakaomobility.com/v1/directions"
+    private const val MAX_API_WAYPOINTS = 4
 
     /**
      * @param points              전체 폴리라인 좌표 (지도 렌더용)
@@ -62,6 +63,10 @@ object KakaoDirectionsClient {
             Log.w(TAG, "REST API 키가 없어 직선으로 폴백합니다.")
             return@withContext straightFallback()
         }
+        if (waypoints.size > MAX_API_WAYPOINTS) {
+            Log.w(TAG, "경유지가 API 제한을 초과해 직선으로 폴백합니다.")
+            return@withContext straightFallback()
+        }
         runCatching { requestDirections(origin, waypoints, destination, restKey) }
             .getOrElse {
                 Log.w(TAG, "길찾기 실패, 직선으로 폴백: ${it.message}")
@@ -87,10 +92,10 @@ object KakaoDirectionsClient {
             val code = conn.responseCode
             val body = (if (code in 200..299) conn.inputStream else conn.errorStream)
                 ?.bufferedReader()?.use { it.readText() } ?: ""
-            if (code !in 200..299) error("HTTP $code: $body")
+            if (code !in 200..299) error("HTTP $code")
 
             val parsed = parseRouteData(body)
-            if (parsed.points.isEmpty()) error("경로 좌표가 비어 있음: $body")
+            if (parsed.points.isEmpty()) error("경로 좌표가 비어 있음")
             return parsed
         } finally {
             conn.disconnect()
