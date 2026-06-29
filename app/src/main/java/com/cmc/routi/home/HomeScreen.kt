@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -128,6 +129,7 @@ import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.core.content.edit
 
 private const val DEFAULT_ZOOM = 13
 private const val HOME_PREFS = "routi_home_prefs"
@@ -667,7 +669,10 @@ private fun MapNetworkErrorScreen(
                 .absoluteOffset(y = (-30).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            MapUnavailableIcon()
+            Image(
+                painter = painterResource(R.drawable.illust_network_disconntected),
+                contentDescription = null,
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "지도를 불러올 수 없어요",
@@ -731,49 +736,6 @@ private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun MapUnavailableIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(60.dp)) {
-        val purple = Color(0xFF5640FF)
-        val center = Offset(size.width / 2f, size.height / 2f)
-        drawCircle(color = Color(0xFFF0EFFF), radius = size.minDimension / 2f)
-        drawCircle(
-            color = purple,
-            radius = 12.dp.toPx(),
-            center = center,
-            style = Stroke(width = 2.2.dp.toPx(), cap = StrokeCap.Round),
-        )
-        drawLine(
-            color = purple,
-            start = Offset(center.x - 15.dp.toPx(), center.y - 15.dp.toPx()),
-            end = Offset(center.x + 15.dp.toPx(), center.y + 15.dp.toPx()),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = purple,
-            start = Offset(center.x - 16.dp.toPx(), center.y - 2.dp.toPx()),
-            end = Offset(center.x + 16.dp.toPx(), center.y - 8.dp.toPx()),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = purple,
-            start = Offset(center.x - 10.dp.toPx(), center.y - 10.dp.toPx()),
-            end = Offset(center.x - 10.dp.toPx(), center.y + 12.dp.toPx()),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawLine(
-            color = purple,
-            start = Offset(center.x + 9.dp.toPx(), center.y - 12.dp.toPx()),
-            end = Offset(center.x + 9.dp.toPx(), center.y + 11.dp.toPx()),
-            strokeWidth = 2.2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
     }
 }
 
@@ -1648,9 +1610,9 @@ private fun Context.hasLoadedMapBefore(): Boolean =
 
 private fun Context.markMapLoaded() {
     getSharedPreferences(HOME_PREFS, Context.MODE_PRIVATE)
-        .edit()
-        .putBoolean(KEY_HAS_LOADED_MAP, true)
-        .apply()
+        .edit {
+            putBoolean(KEY_HAS_LOADED_MAP, true)
+        }
 }
 
 // ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
