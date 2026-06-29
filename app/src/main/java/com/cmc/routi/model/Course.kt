@@ -17,6 +17,7 @@ data class Waypoint(
     val lat: Double,
     val lng: Double,
     val address: String,
+    val jibunAddress: String = address,
     val category: String,
 )
 
@@ -162,5 +163,5 @@ data class Course(
         get() = listOf(origin) + waypointPoints + destination
 
     val roadAddress: String get() = startWaypoint.address
-    val jibunAddress: String get() = startWaypoint.address
+    val jibunAddress: String get() = startWaypoint.jibunAddress
 }
