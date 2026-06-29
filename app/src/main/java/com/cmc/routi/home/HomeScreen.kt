@@ -1,7 +1,6 @@
 package com.cmc.routi.home
 
 import android.Manifest
-import android.widget.Space
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,7 +39,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fitInside
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.Button
@@ -397,31 +395,28 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             else -> installNaviCourse = selectedCourse
                         }
                     }
-                    if (selectedCourse.isParking) {
-                        val parkingSheetHeight = remember(selectedCourse.id) { mutableStateOf<Dp?>(null) }
-                        LaunchedEffect(selectedCourse.id, visibleHeightDp) {
-                            if (
-                                parkingSheetHeight.value == null &&
-                                visibleHeightDp != Dp.Unspecified &&
-                                visibleHeightDp > 0.dp
-                            ) {
-                                parkingSheetHeight.value = visibleHeightDp
-                            }
+                    FixedInitialHeightDetailSheet(
+                        itemKey = selectedCourse.id,
+                        maxHeight = boxHeightDp,
+                    ) { modifier, isHeightFixed ->
+                        if (selectedCourse.isParking) {
+                            ParkingDetailContent(
+                                course = selectedCourse,
+                                onDismiss = dismissDetail,
+                                onNavigate = navigate,
+                                modifier = modifier,
+                                isHeightFixed = isHeightFixed,
+                            )
+                        } else {
+                            CourseDetailContent(
+                                course = selectedCourse,
+                                route = state.selectedRoute,
+                                isRouting = state.isRouting,
+                                onDismiss = dismissDetail,
+                                onNavigate = navigate,
+                                modifier = modifier,
+                            )
                         }
-                        ParkingDetailContent(
-                            course = selectedCourse,
-                            onDismiss = dismissDetail,
-                            onNavigate = navigate,
-                            modifier = parkingSheetHeight.value?.let { Modifier.height(it) } ?: Modifier,
-                        )
-                    } else {
-                        CourseDetailContent(
-                            course = selectedCourse,
-                            route = state.selectedRoute,
-                            isRouting = state.isRouting,
-                            onDismiss = dismissDetail,
-                            onNavigate = navigate,
-                        )
                     }
                 }
             }
@@ -723,17 +718,51 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
 }
 
 @Composable
+private fun FixedInitialHeightDetailSheet(
+    itemKey: Int,
+    maxHeight: Dp,
+    content: @Composable (modifier: Modifier, isHeightFixed: Boolean) -> Unit,
+) {
+    val density = LocalDensity.current
+    var fixedHeightPx by rememberSaveable(itemKey) { mutableStateOf<Float?>(null) }
+    val fixedHeightDp = fixedHeightPx?.let { with(density) { it.toDp() } }
+
+    val measuringModifier = Modifier.onGloballyPositioned { coordinates ->
+        if (fixedHeightPx != null) return@onGloballyPositioned
+
+        val measuredHeightPx = coordinates.size.height.toFloat()
+        if (measuredHeightPx <= 0f) return@onGloballyPositioned
+
+        val maxHeightPx = with(density) {
+            if (maxHeight != Dp.Unspecified && maxHeight > 0.dp) {
+                maxHeight.toPx()
+            } else {
+                Float.POSITIVE_INFINITY
+            }
+        }
+        fixedHeightPx = measuredHeightPx.coerceAtMost(maxHeightPx)
+    }
+
+    if (fixedHeightDp == null) {
+        content(measuringModifier, false)
+    } else {
+        content(Modifier.height(fixedHeightDp), true)
+    }
+}
+
+@Composable
 private fun CourseDetailContent(
     course: Course,
     route: RouteResult?,
     isRouting: Boolean,
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .navigationBarsPadding(),
@@ -827,6 +856,7 @@ private fun ParkingDetailContent(
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
+    isHeightFixed: Boolean = false,
 ) {
     val parking = course.parkingDetail
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
@@ -864,7 +894,7 @@ private fun ParkingDetailContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
+                .then(if (isHeightFixed) Modifier.weight(1f) else Modifier)
                 .verticalScroll(rememberScrollState()),
         ) {
             Column(
