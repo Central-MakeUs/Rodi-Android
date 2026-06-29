@@ -23,6 +23,7 @@ object KakaoMapLauncher {
     private const val MAX_VIA_COUNT = 5
     private const val KAKAO_MAP_PACKAGE = "net.daum.android.map"
     private const val MARKET_URL = "market://details?id=$KAKAO_MAP_PACKAGE"
+    private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAO_MAP_PACKAGE"
 
     fun launch(context: Context, course: Course) {
         val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(course).toUri())
@@ -31,10 +32,16 @@ object KakaoMapLauncher {
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(context, "카카오맵이 설치되어 있지 않아 설치 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, MARKET_URL.toUri())
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            )
+            openInstallPage(context)
+        }
+    }
+
+    fun openInstallPage(context: Context) {
+        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, MARKET_URL.toUri()).addFlags(flags))
+        } catch (e: ActivityNotFoundException) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_STORE_URL.toUri()).addFlags(flags))
         }
     }
 

@@ -1,5 +1,6 @@
 package com.cmc.routi.navi
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
@@ -21,13 +22,11 @@ object KakaoNaviLauncher {
 
     private const val KAKAONAVI_PACKAGE = "com.locnall.KimGiSa"
     private const val MARKET_URL = "market://details?id=$KAKAONAVI_PACKAGE"
+    private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAONAVI_PACKAGE"
 
     fun launch(context: Context, course: Course) {
         if (!NaviClient.instance.isKakaoNaviInstalled(context)) {
-            context.startActivity(
-                Intent(Intent.ACTION_VIEW, MARKET_URL.toUri())
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
-            )
+            openInstallPage(context)
             return
         }
 
@@ -47,5 +46,14 @@ object KakaoNaviLauncher {
             viaList = viaList,
         )
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+
+    fun openInstallPage(context: Context) {
+        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, MARKET_URL.toUri()).addFlags(flags))
+        } catch (e: ActivityNotFoundException) {
+            context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_STORE_URL.toUri()).addFlags(flags))
+        }
     }
 }
