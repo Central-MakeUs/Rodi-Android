@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,18 @@ fun TermsWebView(
 ) {
     var loadError by remember(url) { mutableStateOf<String?>(null) }
     var retryCount by remember(url) { mutableIntStateOf(0) }
+    var webView by remember(url) { mutableStateOf<WebView?>(null) }
+
+    DisposableEffect(url) {
+        onDispose {
+            webView?.apply {
+                stopLoading()
+                webViewClient = WebViewClient()
+                destroy()
+            }
+            webView = null
+        }
+    }
 
     if (loadError != null) {
         TermsWebViewError(
@@ -49,6 +62,7 @@ fun TermsWebView(
         modifier = modifier,
         factory = { context ->
             WebView(context).apply {
+                webView = this
                 settings.apply {
                     javaScriptEnabled = true
                     domStorageEnabled = true
