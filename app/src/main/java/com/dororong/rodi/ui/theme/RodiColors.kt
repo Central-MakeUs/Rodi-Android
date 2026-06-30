@@ -5,7 +5,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 @Immutable
-data class RoutiColors(
+data class RodiColors(
     // Primary
     val primary50: Color,
     val primary100: Color,
@@ -37,7 +37,7 @@ data class RoutiColors(
     val tagDangerBg: Color,
 )
 
-val LightRoutiColors = RoutiColors(
+val LightRodiColors = RodiColors(
     primary50 = Color(0xFFF0EFFF),
     primary100 = Color(0xFFDBD9FF),
     primary200 = Color(0xFFBAB6FF),
@@ -65,4 +65,4 @@ val LightRoutiColors = RoutiColors(
     tagDangerBg = Color(0xFFFFD6D6),
 )
 
-val LocalRoutiColors = staticCompositionLocalOf { LightRoutiColors }
+val LocalRodiColors = staticCompositionLocalOf { LightRodiColors }

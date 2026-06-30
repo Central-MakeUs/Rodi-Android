@@ -12,7 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.data.EntryPreferences
 import com.dororong.rodi.entry.EntryFlow
 import com.dororong.rodi.home.HomeScreen
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 
 /**
  * 앱 진입점 분기: 첫 실행 게이트(EntryFlow) 완료 여부에 따라 게이트 또는 홈을 보여준다.
@@ -26,7 +26,7 @@ fun AppRoot() {
 
     when (completed) {
         // 로딩 중: 흰 화면(깜빡임 방지)
-        null -> Box(Modifier.fillMaxSize().background(RoutiTheme.colors.white))
+        null -> Box(Modifier.fillMaxSize().background(RodiTheme.colors.white))
         false -> EntryFlow(onComplete = {})
         true -> HomeScreen()
     }

@@ -4,8 +4,8 @@ import com.dororong.rodi.model.Course
 import com.dororong.rodi.model.CourseFeatures
 import com.dororong.rodi.model.OperatingHours
 import com.dororong.rodi.model.ParkingDetail
-import com.dororong.rodi.model.RoutiItem
-import com.dororong.rodi.model.RoutiItemType
+import com.dororong.rodi.model.RodiItem
+import com.dororong.rodi.model.RodiItemType
 import com.dororong.rodi.model.RouteDetail
 import com.dororong.rodi.model.RoutePoint
 import com.dororong.rodi.model.Waypoint
@@ -26,11 +26,11 @@ private val S = WaypointType.START
 private val V = WaypointType.WAYPOINT
 private val E = WaypointType.END
 
-private fun Course.toServerItem(id: Int): RoutiItem {
+private fun Course.toServerItem(id: Int): RodiItem {
     val start = startWaypoint
-    return RoutiItem(
+    return RodiItem(
         id = id,
-        type = RoutiItemType.COURSE,
+        type = RodiItemType.COURSE,
         name = courseName,
         address = start.address,
         jibunAddress = start.jibunAddress,
@@ -88,9 +88,9 @@ private fun parking(
     phone: String?,
     operator: String?,
     note: String?,
-): RoutiItem = RoutiItem(
+): RodiItem = RodiItem(
     id = id,
-    type = RoutiItemType.PARKING,
+    type = RodiItemType.PARKING,
     name = name,
     address = address,
     jibunAddress = null,
@@ -123,7 +123,7 @@ private fun parking(
 private fun isJibunAddress(address: String): Boolean =
     Regex("(?:^|\\s)(?:[가-힣0-9]+(?:읍|면)\\s+)?[가-힣0-9]+(?:동|리|가)\\s+(?:산\\s*)?\\d+(?:-\\d+)?(?:\\s|$)").containsMatchIn(address)
 
-private fun RoutiItem.toParkingCourse(): Course? {
+private fun RodiItem.toParkingCourse(): Course? {
     val latitude = lat ?: return null
     val longitude = lng ?: return null
     val parkingDetail = parking ?: return null
@@ -160,7 +160,7 @@ private fun RoutiItem.toParkingCourse(): Course? {
     )
     return Course(
         id = id,
-        itemType = RoutiItemType.PARKING,
+        itemType = RodiItemType.PARKING,
         courseName = name,
         courseNickname = name,
         areaName = area,
@@ -1827,11 +1827,11 @@ object SampleCourses {
         ),
     )
 
-    val COURSE_ITEMS: List<RoutiItem> = ALL.mapIndexed { index, course ->
+    val COURSE_ITEMS: List<RodiItem> = ALL.mapIndexed { index, course ->
         course.toServerItem(id = index + 1)
     }
 
-    val PARKING_ITEMS: List<RoutiItem> = listOf(
+    val PARKING_ITEMS: List<RodiItem> = listOf(
         parking(
             id = 100000,
             name = "엑스포공원나비주차장",
@@ -4084,7 +4084,7 @@ object SampleCourses {
         ),
     )
 
-    val ITEMS: List<RoutiItem> = COURSE_ITEMS + PARKING_ITEMS
+    val ITEMS: List<RodiItem> = COURSE_ITEMS + PARKING_ITEMS
 
-    val ROUTI_COURSES: List<Course> = ALL + PARKING_ITEMS.mapNotNull { it.toParkingCourse() }
+    val RODI_COURSES: List<Course> = ALL + PARKING_ITEMS.mapNotNull { it.toParkingCourse() }
 }

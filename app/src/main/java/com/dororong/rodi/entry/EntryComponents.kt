@@ -36,9 +36,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.R
-import com.dororong.rodi.ui.theme.RoutiRadius
-import com.dororong.rodi.ui.theme.RoutiSpacing
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiRadius
+import com.dororong.rodi.ui.theme.RodiSpacing
+import com.dororong.rodi.ui.theme.RodiTheme
 
 private val APP_BAR_HEIGHT = 56.dp
 private val BUTTON_HEIGHT = 48.dp
@@ -63,7 +63,7 @@ fun EntryScaffold(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(RoutiTheme.colors.white)
+            .background(RodiTheme.colors.white)
             .statusBarsPadding(),
     ) {
         // 앱바 56dp
@@ -71,7 +71,7 @@ fun EntryScaffold(
             Modifier
                 .fillMaxWidth()
                 .height(APP_BAR_HEIGHT)
-                .padding(horizontal = RoutiSpacing.md),
+                .padding(horizontal = RodiSpacing.md),
             contentAlignment = Alignment.CenterStart,
         ) {
             if (onBack != null) {
@@ -79,7 +79,7 @@ fun EntryScaffold(
                 Icon(
                     painter = painterResource(R.drawable.ic_chevron_right),
                     contentDescription = "뒤로",
-                    tint = RoutiTheme.colors.gray900,
+                    tint = RodiTheme.colors.gray900,
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
@@ -93,17 +93,17 @@ fun EntryScaffold(
             currentStep = currentStep,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = RoutiSpacing.md)
-                .padding(top = RoutiSpacing.xs),
+                .padding(horizontal = RodiSpacing.md)
+                .padding(top = RodiSpacing.xs),
         )
-        Spacer(Modifier.height(RoutiSpacing.xl)) // bottom 32
+        Spacer(Modifier.height(RodiSpacing.xl)) // bottom 32
 
         // 콘텐츠 영역
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .padding(horizontal = RoutiSpacing.md),
+                .padding(horizontal = RodiSpacing.md),
             content = content,
         )
 
@@ -114,7 +114,7 @@ fun EntryScaffold(
             onClick = onButtonClick,
             modifier = Modifier
                 .navigationBarsPadding()
-                .padding(horizontal = RoutiSpacing.md, vertical = 10.dp),
+                .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
         )
     }
 }
@@ -131,7 +131,7 @@ fun StepProgressIndicator(
                     .weight(1f)
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(if (i < currentStep) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray300),
+                    .background(if (i < currentStep) RodiTheme.colors.primary600 else RodiTheme.colors.gray300),
             )
         }
     }
@@ -150,15 +150,15 @@ fun PrimaryButton(
         modifier = modifier
             .fillMaxWidth()
             .height(BUTTON_HEIGHT),
-        shape = RoundedCornerShape(RoutiRadius.md),
+        shape = RoundedCornerShape(RodiRadius.md),
         colors = ButtonDefaults.buttonColors(
-            containerColor = RoutiTheme.colors.primary600,
-            contentColor = RoutiTheme.colors.white,
-            disabledContainerColor = RoutiTheme.colors.gray300,
-            disabledContentColor = RoutiTheme.colors.gray500,
+            containerColor = RodiTheme.colors.primary600,
+            contentColor = RodiTheme.colors.white,
+            disabledContainerColor = RodiTheme.colors.gray300,
+            disabledContentColor = RodiTheme.colors.gray500,
         ),
     ) {
-        Text(text, style = RoutiTheme.typography.button1)
+        Text(text, style = RodiTheme.typography.button1)
     }
 }
 
@@ -171,7 +171,7 @@ fun CheckRow(
     text: String,
     onToggle: () -> Unit,
     modifier: Modifier = Modifier,
-    textColor: Color = RoutiTheme.colors.black,
+    textColor: Color = RodiTheme.colors.black,
     trailingChevron: Boolean = false,
     onChevronClick: (() -> Unit)? = null,
 ) {
@@ -193,11 +193,11 @@ fun CheckRow(
         Icon(
             painter = painterResource(R.drawable.ic_check),
             contentDescription = null,
-            tint = if (checked) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray300,
+            tint = if (checked) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
             modifier = Modifier.size(24.dp),
         )
-        Spacer(Modifier.width(RoutiSpacing.sm))
-        Text(text, style = RoutiTheme.typography.body1Medium, color = textColor, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(RodiSpacing.sm))
+        Text(text, style = RodiTheme.typography.body1Medium, color = textColor, modifier = Modifier.weight(1f))
         if (trailingChevron) {
             IconButton(
                 onClick = { onChevronClick?.invoke() },
@@ -207,7 +207,7 @@ fun CheckRow(
                 Icon(
                     painter = painterResource(R.drawable.ic_chevron_right),
                     contentDescription = "상세 보기",
-                    tint = RoutiTheme.colors.gray500,
+                    tint = RodiTheme.colors.gray500,
                     modifier = Modifier.size(16.dp),
                 )
             }

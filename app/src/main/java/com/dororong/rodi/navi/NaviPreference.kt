@@ -9,7 +9,7 @@ enum class NaviApp(val key: String, val label: String) {
 
 object NaviPreference {
 
-    private const val PREFS_NAME = "routi_navi"
+    private const val PREFS_NAME = "rodi_navi"
     private const val KEY_ALWAYS = "navi_always_app"
 
     fun getAlways(context: Context): NaviApp? {

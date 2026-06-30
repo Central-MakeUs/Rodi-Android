@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.sp
 import com.dororong.rodi.R
 
 /** Pretendard 폰트 패밀리. app/src/main/res/font/ 에 4 weight 배치 필요. */
-val RoutiFontFamily = FontFamily(
+val RodiFontFamily = FontFamily(
     Font(R.font.pretendard_regular, FontWeight.Normal),
     Font(R.font.pretendard_medium, FontWeight.Medium),
     Font(R.font.pretendard_semibold, FontWeight.SemiBold),
@@ -19,12 +19,12 @@ val RoutiFontFamily = FontFamily(
 )
 
 /**
- * ROUTI 타이포그래피 토큰 (Figma 디자인 시스템 기준).
+ * Rodi 타이포그래피 토큰 (Figma 디자인 시스템 기준).
  * lineHeight = 크기 × 1.3 (button1만 1.4), letterSpacing = -2% (-0.02em).
- * `RoutiTheme.typography.xxx` 로 접근한다.
+ * `RodiTheme.typography.xxx` 로 접근한다.
  */
 @Immutable
-data class RoutiTypography(
+data class RodiTypography(
     val headline1: TextStyle,       // Bold 18
     val body1SemiBold: TextStyle,   // SemiBold 16
     val body1Medium: TextStyle,
@@ -43,14 +43,14 @@ private fun routiStyle(
     weight: FontWeight,
     lineHeightRatio: Float = 1.3f,
 ) = TextStyle(
-    fontFamily = RoutiFontFamily,
+    fontFamily = RodiFontFamily,
     fontWeight = weight,
     fontSize = size.sp,
     lineHeight = (size * lineHeightRatio).sp,
     letterSpacing = (-0.02).em,
 )
 
-val DefaultRoutiTypography = RoutiTypography(
+val DefaultRodiTypography = RodiTypography(
     headline1 = routiStyle(18, FontWeight.Bold),
     body1SemiBold = routiStyle(16, FontWeight.SemiBold),
     body1Medium = routiStyle(16, FontWeight.Medium),
@@ -64,4 +64,4 @@ val DefaultRoutiTypography = RoutiTypography(
     button1 = routiStyle(16, FontWeight.Medium, lineHeightRatio = 1.4f),
 )
 
-val LocalRoutiTypography = staticCompositionLocalOf { DefaultRoutiTypography }
+val LocalRodiTypography = staticCompositionLocalOf { DefaultRodiTypography }

@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.R
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 
 /**
  * 1단계: 위치 권한 안내. "허용하기" → 시스템 권한 다이얼로그 → 결과와 무관하게 다음 단계로.
@@ -55,8 +55,8 @@ fun LocationPermissionContent(
             Spacer(modifier = Modifier.height(40.dp))
             Text(
                 text = "현재 위치를 기반으로 주변 운전 연습 코스를\n추천하기 위해 위치정보를 사용합니다.",
-                style = RoutiTheme.typography.headline1,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -68,8 +68,8 @@ fun LocationPermissionContent(
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "내 주변 운전 연습 코스를 찾으려면\n위치 정보 허용이 꼭 필요해요.",
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
         }
@@ -80,7 +80,7 @@ fun LocationPermissionContent(
 @Preview(showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
 private fun LocationPermissionPreview() {
-    RoutiTheme {
+    RodiTheme {
         LocationPermissionContent(onPermissionResolved = {})
     }
 }

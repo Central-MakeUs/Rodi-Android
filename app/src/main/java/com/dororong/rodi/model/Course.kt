@@ -2,7 +2,7 @@ package com.dororong.rodi.model
 
 enum class WaypointType { START, WAYPOINT, END }
 
-enum class RoutiItemType(val serverValue: String) {
+enum class RodiItemType(val serverValue: String) {
     COURSE("course"),
     PARKING("parking"),
 }
@@ -27,9 +27,9 @@ data class Waypoint(
 )
 
 /** 서버 응답의 result.items 원소와 맞춘 통합 추천 아이템. */
-data class RoutiItem(
+data class RodiItem(
     val id: Int,
-    val type: RoutiItemType,
+    val type: RodiItemType,
     val name: String,
     val address: String,
     val jibunAddress: String?,
@@ -157,13 +157,13 @@ data class Course(
     val bestTime: String,
     val enrichedDescription: String,
     val parkingDetail: ParkingDetail? = null,
-    val itemType: RoutiItemType = RoutiItemType.COURSE,
+    val itemType: RodiItemType = RodiItemType.COURSE,
 ) {
     // ── UI 편의 프로퍼티 ────────────────────────────────────────────────
 
     val title: String get() = courseName
 
-    val isParking: Boolean get() = itemType == RoutiItemType.PARKING
+    val isParking: Boolean get() = itemType == RodiItemType.PARKING
 
     val regionDisplay: String get() {
         val cityName = when (region) {

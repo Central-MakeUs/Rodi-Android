@@ -37,7 +37,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dororong.rodi.R
 import com.dororong.rodi.navi.NaviApp
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 
 enum class NaviPickerMode {
     SELECT,
@@ -70,7 +70,7 @@ fun NaviPickerSheet(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
-                color = RoutiTheme.colors.white
+                color = RodiTheme.colors.white
             ) {
                 NaviPickerContent(
                     mode = mode,
@@ -116,7 +116,7 @@ private fun NaviPickerContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_x),
                     contentDescription = "닫기",
-                    tint = RoutiTheme.colors.black,
+                    tint = RodiTheme.colors.black,
                     modifier = Modifier
                         .padding(top = 16.dp, end = 16.dp)
                         .size(24.dp),
@@ -128,8 +128,8 @@ private fun NaviPickerContent(
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
                     text = title,
-                    style = RoutiTheme.typography.headline1,
-                    color = RoutiTheme.colors.black,
+                    style = RodiTheme.typography.headline1,
+                    color = RodiTheme.colors.black,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -168,14 +168,14 @@ private fun NaviPickerContent(
                         .weight(1f)
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .border(1.dp, RoutiTheme.colors.gray200, RoundedCornerShape(8.dp))
+                        .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
                         .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, false) } },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "이번만",
-                        style = RoutiTheme.typography.button1,
-                        color = if (canConfirm) RoutiTheme.colors.black else RoutiTheme.colors.gray400,
+                        style = RodiTheme.typography.button1,
+                        color = if (canConfirm) RodiTheme.colors.black else RodiTheme.colors.gray400,
                     )
                 }
 
@@ -185,14 +185,14 @@ private fun NaviPickerContent(
                         .weight(1f)
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (canConfirm) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray200)
+                        .background(if (canConfirm) RodiTheme.colors.primary600 else RodiTheme.colors.gray200)
                         .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, true) } },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "항상",
-                        style = RoutiTheme.typography.button1,
-                        color = if (canConfirm) RoutiTheme.colors.white else RoutiTheme.colors.gray400,
+                        style = RodiTheme.typography.button1,
+                        color = if (canConfirm) RodiTheme.colors.white else RodiTheme.colors.gray400,
                     )
                 }
             }
@@ -205,14 +205,14 @@ private fun NaviPickerContent(
                     .padding(horizontal = 40.dp)
                     .height(42.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(if (canConfirm) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray200)
+                    .background(if (canConfirm) RodiTheme.colors.primary600 else RodiTheme.colors.gray200)
                     .clickable(enabled = canConfirm) { selectedApp?.let { onConfirm(it, false) } },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     "설치하기",
-                    style = RoutiTheme.typography.button1,
-                    color = if (canConfirm) RoutiTheme.colors.white else RoutiTheme.colors.gray400,
+                    style = RodiTheme.typography.button1,
+                    color = if (canConfirm) RodiTheme.colors.white else RodiTheme.colors.gray400,
                 )
             }
         }
@@ -257,15 +257,15 @@ private fun NaviAppCard(
             }
             Text(
                 app.label,
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.black,
             )
         }
         if (isSelected) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(RoutiTheme.colors.gray400.copy(alpha = 0.24f)),
+                    .background(RodiTheme.colors.gray400.copy(alpha = 0.24f)),
             )
         }
     }
@@ -274,7 +274,7 @@ private fun NaviAppCard(
 @Preview(showBackground = true)
 @Composable
 fun NaviPickerSelectPreview() {
-    RoutiTheme {
+    RodiTheme {
         NaviPickerContent(
             mode = NaviPickerMode.SELECT,
             onClose = {},
@@ -288,7 +288,7 @@ fun NaviPickerSelectPreview() {
 @Preview(showBackground = true)
 @Composable
 fun NaviPickerInstallPreview() {
-    RoutiTheme {
+    RodiTheme {
         NaviPickerContent(
             mode = NaviPickerMode.INSTALL,
             onClose = {},
