@@ -4,13 +4,6 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **`TermsWebViewScreen` 죽은 코드 삭제** — `:app 코드 이관 Phase 2`(2026-07-01) 중 발견: 이
-  컴포저블은 어디서도 호출되지 않는다(`TermsWebView`만 직접 쓰임). 이관 시엔 동작 보존 우선으로
-  그대로 옮겼음(`:core:ui`의 `terms` 패키지). 실제 삭제는 별도로.
-- [ ] **`:app` 미사용 의존성 정리 검토** — Phase 2 이관 후 `:app`의 `material3`/`ui.graphics`/
-  `ui.tooling.preview`/`lifecycle.viewmodel.compose`가 `MainActivity`/`RodiApplication`/`AppRoot`
-  에서 직접 쓰이는지 불확실. 이번 이관으로 죽은 게 확실한 `core:domain`/`play-services-location`만
-  제거했고, 나머지는 별도 검증 후 정리.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
