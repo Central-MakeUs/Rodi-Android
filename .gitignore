@@ -41,3 +41,7 @@ google-services.json
 # Kotlin / Compose compiler caches
 .kotlin/
 **/.kotlin/
+
+# 큐 자동화 실행 로그 (scripts/queue-relay.sh)
+docs/handoff/queue-run.log
+docs/handoff/queue-logs/
