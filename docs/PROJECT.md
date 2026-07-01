@@ -10,7 +10,7 @@
 - 구조: 단일 `:app` 모듈 (멀티모듈은 → `docs/ARCHITECTURE_TARGET.md` 목표, 미구현)
 
 ## 빌드/버전
-- minSdk 30 / targetSdk 36 / compileSdk 36
+- minSdk 30 / targetSdk 36 / compileSdk 37
 - versionName `1.0.0` / versionCode 2
 - 명령:
   - 빌드 `./gradlew assembleDebug`
