@@ -56,7 +56,7 @@ fun KakaoMap.renderCourseMarkers(context: Context, course: Course) {
 }
 
 /**
- * 코스의 출발/경유/목적 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
+ * 코스의 출발/목적 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
  * 카메라 정렬은 시트 애니메이션이 끝난 실제 패딩 값을 알아야 하므로 [fitCourseToScreen]으로 분리한다.
  *
  * @param routePoints Directions API 로 받은 도로 경로 좌표 (실제 경로 또는 API 레벨 직선 폴백).

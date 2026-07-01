@@ -336,16 +336,11 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    // 시트가 확장 애니메이션을 마쳤는지 추적한다. 코스 선택 시 아주 잠깐(350ms) 지연 후 정착.
-    var sheetSettled by remember { mutableStateOf(true) }
-    LaunchedEffect(state.selectedCourseId) {
-        if (state.selectedCourseId == null) {
-            sheetSettled = true
-            return@LaunchedEffect
+    val sheetSettled by remember {
+        derivedStateOf {
+            state.selectedCourseId == null ||
+                scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
         }
-        sheetSettled = false
-        delay(350)
-        sheetSettled = true
     }
 
     // 카메라 정렬. 시트 확장 애니메이션이 끝나고(sheetSettled) + 실제 경로가 준비된 뒤에만
