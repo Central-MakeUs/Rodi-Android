@@ -19,7 +19,13 @@ scripts/impl.sh
 gate "구현 — git diff / Codex Result 확인"
 
 scripts/review.sh
+
 echo
-echo "▶ 릴레이 종료. Claude Review의 Verdict에 따라:"
-echo "  APPROVE → 커밋 (예: /smart-commit)"
-echo "  NEEDS_CHANGES → RESUME=1 scripts/impl.sh 로 재구현 후 다시 review"
+VERDICT=$(grep 'Verdict:' docs/handoff/HANDOFF.md 2>/dev/null | grep -o 'APPROVE\|NEEDS_CHANGES' | head -1)
+if [[ "$VERDICT" == "APPROVE" ]]; then
+  read -r -p "▶ [APPROVE] 커밋·아카이브·PR 자동 처리? [y/N] " ans
+  [[ "$ans" == [yY] ]] && scripts/review.sh --auto || \
+    echo "  수동 처리: git add -A && git commit -m '...' && git push && gh pr create --base develop"
+else
+  echo "▶ NEEDS_CHANGES — HANDOFF.md Claude Review 확인 후: RESUME=1 make impl"
+fi
