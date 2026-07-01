@@ -39,6 +39,8 @@
 - **주석**: 자명한 코드엔 주석 X. @Composable 함수 단위 주석 X(섹션 마커만 허용).
   외부 연동(카카오맵/내비 등) 동작·함정·폴백은 짧은 KDoc 권장. *왜*만 적고 *무엇*은 코드로.
 - **커밋**: 한국어 conventional commit (`feat(home):`, `fix(entry):` …). PR/이슈 참조는 소스에 넣지 않음.
+  "Phase 1/2" 같은 내부 계획 용어·HANDOFF 제목을 그대로 커밋 메시지에 쓰지 않는다 — 계획 문서는
+  아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
 
 ## 디자인 원천
