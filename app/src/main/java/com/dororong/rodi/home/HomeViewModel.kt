@@ -20,7 +20,7 @@ import kotlin.math.sqrt
 class HomeViewModel : ViewModel() {
 
     data class UiState(
-        val courses: List<Course> = SampleCourses.ROUTI_COURSES,
+        val courses: List<Course> = SampleCourses.RODI_COURSES,
         val selectedCourseId: Int? = null,
         val routeByCourse: Map<Int, RouteResult> = emptyMap(),
         val routingCourseIds: Set<Int> = emptySet(),

@@ -14,7 +14,7 @@ import com.kakao.sdk.navi.model.NaviOption
  * 카카오내비 앱에 코스(출발→경유→목적)를 전달해 길 안내를 시작한다.
  *
  * [NaviClient.navigateIntent]로 Intent를 생성해 startActivity로 실행.
- * KakaoSdk.init() 완료 후 사용 가능 (RoutiApplication.onCreate 참고).
+ * KakaoSdk.init() 완료 후 사용 가능 (RodiApplication.onCreate 참고).
  * 카카오내비 미설치 시 Play Store 설치 페이지로 이동.
  * 카카오내비도 현재 GPS를 출발지로 사용하므로 origin + waypoints를 경유지(viaList)로 전달.
  */

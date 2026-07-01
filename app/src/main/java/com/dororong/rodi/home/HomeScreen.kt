@@ -128,7 +128,7 @@ import com.dororong.rodi.navi.KakaoMapLauncher
 import com.dororong.rodi.navi.KakaoNaviLauncher
 import com.dororong.rodi.navi.NaviApp
 import com.dororong.rodi.navi.NaviPreference
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 import com.kakao.vectormap.GestureType
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
@@ -141,7 +141,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val DEFAULT_ZOOM = 13
-private const val HOME_PREFS = "routi_home_prefs"
+private const val HOME_PREFS = "rodi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 private val SEOUL = LatLng.from(37.5563, 126.9220)
 private var hasLoadedMapInSession = false
@@ -358,7 +358,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
             modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
             scaffoldState = scaffoldState,
             sheetPeekHeight = sheetPeekHeight,
-            sheetContainerColor = RoutiTheme.colors.white,
+            sheetContainerColor = RodiTheme.colors.white,
             sheetShadowElevation = 8.dp,
             sheetShape = sheetShape,
             sheetSwipeEnabled = false,
@@ -393,7 +393,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 .width(60.dp)
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(RoutiTheme.colors.handleBar),
+                                .background(RodiTheme.colors.handleBar),
                         )
                     }
                     val handleHeightDp = 24.dp
@@ -643,8 +643,8 @@ private fun DistanceFilterBar(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(50),
-        color = RoutiTheme.colors.white,
-        border = BorderStroke(1.dp, RoutiTheme.colors.primary100),
+        color = RodiTheme.colors.white,
+        border = BorderStroke(1.dp, RodiTheme.colors.primary100),
         shadowElevation = 4.dp,
     ) {
         Row(
@@ -657,15 +657,15 @@ private fun DistanceFilterBar(
                 Box(
                     modifier = Modifier
                         .clip(shape)
-                        .background(if (selected) RoutiTheme.colors.primary600 else Color.Transparent)
+                        .background(if (selected) RodiTheme.colors.primary600 else Color.Transparent)
                         .clickable { onSelect(km) }
                         .padding(horizontal = 20.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
-                        style = RoutiTheme.typography.body1Medium,
-                        color = if (selected) RoutiTheme.colors.white else RoutiTheme.colors.gray600,
+                        style = RodiTheme.typography.body1Medium,
+                        color = if (selected) RodiTheme.colors.white else RodiTheme.colors.gray600,
                     )
                 }
             }
@@ -678,7 +678,7 @@ private fun MapLoadingScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(RoutiTheme.colors.white)
+            .background(RodiTheme.colors.white)
             .consumeTouches(),
     ) {
         Column(
@@ -687,19 +687,19 @@ private fun MapLoadingScreen(modifier: Modifier = Modifier) {
                 .absoluteOffset(y = (-33).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            RoutiLoadingIndicator()
+            RodiLoadingIndicator()
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "지도를 불러오고 있어요",
-                style = RoutiTheme.typography.body1SemiBold,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body1SemiBold,
+                color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "잠시만 기다려 주세요.",
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
         }
@@ -718,7 +718,7 @@ private fun MapNetworkErrorScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(RoutiTheme.colors.white)
+                .background(RodiTheme.colors.white)
                 .consumeTouches(),
         )
 
@@ -735,20 +735,20 @@ private fun MapNetworkErrorScreen(
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "지도를 불러올 수 없어요",
-                style = RoutiTheme.typography.body1SemiBold,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body1SemiBold,
+                color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "현재 위치 정보를 확인하기 위해\n네트워크 연결 상태를 확인해 주세요.",
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
         }
 
-        RoutiNetworkSnackbar(
+        RodiNetworkSnackbar(
             onRetry = onRetry,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -768,7 +768,7 @@ private fun Modifier.consumeTouches(): Modifier = pointerInput(Unit) {
 }
 
 @Composable
-private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
+private fun RodiLoadingIndicator(modifier: Modifier = Modifier) {
     val infiniteTransition = rememberInfiniteTransition(label = "map_loading")
     val rotation by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -779,14 +779,14 @@ private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
         label = "map_loading_rotation",
     )
     val colors = listOf(
-        RoutiTheme.colors.primary600,
+        RodiTheme.colors.primary600,
         Color(0xFFF4F4FF),
-        RoutiTheme.colors.primary50,
+        RodiTheme.colors.primary50,
         Color(0xFFDBD9FF),
-        RoutiTheme.colors.primary200,
-        RoutiTheme.colors.primary300,
-        RoutiTheme.colors.primary400,
-        RoutiTheme.colors.primary500,
+        RodiTheme.colors.primary200,
+        RodiTheme.colors.primary300,
+        RodiTheme.colors.primary400,
+        RodiTheme.colors.primary500,
     )
 
     Canvas(modifier = modifier.size(39.dp)) {
@@ -808,7 +808,7 @@ private fun RoutiLoadingIndicator(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RoutiNetworkSnackbar(
+private fun RodiNetworkSnackbar(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -817,7 +817,7 @@ private fun RoutiNetworkSnackbar(
             .fillMaxWidth()
             .height(68.dp),
         shape = RoundedCornerShape(8.dp),
-        color = RoutiTheme.colors.gray800,
+        color = RodiTheme.colors.gray800,
         shadowElevation = 0.dp,
     ) {
         Row(
@@ -828,19 +828,19 @@ private fun RoutiNetworkSnackbar(
             SnackbarAlertIcon()
             Text(
                 text = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.white,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.white,
                 modifier = Modifier.weight(1f),
             )
             Surface(
                 onClick = onRetry,
                 shape = RoundedCornerShape(8.dp),
-                color = RoutiTheme.colors.primary600,
+                color = RodiTheme.colors.primary600,
             ) {
                 Text(
                     text = "새로고침",
-                    style = RoutiTheme.typography.caption2SemiBold,
-                    color = RoutiTheme.colors.white,
+                    style = RodiTheme.typography.caption2SemiBold,
+                    color = RodiTheme.colors.white,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                 )
             }
@@ -876,14 +876,14 @@ private fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
         onClick = onClick,
         modifier = Modifier.size(40.dp),
         shape = CircleShape,
-        color = RoutiTheme.colors.white,
+        color = RodiTheme.colors.white,
         shadowElevation = 2.dp,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(R.drawable.ic_crosshair),
                 contentDescription = "현재 위치",
-                tint = if (isActive) RoutiTheme.colors.primary600 else RoutiTheme.colors.gray900,
+                tint = if (isActive) RodiTheme.colors.primary600 else RodiTheme.colors.gray900,
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -898,14 +898,14 @@ private fun SettingsButton(onClick: () -> Unit) {
             .size(40.dp)
             .semantics { contentDescription = "설정" },
         shape = CircleShape,
-        color = RoutiTheme.colors.white,
+        color = RodiTheme.colors.white,
         shadowElevation = 2.dp,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 painter = painterResource(R.drawable.ic_settings),
                 contentDescription = null,
-                tint = RoutiTheme.colors.gray900,
+                tint = RodiTheme.colors.gray900,
                 modifier = Modifier.size(24.dp),
             )
         }
@@ -919,7 +919,7 @@ private fun SettingsTermsScreen(
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = RoutiTheme.colors.white,
+        color = RodiTheme.colors.white,
     ) {
         Column(
             modifier = Modifier
@@ -937,13 +937,13 @@ private fun SettingsTermsScreen(
                     Icon(
                         painter = painterResource(R.drawable.ic_chevron_left),
                         contentDescription = "뒤로",
-                        tint = RoutiTheme.colors.black,
+                        tint = RodiTheme.colors.black,
                     )
                 }
                 Text(
                     text = "설정",
-                    style = RoutiTheme.typography.headline1,
-                    color = RoutiTheme.colors.black,
+                    style = RodiTheme.typography.headline1,
+                    color = RodiTheme.colors.black,
                 )
             }
 
@@ -951,8 +951,8 @@ private fun SettingsTermsScreen(
 
             Text(
                 text = "약관 및 정책",
-                style = RoutiTheme.typography.body1SemiBold,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.body1SemiBold,
+                color = RodiTheme.colors.black,
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
 
@@ -969,21 +969,21 @@ private fun SettingsTermsScreen(
                     ) {
                         Text(
                             text = document.title,
-                            style = RoutiTheme.typography.body3Medium,
-                            color = RoutiTheme.colors.gray900,
+                            style = RodiTheme.typography.body3Medium,
+                            color = RodiTheme.colors.gray900,
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
                             painter = painterResource(R.drawable.ic_chevron_right),
                             contentDescription = null,
-                            tint = RoutiTheme.colors.gray600,
+                            tint = RodiTheme.colors.gray600,
                             modifier = Modifier.size(20.dp),
                         )
                     }
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
                         thickness = 1.dp,
-                        color = RoutiTheme.colors.gray100,
+                        color = RodiTheme.colors.gray100,
                     )
                 }
             }
@@ -1004,8 +1004,8 @@ private fun CourseListContent(
         Box(modifier = Modifier.fillMaxWidth()) {
             Text(
                 "연습코스",
-                style = RoutiTheme.typography.headline1,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(start = 16.dp, bottom = 20.dp)
@@ -1021,8 +1021,8 @@ private fun CourseListContent(
                 ) {
                     Text(
                         "연습코스",
-                        style = RoutiTheme.typography.headline1,
-                        color = RoutiTheme.colors.black,
+                        style = RodiTheme.typography.headline1,
+                        color = RodiTheme.colors.black,
                     )
                     Box(
                         modifier = Modifier
@@ -1033,7 +1033,7 @@ private fun CourseListContent(
                             Icon(
                                 painter = painterResource(R.drawable.ic_chevron_left),
                                 contentDescription = "접기",
-                                tint = RoutiTheme.colors.black,
+                                tint = RodiTheme.colors.black,
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -1060,7 +1060,7 @@ private fun CourseListContent(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         thickness = 1.dp,
-                        color = RoutiTheme.colors.primary100,
+                        color = RodiTheme.colors.primary100,
                     )
                 }
             }
@@ -1086,14 +1086,14 @@ private fun CourseEmptyContent() {
     ) {
         Text(
             text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
-            style = RoutiTheme.typography.headline1,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.gray800,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요.",
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray800,
             textAlign = TextAlign.Center,
         )
     }
@@ -1113,8 +1113,8 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
     ) {
         Text(
             course.title,
-            style = RoutiTheme.typography.body1SemiBold,
-            color = RoutiTheme.colors.black,
+            style = RodiTheme.typography.body1SemiBold,
+            color = RodiTheme.colors.black,
             maxLines = 1,
         )
         RatingRegionRow(
@@ -1131,7 +1131,7 @@ private fun CourseCard(course: Course, onClick: () -> Unit) {
         } else {
             TagRow(difficulty = course.difficultyEnum, tags = course.tags)
             Spacer(modifier = Modifier.height(8.dp))
-            SummaryBox(text = course.summary, bgColor = RoutiTheme.colors.gray50)
+            SummaryBox(text = course.summary, bgColor = RodiTheme.colors.gray50)
         }
     }
 }
@@ -1200,8 +1200,8 @@ private fun CourseDetailContent(
         ) {
             Text(
                 course.title,
-                style = RoutiTheme.typography.headline1,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
             )
@@ -1209,7 +1209,7 @@ private fun CourseDetailContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_x),
                     contentDescription = "닫기",
-                    tint = RoutiTheme.colors.black,
+                    tint = RodiTheme.colors.black,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -1235,8 +1235,8 @@ private fun CourseDetailContent(
             } else {
                 Text(
                     distanceText(route, isRouting),
-                    style = RoutiTheme.typography.body3Medium,
-                    color = RoutiTheme.colors.gray800,
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
                 )
                 TagRow(difficulty = course.difficultyEnum, tags = course.tags)
 
@@ -1244,7 +1244,7 @@ private fun CourseDetailContent(
 
                 SummaryBox(
                     text = course.summary,
-                    bgColor = RoutiTheme.colors.gray100,
+                    bgColor = RodiTheme.colors.gray100,
                 )
             }
         }
@@ -1266,11 +1266,11 @@ private fun CourseDetailContent(
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = RoutiTheme.colors.primary600,
-                contentColor = RoutiTheme.colors.white,
+                containerColor = RodiTheme.colors.primary600,
+                contentColor = RodiTheme.colors.white,
             ),
         ) {
-            Text("경로 안내", style = RoutiTheme.typography.button1)
+            Text("경로 안내", style = RodiTheme.typography.button1)
         }
     }
 }
@@ -1300,8 +1300,8 @@ private fun ParkingDetailContent(
         ) {
             Text(
                 course.title,
-                style = RoutiTheme.typography.headline1,
-                color = RoutiTheme.colors.black,
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
                 modifier = Modifier.weight(1f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1310,7 +1310,7 @@ private fun ParkingDetailContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_x),
                     contentDescription = "닫기",
-                    tint = RoutiTheme.colors.black,
+                    tint = RodiTheme.colors.black,
                     modifier = Modifier.size(20.dp),
                 )
             }
@@ -1349,7 +1349,7 @@ private fun ParkingDetailContent(
             }
 
             Spacer(Modifier.height(16.dp))
-            HorizontalDivider(thickness = 1.dp, color = RoutiTheme.colors.primary100)
+            HorizontalDivider(thickness = 1.dp, color = RodiTheme.colors.primary100)
             Spacer(Modifier.height(13.dp))
 
             ParkingFeeSection(
@@ -1367,11 +1367,11 @@ private fun ParkingDetailContent(
                     .height(48.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = RoutiTheme.colors.primary600,
-                    contentColor = RoutiTheme.colors.white,
+                    containerColor = RodiTheme.colors.primary600,
+                    contentColor = RodiTheme.colors.white,
                 ),
             ) {
-                Text("경로 안내", style = RoutiTheme.typography.button1)
+                Text("경로 안내", style = RodiTheme.typography.button1)
             }
         }
     }
@@ -1389,24 +1389,24 @@ private fun ParkingMetaRow(
     ) {
         Text(
             text = parking.parkingTypeDisplay(),
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray800,
         )
-        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text("･", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Row(
             modifier = Modifier.clickable(onClick = onHoursClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = parking.operatingSummary(),
-                style = RoutiTheme.typography.body3Medium,
-                color = RoutiTheme.colors.gray800,
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray800,
             )
             Spacer(Modifier.width(4.dp))
             Icon(
                 painter = painterResource(R.drawable.ic_chevron_down),
                 contentDescription = if (hoursExpanded) "영업시간 접기" else "영업시간 보기",
-                tint = RoutiTheme.colors.gray800,
+                tint = RodiTheme.colors.gray800,
                 modifier = Modifier
                     .size(14.dp)
                     .graphicsLayer { rotationZ = if (hoursExpanded) 180f else 0f },
@@ -1418,12 +1418,12 @@ private fun ParkingMetaRow(
 @Composable
 private fun ParkingCapacityRow(capacity: Int?) {
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("총 주차 면수", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
-        Text("･", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text("총 주차 면수", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+        Text("･", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Text(
             text = capacity?.let { "${it}대" } ?: "해당항목없음",
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray800,
         )
     }
 }
@@ -1454,7 +1454,7 @@ private fun ParkingFeeSection(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("요금 안내", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text("요금 안내", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ParkingInfoRow("초기무료", fee.initialFree)
             ParkingInfoRow("기본요금", fee.base)
@@ -1472,8 +1472,8 @@ private fun ParkingInfoRow(label: String, value: String) {
     ) {
         Text(
             text = label,
-            style = RoutiTheme.typography.caption1Medium,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.caption1Medium,
+            color = RodiTheme.colors.gray800,
         )
         DashedInfoDivider(
             modifier = Modifier
@@ -1483,8 +1483,8 @@ private fun ParkingInfoRow(label: String, value: String) {
         )
         Text(
             text = value,
-            style = RoutiTheme.typography.body3SemiBold,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.body3SemiBold,
+            color = RodiTheme.colors.gray800,
             textAlign = TextAlign.End,
         )
     }
@@ -1492,7 +1492,7 @@ private fun ParkingInfoRow(label: String, value: String) {
 
 @Composable
 private fun DashedInfoDivider(modifier: Modifier = Modifier) {
-    val color = RoutiTheme.colors.gray400.copy(alpha = 0.35f)
+    val color = RodiTheme.colors.gray400.copy(alpha = 0.35f)
     Box(
         modifier = modifier.drawBehind {
             val segment = 6.dp.toPx()
@@ -1523,20 +1523,20 @@ private fun RatingRegionRow(
         Spacer(Modifier.width(4.dp))
         Text(
             "%.1f".format(rating),
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.primary600,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.primary600,
         )
-        Text(" ･ ", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+        Text(" ･ ", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Row(
             modifier = Modifier.clickable(onClick = onChevronClick),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(region, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+            Text(region, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
             Spacer(Modifier.width(4.dp))
             Icon(
                 painter = painterResource(R.drawable.ic_chevron_down),
                 contentDescription = "주소 보기",
-                tint = RoutiTheme.colors.gray800,
+                tint = RodiTheme.colors.gray800,
                 modifier = Modifier.size(14.dp),
             )
         }
@@ -1552,8 +1552,8 @@ private fun ExpandableAddressCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
-        border = BorderStroke(width = 1.dp, color = RoutiTheme.colors.primary200),
-        color = RoutiTheme.colors.primary50,
+        border = BorderStroke(width = 1.dp, color = RodiTheme.colors.primary200),
+        color = RodiTheme.colors.primary50,
     ) {
         Column(
             modifier = Modifier.padding(top = 10.dp, bottom = 11.dp, start = 10.dp, end = 10.dp),
@@ -1562,14 +1562,14 @@ private fun ExpandableAddressCard(
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("도로명", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray600)
-                Text(roadAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+                Text("도로명", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
+                Text(roadAddress, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
             }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("지번", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray600)
-                Text(jibunAddress, style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
+                Text("지번", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
+                Text(jibunAddress, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
             }
         }
     }
@@ -1597,8 +1597,8 @@ private fun DifficultyTag(difficulty: Difficulty) {
     Surface(shape = RoundedCornerShape(2.dp), color = bgColor) {
         Text(
             difficulty.label,
-            style = RoutiTheme.typography.caption3Medium,
-            color = RoutiTheme.colors.gray800,
+            style = RodiTheme.typography.caption3Medium,
+            color = RodiTheme.colors.gray800,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -1606,11 +1606,11 @@ private fun DifficultyTag(difficulty: Difficulty) {
 
 @Composable
 private fun PracticeTagChip(label: String) {
-    Surface(shape = RoundedCornerShape(2.dp), color = RoutiTheme.colors.gray200) {
+    Surface(shape = RoundedCornerShape(2.dp), color = RodiTheme.colors.gray200) {
         Text(
             label,
-            style = RoutiTheme.typography.caption3Medium,
-            color = RoutiTheme.colors.gray700,
+            style = RodiTheme.typography.caption3Medium,
+            color = RodiTheme.colors.gray700,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         )
     }
@@ -1630,8 +1630,8 @@ private fun SummaryBox(
     ) {
         Text(
             text,
-            style = RoutiTheme.typography.caption1Regular,
-            color = RoutiTheme.colors.gray700,
+            style = RodiTheme.typography.caption1Regular,
+            color = RodiTheme.colors.gray700,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(10.dp),
@@ -1647,9 +1647,9 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
             val isStart = i == 0
             val isEnd = i == points.lastIndex
             val dotColor = when {
-                isStart -> RoutiTheme.colors.pinStart
-                isEnd -> RoutiTheme.colors.pinArrival
-                else -> RoutiTheme.colors.gray400
+                isStart -> RodiTheme.colors.pinStart
+                isEnd -> RodiTheme.colors.pinArrival
+                else -> RodiTheme.colors.gray400
             }
             val roleLabel = when {
                 isStart -> "출발지"
@@ -1657,9 +1657,9 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                 else -> "경유지 $i"
             }
             val roleLabelColor = when {
-                isStart -> RoutiTheme.colors.pinStart
-                isEnd -> RoutiTheme.colors.pinArrival
-                else -> RoutiTheme.colors.gray800
+                isStart -> RodiTheme.colors.pinStart
+                isEnd -> RodiTheme.colors.pinArrival
+                else -> RodiTheme.colors.gray800
             }
             val roleLabelWeight = if (isStart || isEnd) FontWeight.SemiBold else FontWeight.Medium
 
@@ -1675,14 +1675,14 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = roleLabel,
-                    style = RoutiTheme.typography.caption1Medium.copy(fontWeight = roleLabelWeight),
+                    style = RodiTheme.typography.caption1Medium.copy(fontWeight = roleLabelWeight),
                     color = roleLabelColor,
                     modifier = Modifier.width(54.dp),
                 )
                 Text(
                     text = point.displayStepAddress(),
-                    style = RoutiTheme.typography.caption1Medium,
-                    color = RoutiTheme.colors.gray800,
+                    style = RodiTheme.typography.caption1Medium,
+                    color = RodiTheme.colors.gray800,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -1694,7 +1694,7 @@ private fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                         .padding(start = 3.dp)
                         .width(1.dp)
                         .height(12.dp)
-                        .background(RoutiTheme.colors.gray400, RoundedCornerShape(2.dp)),
+                        .background(RodiTheme.colors.gray400, RoundedCornerShape(2.dp)),
                 )
             }
         }
@@ -1890,7 +1890,7 @@ private fun String.shortenJibunAddress(): String {
 
 @Composable
 private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
-    RoutiTheme {
+    RodiTheme {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1900,7 +1900,7 @@ private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                color = RoutiTheme.colors.white,
+                color = RodiTheme.colors.white,
                 shadowElevation = 8.dp,
             ) {
                 Column {
@@ -1915,7 +1915,7 @@ private fun BottomSheetPreviewWrapper(content: @Composable () -> Unit) {
                                 .width(60.dp)
                                 .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(RoutiTheme.colors.handleBar),
+                                .background(RodiTheme.colors.handleBar),
                         )
                     }
                     content()
@@ -1950,7 +1950,7 @@ fun CourseDetailContentPreview() {
 @Preview(showBackground = true)
 @Composable
 fun CourseCardPreview() {
-    RoutiTheme {
+    RodiTheme {
         CourseCard(
             course = SampleCourses.ALL.first(),
             onClick = {},
@@ -1961,7 +1961,7 @@ fun CourseCardPreview() {
 @Preview(showBackground = true)
 @Composable
 fun VerticalStepListPreview() {
-    RoutiTheme {
+    RodiTheme {
         VerticalStepList(
             course = SampleCourses.ALL.first(),
             modifier = Modifier.padding(16.dp),
@@ -1972,7 +1972,7 @@ fun VerticalStepListPreview() {
 @Preview(showBackground = true)
 @Composable
 fun MyLocationButtonPreview() {
-    RoutiTheme {
+    RodiTheme {
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(16.dp),
@@ -1986,7 +1986,7 @@ fun MyLocationButtonPreview() {
 @Preview(showBackground = true)
 @Composable
 fun DistanceFilterBarPreview() {
-    RoutiTheme {
+    RodiTheme {
         Column(
             modifier = Modifier
                 .background(Color.LightGray)
@@ -2003,7 +2003,7 @@ fun DistanceFilterBarPreview() {
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 fun MapLoadingScreenPreview() {
-    RoutiTheme {
+    RodiTheme {
         MapLoadingScreen()
     }
 }
@@ -2011,7 +2011,7 @@ fun MapLoadingScreenPreview() {
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 fun MapNetworkErrorScreenPreview() {
-    RoutiTheme {
+    RodiTheme {
         MapNetworkErrorScreen(onRetry = {})
     }
 }

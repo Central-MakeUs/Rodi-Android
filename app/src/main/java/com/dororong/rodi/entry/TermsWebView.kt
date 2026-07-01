@@ -35,7 +35,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 
 @Composable
 fun TermsWebView(
@@ -175,13 +175,13 @@ private fun TermsWebViewError(
     ) {
         Text(
             text = "약관 페이지를 불러오지 못했어요.",
-            style = RoutiTheme.typography.headline1,
-            color = RoutiTheme.colors.black,
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.black,
         )
         Text(
             text = message,
-            style = RoutiTheme.typography.body3Medium,
-            color = RoutiTheme.colors.gray700,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray700,
             modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
         )
         Button(onClick = onRetry) {

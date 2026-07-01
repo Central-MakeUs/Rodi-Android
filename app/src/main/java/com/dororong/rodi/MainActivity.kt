@@ -7,7 +7,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.dororong.rodi.ui.AppRoot
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         setContent {
-            RoutiTheme {
+            RodiTheme {
                 AppRoot()
             }
         }

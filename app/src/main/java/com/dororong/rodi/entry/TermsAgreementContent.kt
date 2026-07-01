@@ -11,9 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.ui.theme.RoutiRadius
-import com.dororong.rodi.ui.theme.RoutiSpacing
-import com.dororong.rodi.ui.theme.RoutiTheme
+import com.dororong.rodi.ui.theme.RodiRadius
+import com.dororong.rodi.ui.theme.RodiSpacing
+import com.dororong.rodi.ui.theme.RodiTheme
 
 /**
  * 2단계: 약관 동의. 필수 3항목을 모두 체크하면 "다음" 활성. "약관 전체 동의"로 일괄 토글.
@@ -42,10 +42,10 @@ fun TermsAgreementContent(
         onButtonClick = onNext,
         modifier = modifier,
     ) {
-        Text("루티 서비스 시작하기", style = RoutiTheme.typography.headline1, color = RoutiTheme.colors.black)
-        Spacer(Modifier.height(RoutiSpacing.sm))
-        Text("아래 약관에 동의해주세요", style = RoutiTheme.typography.body3Medium, color = RoutiTheme.colors.gray800)
-        Spacer(Modifier.height(RoutiSpacing.lg))
+        Text("루티 서비스 시작하기", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
+        Spacer(Modifier.height(RodiSpacing.sm))
+        Text("아래 약관에 동의해주세요", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.height(RodiSpacing.lg))
 
         // 약관 전체 동의 (선택 시 보더 gray900)
         CheckRow(
@@ -56,12 +56,12 @@ fun TermsAgreementContent(
                 .height(50.dp)
                 .border(
                     width = 1.dp,
-                    color = if (allChecked) RoutiTheme.colors.gray900 else RoutiTheme.colors.gray300,
-                    shape = RoundedCornerShape(RoutiRadius.sm),
+                    color = if (allChecked) RodiTheme.colors.gray900 else RodiTheme.colors.gray300,
+                    shape = RoundedCornerShape(RodiRadius.sm),
                 )
-                .padding(horizontal = RoutiSpacing.md),
+                .padding(horizontal = RodiSpacing.md),
         )
-        Spacer(Modifier.height(RoutiSpacing.md))
+        Spacer(Modifier.height(RodiSpacing.md))
 
         CheckRow(
             checked = service,
@@ -93,7 +93,7 @@ fun TermsAgreementContent(
 @Preview(showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
 private fun TermsAgreementPreview() {
-    RoutiTheme {
+    RodiTheme {
         TermsAgreementContent(
             service = false,
             privacy = false,

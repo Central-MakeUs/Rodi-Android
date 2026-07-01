@@ -9,19 +9,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 
 /**
- * ROUTI 앱 테마. 라이트 전용(다크 미예정).
+ * Rodi 앱 테마. 라이트 전용(다크 미예정).
  * 컬러/타이포 토큰을 CompositionLocal 로 제공하고, M3 컴포넌트 기본값도 토큰에 맞춰 둔다.
  *
- * 사용: `RoutiTheme.colors.primary600`, `RoutiTheme.typography.heading2`
+ * 사용: `RodiTheme.colors.primary600`, `RodiTheme.typography.heading2`
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun RoutiTheme(content: @Composable () -> Unit) {
-    val colors = LightRoutiColors
-    val typography = DefaultRoutiTypography
+fun RodiTheme(content: @Composable () -> Unit) {
+    val colors = LightRodiColors
+    val typography = DefaultRodiTypography
     CompositionLocalProvider(
-        LocalRoutiColors provides colors,
-        LocalRoutiTypography provides typography,
+        LocalRodiColors provides colors,
+        LocalRodiTypography provides typography,
         LocalOverscrollConfiguration provides null,
     ) {
         MaterialTheme(
@@ -39,11 +39,11 @@ fun RoutiTheme(content: @Composable () -> Unit) {
     }
 }
 
-/** 토큰 접근자. 함수 [RoutiTheme] 와 동명으로 공존(Jetsnack 패턴). */
-object RoutiTheme {
-    val colors: RoutiColors
-        @Composable @ReadOnlyComposable get() = LocalRoutiColors.current
+/** 토큰 접근자. 함수 [RodiTheme] 와 동명으로 공존(Jetsnack 패턴). */
+object RodiTheme {
+    val colors: RodiColors
+        @Composable @ReadOnlyComposable get() = LocalRodiColors.current
 
-    val typography: RoutiTypography
-        @Composable @ReadOnlyComposable get() = LocalRoutiTypography.current
+    val typography: RodiTypography
+        @Composable @ReadOnlyComposable get() = LocalRodiTypography.current
 }

@@ -3,7 +3,7 @@ package com.dororong.rodi.ui.theme
 import androidx.compose.ui.unit.dp
 
 /** 간격 토큰. */
-object RoutiSpacing {
+object RodiSpacing {
     val xs = 4.dp
     val sm = 8.dp
     val md = 16.dp
@@ -12,7 +12,7 @@ object RoutiSpacing {
 }
 
 /** 모서리 반경 토큰. */
-object RoutiRadius {
+object RodiRadius {
     val sm = 8.dp
     val md = 12.dp
     val lg = 16.dp
