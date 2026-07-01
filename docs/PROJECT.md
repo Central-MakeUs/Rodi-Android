@@ -7,10 +7,11 @@
 ## 정체성
 - 앱: **Rodi** (구 Routi — 브랜드 잔재 정리 완료)
 - 패키지: `com.dororong.rodi`
-- 구조: 단일 `:app` 모듈 (멀티모듈은 → `docs/ARCHITECTURE_TARGET.md` 목표, 미구현)
+- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:entry/home`). 목표 전체 구조는
+  `docs/ARCHITECTURE_TARGET.md` 참고
 
 ## 빌드/버전
-- minSdk 30 / targetSdk 36 / compileSdk 36
+- minSdk 30 / targetSdk 36 / compileSdk 37
 - versionName `1.0.0` / versionCode 2
 - 명령:
   - 빌드 `./gradlew assembleDebug`
@@ -18,18 +19,19 @@
   - 릴리스 `./gradlew assembleRelease`
   - 린트 `./gradlew lint`
 
-## 패키지 맵 (`app/src/main/java/com/dororong/rodi/`)
-| 패키지 | 역할 |
+## `:app`에 남은 것
+`MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/AppRoot`(게이트→홈 라우팅).
+화면·기능 코드는 전부 `core:*`/`feature:*`로 이관 완료.
+
+## 모듈 맵
+| 모듈 | 역할 |
 |---|---|
-| `home` | 홈 화면(지도 + 코스 바텀시트), `HomeScreen`/`HomeViewModel`/`NaviPickerSheet` |
-| `entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content + 약관 WebView |
-| `map` | 카카오 지도 생명주기, 코스/마커/경로선 렌더 |
-| `directions` | 카카오 Directions REST(도로 경로, 실패 시 직선 폴백) |
-| `navi` | 외부 내비 런처(카카오맵·카카오내비) + 선호 저장 |
-| `location` | FusedLocation 현재 위치 |
-| `model` | 도메인 모델(`Course` 등) |
-| `data` | 샘플 코스 데이터, `EntryPreferences`(DataStore) |
-| `ui` | `AppRoot`(게이트→홈 분기), `ui/theme`(RodiTheme 토큰) |
+| `:core:domain` | 도메인 모델(`Course` 등) |
+| `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference` |
+| `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
+| `:core:common` | 확장함수/유틸 (아직 비어있음) |
+| `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content |
+| `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
 
 ## 컨벤션 (필수)
 - **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.typography`만. 하드코딩 금지.
@@ -37,6 +39,8 @@
 - **주석**: 자명한 코드엔 주석 X. @Composable 함수 단위 주석 X(섹션 마커만 허용).
   외부 연동(카카오맵/내비 등) 동작·함정·폴백은 짧은 KDoc 권장. *왜*만 적고 *무엇*은 코드로.
 - **커밋**: 한국어 conventional commit (`feat(home):`, `fix(entry):` …). PR/이슈 참조는 소스에 넣지 않음.
+  "Phase 1/2" 같은 내부 계획 용어·HANDOFF 제목을 그대로 커밋 메시지에 쓰지 않는다 — 계획 문서는
+  아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
 
 ## 디자인 원천

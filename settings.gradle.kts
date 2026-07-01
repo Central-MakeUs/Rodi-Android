@@ -1,4 +1,7 @@
+enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -26,3 +29,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "Rodi"
 include(":app")
+include(":core:common")
+include(":core:data")
+include(":core:domain")
+include(":core:ui")
+include(":feature:entry")
+include(":feature:home")
