@@ -20,7 +20,6 @@ Branch: <feature/xxx>
 - [ ] <검수 기준 2>
 
 ## Verification
-<빌드/테스트/스모크 명령>
 ```
 ./gradlew assembleDebug
 ```
