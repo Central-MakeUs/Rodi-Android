@@ -15,12 +15,9 @@ docs/PROJECT.md 컨벤션 위반을 점검하라: 토큰 하드코딩, Material 
 $HANDOFF 의 Claude Review 섹션에 Blocking / Nits 를 구분해 기록하고
 Verdict 를 APPROVE 또는 NEEDS_CHANGES 로 적어라."
 
-# Verdict 파싱
-if grep -q 'Verdict:.*APPROVE' "$HANDOFF" 2>/dev/null; then
-  VERDICT="APPROVE"
-else
-  VERDICT="NEEDS_CHANGES"
-fi
+# Verdict 파싱 (마지막으로 기록된 값만 인정 — 재검토 시 과거 값 잔존 방지)
+VERDICT=$(grep 'Verdict:' "$HANDOFF" 2>/dev/null | grep -o 'APPROVE\|NEEDS_CHANGES' | tail -1)
+VERDICT="${VERDICT:-NEEDS_CHANGES}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -34,14 +31,21 @@ if [[ "$VERDICT" == "NEEDS_CHANGES" ]]; then
 fi
 
 # ── APPROVE 후처리 ────────────────────────────────────────────
-# HANDOFF에서 메타데이터 추출
-INTENT=$(grep '^# HANDOFF' "$HANDOFF" | sed 's/# HANDOFF[[:space:]]*—[[:space:]]*//' | head -1)
-BRANCH=$(grep '^Branch:' "$HANDOFF" | sed 's/Branch:[[:space:]]*//' | head -1)
+# HANDOFF에서 메타데이터 추출 (없어도 스크립트가 죽지 않도록 || true)
+INTENT=$(grep '^# HANDOFF' "$HANDOFF" | sed 's/# HANDOFF[[:space:]]*—[[:space:]]*//' | head -1) || true
+BRANCH=$(grep '^Branch:' "$HANDOFF" | sed 's/Branch:[[:space:]]*//' | head -1) || true
 TIMESTAMP=$(date '+%Y%m%d-%H%M')
 
 if [[ "$AUTO" == "--auto" ]]; then
   echo ""
   echo "▶ APPROVE — 자동 후처리 시작"
+
+  echo "  ▶ 빌드 검증 (assembleDebug)"
+  if ! ./gradlew assembleDebug -q; then
+    echo "  ✗ 빌드 실패 — 자동 커밋을 중단합니다. 원인을 확인하세요."
+    exit 1
+  fi
+  echo "  ✓ 빌드 성공"
 
   # 1) 구현 파일 스테이징 (HANDOFF 제외)
   git add -A
@@ -62,13 +66,48 @@ if [[ "$AUTO" == "--auto" ]]; then
   mkdir -p "$ARCHIVE_DIR"
   ARCHIVE_NAME="${TIMESTAMP}-$(basename "$HANDOFF")"
   cp "$HANDOFF" "$ARCHIVE_DIR/$ARCHIVE_NAME"
-  # HANDOFF.md는 다음 사이클을 위해 초기화
+  # HANDOFF.md는 다음 사이클을 위해 원본 브릿지 템플릿 골격으로 초기화
   cat > "$HANDOFF" << 'TMPL'
-# HANDOFF
+# HANDOFF — <작업 제목>
 
-> 다음 사이클을 위해 비워둠. `make plan "요구사항"` 으로 채운다.
+> Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
+> 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
 
-Status: EMPTY
+Status: PLANNING            <!-- PLANNING | READY_FOR_IMPL | IMPL_DONE | IN_REVIEW | DONE | BLOCKED -->
+Branch: <feature/xxx>
+
+## Context (왜)
+<이 작업이 필요한 배경 한두 줄>
+
+## Spec (무엇을·어떻게)
+<구현할 내용. 구체적으로. 모호하면 Codex는 추측하지 말 것>
+
+## Files to touch
+<예상 수정 파일 경로>
+
+## Acceptance criteria
+- [ ] <검수 기준 1>
+- [ ] <검수 기준 2>
+
+## Verification
+```
+./gradlew assembleDebug
+```
+
+## Out of scope
+<이번에 건드리지 않을 것>
+
+---
+## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
+- Changed files:
+- Build/test:
+- Open questions:
+
+---
+## Claude Review  <!-- Claude가 검토 후 채움 -->
+- Blocking:
+- Nits:
+- Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
 TMPL
   git add "$ARCHIVE_DIR/$ARCHIVE_NAME" "$HANDOFF"
   git commit -m "chore(handoff): $TIMESTAMP 아카이브"
@@ -78,7 +117,7 @@ TMPL
   if command -v gh &>/dev/null; then
     CURRENT_BRANCH="${BRANCH:-$(git branch --show-current)}"
     git push -u origin "$CURRENT_BRANCH" 2>/dev/null || git push
-    gh pr create \
+    if gh pr create \
       --title "${INTENT:-Codex 구현}" \
       --body "$(cat <<EOF
 ## 구현 내용
@@ -91,8 +130,11 @@ ${INTENT:-HANDOFF 참조}
 🤖 Generated with Claude Code + Codex pipeline
 EOF
 )" \
-      --base develop 2>/dev/null || echo "  ℹ PR 생성 스킵 (이미 존재하거나 오류)"
-    echo "  ✓ PR 생성 완료"
+      --base develop 2>/dev/null; then
+      echo "  ✓ PR 생성 완료"
+    else
+      echo "  ℹ PR 생성 스킵 (이미 존재하거나 오류)"
+    fi
   else
     echo "  ℹ gh CLI 미설치 — PR은 수동으로 생성하세요."
     echo "  push: git push -u origin \$(git branch --show-current)"
