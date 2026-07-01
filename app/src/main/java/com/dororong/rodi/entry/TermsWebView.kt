@@ -3,7 +3,6 @@ package com.dororong.rodi.entry
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.graphics.Color
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebResourceError
@@ -50,18 +49,18 @@ fun TermsWebView(
         val activity = view.context.findActivity()
         val window = activity?.window
         val controller = window?.let { WindowCompat.getInsetsController(it, view) }
-        val previousStatusBarColor = window?.statusBarColor
         val previousLightStatusBars = controller?.isAppearanceLightStatusBars
+        val previousLightNavigationBars = controller?.isAppearanceLightNavigationBars
 
-        window?.statusBarColor = Color.BLACK
         controller?.isAppearanceLightStatusBars = false
+        controller?.isAppearanceLightNavigationBars = false
 
         onDispose {
-            if (previousStatusBarColor != null) {
-                window.statusBarColor = previousStatusBarColor
-            }
             if (previousLightStatusBars != null) {
                 controller.isAppearanceLightStatusBars = previousLightStatusBars
+            }
+            if (previousLightNavigationBars != null) {
+                controller.isAppearanceLightNavigationBars = previousLightNavigationBars
             }
         }
     }
