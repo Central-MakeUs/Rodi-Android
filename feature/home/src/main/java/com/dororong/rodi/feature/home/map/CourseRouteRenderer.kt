@@ -1,4 +1,4 @@
-package com.dororong.rodi.map
+package com.dororong.rodi.feature.home.map
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -10,7 +10,7 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
-import com.dororong.rodi.R
+import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.core.domain.Course
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng

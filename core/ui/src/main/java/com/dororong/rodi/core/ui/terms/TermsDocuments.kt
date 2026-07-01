@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.core.ui.terms
 
 data class TermsDocument(
     val title: String,

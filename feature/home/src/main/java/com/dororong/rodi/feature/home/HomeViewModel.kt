@@ -1,4 +1,4 @@
-package com.dororong.rodi.home
+package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

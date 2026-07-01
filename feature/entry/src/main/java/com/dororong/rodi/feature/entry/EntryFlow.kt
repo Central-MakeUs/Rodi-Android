@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.feature.entry
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
  * 진입 게이트 호스트: 위치권한 → 약관 → 주의사항 3단계를 상태 머신으로 전환한다.

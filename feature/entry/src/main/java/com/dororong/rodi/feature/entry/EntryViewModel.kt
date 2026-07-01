@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.feature.entry
 
 import android.app.Application
 import androidx.compose.runtime.getValue

@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.core.ui.terms
 
 import android.app.Activity
 import android.content.Context

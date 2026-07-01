@@ -10,8 +10,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.data.EntryPreferences
-import com.dororong.rodi.entry.EntryFlow
-import com.dororong.rodi.home.HomeScreen
+import com.dororong.rodi.feature.entry.EntryFlow
+import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 /**

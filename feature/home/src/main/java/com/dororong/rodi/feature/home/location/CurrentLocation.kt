@@ -1,4 +1,4 @@
-package com.dororong.rodi.location
+package com.dororong.rodi.feature.home.location
 
 import android.Manifest
 import android.annotation.SuppressLint

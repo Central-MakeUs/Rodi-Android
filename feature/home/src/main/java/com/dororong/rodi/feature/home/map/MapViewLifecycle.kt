@@ -1,4 +1,4 @@
-package com.dororong.rodi.map
+package com.dororong.rodi.feature.home.map
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect

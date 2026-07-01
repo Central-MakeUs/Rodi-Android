@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.feature.entry
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,7 +35,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.R
+import com.dororong.rodi.feature.entry.R
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -77,7 +78,7 @@ fun EntryScaffold(
             if (onBack != null) {
                 // 좌향 화살표 에셋 부재 → chevron_right 180° 미러로 임시 사용
                 Icon(
-                    painter = painterResource(R.drawable.ic_chevron_right),
+                    painter = painterResource(CoreUiR.drawable.ic_chevron_right),
                     contentDescription = "뒤로",
                     tint = RodiTheme.colors.gray900,
                     modifier = Modifier
@@ -205,7 +206,7 @@ fun CheckRow(
                 modifier = Modifier.size(32.dp),
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_chevron_right),
+                    painter = painterResource(CoreUiR.drawable.ic_chevron_right),
                     contentDescription = "상세 보기",
                     tint = RodiTheme.colors.gray500,
                     modifier = Modifier.size(16.dp),

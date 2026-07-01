@@ -1,4 +1,4 @@
-package com.dororong.rodi.home
+package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
@@ -108,24 +108,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.dororong.rodi.R
+import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
-import com.dororong.rodi.entry.TermsDocument
-import com.dororong.rodi.entry.TermsDocuments
-import com.dororong.rodi.entry.TermsWebView
-import com.dororong.rodi.location.awaitCurrentLocation
-import com.dororong.rodi.location.hasLocationPermission
-import com.dororong.rodi.map.rememberMapViewWithLifecycle
-import com.dororong.rodi.map.renderCourse
-import com.dororong.rodi.map.renderCourseChips
+import com.dororong.rodi.core.ui.terms.TermsDocument
+import com.dororong.rodi.core.ui.terms.TermsDocuments
+import com.dororong.rodi.core.ui.terms.TermsWebView
+import com.dororong.rodi.feature.home.location.awaitCurrentLocation
+import com.dororong.rodi.feature.home.location.hasLocationPermission
+import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
+import com.dororong.rodi.feature.home.map.renderCourse
+import com.dororong.rodi.feature.home.map.renderCourseChips
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.Difficulty
 import com.dororong.rodi.core.domain.ParkingDetail
 import com.dororong.rodi.core.domain.PracticeTag
 import com.dororong.rodi.core.domain.Waypoint
-import com.dororong.rodi.navi.KakaoMapLauncher
-import com.dororong.rodi.navi.KakaoNaviLauncher
+import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
+import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.dororong.rodi.core.data.navi.NaviApp
 import com.dororong.rodi.core.data.navi.NaviPreference
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -935,7 +936,7 @@ private fun SettingsTermsScreen(
             ) {
                 IconButton(onClick = onBack) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_chevron_left),
+                        painter = painterResource(CoreUiR.drawable.ic_chevron_left),
                         contentDescription = "뒤로",
                         tint = RodiTheme.colors.black,
                     )
@@ -974,7 +975,7 @@ private fun SettingsTermsScreen(
                             modifier = Modifier.weight(1f),
                         )
                         Icon(
-                            painter = painterResource(R.drawable.ic_chevron_right),
+                            painter = painterResource(CoreUiR.drawable.ic_chevron_right),
                             contentDescription = null,
                             tint = RodiTheme.colors.gray600,
                             modifier = Modifier.size(20.dp),
@@ -1031,7 +1032,7 @@ private fun CourseListContent(
                     ) {
                         IconButton(onClick = onCollapse, enabled = expandFraction > 0.5f) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_chevron_left),
+                                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
                                 contentDescription = "접기",
                                 tint = RodiTheme.colors.black,
                                 modifier = Modifier.size(24.dp),

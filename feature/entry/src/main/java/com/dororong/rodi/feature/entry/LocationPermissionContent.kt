@@ -1,4 +1,4 @@
-package com.dororong.rodi.entry
+package com.dororong.rodi.feature.entry
 
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -18,7 +18,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.R
+import com.dororong.rodi.feature.entry.R
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 /**

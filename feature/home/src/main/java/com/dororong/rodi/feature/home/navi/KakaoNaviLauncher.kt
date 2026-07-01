@@ -1,4 +1,4 @@
-package com.dororong.rodi.navi
+package com.dororong.rodi.feature.home.navi
 
 import android.content.ActivityNotFoundException
 import android.content.Context

@@ -7,7 +7,8 @@
 ## 정체성
 - 앱: **Rodi** (구 Routi — 브랜드 잔재 정리 완료)
 - 패키지: `com.dororong.rodi`
-- 구조: 단일 `:app` 모듈 (멀티모듈은 → `docs/ARCHITECTURE_TARGET.md` 목표, 미구현)
+- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:entry/home`). 목표 전체 구조는
+  `docs/ARCHITECTURE_TARGET.md` 참고
 
 ## 빌드/버전
 - minSdk 30 / targetSdk 36 / compileSdk 37
@@ -18,24 +19,19 @@
   - 릴리스 `./gradlew assembleRelease`
   - 린트 `./gradlew lint`
 
-## 패키지 맵 (`app/src/main/java/com/dororong/rodi/`)
-| 패키지 | 역할 |
-|---|---|
-| `home` | 홈 화면(지도 + 코스 바텀시트), `HomeScreen`/`HomeViewModel`/`NaviPickerSheet` |
-| `entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content + 약관 WebView |
-| `map` | 카카오 지도 생명주기, 코스/마커/경로선 렌더 |
-| `navi` | 외부 내비 런처(카카오맵·카카오내비). 선호 저장(`NaviPreference`)은 `:core:data`로 이동 |
-| `location` | FusedLocation 현재 위치 |
-| `ui` | `AppRoot`(게이트→홈 분기). 테마 토큰(`RodiTheme`)은 `:core:ui`로 이동 |
+## `:app`에 남은 것
+`MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/AppRoot`(게이트→홈 라우팅).
+화면·기능 코드는 전부 `core:*`/`feature:*`로 이관 완료.
 
 ## 모듈 맵
 | 모듈 | 역할 |
 |---|---|
 | `:core:domain` | 도메인 모델(`Course` 등) |
 | `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference` |
-| `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) |
+| `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
 | `:core:common` | 확장함수/유틸 (아직 비어있음) |
-| `:feature:home` | (아직 비어있음, Phase 2 예정) |
+| `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content |
+| `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
 
 ## 컨벤션 (필수)
 - **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.typography`만. 하드코딩 금지.

@@ -1,4 +1,4 @@
-package com.dororong.rodi.home
+package com.dororong.rodi.feature.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -35,7 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.dororong.rodi.R
+import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.core.data.navi.NaviApp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
