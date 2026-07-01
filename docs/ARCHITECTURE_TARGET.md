@@ -13,17 +13,19 @@
 - `:build-logic` — Convention Plugins
 
 ## Convention Plugins
-build-logic에 등록할 ID 6종: `dororong.rodi.android.application`, `dororong.rodi.android.library`,
-`dororong.rodi.android.library.compose`, `dororong.rodi.jvm.library`, `dororong.rodi.android.hilt`,
-`dororong.rodi.android.feature`. (hilt/ksp/serialization은 `libs.plugins.*` alias로 추가)
+build-logic에 등록된 ID 4종: `dororong.rodi.android.application`, `dororong.rodi.android.library`,
+`dororong.rodi.android.library.compose`, `dororong.rodi.jvm.library`.
+
+`dororong.rodi.android.hilt`, `dororong.rodi.android.feature` 플러그인과 hilt/ksp/serialization alias는
+Hilt 도입 시 추가 예정이다.
 
 | 모듈 | Convention Plugin | 추가 alias |
 |------|------|------|
 | `:app` | `dororong.rodi.android.application` | — |
-| `:core:data` | `dororong.rodi.android.library` | hilt, ksp, kotlin.serialization |
-| `:core:ui` | `dororong.rodi.android.library.compose` | hilt, ksp |
-| `:feature:*` | `dororong.rodi.android.library.compose` | hilt, ksp |
-| `:core:domain` | `dororong.rodi.jvm.library` | kotlin.serialization |
+| `:core:data` | `dororong.rodi.android.library` | Hilt 도입 시 hilt, ksp, kotlin.serialization 추가 예정 |
+| `:core:ui` | `dororong.rodi.android.library.compose` | Hilt 도입 시 hilt, ksp 추가 예정 |
+| `:feature:*` | `dororong.rodi.android.library.compose` | Hilt 도입 시 hilt, ksp 추가 예정 |
+| `:core:domain` | `dororong.rodi.jvm.library` | Hilt 도입 시 kotlin.serialization 추가 예정 |
 | `:core:common` | `dororong.rodi.jvm.library` | — |
 
 ## Add a feature module
