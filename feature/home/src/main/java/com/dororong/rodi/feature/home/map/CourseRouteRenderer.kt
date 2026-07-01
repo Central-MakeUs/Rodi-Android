@@ -38,15 +38,34 @@ fun KakaoMap.clearCourse() {
 }
 
 /**
- * 코스의 출발/경유/목적 마커 + 경로선을 그리고 카메라를 경로에 맞춘다.
+ * 길안내 API 응답 대기 중(직선 좌표조차 아직 확정 전) 출발/도착 마커만 그린다.
+ * 도로 경로가 준비되기 전에 직선 미리보기를 그리면 실제 경로로 다시 그려질 때 지도가
+ * 두 번 움직이는 것처럼 보이므로, 경로선/카메라 정렬은 [renderCourse]·[fitCourseToScreen]에서
+ * 실제 경로가 확보된 뒤에만 수행한다.
+ */
+fun KakaoMap.renderCourseMarkers(context: Context, course: Course) {
+    clearCourse()
+    val points = course.allPoints
+    points.forEachIndexed { i, p ->
+        val isStart = i == 0
+        val isEnd = i == points.lastIndex
+        if (!isStart && !isEnd) return@forEachIndexed
+        val icon = if (isStart) R.drawable.ic_pin_start else R.drawable.ic_pin_arrival
+        addMarkerAt(context, LatLng.from(p.lat, p.lng), icon, i)
+    }
+}
+
+/**
+ * 코스의 출발/목적 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
+ * 카메라 정렬은 시트 애니메이션이 끝난 실제 패딩 값을 알아야 하므로 [fitCourseToScreen]으로 분리한다.
  *
- * @param routePoints Directions API 로 받은 도로 경로 좌표. null/빈값이면 지점 직선으로 폴백.
+ * @param routePoints Directions API 로 받은 도로 경로 좌표 (실제 경로 또는 API 레벨 직선 폴백).
  * @param snappedPoints 각 지점의 도로 스냅 좌표. 있으면 마커를 그 위치에 표시.
  */
 fun KakaoMap.renderCourse(
     context: Context,
     course: Course,
-    routePoints: List<LatLng>?,
+    routePoints: List<LatLng>,
     snappedPoints: List<LatLng> = emptyList(),
 ) {
     clearCourse()
@@ -59,10 +78,12 @@ fun KakaoMap.renderCourse(
         val pos = snappedPoints.getOrNull(i) ?: LatLng.from(p.lat, p.lng)
         addMarkerAt(context, pos, icon, i)
     }
-    val line = routePoints?.takeIf { it.size >= 2 }
-        ?: points.map { LatLng.from(it.lat, it.lng) }
-    if (line.size >= 2) drawRouteLine(line)
-    fitTo(line)
+    if (routePoints.size >= 2) drawRouteLine(routePoints)
+}
+
+/** [renderCourse]가 그린 경로에 카메라를 맞춘다. */
+fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>) {
+    if (routePoints.size >= 2) fitTo(routePoints)
 }
 
 private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: Int, index: Int) {
@@ -107,6 +128,11 @@ private fun KakaoMap.fitTo(points: List<LatLng>) {
     if (pts.size >= 2) {
         moveCamera(CameraUpdateFactory.fitMapPoints(pts, FIT_PADDING_PX), CameraAnimation.from(400))
     }
+}
+
+/** 단일 지점(주차장 등)을 지정한 줌 레벨로 확대하며 중앙 정렬한다. */
+fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int) {
+    moveCamera(CameraUpdateFactory.newCenterPosition(position, zoomLevel), CameraAnimation.from(400))
 }
 
 // primary500 = #6C5CFF
