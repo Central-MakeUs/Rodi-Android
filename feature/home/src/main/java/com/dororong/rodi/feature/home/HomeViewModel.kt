@@ -5,10 +5,14 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
+import com.dororong.rodi.core.data.navi.NaviApp
 import com.dororong.rodi.core.domain.Course
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.math.asin
@@ -47,11 +51,26 @@ class HomeViewModel : ViewModel() {
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
 
-    fun onDismissDetail() {
+    private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
+    val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
+
+    fun onIntent(intent: HomeIntent) {
+        when (intent) {
+            is HomeIntent.OnCourseClick -> onCourseClick(intent.id)
+            HomeIntent.OnDismissDetail -> onDismissDetail()
+            is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
+            is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
+            is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
+            is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
+        }
+    }
+
+    private fun onDismissDetail() {
         _state.update { it.copy(selectedCourseId = null) }
     }
 
-    fun onCourseClick(id: Int) {
+    private fun onCourseClick(id: Int) {
         val current = _state.value
         if (current.selectedCourseId == id) return
         _state.update { it.copy(selectedCourseId = id) }
@@ -71,12 +90,47 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    fun onDistanceFilterChange(km: Int?) {
+    private fun onDistanceFilterChange(km: Int?) {
         _state.update { it.copy(distanceFilterKm = km) }
     }
 
-    fun onLocationUpdate(lat: Double, lng: Double) {
+    private fun onLocationUpdate(lat: Double, lng: Double) {
         _state.update { it.copy(userLat = lat, userLng = lng) }
+    }
+
+    private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
+        viewModelScope.launch {
+            when {
+                intent.savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
+                    _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
+
+                intent.savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
+                    _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
+
+                intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
+                    _effect.send(HomeEffect.ShowNaviPicker(intent.course))
+
+                intent.kakaoMapInstalled -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
+                intent.kakaoNaviInstalled -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
+                else -> _effect.send(HomeEffect.ShowInstallNaviPicker(intent.course))
+            }
+        }
+    }
+
+    private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
+        viewModelScope.launch {
+            if (intent.always) _effect.send(HomeEffect.SaveNaviPreference(intent.app))
+            when (intent.app) {
+                NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
+                NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
+            }
+        }
+    }
+
+    private fun onInstallNaviAppSelected(intent: HomeIntent.OnInstallNaviAppSelected) {
+        viewModelScope.launch {
+            _effect.send(HomeEffect.OpenNaviInstallPage(intent.app))
+        }
     }
 
     companion object {
