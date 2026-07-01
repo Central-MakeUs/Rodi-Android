@@ -106,9 +106,9 @@ fun SettingsTermsScreen(
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "SettingsTermsScreen - Default", showBackground = true, widthDp = 360, heightDp = 812)
 @Composable
-fun SettingsTermsScreenPreview() {
+private fun SettingsTermsScreenPreview() {
     RodiTheme {
         SettingsTermsScreen(
             onBack = {},

@@ -346,12 +346,24 @@ private fun formatFee(minutes: Int?, fee: Int?): String {
     return "${minutes}분 ･ ${"%,d".format(fee)}원"
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 560)
+@Preview(name = "ParkingDetailContent - Free", showBackground = true, widthDp = 360, heightDp = 560)
 @Composable
-fun ParkingDetailContentPreview() {
+private fun ParkingDetailContentFreePreview() {
     BottomSheetPreviewWrapper {
         ParkingDetailContent(
-            course = SampleCourses.ALL.first { it.isParking },
+            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == true },
+            onDismiss = {},
+            onNavigate = {},
+        )
+    }
+}
+
+@Preview(name = "ParkingDetailContent - Paid", showBackground = true, widthDp = 360, heightDp = 560)
+@Composable
+private fun ParkingDetailContentPaidPreview() {
+    BottomSheetPreviewWrapper {
+        ParkingDetailContent(
+            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
             onDismiss = {},
             onNavigate = {},
         )

@@ -228,12 +228,42 @@ fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "VerticalStepList - Default", showBackground = true, widthDp = 360)
 @Composable
-fun VerticalStepListPreview() {
+private fun VerticalStepListPreview() {
     RodiTheme {
         VerticalStepList(
             course = SampleCourses.ALL.first(),
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+}
+
+@Preview(name = "DifficultyTag - AllLevels", showBackground = true, widthDp = 360)
+@Composable
+private fun DifficultyTagAllLevelsPreview() {
+    RodiTheme {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(16.dp)) {
+            Difficulty.entries.forEach { DifficultyTag(it) }
+        }
+    }
+}
+
+@Preview(name = "RatingRegionRow - Default", showBackground = true, widthDp = 360)
+@Composable
+private fun RatingRegionRowPreview() {
+    RodiTheme {
+        RatingRegionRow(rating = 4.5, region = "서울 강동구", onChevronClick = {})
+    }
+}
+
+@Preview(name = "ExpandableAddressCard - Default", showBackground = true, widthDp = 360)
+@Composable
+private fun ExpandableAddressCardPreview() {
+    RodiTheme {
+        ExpandableAddressCard(
+            roadAddress = "고덕로 219",
+            jibunAddress = "고덕동 200-4",
             modifier = Modifier.padding(16.dp),
         )
     }

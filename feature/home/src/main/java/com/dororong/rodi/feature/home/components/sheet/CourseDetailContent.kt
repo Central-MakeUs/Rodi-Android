@@ -180,23 +180,9 @@ fun CourseDetailContent(
 }
 
 
-@Preview(showBackground = true)
+@Preview(name = "CourseDetailContent - Routing", showBackground = true, widthDp = 360, heightDp = 560)
 @Composable
-fun CourseDetailContentPreview() {
-    BottomSheetPreviewWrapper {
-        CourseDetailContent(
-            course = SampleCourses.ALL.first(),
-            route = null,
-            isRouting = false,
-            onDismiss = {},
-            onNavigate = {},
-        )
-    }
-}
-
-@Preview(name = "CourseDetailContent routing", showBackground = true, widthDp = 375, heightDp = 560)
-@Composable
-fun CourseDetailContentRoutingPreview() {
+private fun CourseDetailContentRoutingPreview() {
     BottomSheetPreviewWrapper {
         CourseDetailContent(
             course = SampleCourses.ALL.first { !it.isParking },
@@ -208,9 +194,9 @@ fun CourseDetailContentRoutingPreview() {
     }
 }
 
-@Preview(name = "CourseDetailContent route ready", showBackground = true, widthDp = 375, heightDp = 560)
+@Preview(name = "CourseDetailContent - RouteReady", showBackground = true, widthDp = 360, heightDp = 560)
 @Composable
-fun CourseDetailContentRouteReadyPreview() {
+private fun CourseDetailContentRouteReadyPreview() {
     BottomSheetPreviewWrapper {
         CourseDetailContent(
             course = SampleCourses.ALL.first { !it.isParking },

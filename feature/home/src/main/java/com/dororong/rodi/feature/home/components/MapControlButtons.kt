@@ -114,9 +114,9 @@ fun SettingsButton(onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "MyLocationButton - Inactive/Active", showBackground = true, widthDp = 360)
 @Composable
-fun MyLocationButtonPreview() {
+private fun MyLocationButtonPreview() {
     RodiTheme {
         Row(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -128,9 +128,19 @@ fun MyLocationButtonPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "SettingsButton - Default", showBackground = true, widthDp = 360)
 @Composable
-fun DistanceFilterBarPreview() {
+private fun SettingsButtonPreview() {
+    RodiTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            SettingsButton(onClick = {})
+        }
+    }
+}
+
+@Preview(name = "DistanceFilterBar - Selections", showBackground = true, widthDp = 360)
+@Composable
+private fun DistanceFilterBarPreview() {
     RodiTheme {
         Column(
             modifier = Modifier
@@ -145,9 +155,9 @@ fun DistanceFilterBarPreview() {
     }
 }
 
-@Preview(name = "Map controls combined", showBackground = true, widthDp = 375, heightDp = 220)
+@Preview(name = "MapControls - Combined", showBackground = true, widthDp = 360, heightDp = 220)
 @Composable
-fun MapControlsCombinedPreview() {
+private fun MapControlsCombinedPreview() {
     RodiTheme {
         Column(
             modifier = Modifier

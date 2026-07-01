@@ -184,33 +184,33 @@ fun CourseCard(course: Course, onClick: () -> Unit) {
 }
 
 
-@Preview(showBackground = true)
+@Preview(name = "CourseListContent - Collapsed", showBackground = true, widthDp = 360)
 @Composable
-fun CourseListContentPreview() {
+private fun CourseListContentCollapsedPreview() {
     BottomSheetPreviewWrapper {
         CourseListContent(courses = SampleCourses.ALL.filterNot { it.isParking }.take(3), onCourseClick = {}, expandFraction = 0f)
     }
 }
 
-@Preview(name = "CourseListContent expanded", showBackground = true, widthDp = 375, heightDp = 720)
+@Preview(name = "CourseListContent - Expanded", showBackground = true, widthDp = 360, heightDp = 720)
 @Composable
-fun CourseListContentExpandedPreview() {
+private fun CourseListContentExpandedPreview() {
     BottomSheetPreviewWrapper {
         CourseListContent(courses = SampleCourses.ALL.take(6), onCourseClick = {}, expandFraction = 1f)
     }
 }
 
-@Preview(name = "CourseListContent empty", showBackground = true, widthDp = 375, heightDp = 420)
+@Preview(name = "CourseListContent - Empty", showBackground = true, widthDp = 360, heightDp = 420)
 @Composable
-fun CourseListContentEmptyPreview() {
+private fun CourseListContentEmptyPreview() {
     BottomSheetPreviewWrapper {
         CourseEmptyContent()
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "CourseCard - Default", showBackground = true, widthDp = 360)
 @Composable
-fun CourseCardPreview() {
+private fun CourseCardDefaultPreview() {
     RodiTheme {
         CourseCard(
             course = SampleCourses.ALL.first(),
@@ -219,9 +219,9 @@ fun CourseCardPreview() {
     }
 }
 
-@Preview(name = "CourseCard mixed", showBackground = true, widthDp = 375, heightDp = 420)
+@Preview(name = "CourseCard - Mixed", showBackground = true, widthDp = 360)
 @Composable
-fun CourseCardMixedPreview() {
+private fun CourseCardMixedPreview() {
     RodiTheme {
         Column(
             modifier = Modifier
@@ -234,7 +234,7 @@ fun CourseCardMixedPreview() {
                 onClick = {},
             )
             CourseCard(
-                course = SampleCourses.ALL.first { it.isParking },
+                course = SampleCourses.RODI_COURSES.first { it.isParking },
                 onClick = {},
             )
         }

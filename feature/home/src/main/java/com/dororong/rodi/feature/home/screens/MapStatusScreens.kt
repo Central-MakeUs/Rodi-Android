@@ -235,17 +235,17 @@ private fun SnackbarAlertIcon(modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "MapLoadingScreen - Default", showBackground = true, widthDp = 360, heightDp = 812)
 @Composable
-fun MapLoadingScreenPreview() {
+private fun MapLoadingScreenPreview() {
     RodiTheme {
         MapLoadingScreen()
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "MapNetworkErrorScreen - Default", showBackground = true, widthDp = 360, heightDp = 812)
 @Composable
-fun MapNetworkErrorScreenPreview() {
+private fun MapNetworkErrorScreenPreview() {
     RodiTheme {
         MapNetworkErrorScreen(onRetry = {})
     }

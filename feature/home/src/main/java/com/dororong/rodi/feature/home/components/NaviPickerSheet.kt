@@ -271,9 +271,9 @@ private fun NaviAppCard(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "NaviPicker - Select", showBackground = true, widthDp = 360)
 @Composable
-fun NaviPickerSelectPreview() {
+private fun NaviPickerSelectPreview() {
     RodiTheme {
         NaviPickerContent(
             mode = NaviPickerMode.SELECT,
@@ -285,9 +285,9 @@ fun NaviPickerSelectPreview() {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "NaviPicker - Install", showBackground = true, widthDp = 360)
 @Composable
-fun NaviPickerInstallPreview() {
+private fun NaviPickerInstallPreview() {
     RodiTheme {
         NaviPickerContent(
             mode = NaviPickerMode.INSTALL,
