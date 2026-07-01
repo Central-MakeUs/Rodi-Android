@@ -71,10 +71,17 @@ while IFS='|' read -r branch intent skip_plan base_branch; do
     git checkout -b "$branch" "$base_branch" </dev/null >>"$ITEM_LOG" 2>&1
   fi
 
-  SKIP_FLAG=()
-  [[ "$skip_plan" == "yes" ]] && SKIP_FLAG=(--skip-plan)
+  # macOS 기본 bash(3.2)는 set -u 상태에서 빈 배열 "${arr[@]}" 확장 시 "unbound variable"로
+  # 죽는다 — 배열 대신 skip_plan 값으로 분기해 호출한다.
+  if [[ "$skip_plan" == "yes" ]]; then
+    RELAY_RESULT=0
+    scripts/auto-relay.sh "$intent" --skip-plan --max-retries 2 </dev/null >>"$ITEM_LOG" 2>&1 || RELAY_RESULT=$?
+  else
+    RELAY_RESULT=0
+    scripts/auto-relay.sh "$intent" --max-retries 2 </dev/null >>"$ITEM_LOG" 2>&1 || RELAY_RESULT=$?
+  fi
 
-  if scripts/auto-relay.sh "$intent" "${SKIP_FLAG[@]}" --max-retries 2 </dev/null >>"$ITEM_LOG" 2>&1; then
+  if [[ "$RELAY_RESULT" -eq 0 ]]; then
     log "  ✓ 성공 — 로그: $ITEM_LOG"
     succeeded+=("$branch")
   else
