@@ -66,7 +66,7 @@ fun DrivingPrecautionsContent(
             }
             Spacer(Modifier.height(RodiSpacing.xl))
             Column(
-                modifier = modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text("운전 자격 및 주의 사항", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
