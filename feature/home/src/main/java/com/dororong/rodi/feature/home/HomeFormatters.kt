@@ -2,10 +2,12 @@ package com.dororong.rodi.feature.home
 
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
 import com.dororong.rodi.core.domain.Waypoint
+import java.util.Locale
 
 fun distanceText(route: RouteResult?, isRouting: Boolean): String = when {
     isRouting || route == null -> "주행거리 · 측정 중…"
-    route.totalDistanceMeters >= 1000 -> "주행거리 · ${"%.1f".format(route.totalDistanceMeters / 1000.0)}km"
+    route.totalDistanceMeters >= 1000 ->
+        "주행거리 · ${String.format(Locale.US, "%.1f", route.totalDistanceMeters / 1000.0)}km"
     else -> "주행거리 · ${route.totalDistanceMeters}m"
 }
 

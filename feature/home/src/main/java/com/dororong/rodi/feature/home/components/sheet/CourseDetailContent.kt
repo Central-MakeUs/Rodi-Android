@@ -84,8 +84,9 @@ fun CourseDetailContent(
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
+    initialAddressExpanded: Boolean = false,
 ) {
-    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(initialAddressExpanded) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -208,6 +209,25 @@ private fun CourseDetailContentRouteReadyPreview() {
             isRouting = false,
             onDismiss = {},
             onNavigate = {},
+        )
+    }
+}
+
+@Preview(name = "CourseDetailContent - AddressExpanded", showBackground = true, widthDp = 360, heightDp = 560)
+@Composable
+private fun CourseDetailContentAddressExpandedPreview() {
+    BottomSheetPreviewWrapper {
+        CourseDetailContent(
+            course = SampleCourses.ALL.first { !it.isParking },
+            route = RouteResult(
+                points = emptyList(),
+                isRealRoute = true,
+                totalDistanceMeters = 12_400,
+            ),
+            isRouting = false,
+            onDismiss = {},
+            onNavigate = {},
+            initialAddressExpanded = true,
         )
     }
 }

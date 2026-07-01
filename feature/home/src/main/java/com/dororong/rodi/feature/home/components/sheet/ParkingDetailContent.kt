@@ -49,10 +49,12 @@ fun ParkingDetailContent(
     onDismiss: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
+    initialAddressExpanded: Boolean = false,
+    initialHoursExpanded: Boolean = false,
 ) {
     val parking = course.parkingDetail
-    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
-    var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
+    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(initialAddressExpanded) }
+    var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(initialHoursExpanded) }
 
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -283,11 +285,14 @@ private data class ParkingFeeInfo(
     val surcharge: String = "해당항목없음",
 )
 
-private fun ParkingDetail?.parkingTypeDisplay(): String = when {
-    this == null -> "공영주차장"
-    isFree -> "무료 주차장"
-    parkingType?.isNotBlank() == true -> "공영주차장"
-    else -> "공영주차장"
+private fun ParkingDetail?.parkingTypeDisplay(): String {
+    val type = this?.parkingType
+    return when {
+        this == null -> "공영주차장"
+        isFree -> "무료 주차장"
+        !type.isNullOrBlank() -> type
+        else -> "공영주차장"
+    }
 }
 
 private fun ParkingDetail?.operatingSummary(): String {
@@ -366,6 +371,32 @@ private fun ParkingDetailContentPaidPreview() {
             course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
             onDismiss = {},
             onNavigate = {},
+        )
+    }
+}
+
+@Preview(name = "ParkingDetailContent - Address Expanded", showBackground = true, widthDp = 360, heightDp = 560)
+@Composable
+private fun ParkingDetailContentAddressExpandedPreview() {
+    BottomSheetPreviewWrapper {
+        ParkingDetailContent(
+            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
+            onDismiss = {},
+            onNavigate = {},
+            initialAddressExpanded = true,
+        )
+    }
+}
+
+@Preview(name = "ParkingDetailContent - Hours Expanded", showBackground = true, widthDp = 360, heightDp = 560)
+@Composable
+private fun ParkingDetailContentHoursExpandedPreview() {
+    BottomSheetPreviewWrapper {
+        ParkingDetailContent(
+            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
+            onDismiss = {},
+            onNavigate = {},
+            initialHoursExpanded = true,
         )
     }
 }

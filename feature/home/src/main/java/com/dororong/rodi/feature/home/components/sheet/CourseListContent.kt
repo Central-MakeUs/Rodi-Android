@@ -147,8 +147,12 @@ fun CourseEmptyContent() {
 }
 
 @Composable
-fun CourseCard(course: Course, onClick: () -> Unit) {
-    var addressExpanded by rememberSaveable { mutableStateOf(false) }
+fun CourseCard(
+    course: Course,
+    onClick: () -> Unit,
+    initialAddressExpanded: Boolean = false,
+) {
+    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(initialAddressExpanded) }
 
     Column(
         modifier = Modifier
@@ -215,6 +219,18 @@ private fun CourseCardDefaultPreview() {
         CourseCard(
             course = SampleCourses.ALL.first(),
             onClick = {},
+        )
+    }
+}
+
+@Preview(name = "CourseCard - AddressExpanded", showBackground = true, widthDp = 360)
+@Composable
+private fun CourseCardAddressExpandedPreview() {
+    RodiTheme {
+        CourseCard(
+            course = SampleCourses.ALL.first(),
+            onClick = {},
+            initialAddressExpanded = true,
         )
     }
 }

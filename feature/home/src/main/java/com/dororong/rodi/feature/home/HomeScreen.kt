@@ -213,7 +213,7 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(vm) {
         vm.effect.collect { effect ->
             when (effect) {
                 is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
