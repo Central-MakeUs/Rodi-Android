@@ -3,7 +3,7 @@
 > Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
 > 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
 
-Status: READY_FOR_IMPL
+Status: DONE
 Branch: feat/hilt-di
 
 ## Context (왜)
@@ -270,12 +270,29 @@ class EntryViewModel @Inject constructor(
 
 ---
 ## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
-- Changed files:
-- Build/test:
-- Open questions:
+- Changed files: gradle/libs.versions.toml, build.gradle.kts, gradle.properties, build-logic/build.gradle.kts, build-logic/src/main/kotlin/AndroidHiltConventionPlugin.kt, app/build.gradle.kts, app/src/main/java/com/dororong/rodi/RodiApplication.kt, app/src/main/java/com/dororong/rodi/MainActivity.kt, core/data/build.gradle.kts, core/data/src/main/java/com/dororong/rodi/core/data/CourseRepository.kt, core/data/src/main/java/com/dororong/rodi/core/data/EntryRepository.kt, core/data/src/main/java/com/dororong/rodi/core/data/navi/NaviPreferenceRepository.kt, core/data/src/main/java/com/dororong/rodi/core/data/di/DataModule.kt, feature/home/build.gradle.kts, feature/home/src/main/java/com/dororong/rodi/feature/home/HomeViewModel.kt, feature/home/src/main/java/com/dororong/rodi/feature/home/HomeContract.kt, feature/home/src/main/java/com/dororong/rodi/feature/home/HomeScreen.kt, feature/entry/build.gradle.kts, feature/entry/src/main/java/com/dororong/rodi/feature/entry/EntryViewModel.kt, feature/entry/src/main/java/com/dororong/rodi/feature/entry/EntryFlow.kt, docs/BACKLOG.md
+- Build/test: ./gradlew assembleDebug GREEN; ./gradlew lint GREEN; emulator manual QA not run in this session
+- Open questions: none
 
 ---
 ## Claude Review  <!-- Claude가 검토 후 채움 -->
-- Blocking:
+- Blocking: 없음
 - Nits:
-- Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
+  - `gradle.properties`에 `android.disallowKotlinSourceSets=false`가 추가됐는데 Spec/Files to
+    touch에 없고 이유가 기록돼 있지 않다. 실제로 필요했다면(KSP/Hilt 관련 빌드 에러 회피 등)
+    한 줄 근거를 커밋 메시지나 BACKLOG에 남겨두는 게 좋다.
+  - `HomeScreen.kt`의 `LaunchedEffect` `when(effect)` 블록에서 `SaveNaviPreference` 분기 제거 후
+    빈 줄이 하나 남았다 (`OpenNaviInstallPage` 분기 다음). 사소하지만 정리 가능.
+  - Acceptance의 "에뮬레이터 확인"과 `./gradlew assembleDebug`/`lint` 재실행은 이 리뷰 세션에서
+    직접 재검증하지 못했다(샌드박스에서 gradlew 실행 승인이 막힘) — Codex 보고(GREEN)를 신뢰했다.
+    병합 전 최소 한 번은 사람이 직접 빌드+에뮬레이터 QA로 확인 권장.
+- Verdict: APPROVE
+
+  Spec의 6개 파트(버전 카탈로그, build-logic Hilt convention plugin, core:data Repository 3종 +
+  DataModule, app 진입점, HomeViewModel/Contract/Screen, EntryViewModel/Flow)가 모두 diff에
+  1:1로 반영되어 있다. Repository 인터페이스+구현체가 spec대로 `core:data`에 위치하고
+  `@Binds` DataModule도 정확. `HomeIntent.OnNavigateClick.savedApp`/`HomeEffect.SaveNaviPreference`
+  제거와 ViewModel의 `NaviPreferenceRepository` 직접 조회/저장 전환도 Acceptance criteria와 일치.
+  `HomeScreen`/`EntryFlow` 모두 `hiltViewModel()`로 전환됨. domain-purity 보류 건도 BACKLOG.md에
+  기록됨(Out of scope 대로). 토큰 하드코딩·Material 아이콘·시크릿 노출 없음. 위 Nits는 병합을
+  막을 정도는 아니라 APPROVE.

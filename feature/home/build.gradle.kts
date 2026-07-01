@@ -1,5 +1,6 @@
 plugins {
     id("dororong.rodi.android.library.compose")
+    id("dororong.rodi.android.hilt")
 }
 
 android {
@@ -18,8 +19,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kakao.navi)
     implementation(libs.play.services.location)
+    ksp(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
