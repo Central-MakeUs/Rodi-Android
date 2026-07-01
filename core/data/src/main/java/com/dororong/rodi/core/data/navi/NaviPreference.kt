@@ -1,4 +1,4 @@
-package com.dororong.rodi.navi
+package com.dororong.rodi.core.data.navi
 
 import android.content.Context
 

@@ -24,12 +24,18 @@
 | `home` | 홈 화면(지도 + 코스 바텀시트), `HomeScreen`/`HomeViewModel`/`NaviPickerSheet` |
 | `entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content + 약관 WebView |
 | `map` | 카카오 지도 생명주기, 코스/마커/경로선 렌더 |
-| `directions` | 카카오 Directions REST(도로 경로, 실패 시 직선 폴백) |
-| `navi` | 외부 내비 런처(카카오맵·카카오내비) + 선호 저장 |
+| `navi` | 외부 내비 런처(카카오맵·카카오내비). 선호 저장(`NaviPreference`)은 `:core:data`로 이동 |
 | `location` | FusedLocation 현재 위치 |
-| `model` | 도메인 모델(`Course` 등) |
-| `data` | 샘플 코스 데이터, `EntryPreferences`(DataStore) |
-| `ui` | `AppRoot`(게이트→홈 분기), `ui/theme`(RodiTheme 토큰) |
+| `ui` | `AppRoot`(게이트→홈 분기). 테마 토큰(`RodiTheme`)은 `:core:ui`로 이동 |
+
+## 모듈 맵
+| 모듈 | 역할 |
+|---|---|
+| `:core:domain` | 도메인 모델(`Course` 등) |
+| `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference` |
+| `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) |
+| `:core:common` | 확장함수/유틸 (아직 비어있음) |
+| `:feature:home` | (아직 비어있음, Phase 2 예정) |
 
 ## 컨벤션 (필수)
 - **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.typography`만. 하드코딩 금지.

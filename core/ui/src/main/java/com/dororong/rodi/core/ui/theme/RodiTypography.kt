@@ -1,4 +1,4 @@
-package com.dororong.rodi.ui.theme
+package com.dororong.rodi.core.ui.theme
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -8,9 +8,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import com.dororong.rodi.R
+import com.dororong.rodi.core.ui.R
 
-/** Pretendard 폰트 패밀리. app/src/main/res/font/ 에 4 weight 배치 필요. */
+/** Pretendard 폰트 패밀리. core/ui/src/main/res/font/ 에 4 weight 배치 필요. */
 val RodiFontFamily = FontFamily(
     Font(R.font.pretendard_regular, FontWeight.Normal),
     Font(R.font.pretendard_medium, FontWeight.Medium),

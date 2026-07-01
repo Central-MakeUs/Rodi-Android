@@ -1,9 +1,9 @@
-package com.dororong.rodi.directions
+package com.dororong.rodi.core.data.directions
 
 import android.util.Log
-import com.dororong.rodi.BuildConfig
-import com.dororong.rodi.model.Course
-import com.dororong.rodi.model.CoursePoint
+import com.dororong.rodi.core.data.BuildConfig
+import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.CoursePoint
 import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

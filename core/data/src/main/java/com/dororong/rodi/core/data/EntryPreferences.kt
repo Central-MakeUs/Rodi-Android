@@ -1,4 +1,4 @@
-package com.dororong.rodi.data
+package com.dororong.rodi.core.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey

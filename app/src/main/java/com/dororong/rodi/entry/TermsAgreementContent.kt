@@ -11,9 +11,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.ui.theme.RodiRadius
-import com.dororong.rodi.ui.theme.RodiSpacing
-import com.dororong.rodi.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.theme.RodiSpacing
+import com.dororong.rodi.core.ui.theme.RodiTheme
 
 /**
  * 2단계: 약관 동의. 필수 3항목을 모두 체크하면 "다음" 활성. "약관 전체 동의"로 일괄 토글.

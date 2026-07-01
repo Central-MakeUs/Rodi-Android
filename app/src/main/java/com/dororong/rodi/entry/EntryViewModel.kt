@@ -6,7 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.data.EntryPreferences
+import com.dororong.rodi.core.data.EntryPreferences
 import kotlinx.coroutines.launch
 
 enum class EntryStep { LOCATION, TERMS, PRECAUTIONS, TERMS_WEBVIEW }

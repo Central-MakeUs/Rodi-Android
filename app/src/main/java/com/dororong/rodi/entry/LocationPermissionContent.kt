@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.R
-import com.dororong.rodi.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.theme.RodiTheme
 
 /**
  * 1단계: 위치 권한 안내. "허용하기" → 시스템 권한 다이얼로그 → 결과와 무관하게 다음 단계로.

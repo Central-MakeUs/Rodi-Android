@@ -4,6 +4,10 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **:app 코드 이관 Phase 2** — `entry`/`home`/`map`/`navi`의 런처(`KakaoMapLauncher`/
+  `KakaoNaviLauncher`)/`location`을 `:feature:entry`(신규 모듈)·`:feature:home`으로 이관.
+  Phase 1(2026-07-01, model/data/directions/ui-theme→core:*)에서 drawable 리소스 분할과
+  `:feature:entry` 신설이 얽혀 별도 스펙으로 미룸.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.

@@ -23,9 +23,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.R
-import com.dororong.rodi.ui.theme.RodiRadius
-import com.dororong.rodi.ui.theme.RodiSpacing
-import com.dororong.rodi.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.theme.RodiSpacing
+import com.dororong.rodi.core.ui.theme.RodiTheme
 
 /**
  * 3단계: 운전 자격 및 주의 사항. 확인 3항목 모두 체크 시 "다음" 활성 → 완료.

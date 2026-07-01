@@ -5,8 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import com.dororong.rodi.model.Course
-import com.dororong.rodi.model.CoursePoint
+import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.CoursePoint
 import androidx.core.net.toUri
 
 /**

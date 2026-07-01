@@ -1,4 +1,4 @@
-package com.dororong.rodi.ui.theme
+package com.dororong.rodi.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

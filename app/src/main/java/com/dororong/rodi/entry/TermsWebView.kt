@@ -34,7 +34,7 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
-import com.dororong.rodi.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
 fun TermsWebView(

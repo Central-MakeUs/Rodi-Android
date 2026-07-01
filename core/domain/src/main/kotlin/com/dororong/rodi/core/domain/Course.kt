@@ -1,4 +1,4 @@
-package com.dororong.rodi.model
+package com.dororong.rodi.core.domain
 
 enum class WaypointType { START, WAYPOINT, END }
 
@@ -136,7 +136,7 @@ fun CourseFeatures.toPracticeTags(): Set<PracticeTag> = buildSet {
 /**
  * 연습 코스. 서버 포맷과 일치하며, UI용 computed property를 제공한다.
  *
- * MVP에서는 [com.dororong.rodi.data.SampleCourses] 에 하드코딩한 데이터를 쓰고,
+ * MVP에서는 [com.dororong.rodi.core.data.SampleCourses] 에 하드코딩한 데이터를 쓰고,
  * 추후 서버 데이터로 교체한다.
  */
 data class Course(

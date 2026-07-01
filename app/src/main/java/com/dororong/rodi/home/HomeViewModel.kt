@@ -2,10 +2,10 @@ package com.dororong.rodi.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.data.SampleCourses
-import com.dororong.rodi.directions.KakaoDirectionsClient
-import com.dororong.rodi.directions.KakaoDirectionsClient.RouteResult
-import com.dororong.rodi.model.Course
+import com.dororong.rodi.core.data.SampleCourses
+import com.dororong.rodi.core.data.directions.KakaoDirectionsClient
+import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
+import com.dororong.rodi.core.domain.Course
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

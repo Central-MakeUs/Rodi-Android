@@ -36,9 +36,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.R
-import com.dororong.rodi.ui.theme.RodiRadius
-import com.dororong.rodi.ui.theme.RodiSpacing
-import com.dororong.rodi.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.theme.RodiSpacing
+import com.dororong.rodi.core.ui.theme.RodiTheme
 
 private val APP_BAR_HEIGHT = 56.dp
 private val BUTTON_HEIGHT = 48.dp
