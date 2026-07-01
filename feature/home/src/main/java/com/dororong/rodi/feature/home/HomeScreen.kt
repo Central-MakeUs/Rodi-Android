@@ -426,6 +426,8 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             .draggable(
                                 state = rememberDraggableState { },
                                 orientation = Orientation.Vertical,
+                                // 코스/주차장 상세가 열려 있을 때는 올리기·내리기 모두 막는다.
+                                enabled = state.selectedCourse == null,
                                 onDragStopped = { velocity ->
                                     if (velocity < -200f) scaffoldState.bottomSheetState.expand()
                                     else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
@@ -1237,12 +1239,7 @@ private fun CourseDetailContent(
 ) {
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding(),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1269,59 +1266,67 @@ private fun CourseDetailContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
         ) {
-            RatingRegionRow(
-                rating = course.rating,
-                region = course.regionDisplay,
-                onChevronClick = { addressExpanded = !addressExpanded },
-            )
-            if (addressExpanded) {
-                Spacer(modifier = Modifier.height(2.dp))
-                ExpandableAddressCard(
-                    roadAddress = course.roadAddress.shortenRoadAddress(),
-                    jibunAddress = course.jibunAddress.shortenJibunAddress(),
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                RatingRegionRow(
+                    rating = course.rating,
+                    region = course.regionDisplay,
+                    onChevronClick = { addressExpanded = !addressExpanded },
                 )
-            } else {
-                Text(
-                    distanceText(route, isRouting),
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.gray800,
-                )
-                TagRow(difficulty = course.difficultyEnum, tags = course.tags)
+                if (addressExpanded) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    ExpandableAddressCard(
+                        roadAddress = course.roadAddress.shortenRoadAddress(),
+                        jibunAddress = course.jibunAddress.shortenJibunAddress(),
+                    )
+                } else {
+                    Text(
+                        distanceText(route, isRouting),
+                        style = RodiTheme.typography.body3Medium,
+                        color = RodiTheme.colors.gray800,
+                    )
+                    TagRow(difficulty = course.difficultyEnum, tags = course.tags)
 
-                Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(8.dp))
 
-                SummaryBox(
-                    text = course.summary,
-                    bgColor = RodiTheme.colors.gray100,
-                )
+                    SummaryBox(
+                        text = course.summary,
+                        bgColor = RodiTheme.colors.gray100,
+                    )
+                }
             }
-        }
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-        VerticalStepList(
-            course = course,
-            modifier = Modifier.padding(horizontal = 16.dp),
-        )
+            VerticalStepList(
+                course = course,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-        Button(
-            onClick = onNavigate,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = RodiTheme.colors.primary600,
-                contentColor = RodiTheme.colors.white,
-            ),
-        ) {
-            Text("경로 안내", style = RodiTheme.typography.button1)
+            Button(
+                onClick = onNavigate,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = RodiTheme.colors.primary600,
+                    contentColor = RodiTheme.colors.white,
+                ),
+            ) {
+                Text("경로 안내", style = RodiTheme.typography.button1)
+            }
         }
     }
 }
@@ -1337,12 +1342,7 @@ private fun ParkingDetailContent(
     var addressExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
     var hoursExpanded by rememberSaveable(course.id) { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .navigationBarsPadding(),
-    ) {
+    Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1367,7 +1367,13 @@ private fun ParkingDetailContent(
             }
         }
 
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding(),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
