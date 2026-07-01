@@ -38,7 +38,7 @@ data class RodiTypography(
     val button1: TextStyle,         // Medium 16 / lh 1.4
 )
 
-private fun routiStyle(
+private fun rodiStyle(
     size: Int,
     weight: FontWeight,
     lineHeightRatio: Float = 1.3f,
@@ -51,17 +51,17 @@ private fun routiStyle(
 )
 
 val DefaultRodiTypography = RodiTypography(
-    headline1 = routiStyle(18, FontWeight.Bold),
-    body1SemiBold = routiStyle(16, FontWeight.SemiBold),
-    body1Medium = routiStyle(16, FontWeight.Medium),
-    body3Medium = routiStyle(14, FontWeight.Medium),
-    body3SemiBold = routiStyle(14, FontWeight.SemiBold),
-    caption1Regular = routiStyle(13, FontWeight.Normal),
-    caption1Medium = routiStyle(13, FontWeight.Medium),
-    caption1SemiBold = routiStyle(13, FontWeight.SemiBold),
-    caption2SemiBold = routiStyle(12, FontWeight.SemiBold),
-    caption3Medium = routiStyle(10, FontWeight.Medium),
-    button1 = routiStyle(16, FontWeight.Medium, lineHeightRatio = 1.4f),
+    headline1 = rodiStyle(18, FontWeight.Bold),
+    body1SemiBold = rodiStyle(16, FontWeight.SemiBold),
+    body1Medium = rodiStyle(16, FontWeight.Medium),
+    body3Medium = rodiStyle(14, FontWeight.Medium),
+    body3SemiBold = rodiStyle(14, FontWeight.SemiBold),
+    caption1Regular = rodiStyle(13, FontWeight.Normal),
+    caption1Medium = rodiStyle(13, FontWeight.Medium),
+    caption1SemiBold = rodiStyle(13, FontWeight.SemiBold),
+    caption2SemiBold = rodiStyle(12, FontWeight.SemiBold),
+    caption3Medium = rodiStyle(10, FontWeight.Medium),
+    button1 = rodiStyle(16, FontWeight.Medium, lineHeightRatio = 1.4f),
 )
 
 val LocalRodiTypography = staticCompositionLocalOf { DefaultRodiTypography }
