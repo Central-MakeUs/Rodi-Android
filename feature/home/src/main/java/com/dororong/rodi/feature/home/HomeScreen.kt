@@ -117,9 +117,12 @@ import com.dororong.rodi.core.ui.terms.TermsDocuments
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.hasLocationPermission
+import com.dororong.rodi.feature.home.map.fitCourseToScreen
+import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderCourse
 import com.dororong.rodi.feature.home.map.renderCourseChips
+import com.dororong.rodi.feature.home.map.renderCourseMarkers
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.Difficulty
 import com.dororong.rodi.core.domain.ParkingDetail
@@ -142,6 +145,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val DEFAULT_ZOOM = 13
+private const val PARKING_FOCUS_ZOOM = 15
 private const val HOME_PREFS = "rodi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 private val SEOUL = LatLng.from(37.5563, 126.9220)
@@ -204,8 +208,50 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
     val sheetPeekHeight = if (state.selectedCourse == null) peekHeight else 1.dp
     val density = LocalDensity.current
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
-    val sheetPeekHeightPx = with(density) { sheetPeekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
+    val handleHeightDp = 24.dp
+    val handleHeightPx = with(density) { handleHeightDp.toPx() }
+
+    var scaffoldHeightPx by remember { mutableIntStateOf(0) }
+
+    val scaffoldState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.PartiallyExpanded,
+            skipHiddenState = true,
+        ),
+    )
+
+    // 코스 선택 시 시트 펼침
+    LaunchedEffect(state.selectedCourseId) {
+        if (state.selectedCourseId != null) {
+            scaffoldState.bottomSheetState.expand()
+        }
+    }
+
+    // 바텀시트 펼쳐진 상태에서 뒤로가기 → 기본 형태(PartiallyExpanded)로 복귀
+    BackHandler(enabled = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+        if (state.selectedCourseId != null) vm.onDismissDetail()
+        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+    }
+
+    val sheetOffsetPx by remember {
+        derivedStateOf {
+            try {
+                scaffoldState.bottomSheetState.requireOffset()
+            } catch (_: IllegalStateException) {
+                Float.MAX_VALUE
+            }
+        }
+    }
+
+    // 시트가 실제로 화면에서 차지하는 높이. 지도 카메라 정렬이 이 값을 기준으로 삼아야
+    // 코스/주차장 상세가 펼쳐졌을 때 보이는 지도 영역(상단) 중앙에 맞춰진다.
+    val detailSheetHeightPx = if (scaffoldHeightPx > 0 && sheetOffsetPx != Float.MAX_VALUE) {
+        (scaffoldHeightPx - sheetOffsetPx).toInt().coerceIn(0, scaffoldHeightPx)
+    } else {
+        peekHeightPx
+    }
+    val mapBottomPaddingPx = if (state.selectedCourse == null) peekHeightPx else detailSheetHeightPx
 
     LaunchedEffect(kakaoMap) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -235,9 +281,9 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    LaunchedEffect(kakaoMap, sheetPeekHeightPx) {
+    LaunchedEffect(kakaoMap, mapBottomPaddingPx) {
         val map = kakaoMap ?: return@LaunchedEffect
-        map.setPadding(0, 0, 0, sheetPeekHeightPx)
+        map.setPadding(0, 0, 0, mapBottomPaddingPx)
         map.logo?.setPosition(
             MapGravity.BOTTOM or MapGravity.LEFT,
             logoMarginPx,
@@ -270,7 +316,9 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
         }
     }
 
-    // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 레이어 업데이트
+    // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
+    // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
+    // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
     LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, state.filteredCourses) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = state.selectedCourse
@@ -280,41 +328,45 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
             map.renderCourseChips(context, listOf(course))
         } else {
             val route = state.selectedRoute
-            map.renderCourse(context, course, route?.points, route?.snappedPoints ?: emptyList())
-        }
-    }
-
-    val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.PartiallyExpanded,
-            skipHiddenState = true,
-        ),
-    )
-
-    // 코스 선택 시 시트 펼침
-    LaunchedEffect(state.selectedCourseId) {
-        if (state.selectedCourseId != null) {
-            scaffoldState.bottomSheetState.expand()
-        }
-    }
-
-    // 바텀시트 펼쳐진 상태에서 뒤로가기 → 기본 형태(PartiallyExpanded)로 복귀
-    BackHandler(enabled = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-        if (state.selectedCourseId != null) vm.onDismissDetail()
-        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-    }
-
-    val sheetOffsetPx by remember {
-        derivedStateOf {
-            try {
-                scaffoldState.bottomSheetState.requireOffset()
-            } catch (_: IllegalStateException) {
-                Float.MAX_VALUE
+            if (route == null) {
+                map.renderCourseMarkers(context, course)
+            } else {
+                map.renderCourse(context, course, route.points, route.snappedPoints)
             }
         }
     }
 
-    var scaffoldHeightPx by remember { mutableIntStateOf(0) }
+    // 시트가 확장 애니메이션을 마쳤는지 추적한다. 코스 선택 시 아주 잠깐(350ms) 지연 후 정착.
+    var sheetSettled by remember { mutableStateOf(true) }
+    LaunchedEffect(state.selectedCourseId) {
+        if (state.selectedCourseId == null) {
+            sheetSettled = true
+            return@LaunchedEffect
+        }
+        sheetSettled = false
+        delay(350)
+        sheetSettled = true
+    }
+
+    // 카메라 정렬. 시트 확장 애니메이션이 끝나고(sheetSettled) + 실제 경로가 준비된 뒤에만
+    // 한 번에 정렬한다. 직선 미리보기 단계에서는 절대 카메라를 움직이지 않는다.
+    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, sheetSettled) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        val course = state.selectedCourse
+        val paddingPx = if (course == null || scaffoldHeightPx == 0 || sheetOffsetPx == Float.MAX_VALUE) {
+            peekHeightPx
+        } else {
+            (scaffoldHeightPx - sheetOffsetPx).toInt().coerceIn(0, scaffoldHeightPx)
+        }
+        map.setPadding(0, 0, 0, paddingPx)
+        if (course == null || !sheetSettled) return@LaunchedEffect
+        if (course.isParking) {
+            map.focusOn(LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng), PARKING_FOCUS_ZOOM)
+        } else {
+            val route = state.selectedRoute ?: return@LaunchedEffect
+            map.fitCourseToScreen(route.points)
+        }
+    }
 
     val expandFraction by remember {
         derivedStateOf {
@@ -397,8 +449,6 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                                 .background(RodiTheme.colors.handleBar),
                         )
                     }
-                    val handleHeightDp = 24.dp
-                    val handleHeightPx = with(density) { handleHeightDp.toPx() }
                     val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
                     val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
 
