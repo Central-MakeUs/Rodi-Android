@@ -1,0 +1,13 @@
+# QUEUE.md — 무인 자동화 큐 (scripts/queue-relay.sh)
+
+> 형식: `브랜치명|요구사항|skip_plan(yes/no)|base_branch(생략 시 develop)`
+> - skip_plan=yes 는 docs/handoff/HANDOFF.md 에 이미 READY_FOR_IMPL 스펙이 있는 경우
+>   (기획 단계를 건너뛰고 바로 구현부터 시작).
+> - base_branch: 이 브랜치가 아직 develop에 머지 안 된 다른 큐 항목에 의존하면, 그 브랜치명을
+>   적는다 (PR은 자동 머지되지 않으므로 origin/develop만 보면 그 변경사항이 없다).
+> - 처리된 항목은 지우거나 `#`으로 주석 처리한다. 위에서부터 순서대로 처리되고,
+>   MAX_ITEMS 환경변수로 한 번 실행에 처리할 최대 건수를 제한한다.
+
+feat/hilt-di|Hilt 도입 + Repository 계층 분리 (Home/Entry) — docs/handoff/HANDOFF.md 스펙 그대로 구현|yes|develop
+feat/design-system-buttons|core:ui의 RodiTheme을 확장해 디자인 시스템 헬퍼(색상/타이포/spacing 조합 유틸)를 정리하고, 앱 전역에서 쓰이는 Button(경로 안내 버튼 등 primary/secondary 스타일)을 공통 컴포저블(RodiButton 등)로 추출해 feature 모듈들이 material3 Button을 직접 스타일링하지 않고 재사용하도록 한다. 기존 화면 UI는 시각적으로 동일하게 유지한다.|no|develop
+feat/domain-usecases|core:domain에 UseCase 계층을 도입한다. runCatching 대신 CancellationException을 보존하는 runSuspendCatching 유틸을 core:common(또는 core:domain)에 추가하고, feat/hilt-di에서 만든 Repository 인터페이스를 감싸는 UseCase(예: GetCoursesUseCase, GetRouteUseCase)를 core:domain에 만들어 HomeViewModel이 Repository 대신 UseCase를 주입받도록 리팩터링한다.|no|feat/hilt-di
