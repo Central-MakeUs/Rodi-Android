@@ -4,30 +4,72 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.core.data.EntryPreferences
+import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
-import com.dororong.rodi.core.ui.theme.RodiTheme
 
-/**
- * 앱 진입점 분기: 첫 실행 게이트(EntryFlow) 완료 여부에 따라 게이트 또는 홈을 보여준다.
- * 완료 플래그는 DataStore 로 영속되며, 완료 시 Flow 가 true 로 전환되어 자동으로 홈으로 바뀐다.
- */
 @Composable
 fun AppRoot() {
     val context = LocalContext.current
     val prefs = remember { EntryPreferences(context) }
     val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
+    val backStack = remember { mutableStateListOf<Any>() }
 
-    when (completed) {
-        // 로딩 중: 흰 화면(깜빡임 방지)
-        null -> Box(Modifier.fillMaxSize().background(RodiTheme.colors.white))
-        false -> EntryFlow(onComplete = {})
-        true -> HomeScreen()
+    val completedValue = completed
+    if (completedValue == null) {
+        LoadingScreen()
+        return
     }
+
+    LaunchedEffect(completedValue) {
+        if (backStack.isEmpty()) {
+            backStack.add(if (completedValue) HomeRoute else EntryRoute)
+        }
+    }
+
+    if (backStack.isEmpty()) {
+        LoadingScreen()
+        return
+    }
+
+    NavDisplay(
+        backStack = backStack,
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(),
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+        entryProvider = { key ->
+            when (key) {
+                EntryRoute -> NavEntry(key) {
+                    EntryFlow(
+                        onComplete = {
+                            backStack.clear()
+                            backStack.add(HomeRoute)
+                        },
+                    )
+                }
+                HomeRoute -> NavEntry(key) {
+                    HomeScreen()
+                }
+                else -> error("Unknown route: $key")
+            }
+        },
+    )
+}
+
+@Composable
+private fun LoadingScreen() {
+    Box(Modifier.fillMaxSize().background(RodiTheme.colors.white))
 }

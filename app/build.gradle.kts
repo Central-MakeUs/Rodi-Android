@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     id("dororong.rodi.android.hilt")
 }
 
@@ -61,9 +62,13 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
     implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kakao.navi)
+    implementation(libs.kotlinx.serialization.json)
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
