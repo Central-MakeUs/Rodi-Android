@@ -18,9 +18,11 @@ import androidx.compose.runtime.ReadOnlyComposable
 @Composable
 fun RodiTheme(content: @Composable () -> Unit) {
     val colors = LightRodiColors
+    val semanticColors = LightRodiSemanticColors
     val typography = DefaultRodiTypography
     CompositionLocalProvider(
         LocalRodiColors provides colors,
+        LocalRodiSemanticColors provides semanticColors,
         LocalRodiTypography provides typography,
         LocalOverscrollConfiguration provides null,
     ) {
@@ -43,6 +45,9 @@ fun RodiTheme(content: @Composable () -> Unit) {
 object RodiTheme {
     val colors: RodiColors
         @Composable @ReadOnlyComposable get() = LocalRodiColors.current
+
+    val semantic: RodiSemanticColors
+        @Composable @ReadOnlyComposable get() = LocalRodiSemanticColors.current
 
     val typography: RodiTypography
         @Composable @ReadOnlyComposable get() = LocalRodiTypography.current

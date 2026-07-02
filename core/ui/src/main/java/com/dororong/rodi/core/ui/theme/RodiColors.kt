@@ -31,10 +31,6 @@ data class RodiColors(
     val black: Color,
     val white: Color,
     val handleBar: Color,
-    // Semantic
-    val pinStart: Color,
-    val pinArrival: Color,
-    val tagDangerBg: Color,
 )
 
 val LightRodiColors = RodiColors(
@@ -60,9 +56,6 @@ val LightRodiColors = RodiColors(
     black = Color(0xFF222222),
     white = Color(0xFFFFFFFF),
     handleBar = Color(0xFFC6C8CB),
-    pinStart = Color(0xFF347BFF),
-    pinArrival = Color(0xFFF3493C),
-    tagDangerBg = Color(0xFFFFD6D6),
 )
 
 val LocalRodiColors = staticCompositionLocalOf { LightRodiColors }

@@ -3,7 +3,7 @@
 > Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
 > 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
 
-Status: READY_FOR_IMPL
+Status: DONE
 Branch: feat/snackbar-and-theme
 
 ## Context (왜)
@@ -291,12 +291,27 @@ android-compose 스킬의 Preview 컨벤션을 따라 자유롭게 추가해도 
 
 ---
 ## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
-- Changed files:
-- Build/test:
-- Open questions:
+- Changed files: core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiSemanticColors.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiColors.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiTheme.kt, feature/home/src/main/java/com/dororong/rodi/feature/home/components/sheet/DetailCommonRows.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarData.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarHostState.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbar.kt, core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarHost.kt
+- Build/test: ./gradlew :core:ui:assembleDebug GREEN; ./gradlew assembleDebug GREEN; ./gradlew lint GREEN
+- Open questions: none
 
 ---
 ## Claude Review  <!-- Claude가 검토 후 채움 -->
-- Blocking:
+- Blocking: 없음
 - Nits:
-- Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
+  - `RodiSnackbarData.kt`의 `RodiSnackbarDuration.Indefinite`가 `Long.MAX_VALUE` 대신
+    `kotlin.Long.MAX_VALUE`로 완전정규명으로 적혀 있음(동작엔 영향 없음, 스타일만).
+- Verdict: APPROVE
+  - Semantic Colors 분리: `RodiSemanticColors.kt` 신규 생성, `RodiColors`에서 `pinStart`/
+    `pinArrival`/`tagDangerBg` 3필드 제거, `RodiTheme.semantic` 접근자 추가 — 스펙과 정확히 일치.
+    `DetailCommonRows.kt`에서 `colors.pinStart`/`colors.pinArrival`을 쓰던 4곳 모두
+    `semantic.pinStart`/`semantic.pinArrival`로 교체 확인(레포 전체에 `colors.pin*`/
+    `colors.tagDangerBg` 잔존 참조 없음).
+  - 커스텀 Snackbar 4파일(`RodiSnackbarData`/`RodiSnackbarHostState`/`RodiSnackbar`/
+    `RodiSnackbarHost`) 모두 스펙 코드와 동일하게 구현됨. `body3Medium`/`RodiRadius.md`는 실제
+    존재하는 토큰(확인 완료). 색상은 전부 `RodiTheme.colors.*` 경유, Material 아이콘(`Icons.*`)
+    미사용, 어느 화면에도 `RodiSnackbarHost` 미연결(Out of scope 준수) 확인.
+  - 시크릿 노출 없음(`local.properties` 미변경).
+  - 빌드/lint는 Codex가 보고한 GREEN 결과(Codex Result 섹션)를 신뢰함 — 이번 검토 세션에서는
+    `./gradlew` 실행이 승인 대기 상태라 직접 재검증하지 못함. 커밋 전 사용자 환경에서
+    `./gradlew assembleDebug lint` 재확인 권장.
