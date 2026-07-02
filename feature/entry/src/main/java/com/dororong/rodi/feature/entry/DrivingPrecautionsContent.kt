@@ -74,14 +74,14 @@ fun DrivingPrecautionsContent(
                 Text(
                     "안전한 연습을 위해 아래 내용을 반드시 확인해 주세요.",
                     style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.black,
+                    color = RodiTheme.colors.gray800,
                 )
             }
             Spacer(Modifier.height(RodiSpacing.md))
 
             // 책임 고지 카드
             Surface(
-                color = RodiTheme.colors.primary50,
+                color = RodiTheme.colors.primary20,
                 shape = RoundedCornerShape(RodiRadius.xl),
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -98,21 +98,21 @@ fun DrivingPrecautionsContent(
                 checked = license,
                 text = "본인은 유효한 자동차 운전면허(제1·2종 보통 이상)를 소지한 만 18세 이상임을 확인합니다.",
                 onToggle = onLicenseToggle,
-                textColor = RodiTheme.colors.gray700,
+                textColor = if (license) RodiTheme.colors.black else RodiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
             CheckRow(
                 checked = companion,
                 text = "연습운전면허 소지자는 운전경력 2년 이상의 동승자와 함께 이용해야 함을 확인합니다.",
                 onToggle = onCompanionToggle,
-                textColor = RodiTheme.colors.gray700,
+                textColor = if (companion) RodiTheme.colors.black else RodiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
             CheckRow(
                 checked = agree,
                 text = "위 내용을 확인하고 동의합니다.",
                 onToggle = onAgreeToggle,
-                textColor = RodiTheme.colors.gray700,
+                textColor = if (agree) RodiTheme.colors.black else RodiTheme.colors.gray700,
                 modifier = Modifier.padding(start = 16.dp),
             )
         }

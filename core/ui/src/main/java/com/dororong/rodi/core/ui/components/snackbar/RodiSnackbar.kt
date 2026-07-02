@@ -31,7 +31,7 @@ fun RodiSnackbar(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(RodiRadius.md))
-            .background(RodiTheme.colors.black)
+            .background(RodiTheme.colors.gray800)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
