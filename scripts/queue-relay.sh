@@ -101,6 +101,14 @@ while IFS='|' read -r branch intent skip_plan base_branch pr_mode; do
     failed+=("$branch")
   fi
 
+  # 실패/BLOCKED로 끝나면 워킹트리에 미커밋 상태(Codex가 만든 파일, HANDOFF.md 등)가 남는다.
+  # 그대로 두면 다음 큐 항목이 새 브랜치를 만들 때 이 잔재를 그대로 물려받아 엉뚱한 작업을
+  # 재구현하는 사고가 난다(실제로 발생함) — stash로 보존만 하고 워킹트리는 깨끗이 비운다.
+  if ! git diff --quiet HEAD --stat >/dev/null 2>&1 || [[ -n "$(git status --porcelain)" ]]; then
+    log "  ▶ 잔여 미커밋 상태 stash로 보존 (다음 항목 오염 방지): $branch"
+    git stash push -u -m "queue-relay: $branch 잔여 상태 ($(date '+%Y%m%d-%H%M%S'))" </dev/null >>"$ITEM_LOG" 2>&1 || true
+  fi
+
   processed=$((processed + 1))
 done < "$QUEUE_TMP"
 

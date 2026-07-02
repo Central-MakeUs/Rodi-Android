@@ -120,8 +120,13 @@ TMPL
   if [[ "$NO_PR" == "--no-pr" ]]; then
     echo "  ℹ --no-pr 지정 — push/PR 생성 생략. 로컬 브랜치 $(git branch --show-current)에 커밋만 남았습니다."
   elif command -v gh &>/dev/null; then
-    CURRENT_BRANCH="${BRANCH:-$(git branch --show-current)}"
-    git push -u origin "$CURRENT_BRANCH" 2>/dev/null || git push
+    # 실제 체크아웃된 브랜치를 쓴다 — HANDOFF.md의 Branch: 필드는 이전 사이클의 잔여값일 수
+    # 있어 신뢰하지 않는다(실제로 엉뚱한 원격 브랜치에 push된 사고가 있었음).
+    CURRENT_BRANCH="$(git branch --show-current)"
+    if [[ -n "$BRANCH" && "$BRANCH" != "$CURRENT_BRANCH" && "$BRANCH" != *"<"* ]]; then
+      echo "  ⚠ HANDOFF.md의 Branch(\"$BRANCH\")가 실제 브랜치(\"$CURRENT_BRANCH\")와 다름 — 실제 브랜치로 push합니다."
+    fi
+    git push -u origin "$CURRENT_BRANCH"
     if gh pr create \
       --title "${INTENT:-Codex 구현}" \
       --body "$(cat <<EOF

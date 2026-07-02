@@ -30,6 +30,7 @@ done
 
 HANDOFF="docs/handoff/HANDOFF.md"
 EMPTY_MARKER="# HANDOFF — <작업 제목>"
+PLACEHOLDER_BRANCH="Branch: <feature/xxx>"
 
 log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
@@ -41,10 +42,20 @@ if [[ "$SKIP_PLAN" -eq 0 ]]; then
     log "  ✗ 기획 실패 — 이 작업 건너뜀"
     exit 1
   fi
+  # plan.sh(헤드리스 claude -p)가 실제로 스펙을 못 쓰고 질문만 남긴 채 템플릿을 그대로
+  # 둔 경우(예: 참고 경로가 샌드박스 밖이라 읽지 못함) — 이 상태로 impl/review를 진행하면
+  # "빈 템플릿"을 성공 판정과 혼동하는 사고가 난다. 여기서 미리 걸러낸다.
+  if grep -qF "$EMPTY_MARKER" "$HANDOFF" 2>/dev/null || grep -qF "$PLACEHOLDER_BRANCH" "$HANDOFF" 2>/dev/null; then
+    log "  ✗ 기획 실패 — HANDOFF.md가 여전히 빈 템플릿(스펙 작성 안 됨). 이 작업 건너뜀."
+    log "     (헤드리스 세션이 참고 경로 접근 등으로 막혔을 수 있음 — 로그 확인 필요)"
+    exit 1
+  fi
 fi
 
 attempt=0
 while (( attempt <= MAX_RETRIES )); do
+  HEAD_BEFORE="$(git rev-parse HEAD)"
+
   if (( attempt == 0 )); then
     log "  구현 중... (시도 1)"
     scripts/impl.sh
@@ -60,9 +71,11 @@ while (( attempt <= MAX_RETRIES )); do
     scripts/review.sh --auto
   fi
 
-  # review.sh --auto 가 APPROVE 처리에 성공하면 HANDOFF.md 를 빈 템플릿으로 되돌린다.
-  # 그걸 기준으로 성공 여부를 판단한다 (review.sh 자체 exit code는 관례상 신뢰하지 않음).
-  if grep -qF "$EMPTY_MARKER" "$HANDOFF" 2>/dev/null; then
+  # review.sh --auto 가 APPROVE 처리에 성공하면 HANDOFF.md 를 빈 템플릿으로 되돌리고 커밋을
+  # 남긴다. 템플릿 문자열만 보면 "애초에 한 번도 안 건드려진 상태"와 구분이 안 되므로
+  # (실제로 이 때문에 헛APPROVE 사고가 있었음), HEAD가 실제로 전진했는지도 함께 확인한다.
+  HEAD_AFTER="$(git rev-parse HEAD)"
+  if grep -qF "$EMPTY_MARKER" "$HANDOFF" 2>/dev/null && [[ "$HEAD_AFTER" != "$HEAD_BEFORE" ]]; then
     if [[ "$NO_PR" -eq 1 ]]; then
       log "  ✓ 완료: $INTENT (로컬 커밋만, PR 생략)"
     else
