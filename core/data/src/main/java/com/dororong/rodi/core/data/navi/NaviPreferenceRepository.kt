@@ -1,13 +1,10 @@
 package com.dororong.rodi.core.data.navi
 
 import android.content.Context
+import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.domain.NaviPreferenceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
-
-interface NaviPreferenceRepository {
-    fun getAlways(): NaviApp?
-    fun setAlways(app: NaviApp)
-}
 
 class NaviPreferenceRepositoryImpl @Inject constructor(
     @param:ApplicationContext private val context: Context,

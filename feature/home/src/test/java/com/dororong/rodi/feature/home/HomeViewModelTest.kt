@@ -1,17 +1,18 @@
 package com.dororong.rodi.feature.home
 
 import app.cash.turbine.test
-import com.dororong.rodi.core.data.navi.NaviApp
-import com.dororong.rodi.core.data.navi.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.CourseFeatures
 import com.dororong.rodi.core.domain.GeoPoint
+import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.domain.RodiItemType
 import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.domain.Waypoint
 import com.dororong.rodi.core.domain.WaypointType
 import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -130,9 +131,9 @@ class HomeViewModelTest {
     @Test
     fun `onNavigateClick launches saved KakaoMap when installed`() = runTest(testDispatcher) {
         val course = testCourse()
-        val naviPreferenceRepository = mockk<NaviPreferenceRepository>()
-        every { naviPreferenceRepository.getAlways() } returns NaviApp.KAKAOMAP
-        val viewModel = createViewModel(courses = listOf(course), naviPreferenceRepository = naviPreferenceRepository)
+        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
+        every { getNaviAlwaysUseCase() } returns NaviApp.KAKAOMAP
+        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
 
         viewModel.effect.test {
             viewModel.onIntent(
@@ -152,9 +153,9 @@ class HomeViewModelTest {
     @Test
     fun `onNavigateClick shows picker when both apps installed and no preference exists`() = runTest(testDispatcher) {
         val course = testCourse()
-        val naviPreferenceRepository = mockk<NaviPreferenceRepository>()
-        every { naviPreferenceRepository.getAlways() } returns null
-        val viewModel = createViewModel(courses = listOf(course), naviPreferenceRepository = naviPreferenceRepository)
+        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
+        every { getNaviAlwaysUseCase() } returns null
+        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
 
         viewModel.effect.test {
             viewModel.onIntent(
@@ -174,9 +175,9 @@ class HomeViewModelTest {
     @Test
     fun `onNavigateClick shows install picker when no app is installed`() = runTest(testDispatcher) {
         val course = testCourse()
-        val naviPreferenceRepository = mockk<NaviPreferenceRepository>()
-        every { naviPreferenceRepository.getAlways() } returns null
-        val viewModel = createViewModel(courses = listOf(course), naviPreferenceRepository = naviPreferenceRepository)
+        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
+        every { getNaviAlwaysUseCase() } returns null
+        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
 
         viewModel.effect.test {
             viewModel.onIntent(
@@ -196,9 +197,9 @@ class HomeViewModelTest {
     @Test
     fun `onNaviAppSelected stores always preference and launches selected app`() = runTest(testDispatcher) {
         val course = testCourse()
-        val naviPreferenceRepository = mockk<NaviPreferenceRepository>()
-        every { naviPreferenceRepository.setAlways(NaviApp.KAKAONAVI) } returns Unit
-        val viewModel = createViewModel(courses = listOf(course), naviPreferenceRepository = naviPreferenceRepository)
+        val setNaviAlwaysUseCase = mockk<SetNaviAlwaysUseCase>()
+        every { setNaviAlwaysUseCase(NaviApp.KAKAONAVI) } returns Unit
+        val viewModel = createViewModel(courses = listOf(course), setNaviAlwaysUseCase = setNaviAlwaysUseCase)
 
         viewModel.effect.test {
             viewModel.onIntent(
@@ -211,7 +212,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             assertEquals(HomeEffect.LaunchKakaoNavi(course), awaitItem())
-            verify(exactly = 1) { naviPreferenceRepository.setAlways(NaviApp.KAKAONAVI) }
+            verify(exactly = 1) { setNaviAlwaysUseCase(NaviApp.KAKAONAVI) }
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -219,14 +220,16 @@ class HomeViewModelTest {
     private fun createViewModel(
         courses: List<Course> = listOf(testCourse()),
         getRouteUseCase: GetRouteUseCase = mockk(),
-        naviPreferenceRepository: NaviPreferenceRepository = mockk(),
+        getNaviAlwaysUseCase: GetNaviAlwaysUseCase = mockk(),
+        setNaviAlwaysUseCase: SetNaviAlwaysUseCase = mockk(),
     ): HomeViewModel {
         val getCoursesUseCase = mockk<GetCoursesUseCase>()
         every { getCoursesUseCase() } returns courses
         return HomeViewModel(
             getCoursesUseCase = getCoursesUseCase,
             getRouteUseCase = getRouteUseCase,
-            naviPreferenceRepository = naviPreferenceRepository,
+            getNaviAlwaysUseCase = getNaviAlwaysUseCase,
+            setNaviAlwaysUseCase = setNaviAlwaysUseCase,
         )
     }
 }

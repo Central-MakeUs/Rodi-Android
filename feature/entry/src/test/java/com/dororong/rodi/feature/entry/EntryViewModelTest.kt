@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.entry
 
-import com.dororong.rodi.core.data.EntryRepository
+import com.dororong.rodi.core.domain.usecase.SetEntryCompletedUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -35,7 +35,7 @@ class EntryViewModelTest {
 
     @Test
     fun `next moves from location to terms to precautions and stays there`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
 
         viewModel.next()
         assertEquals(EntryStep.TERMS, viewModel.step)
@@ -49,7 +49,7 @@ class EntryViewModelTest {
 
     @Test
     fun `back moves through previous steps and returns false at location`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
 
         assertFalse(viewModel.back())
         assertEquals(EntryStep.LOCATION, viewModel.step)
@@ -70,7 +70,7 @@ class EntryViewModelTest {
 
     @Test
     fun `openWebView stores url and moves to webview step`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
 
         viewModel.openWebView("https://example.com/terms")
 
@@ -80,7 +80,7 @@ class EntryViewModelTest {
 
     @Test
     fun `setAllTermsChecked updates only terms checkboxes`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
         viewModel.toggleLicense()
         viewModel.toggleCompanion()
         viewModel.togglePrecautionAgreement()
@@ -97,7 +97,7 @@ class EntryViewModelTest {
 
     @Test
     fun `toggleServiceTerms flips only service terms`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
 
         viewModel.toggleServiceTerms()
 
@@ -111,7 +111,7 @@ class EntryViewModelTest {
 
     @Test
     fun `toggleLicense flips only license`() {
-        val viewModel = EntryViewModel(testEntryRepository())
+        val viewModel = EntryViewModel(testSetEntryCompletedUseCase())
 
         viewModel.toggleLicense()
 
@@ -125,18 +125,18 @@ class EntryViewModelTest {
 
     @Test
     fun `complete stores entry completion and invokes callback`() = runTest(testDispatcher) {
-        val entryRepository = testEntryRepository()
-        coEvery { entryRepository.setCompleted() } returns Unit
-        val viewModel = EntryViewModel(entryRepository)
+        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+        coEvery { setEntryCompletedUseCase() } returns Unit
+        val viewModel = EntryViewModel(setEntryCompletedUseCase)
         var done = false
 
         viewModel.complete { done = true }
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { entryRepository.setCompleted() }
+        coVerify(exactly = 1) { setEntryCompletedUseCase() }
         assertTrue(done)
     }
 
-    private fun testEntryRepository(): EntryRepository =
+    private fun testSetEntryCompletedUseCase(): SetEntryCompletedUseCase =
         mockk()
 }

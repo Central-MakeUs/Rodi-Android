@@ -2,12 +2,13 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.data.navi.NaviApp
-import com.dororong.rodi.core.data.navi.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +29,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     getCoursesUseCase: GetCoursesUseCase,
     private val getRouteUseCase: GetRouteUseCase,
-    private val naviPreferenceRepository: NaviPreferenceRepository,
+    private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
+    private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
 ) : ViewModel() {
 
     data class UiState(
@@ -113,7 +115,7 @@ class HomeViewModel @Inject constructor(
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
         viewModelScope.launch {
-            val savedApp = naviPreferenceRepository.getAlways()
+            val savedApp = getNaviAlwaysUseCase()
             when {
                 savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
                     _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
@@ -133,7 +135,7 @@ class HomeViewModel @Inject constructor(
 
     private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
         viewModelScope.launch {
-            if (intent.always) naviPreferenceRepository.setAlways(intent.app)
+            if (intent.always) setNaviAlwaysUseCase(intent.app)
             when (intent.app) {
                 NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
                 NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))

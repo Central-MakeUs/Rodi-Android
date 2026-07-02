@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.data.EntryRepository
+import com.dororong.rodi.core.domain.usecase.SetEntryCompletedUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,7 +17,7 @@ enum class EntryStep { LOCATION, TERMS, PRECAUTIONS, TERMS_WEBVIEW }
  */
 @HiltViewModel
 class EntryViewModel @Inject constructor(
-    private val entryRepository: EntryRepository,
+    private val setEntryCompletedUseCase: SetEntryCompletedUseCase,
 ) : ViewModel() {
 
     var step by mutableStateOf(EntryStep.LOCATION)
@@ -101,7 +101,7 @@ class EntryViewModel @Inject constructor(
 
     fun complete(onDone: () -> Unit) {
         viewModelScope.launch {
-            entryRepository.setCompleted()
+            setEntryCompletedUseCase()
             onDone()
         }
     }
