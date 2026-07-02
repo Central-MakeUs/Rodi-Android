@@ -47,3 +47,7 @@ docs/handoff/queue-run.log
 docs/handoff/queue-run*.log
 docs/handoff/queue-logs/
 docs/handoff/.pr-nudge-count
+
+# 로컬 전용 자동화 파이프라인 — 디스크엔 유지하되 원격 저장소엔 올리지 않는다.
+scripts/
+docs/QUEUE.md
