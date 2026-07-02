@@ -14,7 +14,9 @@ PROMPT="AGENTS.md의 절차를 따른다. docs/PROJECT.md와 docs/handoff/HANDOF
 Status를 IMPL_DONE(막혔으면 BLOCKED)으로 바꿔라. 커밋은 하지 마라."
 
 if [ "${RESUME:-}" = "1" ]; then
-  codex exec resume --last --sandbox workspace-write "$PROMPT"
+  # `codex exec resume`은 --sandbox 플래그를 받지 않는다 — 세션 생성 시점의 샌드박스
+  # 설정(workspace-write)을 그대로 이어받는다. 붙이면 즉시 CLI 인자 오류로 실패한다.
+  codex exec resume --last "$PROMPT"
 else
   codex exec --sandbox workspace-write "$PROMPT"
 fi
