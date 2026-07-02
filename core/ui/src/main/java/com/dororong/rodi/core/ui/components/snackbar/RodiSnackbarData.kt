@@ -4,8 +4,8 @@ import androidx.compose.ui.graphics.painter.Painter
 
 enum class RodiSnackbarDuration(val millis: Long) {
     Short(2_000),
-    Long(3_500),
-    Indefinite(kotlin.Long.MAX_VALUE),
+    Extended(3_500),
+    Indefinite(Long.MAX_VALUE),
 }
 
 data class RodiSnackbarData(
