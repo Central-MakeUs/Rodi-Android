@@ -9,12 +9,13 @@
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **단위 테스트 + 테스트 자동화/CI 검증** — 현재 기능(Home/Entry) 대상 단위 테스트 작성,
-  앞으로 로직 작성 시 테스트코드를 자동 생성/검증하는 스킬 또는 컨벤션 마련, CI(GitHub Actions)에
-  테스트 게이트 추가.
 - [ ] **Nav3 도입 + 하드코딩 축소** — Navigation 3(`androidx.navigation3`)로 전환하고
   `kotlinx.serialization`으로 라우트를 타입-세이프하게 정의해 문자열 하드코딩 제거.
-- [ ] **커스텀 스낵바 도입** — `/Users/uihyeon/StudioProjects/dnd-14th-2-android`의
+- [ ] **EntryRepository/NaviPreferenceRepository UseCase 래핑** — `feat/domain-usecases`(PR #15)에서
+  `CourseRepository`만 UseCase로 감쌌다. 같은 패턴으로 `EntryRepository`(isCompleted/setCompleted),
+  `NaviPreferenceRepository`(getAlways/setAlways)도 UseCase로 감싸 `EntryViewModel`/`HomeViewModel`이
+  Repository 대신 UseCase를 주입받도록 정리(원래 도메인 UseCase 작업의 Out of scope 항목).
+- [ ] **커스텀 스낵바 도입 — PR #18 진행 중** — `/Users/uihyeon/StudioProjects/dnd-14th-2-android`의
   `designsystem/components/snackbar/`(PickleSnackbar/SnackbarHost/SnackbarState)를 참고해
   `core:ui`에 Rodi판 Snackbar를 만든다. 단순 이식이 아니라 Rodi 토큰으로 재설계하되, 다음
   요소들은 구조적으로 참고할 가치가 있음:
@@ -42,6 +43,10 @@
 
 ## 완료 (이력)
 - [x] Routi → Rodi 브랜드 식별자 정리 (PR #8)
+- [x] 단위 테스트 + 테스트 자동화/CI 검증 (PR #17) — JUnit5 + MockK로 UseCase/ViewModel 핵심
+  로직 테스트 작성, GitHub Actions에 테스트 게이트 추가. `docs/TESTING.md`에 컨벤션 정리.
+- [x] 네트워크/로컬DB/DataStore 공통 뼈대 구축 (PR #16) — Retrofit/OkHttp + Room + 에러 매핑
+  공용 규약(`DataError`/`NetworkResult`/`safeApiCall`) 추가. 실제 API/스키마는 아직 없음(뼈대만).
 - [x] Repository 인터페이스 domain 이동 (PR #15) — `CourseRepository`가 `core:domain`으로 이동,
   Kakao `LatLng` 의존 없는 도메인 전용 `RouteResult`/`GeoPoint` 도입 완료.
 - [x] 시스템 바 화면별 동적 컬러 (PR #9, `ec36a8d fix(entry): 약관 WebView 시스템 바 아이콘 동적 전환`) —
