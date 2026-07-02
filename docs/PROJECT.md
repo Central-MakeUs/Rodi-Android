@@ -18,6 +18,7 @@
   - 테스트 `./gradlew test`
   - 릴리스 `./gradlew assembleRelease`
   - 린트 `./gradlew lint`
+- 테스트 컨벤션: `docs/TESTING.md` 참고
 
 ## `:app`에 남은 것
 `MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/AppRoot`(게이트→홈 라우팅).
@@ -29,7 +30,7 @@
 | `:core:domain` | 도메인 모델(`Course` 등) |
 | `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference` |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
-| `:core:common` | 확장함수/유틸 (아직 비어있음) |
+| `:core:common` | 확장함수/유틸(`runSuspendCatching` 등) |
 | `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content |
 | `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
 

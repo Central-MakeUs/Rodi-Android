@@ -1,40 +1,405 @@
-# HANDOFF — <작업 제목>
+# HANDOFF — JUnit5 + MockK 단위 테스트 도입 + CI 테스트 게이트
 
 > Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
 > 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
 
-Status: PLANNING            <!-- PLANNING | READY_FOR_IMPL | IMPL_DONE | IN_REVIEW | DONE | BLOCKED -->
-Branch: <feature/xxx>
+Status: DONE
+Branch: feat/unit-tests-ci (현재 체크아웃된 브랜치 그대로 사용, base: main)
 
 ## Context (왜)
-<이 작업이 필요한 배경 한두 줄>
+
+`core:domain`(`GetCoursesUseCase`/`GetRouteUseCase`/`runSuspendCatching`)과 `feature:home`/`feature:entry`의
+`HomeViewModel`/`EntryViewModel`은 모두 생성자 주입 1~3개 의존성만 갖는 순수 로직이라 단위테스트하기 쉬운
+구조인데, 실제로는 `src/test` 디렉토리 자체가 어느 모듈에도 없다. `app/src/test`에 Android Studio가 생성한
+`ExampleUnitTest.kt` 템플릿만 남아있고(JUnit4, 실질 테스트 아님), CI(`.github/workflows/ci.yml`)에도
+`./gradlew test` 스텝이 없어 테스트가 있어도 게이트로 작동하지 않는다. `docs/PROJECT.md`엔 로컬 커맨드로
+`./gradlew test`가 문서화돼 있지만 CI엔 반영 안 된 상태다.
+
+이번 작업은 (1) 테스트 인프라(JUnit5+MockK+coroutines-test+Turbine)를 카탈로그/모듈에 배선하고,
+(2) 위 5개 대상에 대한 단위테스트를 작성하고, (3) CI에 테스트 스텝을 추가해 실패 시 PR을 막도록 하고,
+(4) 앞으로 로직을 추가할 때 참고할 테스트 작성 컨벤션 문서(`docs/TESTING.md`)를 만드는 것이다.
+
+**문서-코드 불일치 참고**: `docs/PROJECT.md`는 `:core:common`을 "확장함수/유틸 (아직 비어있음)"이라 적고
+있으나 실제로는 `RunSuspendCatching.kt` 1개 파일이 이미 존재한다. 이번 작업에서 `docs/PROJECT.md`의 해당
+줄도 같이 고친다(Spec 8번 참고).
 
 ## Spec (무엇을·어떻게)
-<구현할 내용. 구체적으로. 모호하면 Codex는 추측하지 말 것>
+
+### 1. 버전 카탈로그 — `gradle/libs.versions.toml`
+
+`[versions]`에 추가:
+```toml
+junitJupiter = "5.11.4"
+junitPlatformLauncher = "1.11.4"
+mockk = "1.13.13"
+turbine = "1.2.0"
+```
+(`coroutines = "1.10.2"`는 이미 있음 — `kotlinx-coroutines-test`도 이 버전을 그대로 재사용한다.)
+
+`[libraries]`에 추가:
+```toml
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junitPlatformLauncher" }
+mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+```
+기존 `junit`/`androidx-junit`/`androidx-espresso-core`(JUnit4, `app` 모듈 계측/템플릿 테스트용)는 건드리지
+않는다 — 이번 스코프는 JUnit5뿐이다.
+
+### 2. Gradle 컨벤션 플러그인에 JUnit5 러너 배선 — `build-logic`
+
+`core:domain`/`core:common`은 `dororong.rodi.jvm.library`(`JvmLibraryConventionPlugin`)를,
+`feature:home`/`feature:entry`는 `dororong.rodi.android.library.compose`
+(`AndroidLibraryComposeConventionPlugin`)를 쓴다. 두 컨벤션 플러그인에 각각
+`tasks.withType<Test>().configureEach { useJUnitPlatform() }`를 추가해서 매 모듈 `build.gradle.kts`에서
+반복하지 않게 한다.
+
+`build-logic/src/main/kotlin/JvmLibraryConventionPlugin.kt`:
+```kotlin
+import org.gradle.api.tasks.testing.Test
+// ...기존 import 유지
+
+class JvmLibraryConventionPlugin : Plugin<Project> {
+    override fun apply(target: Project) {
+        with(target) {
+            pluginManager.apply("org.jetbrains.kotlin.jvm")
+            extensions.configure<JavaPluginExtension> {
+                sourceCompatibility = JavaVersion.VERSION_21
+                targetCompatibility = JavaVersion.VERSION_21
+            }
+            extensions.configure<KotlinJvmProjectExtension> {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_21)
+                }
+            }
+            tasks.withType<Test>().configureEach {
+                useJUnitPlatform()
+            }
+        }
+    }
+}
+```
+
+`build-logic/src/main/kotlin/AndroidLibraryComposeConventionPlugin.kt`도 동일하게
+`tasks.withType<Test>().configureEach { useJUnitPlatform() }`를 `apply` 블록 안에 추가한다(AGP의 단위테스트
+태스크도 Gradle `Test` 태스크를 상속하므로 이 설정으로 잡힌다. `android.testOptions` 블록은 필요 없다).
+`AndroidLibraryConventionPlugin`(core:data가 씀)은 이번 스코프에 테스트 대상이 없으므로 건드리지 않는다.
+
+### 3. 모듈별 테스트 의존성 추가
+
+`core/common/build.gradle.kts`:
+```kotlin
+dependencies {
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.kotlinx.coroutines.test)
+}
+```
+
+`core/domain/build.gradle.kts`:
+```kotlin
+dependencies {
+    implementation(project(":core:common"))
+    implementation(libs.javax.inject)
+
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+}
+```
+
+`feature/home/build.gradle.kts`, `feature/entry/build.gradle.kts` 각각 기존 `dependencies` 블록 끝에 추가:
+```kotlin
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+```
+(두 feature 모듈 모두 `ViewModel.state`/`effect`를 `StateFlow`/`Flow`로 노출하므로 Turbine으로 검증한다.
+`androidx.lifecycle` `viewModelScope`는 `Dispatchers.Main`을 참조하는데, 순수 JVM 단위테스트 환경엔
+Main 디스패처가 없어 `Dispatchers.setMain(...)`을 안 하면 `IllegalStateException`이 난다 — 아래 5)/6)에서
+각 테스트 클래스가 `@BeforeEach`/`@AfterEach`로 처리한다. Robolectric은 필요 없다 — `mutableStateOf`
+(Compose runtime)와 `ViewModel`은 순수 Kotlin/JVM이라 Android 프레임워크 스텁 없이도 동작한다.)
+
+### 4. `core:common` — `runSuspendCatchingTest`
+
+`core/common/src/test/kotlin/com/dororong/rodi/core/common/RunSuspendCatchingTest.kt` 신규:
+- 성공 케이스: `block`이 값을 반환하면 `Result.success(value)`를 반환한다.
+- 실패 케이스: `block`이 일반 `Throwable`(예: `RuntimeException`)을 던지면 `Result.failure(e)`로 감싼다
+  (동일 인스턴스인지 `assertSame` 또는 `exceptionOrNull()`로 확인).
+- 취소 케이스: `block`이 `kotlinx.coroutines.CancellationException`을 던지면 **삼키지 않고 다시 던진다**.
+  `kotlinx.coroutines.test.runTest` 안에서 `launch { runSuspendCatching { throw CancellationException("x") } }`
+  형태로는 취소 전파를 직접 관찰하기 어려우므로, 다음처럼 직접 호출 후 예외를 검증한다:
+  ```kotlin
+  @Test
+  fun `rethrows CancellationException instead of wrapping it`() = runTest {
+      assertThrows<CancellationException> {
+          runSuspendCatching { throw CancellationException("cancelled") }
+      }
+  }
+  ```
+
+### 5. `core:domain` — UseCase 테스트
+
+Course 픽스처 헬퍼를 테스트 파일 상단(또는 같은 패키지의 별도 `TestFixtures.kt`)에 정의한다. `Course`는
+`parkingDetail`/`itemType` 외 전부 필수 필드라 아래처럼 최소 고정값으로 채운다:
+```kotlin
+private fun testCourse(id: Int = 1, itemType: RodiItemType = RodiItemType.COURSE) = Course(
+    id = id,
+    courseName = "테스트 코스",
+    courseNickname = "테스트",
+    areaName = "테스트동",
+    region = "seoul",
+    difficulty = 1,
+    trafficDensity = null,
+    source = "test",
+    sourceUrl = "",
+    crawledAt = "",
+    waypoints = emptyList(),
+    features = CourseFeatures(),
+    recommendation = 1,
+    caution = "",
+    bestTime = "",
+    enrichedDescription = "",
+    itemType = itemType,
+)
+```
+
+`core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetCoursesUseCaseTest.kt`:
+- `mockk<CourseRepository>()`로 목을 만들고 `every { repository.getCourses() } returns listOf(testCourse())`
+  스텁 후 `useCase()`가 동일 리스트를 그대로 반환하는지 검증.
+- `verify(exactly = 1) { repository.getCourses() }`로 호출 위임을 확인.
+
+`core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetRouteUseCaseTest.kt`:
+- 성공: `coEvery { repository.getRoute(course) } returns routeResult` 스텁 후
+  `useCase(course)`가 `Result.success(routeResult)`인지 검증.
+- 실패: `coEvery { repository.getRoute(course) } throws RuntimeException("boom")` 스텁 후
+  `useCase(course)`가 `Result.failure`이고 `exceptionOrNull()?.message == "boom"`인지 검증
+  (`runSuspendCatching`으로 감싸므로 예외가 전파되지 않고 `Result`로 와야 한다).
+- 둘 다 `runTest { }` 안에서 실행.
+
+### 6. `feature:home` — `HomeViewModelTest`
+
+`feature/home/src/test/java/com/dororong/rodi/feature/home/HomeViewModelTest.kt`:
+
+```kotlin
+@BeforeEach
+fun setUp() {
+    Dispatchers.setMain(StandardTestDispatcher())
+}
+
+@AfterEach
+fun tearDown() {
+    Dispatchers.resetMain()
+}
+```
+
+목 의존성: `getCoursesUseCase = mockk<GetCoursesUseCase>()`, `getRouteUseCase = mockk<GetRouteUseCase>()`,
+`naviPreferenceRepository = mockk<NaviPreferenceRepository>()`. `getCoursesUseCase()`는 생성자 호출 시점에
+바로 실행되므로(`UiState(courses = getCoursesUseCase())`) **모든 테스트에서 `every { getCoursesUseCase() }`를
+먼저 스텁**해야 `HomeViewModel(...)` 생성이 성공한다.
+
+커버할 케이스(각각 별도 `@Test`):
+- 초기 상태: `getCoursesUseCase()`가 반환한 리스트가 그대로 `state.value.courses`에 들어간다.
+- `onCourseClick`이 새 코스를 선택하면 `selectedCourseId`가 바뀌고, 성공 응답 시
+  `routeByCourse`에 결과가 추가되며 `routingCourseIds`에서 빠진다(요청 중엔 `isRouting == true`).
+  `coEvery { getRouteUseCase(course) } returns Result.success(routeResult)`로 스텁, `state` Flow는
+  Turbine(`state.test { ... }`)으로 순차 관찰.
+- `onCourseClick`을 이미 선택된 같은 id로 다시 호출하면 아무 것도 안 바뀐다(`getRouteUseCase`가
+  재호출되지 않음 — `coVerify(exactly = 0)` 또는 첫 호출 이후 `verify(exactly = 1)`로 확인).
+- `itemType = RodiItemType.PARKING`인 코스를 클릭하면 `getRouteUseCase`가 아예 호출되지 않는다
+  (`coVerify(exactly = 0) { getRouteUseCase(any()) }`).
+- `getRouteUseCase`가 실패(`Result.failure`)하면 `routingCourseIds`에서만 빠지고 `routeByCourse`는
+  갱신되지 않는다.
+- `onNavigateClick`: `naviPreferenceRepository.getAlways()`가 `NaviApp.KAKAOMAP`을 반환하고
+  `kakaoMapInstalled = true`면 `effect`로 `HomeEffect.LaunchKakaoMap`이 방출된다(Turbine `effect.test { }`).
+  둘 다 설치돼 있고 저장된 선호 앱이 없으면 `HomeEffect.ShowNaviPicker`, 둘 다 미설치면
+  `HomeEffect.ShowInstallNaviPicker`가 방출된다 — 최소 이 3개 분기.
+- `onNaviAppSelected(app, course, always = true)` 호출 시 `naviPreferenceRepository.setAlways(app)`이
+  호출되는지(`verify`) + 대응하는 `HomeEffect.LaunchKakaoMap`/`LaunchKakaoNavi`가 방출되는지.
+
+`getAlways()`/`setAlways()`는 `suspend`가 아니므로 `every`/`verify`(코루틴 아님)로 스텁·검증한다.
+
+### 7. `feature:entry` — `EntryViewModelTest`
+
+`feature/entry/src/test/java/com/dororong/rodi/feature/entry/EntryViewModelTest.kt`. `EntryViewModel`은
+`entryRepository: EntryRepository` 1개만 주입받는다(`mockk<EntryRepository>()`, `complete()`에서만 사용).
+상태가 `MutableStateFlow`가 아니라 Compose `mutableStateOf` 프로퍼티라 Turbine 불필요 — 호출 후 프로퍼티
+값을 직접 읽으면 된다. `viewModelScope`를 쓰는 `complete()`만 `Dispatchers.setMain`/`runTest` 필요
+(6번과 동일한 `@BeforeEach`/`@AfterEach` 패턴).
+
+커버할 케이스:
+- `next()` 전이: `LOCATION → TERMS → PRECAUTIONS`, `PRECAUTIONS`에서 다시 `next()` 호출해도 `PRECAUTIONS`에
+  머문다(막다른 상태).
+- `back()` 전이: `TERMS → LOCATION`, `PRECAUTIONS → TERMS`, `TERMS_WEBVIEW → TERMS`. `LOCATION`에서
+  `back()`은 `false`를 반환하고 `step`은 그대로 `LOCATION`.
+- `openWebView(url)` 호출 시 `webViewUrl`이 저장되고 `step`이 `TERMS_WEBVIEW`가 된다.
+- `setAllTermsChecked(true)` 호출 시 `serviceTermsChecked`/`privacyTermsChecked`/`locationTermsChecked` 3개
+  모두 `true`가 된다(`licenseChecked`/`companionChecked`/`precautionAgreementChecked`는 영향 없음).
+- `toggleServiceTerms()`/`togglePrivacyTerms()`/`toggleLocationTerms()`/`toggleLicense()`/
+  `toggleCompanion()`/`togglePrecautionAgreement()` 각각 호출 시 대응 프로퍼티만 반전되고 나머지는 그대로다
+  — 6개를 개별 `@Test`로 나누지 말고 `@ParameterizedTest` 없이 표 기반 반복이 부담되면 최소 2~3개
+  대표 케이스(예: `toggleServiceTerms`, `toggleLicense`)만 작성해도 된다(전수 커버는 필수 아님).
+- `complete(onDone)` 호출 시 `entryRepository.setCompleted()`가 호출되고(`coVerify`) `onDone` 콜백이
+  실행된다(`runTest`로 감싸고, 코루틴 완료를 기다리기 위해 `testScheduler.advanceUntilIdle()` 또는
+  `runTest`의 자동 idle-대기를 활용).
+
+### 8. 테스트 컨벤션 문서 — `docs/TESTING.md` (신규)
+
+앞으로 로직을 추가할 때 그대로 베낄 수 있는 실전 가이드로 작성한다. 최소 아래 섹션을 포함:
+
+- **파일 위치**: 소스가 `src/main/kotlin/...`인 모듈(`core:domain`, `core:common`)은
+  `src/test/kotlin/...`에, 소스가 `src/main/java/...`인 모듈(`feature:home`, `feature:entry`, `core:data`)은
+  `src/test/java/...`에 — 패키지 경로는 대상 클래스와 동일하게 미러링한다.
+- **네이밍**: 파일명 `<대상클래스>Test.kt`. 테스트 함수명은 백틱으로 감싼 영어 서술형
+  (예: `` `invoke returns courses from repository`() ``), Given/When/Then은 주석 대신 빈 줄로만 구획한다.
+- **JUnit5 어노테이션**: `@Test`(`org.junit.jupiter.api.Test`, JUnit4의 `org.junit.Test` 아님에 주의),
+  `@BeforeEach`/`@AfterEach`, 예외 검증은 `org.junit.jupiter.api.assertThrows`.
+- **MockK 사용법**: 동기 함수는 `every { } returns`/`verify`, `suspend` 함수는 `coEvery { } returns`/
+  `coVerify`. 기본은 엄격 모크(`mockk<T>()`, `relaxed` 없이) — 스텁 안 한 호출이 나면 테스트가 바로 실패해
+  놓친 상호작용을 잡아준다. `relaxed = true`는 반환값이 테스트와 무관한 부수 의존성에만 예외적으로 쓴다.
+- **코루틴 테스트**: `kotlinx.coroutines.test.runTest`로 suspend 코드 실행. `viewModelScope`(`Dispatchers.Main`
+  참조)를 쓰는 대상은 `@BeforeEach`에서 `Dispatchers.setMain(StandardTestDispatcher())`,
+  `@AfterEach`에서 `Dispatchers.resetMain()` 필수 — 안 하면 `IllegalStateException: Module with the
+  Main dispatcher is missing`.
+  ```kotlin
+  @BeforeEach
+  fun setUp() { Dispatchers.setMain(StandardTestDispatcher()) }
+
+  @AfterEach
+  fun tearDown() { Dispatchers.resetMain() }
+  ```
+- **Flow 검증**: `StateFlow`/`Flow` 값의 시퀀스를 확인할 땐 Turbine(`app.cash.turbine`)의
+  `flow.test { assertEquals(expected, awaitItem()) }`를 쓴다. `mutableStateOf`(Compose State) 프로퍼티는
+  Flow가 아니므로 그냥 값을 직접 읽어 비교한다.
+  \n
+  → `docs/PROJECT.md`의 "확장함수/유틸 (아직 비어있음)" 문구를 `"확장함수/유틸(runSuspendCatching 등)"`로
+  고치고, `## 빌드/버전` 아래 "명령" 목록 근처(또는 컨벤션 섹션)에 `테스트 컨벤션은 docs/TESTING.md 참고`
+  한 줄을 추가한다(BACKLOG.md를 참조하는 기존 패턴과 동일한 방식).
+
+### 9. CI 테스트 게이트 — `.github/workflows/ci.yml`
+
+`Assemble Debug` 스텝과 `Lint` 스텝 사이에 추가:
+```yaml
+      - name: Unit Test
+        run: ./gradlew test --stacktrace
+
+      - name: Upload Test Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          retention-days: 7
+```
+`Lint` 스텝은 그대로 유지한다(순서만 Test 다음으로 밀림). 기존 `Upload Lint Report` 스텝의 이름/경로는
+변경하지 않는다.
 
 ## Files to touch
-<예상 수정 파일 경로>
+- `gradle/libs.versions.toml` (JUnit5/MockK/coroutines-test/Turbine alias 추가)
+- `build-logic/src/main/kotlin/JvmLibraryConventionPlugin.kt` (`useJUnitPlatform()` 배선)
+- `build-logic/src/main/kotlin/AndroidLibraryComposeConventionPlugin.kt` (`useJUnitPlatform()` 배선)
+- `core/common/build.gradle.kts` (test 의존성 추가)
+- `core/common/src/test/kotlin/com/dororong/rodi/core/common/RunSuspendCatchingTest.kt` (신규)
+- `core/domain/build.gradle.kts` (test 의존성 추가)
+- `core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetCoursesUseCaseTest.kt` (신규)
+- `core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetRouteUseCaseTest.kt` (신규)
+- `feature/home/build.gradle.kts` (test 의존성 추가)
+- `feature/home/src/test/java/com/dororong/rodi/feature/home/HomeViewModelTest.kt` (신규)
+- `feature/entry/build.gradle.kts` (test 의존성 추가)
+- `feature/entry/src/test/java/com/dororong/rodi/feature/entry/EntryViewModelTest.kt` (신규)
+- `docs/TESTING.md` (신규 — 테스트 컨벤션)
+- `docs/PROJECT.md` (core:common 설명 문구 수정 + TESTING.md 참조 한 줄 추가)
+- `.github/workflows/ci.yml` (Unit Test 스텝 + 리포트 업로드 추가)
 
 ## Acceptance criteria
-- [ ] <검수 기준 1>
-- [ ] <검수 기준 2>
+- [ ] `./gradlew test`가 루트에서 실행되면 `core:domain`, `core:common`, `feature:home`, `feature:entry`
+      4개 모듈의 신규 테스트가 모두 JUnit5(Jupiter) 러너로 실행되고 GREEN이다.
+- [ ] `runSuspendCatching`이 성공/일반 예외 실패/`CancellationException` 재전파 3가지 케이스로
+      테스트된다(`CancellationException`은 `Result.failure`로 감싸지지 않고 반드시 다시 던져진다).
+- [ ] `GetCoursesUseCase`, `GetRouteUseCase`가 MockK로 `CourseRepository`를 목킹해 성공/실패(후자는
+      `GetRouteUseCase`만) 케이스를 검증한다.
+- [ ] `HomeViewModel` 테스트가 최소: 초기 코스 로드, 코스 클릭 시 라우팅 성공/실패, 중복 클릭 무시,
+      주차(`PARKING`) 코스는 라우팅 스킵, `onNavigateClick`의 최소 3개 분기(카카오맵 우선/피커/설치유도),
+      `onNaviAppSelected`의 `always` 저장을 커버한다.
+- [ ] `EntryViewModel` 테스트가 `next()`/`back()` 전체 상태 전이표, `openWebView`, `setAllTermsChecked`,
+      대표 `toggle*` 1~2개, `complete()`의 리포지토리 호출+콜백 실행을 커버한다.
+- [ ] `docs/TESTING.md`가 존재하고 파일 위치/네이밍/MockK(`every`/`coEvery`/`verify`/`coVerify`)/코루틴
+      Main 디스패처 설정법/Turbine 사용법을 코드 스니펫과 함께 설명한다.
+- [ ] `docs/PROJECT.md`의 `:core:common` 설명이 실제 상태(빈 값 아님)를 반영하도록 고쳐지고,
+      `docs/TESTING.md`를 가리키는 참조가 추가된다.
+- [ ] `.github/workflows/ci.yml`에 `./gradlew test` 스텝이 `Assemble Debug` 뒤·`Lint` 앞에 추가되고,
+      실패 시 워크플로가 실패한다(즉 테스트가 PR 게이트로 작동).
+- [ ] `./gradlew assembleDebug`, `./gradlew lint`가 기존과 동일하게 GREEN 유지(회귀 없음).
+- [ ] `core:domain`/`core:common`에 Android SDK/Robolectric 의존성이 새로 추가되지 않는다(순수 JVM
+      유지 — 기존 아키텍처 제약).
 
 ## Verification
 ```
+./gradlew test --stacktrace
 ./gradlew assembleDebug
+./gradlew lint
 ```
+CI는 실제로 GitHub Actions에서 이 브랜치의 PR을 열어 `Unit Test` 잡이 뜨고 GREEN(또는 의도적으로 테스트를
+하나 깨뜨렸을 때 RED로 PR을 막는지)까지 확인한다. 로컬에서 각 모듈 테스트 리포트
+(`*/build/reports/tests/test/index.html` 또는 `testDebugUnitTest/index.html`)를 열어 케이스 수/이름이
+Acceptance criteria와 일치하는지 육안 확인.
 
 ## Out of scope
-<이번에 건드리지 않을 것>
+- `core:data`(`CourseRepositoryImpl`, `EntryRepositoryImpl`, `NaviPreferenceRepositoryImpl`,
+  `KakaoDirectionsClient`)의 단위테스트 — Android Context/DataStore/카카오 SDK 의존이라 Robolectric 또는
+  계측테스트가 필요한 별도 스코프. 후속 작업으로 `docs/BACKLOG.md`에 추가할 것.
+- Compose UI 테스트(`androidx.compose.ui.test`)/스크린샷 테스트(Roborazzi) — `docs/PROJECT.md` 기술
+  로드맵에 이미 있는 별도 트랙(메모리: `project-tech-roadmap`).
+- `app` 모듈의 `ExampleUnitTest.kt`/`ExampleInstrumentedTest.kt` 정리(삭제 또는 교체) — 이번 스코프가
+  요구한 대상이 아니므로 손대지 않는다. 방치해도 CI에 영향 없음(빈 템플릿 테스트라 항상 통과).
+- GitHub 저장소의 **branch protection rule**(필수 상태 체크로 `Unit Test`/`test` 잡 지정) 설정 — 이건
+  GitHub 웹 설정이라 코드 변경 스코프 밖이다. 워크플로 추가 후 사용자가 직접 Settings에서 걸어야 한다는
+  점을 리뷰 시 안내할 것.
+- `EntryViewModel`의 `toggle*` 6개 함수 전수 테스트(대표 케이스만 요구, Acceptance criteria 참고).
 
 ---
 ## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
-- Changed files:
-- Build/test:
-- Open questions:
+- Changed files: `.github/workflows/ci.yml`, `build-logic/src/main/kotlin/AndroidLibraryComposeConventionPlugin.kt`, `build-logic/src/main/kotlin/JvmLibraryConventionPlugin.kt`, `core/common/build.gradle.kts`, `core/common/src/test/kotlin/com/dororong/rodi/core/common/RunSuspendCatchingTest.kt`, `core/domain/build.gradle.kts`, `core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetCoursesUseCaseTest.kt`, `core/domain/src/test/kotlin/com/dororong/rodi/core/domain/usecase/GetRouteUseCaseTest.kt`, `docs/PROJECT.md`, `docs/TESTING.md`, `feature/entry/build.gradle.kts`, `feature/entry/src/test/java/com/dororong/rodi/feature/entry/EntryViewModelTest.kt`, `feature/home/build.gradle.kts`, `feature/home/src/test/java/com/dororong/rodi/feature/home/HomeViewModelTest.kt`, `gradle/libs.versions.toml`
+- Build/test: `./gradlew test --stacktrace` GREEN, `./gradlew assembleDebug` GREEN, `./gradlew lint` GREEN
+- Open questions: none
 
 ---
 ## Claude Review  <!-- Claude가 검토 후 채움 -->
 - Blocking:
+  - 없음. `./gradlew test`/`assembleDebug`/`lint`를 이 세션에서 직접 실행해 GREEN을 재확인하지 못했다
+    (샌드박스 승인 이슈로 gradle 실행이 막힘) — 머지 전 로컬 또는 CI에서 실제 실행 결과 확인 필요.
 - Nits:
-- Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
+  - `HomeViewModelTest`/`EntryViewModelTest`의 `setAllTermsChecked` 검증이 사전에 `toggleLicense`/
+    `toggleCompanion`/`togglePrecautionAgreement`로 세 값을 미리 `true`로 만든 뒤 전부 `true`인지만 확인한다
+    — "영향 없음"을 "호출 전후 값이 그대로 유지된다"로 더 명확히 검증하려면 `false` 상태에서
+    `setAllTermsChecked(true)` 호출 후 그 세 값이 여전히 `false`인 케이스도 추가하면 더 안전하다(선택 사항,
+    Acceptance는 이미 충족).
+- Verdict: APPROVE
+
+  Spec/Acceptance 대조 결과:
+  - libs.versions.toml/build-logic/모듈별 build.gradle.kts 변경이 Spec 1~3과 정확히 일치.
+  - `RunSuspendCatchingTest`/`GetCoursesUseCaseTest`/`GetRouteUseCaseTest`가 Spec 4~5의 케이스(성공/일반
+    예외/CancellationException 재전파, 위임 검증, 성공/실패 Result 래핑)를 모두 커버하고 실제 구현
+    (`GetRouteUseCase`가 `runSuspendCatching`으로 감싸는 동작 등)과 일치함을 소스 대조로 확인.
+  - `HomeViewModelTest`가 초기 로드/클릭 성공·실패/중복 클릭 무시(`coVerify(exactly = 1)`)/PARKING 스킵/
+    `onNavigateClick` 3분기/`onNaviAppSelected` always 저장까지 `HomeViewModel.kt` 실제 분기와 1:1로 대응.
+  - `EntryViewModelTest`가 `next()`/`back()` 전체 전이표, `openWebView`, `setAllTermsChecked`, 대표 toggle
+    2건, `complete()` 콜백+리포지토리 호출을 커버하며 `EntryViewModel.kt` 상태 머신과 일치.
+  - `docs/TESTING.md` 신규 작성 확인 — 파일 위치/네이밍/JUnit5/MockK/코루틴 Main 디스패처/Turbine 섹션 모두
+    존재.
+  - `docs/PROJECT.md`의 `:core:common` 설명 수정 + TESTING.md 참조 라인 추가 확인.
+  - `.github/workflows/ci.yml`에 `Unit Test` 스텝이 `Assemble Debug` 뒤·`Lint` 앞에 정확히 삽입, 리포트
+    업로드 스텝 경로/이름도 Spec과 동일.
+  - `core:domain`/`core:common`의 `build.gradle.kts`에 Android/Robolectric 의존성 추가 없음(순수 JVM
+    유지) 확인.
+  - PROJECT.md 컨벤션 위반 없음: 토큰 하드코딩 없음(테마 코드 미변경), Material 아이콘 사용 없음(UI 미변경),
+    불필요한 주석 없음, 시크릿 노출 없음(버전 카탈로그만 변경), 스코프 이탈 없음(Out of scope 항목인
+    `core:data`/Compose UI 테스트/`app` 모듈 정리에는 손대지 않음).
