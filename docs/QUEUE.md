@@ -9,5 +9,5 @@
 >   MAX_ITEMS 환경변수로 한 번 실행에 처리할 최대 건수를 제한한다.
 
 # feat/hilt-di — 완료, PR #13 (https://github.com/Central-MakeUs/Rodi-Android/pull/13)
-feat/design-system-buttons|core:ui의 RodiTheme을 확장해 디자인 시스템 헬퍼(색상/타이포/spacing 조합 유틸)를 정리하고, 앱 전역에서 쓰이는 Button(경로 안내 버튼 등 primary/secondary 스타일)을 공통 컴포저블(RodiButton 등)로 추출해 feature 모듈들이 material3 Button을 직접 스타일링하지 않고 재사용하도록 한다. 기존 화면 UI는 시각적으로 동일하게 유지한다.|no|develop
-feat/domain-usecases|core:domain에 UseCase 계층을 도입한다. runCatching 대신 CancellationException을 보존하는 runSuspendCatching 유틸을 core:common(또는 core:domain)에 추가하고, feat/hilt-di에서 만든 Repository 인터페이스를 감싸는 UseCase(예: GetCoursesUseCase, GetRouteUseCase)를 core:domain에 만들어 HomeViewModel이 Repository 대신 UseCase를 주입받도록 리팩터링한다.|no|feat/hilt-di
+# feat/design-system-buttons — 완료, PR #14 (https://github.com/Central-MakeUs/Rodi-Android/pull/14)
+feat/domain-usecases|core:domain에 UseCase 계층을 도입한다. runCatching 대신 CancellationException을 보존하는 runSuspendCatching 유틸을 core:common(또는 core:domain)에 추가하고, feat/hilt-di에서 만든 Repository 인터페이스를 감싸는 UseCase(예: GetCoursesUseCase, GetRouteUseCase)를 core:domain에 만들어 HomeViewModel이 Repository 대신 UseCase를 주입받도록 리팩터링한다.|yes|feat/hilt-di
