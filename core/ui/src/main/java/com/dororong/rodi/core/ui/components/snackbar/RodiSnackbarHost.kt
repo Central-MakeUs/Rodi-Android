@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,10 +30,20 @@ fun RodiSnackbarHost(
     // 현재 항목이 바뀔 때마다(=다른 스낵바로 전환되거나 dismiss로 null이 될 때마다) 새로 시작한다.
     // dismiss()가 current를 즉시 null로 바꾸면 이 이펙트도 즉시 취소되므로, 지난 구현처럼
     // "이미 시작된 delay가 끝날 때까지 다음 항목이 안 뜨는" 문제가 생기지 않는다.
+    //
+    // current가 null이 되면 여기서 advanceIfIdle()을 호출해 다음 큐 아이템으로 넘긴다 —
+    // RodiSnackbarHostState.dismiss() 안에서 곧바로 다음 아이템을 대입하면 Compose snapshot
+    // state가 리컴포지션 시점에 "마지막 값"만 관찰해 null 상태를 건너뛰고 두 스낵바가
+    // 애니메이션 없이 바로 전환돼버리는 문제가 있었다(CodeRabbit 지적). LaunchedEffect는
+    // 별도 코루틴 틱에서 실행되므로 null 상태가 먼저 리컴포지션에 반영된 뒤 다음 아이템으로
+    // 넘어간다.
     LaunchedEffect(current) {
-        val duration = current?.duration ?: return@LaunchedEffect
-        if (duration != RodiSnackbarDuration.Indefinite) {
-            delay(duration.millis)
+        if (current == null) {
+            state.advanceIfIdle()
+            return@LaunchedEffect
+        }
+        if (current.duration != RodiSnackbarDuration.Indefinite) {
+            delay(current.duration.millis)
             state.dismiss()
         }
     }
@@ -43,7 +54,7 @@ fun RodiSnackbarHost(
     var lastShown by remember { mutableStateOf<RodiSnackbarData?>(null) }
     if (current != null) lastShown = current
 
-    Box(modifier = modifier.padding(16.dp)) {
+    Box(modifier = modifier.fillMaxSize().padding(16.dp)) {
         AnimatedVisibility(
             visible = current != null,
             enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it },
