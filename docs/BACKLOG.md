@@ -9,11 +9,6 @@
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **시스템 바 화면별 동적 컬러** — 현재 `MainActivity`가 `SystemBarStyle.light`로 상·하단 아이콘을
-  항상 검정 고정. entry/약관 등 **어두운 배경 화면에서는 흰 아이콘**이 필요. 공식·비deprecated 방식
-  (`enableEdgeToEdge` + 화면별 `SystemBarStyle` 전환 또는 `WindowInsetsControllerCompat.isAppearanceLightStatusBars`)
-  으로 화면에 따라 동적 전환. ← 파이프라인 첫 실작업 후보.
-
 - [ ] **네트워크/로컬DB/DataStore 뼈대 구축** — `feat/hilt-di`(Repository 계층) 완료 후,
   실제 서버 연동 전 단계로 Retrofit/OkHttp(or Ktor) + Room + DataStore 공통 설정을
   `core:data`에 뼈대만 구축(모듈 의존성, 공통 클라이언트/DB 인스턴스, 에러 매핑). 실제 API/스키마는
@@ -53,3 +48,9 @@
 - [x] Routi → Rodi 브랜드 식별자 정리 (PR #8)
 - [x] Repository 인터페이스 domain 이동 (PR #15) — `CourseRepository`가 `core:domain`으로 이동,
   Kakao `LatLng` 의존 없는 도메인 전용 `RouteResult`/`GeoPoint` 도입 완료.
+- [x] 시스템 바 화면별 동적 컬러 (PR #9, `ec36a8d fix(entry): 약관 WebView 시스템 바 아이콘 동적 전환`) —
+  앱 내 유일한 어두운 배경 화면인 `TermsWebView`가 진입 시 `WindowInsetsControllerCompat
+  .isAppearanceLightStatusBars`/`.isAppearanceLightNavigationBars`를 `false`로 전환하고 이탈 시
+  이전 값으로 복원. 나머지 화면은 전부 흰 배경이라 `MainActivity`의 기본 라이트 스타일이 맞음.
+  이 항목이 "완료 처리" 커밋만 남긴 채 미머지 상태로 로컬에 방치돼 계속 노출됐던 것 —
+  `feat/system-bar-dynamic-color` 브랜치/워크트리 삭제로 정리.
