@@ -30,8 +30,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.dororong.rodi.core.data.SampleCourses
-import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
