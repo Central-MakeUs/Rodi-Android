@@ -9,10 +9,6 @@
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **네트워크/로컬DB/DataStore 뼈대 구축** — `feat/hilt-di`(Repository 계층) 완료 후,
-  실제 서버 연동 전 단계로 Retrofit/OkHttp(or Ktor) + Room + DataStore 공통 설정을
-  `core:data`에 뼈대만 구축(모듈 의존성, 공통 클라이언트/DB 인스턴스, 에러 매핑). 실제 API/스키마는
-  서버 연동 시점에 채운다.
 - [ ] **단위 테스트 + 테스트 자동화/CI 검증** — 현재 기능(Home/Entry) 대상 단위 테스트 작성,
   앞으로 로직 작성 시 테스트코드를 자동 생성/검증하는 스킬 또는 컨벤션 마련, CI(GitHub Actions)에
   테스트 게이트 추가.
