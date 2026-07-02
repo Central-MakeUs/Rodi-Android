@@ -61,6 +61,7 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 
 # KotlinX
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
 
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
@@ -69,6 +70,7 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
 androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
+javax-inject = { group = "javax.inject", name = "javax.inject", version = "1" }
 
 # Test (JUnit / Espresso)
 junit = { group = "junit", name = "junit", version.ref = "junit" }

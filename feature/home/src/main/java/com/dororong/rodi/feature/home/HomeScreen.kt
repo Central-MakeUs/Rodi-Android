@@ -278,7 +278,12 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             if (route == null) {
                 map.renderCourseMarkers(context, course)
             } else {
-                map.renderCourse(context, course, route.points, route.snappedPoints)
+                map.renderCourse(
+                    context,
+                    course,
+                    route.points.map { LatLng.from(it.lat, it.lng) },
+                    route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                )
             }
         }
     }
@@ -306,7 +311,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             map.focusOn(LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng), PARKING_FOCUS_ZOOM)
         } else {
             val route = state.selectedRoute ?: return@LaunchedEffect
-            map.fitCourseToScreen(route.points)
+            map.fitCourseToScreen(route.points.map { LatLng.from(it.lat, it.lng) })
         }
     }
 

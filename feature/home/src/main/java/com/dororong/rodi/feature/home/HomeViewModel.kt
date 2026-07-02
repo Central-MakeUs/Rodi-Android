@@ -2,11 +2,12 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.data.CourseRepository
-import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
 import com.dororong.rodi.core.data.navi.NaviApp
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.RouteResult
+import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +26,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val courseRepository: CourseRepository,
+    getCoursesUseCase: GetCoursesUseCase,
+    private val getRouteUseCase: GetRouteUseCase,
     private val naviPreferenceRepository: NaviPreferenceRepository,
 ) : ViewModel() {
 
@@ -54,7 +56,7 @@ class HomeViewModel @Inject constructor(
             }
     }
 
-    private val _state = MutableStateFlow(UiState(courses = courseRepository.getCourses()))
+    private val _state = MutableStateFlow(UiState(courses = getCoursesUseCase()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
@@ -86,13 +88,18 @@ class HomeViewModel @Inject constructor(
         if (course.isParking) return
         _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
         viewModelScope.launch {
-            val result = courseRepository.getRoute(course)
-            _state.update {
-                it.copy(
-                    routeByCourse = it.routeByCourse + (id to result),
-                    routingCourseIds = it.routingCourseIds - id,
-                )
-            }
+            getRouteUseCase(course)
+                .onSuccess { result ->
+                    _state.update {
+                        it.copy(
+                            routeByCourse = it.routeByCourse + (id to result),
+                            routingCourseIds = it.routingCourseIds - id,
+                        )
+                    }
+                }
+                .onFailure {
+                    _state.update { it.copy(routingCourseIds = it.routingCourseIds - id) }
+                }
         }
     }
 

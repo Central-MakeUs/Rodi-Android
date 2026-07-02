@@ -1,11 +1,11 @@
 package com.dororong.rodi.core.data.di
 
-import com.dororong.rodi.core.data.CourseRepository
 import com.dororong.rodi.core.data.CourseRepositoryImpl
 import com.dororong.rodi.core.data.EntryRepository
 import com.dororong.rodi.core.data.EntryRepositoryImpl
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepository
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepositoryImpl
+import com.dororong.rodi.core.domain.CourseRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

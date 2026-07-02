@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.home
 
-import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
+import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.domain.Waypoint
 import java.util.Locale
 
