@@ -25,6 +25,7 @@ room = "2.8.4"
 retrofitKotlinxSerializationConverter = "2.11.0"
 
 # Hilt / KSP
+androidxHilt = "1.2.0"
 hilt = "2.59.2"
 ksp = "2.2.10-2.0.2"
 
@@ -87,7 +88,7 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 # Hilt
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
-androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version = "1.2.0" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "androidxHilt" }
 javax-inject = { group = "javax.inject", name = "javax.inject", version = "1" }
 
 # Test (JUnit / Espresso)
