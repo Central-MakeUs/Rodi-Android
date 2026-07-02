@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("dororong.rodi.android.hilt")
 }
 
 val localProperties = Properties().apply {
@@ -60,8 +61,10 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kakao.navi)
+    ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

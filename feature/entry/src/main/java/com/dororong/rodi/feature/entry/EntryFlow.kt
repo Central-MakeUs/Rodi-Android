@@ -8,7 +8,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
@@ -18,7 +18,7 @@ import com.dororong.rodi.core.ui.terms.TermsWebView
 @Composable
 fun EntryFlow(
     onComplete: () -> Unit,
-    viewModel: EntryViewModel = viewModel(),
+    viewModel: EntryViewModel = hiltViewModel(),
 ) {
     val step = viewModel.step
 

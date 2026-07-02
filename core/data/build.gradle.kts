@@ -2,6 +2,7 @@ import java.util.Properties
 
 plugins {
     id("dororong.rodi.android.library")
+    id("dororong.rodi.android.hilt")
 }
 
 val localProperties = Properties().apply {
@@ -24,6 +25,8 @@ dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kotlinx.coroutines.android)
+    ksp(libs.hilt.compiler)
 }

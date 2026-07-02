@@ -1,22 +1,24 @@
 package com.dororong.rodi.feature.entry
 
-import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.data.EntryPreferences
+import com.dororong.rodi.core.data.EntryRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 enum class EntryStep { LOCATION, TERMS, PRECAUTIONS, TERMS_WEBVIEW }
 
 /**
  * 진입 게이트 단계 상태 머신. 마지막 단계 완료 시 DataStore에 완료를 저장하고 [onDone] 호출.
  */
-class EntryViewModel(app: Application) : AndroidViewModel(app) {
-
-    private val prefs = EntryPreferences(app)
+@HiltViewModel
+class EntryViewModel @Inject constructor(
+    private val entryRepository: EntryRepository,
+) : ViewModel() {
 
     var step by mutableStateOf(EntryStep.LOCATION)
         private set
@@ -99,7 +101,7 @@ class EntryViewModel(app: Application) : AndroidViewModel(app) {
 
     fun complete(onDone: () -> Unit) {
         viewModelScope.launch {
-            prefs.setCompleted()
+            entryRepository.setCompleted()
             onDone()
         }
     }

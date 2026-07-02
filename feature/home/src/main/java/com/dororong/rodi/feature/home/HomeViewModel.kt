@@ -2,11 +2,12 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.data.SampleCourses
-import com.dororong.rodi.core.data.directions.KakaoDirectionsClient
+import com.dororong.rodi.core.data.CourseRepository
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient.RouteResult
 import com.dororong.rodi.core.data.navi.NaviApp
+import com.dororong.rodi.core.data.navi.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.Course
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,11 +21,16 @@ import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import javax.inject.Inject
 
-class HomeViewModel : ViewModel() {
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val courseRepository: CourseRepository,
+    private val naviPreferenceRepository: NaviPreferenceRepository,
+) : ViewModel() {
 
     data class UiState(
-        val courses: List<Course> = SampleCourses.RODI_COURSES,
+        val courses: List<Course> = emptyList(),
         val selectedCourseId: Int? = null,
         val routeByCourse: Map<Int, RouteResult> = emptyMap(),
         val routingCourseIds: Set<Int> = emptySet(),
@@ -48,7 +54,7 @@ class HomeViewModel : ViewModel() {
             }
     }
 
-    private val _state = MutableStateFlow(UiState())
+    private val _state = MutableStateFlow(UiState(courses = courseRepository.getCourses()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
@@ -80,7 +86,7 @@ class HomeViewModel : ViewModel() {
         if (course.isParking) return
         _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
         viewModelScope.launch {
-            val result = KakaoDirectionsClient.getRoute(course)
+            val result = courseRepository.getRoute(course)
             _state.update {
                 it.copy(
                     routeByCourse = it.routeByCourse + (id to result),
@@ -100,11 +106,12 @@ class HomeViewModel : ViewModel() {
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
         viewModelScope.launch {
+            val savedApp = naviPreferenceRepository.getAlways()
             when {
-                intent.savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
+                savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
                     _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
 
-                intent.savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
+                savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
                     _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
 
                 intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
@@ -119,7 +126,7 @@ class HomeViewModel : ViewModel() {
 
     private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
         viewModelScope.launch {
-            if (intent.always) _effect.send(HomeEffect.SaveNaviPreference(intent.app))
+            if (intent.always) naviPreferenceRepository.setAlways(intent.app)
             when (intent.app) {
                 NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
                 NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
