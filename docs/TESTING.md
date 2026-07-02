@@ -14,6 +14,8 @@
 @Test
 fun `invoke returns courses from repository`() {
     val repository = mockk<CourseRepository>()
+    val expected = listOf(mockk<Course>())
+    every { repository.getCourses() } returns expected
     val useCase = GetCoursesUseCase(repository)
 
     val result = useCase()
