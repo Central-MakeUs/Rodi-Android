@@ -20,8 +20,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -37,12 +35,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.feature.entry.R
 import com.dororong.rodi.core.ui.R as CoreUiR
-import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 private val APP_BAR_HEIGHT = 56.dp
-private val BUTTON_HEIGHT = 48.dp
 private const val TOTAL_STEPS = 3
 
 /**
@@ -109,10 +106,10 @@ fun EntryScaffold(
         )
 
         // 하단 고정 버튼 48dp + 상하 10dp
-        PrimaryButton(
+        RodiButton(
             text = buttonText,
-            enabled = buttonEnabled,
             onClick = onButtonClick,
+            enabled = buttonEnabled,
             modifier = Modifier
                 .navigationBarsPadding()
                 .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
@@ -135,31 +132,6 @@ fun StepProgressIndicator(
                     .background(if (i < currentStep) RodiTheme.colors.primary600 else RodiTheme.colors.gray300),
             )
         }
-    }
-}
-
-@Composable
-fun PrimaryButton(
-    text: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = modifier
-            .fillMaxWidth()
-            .height(BUTTON_HEIGHT),
-        shape = RoundedCornerShape(RodiRadius.md),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = RodiTheme.colors.primary600,
-            contentColor = RodiTheme.colors.white,
-            disabledContainerColor = RodiTheme.colors.gray300,
-            disabledContentColor = RodiTheme.colors.gray500,
-        ),
-    ) {
-        Text(text, style = RodiTheme.typography.button1)
     }
 }
 

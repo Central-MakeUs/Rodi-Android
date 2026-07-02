@@ -42,6 +42,8 @@ google-services.json
 .kotlin/
 **/.kotlin/
 
-# 큐 자동화 실행 로그 (scripts/queue-relay.sh)
+# 큐 자동화 실행 로그/상태 (scripts/queue-relay.sh, PR 리뷰 넛지 크론)
 docs/handoff/queue-run.log
+docs/handoff/queue-run*.log
 docs/handoff/queue-logs/
+docs/handoff/.pr-nudge-count

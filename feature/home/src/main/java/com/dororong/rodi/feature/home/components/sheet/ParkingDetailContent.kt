@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.ParkingDetail
+import com.dororong.rodi.core.ui.components.RodiButton
+import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
@@ -130,20 +130,12 @@ fun ParkingDetailContent(
 
             Spacer(Modifier.height(16.dp))
 
-            Button(
+            RodiButton(
+                text = "경로 안내",
                 onClick = onNavigate,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = RodiTheme.colors.primary600,
-                    contentColor = RodiTheme.colors.white,
-                ),
-            ) {
-                Text("경로 안내", style = RodiTheme.typography.button1)
-            }
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                shape = RoundedCornerShape(RodiRadius.sm),
+            )
         }
     }
 }

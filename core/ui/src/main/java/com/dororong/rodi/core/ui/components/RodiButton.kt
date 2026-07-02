@@ -1,0 +1,76 @@
+package com.dororong.rodi.core.ui.components
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.theme.RodiTheme
+
+enum class RodiButtonVariant { Primary, Secondary }
+
+/** RodiButton 기본값(높이/모양/색상)을 한 곳에서 계산하는 헬퍼. */
+object RodiButtonDefaults {
+    val Height = 48.dp
+
+    @Composable
+    fun shape(): Shape = RoundedCornerShape(RodiRadius.md)
+
+    @Composable
+    fun colors(variant: RodiButtonVariant): ButtonColors = when (variant) {
+        RodiButtonVariant.Primary -> ButtonDefaults.buttonColors(
+            containerColor = RodiTheme.colors.primary600,
+            contentColor = RodiTheme.colors.white,
+            disabledContainerColor = RodiTheme.colors.gray300,
+            disabledContentColor = RodiTheme.colors.gray500,
+        )
+
+        RodiButtonVariant.Secondary -> ButtonDefaults.buttonColors(
+            containerColor = RodiTheme.colors.white,
+            contentColor = RodiTheme.colors.gray800,
+            disabledContainerColor = RodiTheme.colors.gray100,
+            disabledContentColor = RodiTheme.colors.gray400,
+        )
+    }
+
+    @Composable
+    fun border(variant: RodiButtonVariant): BorderStroke? = when (variant) {
+        RodiButtonVariant.Primary -> null
+        RodiButtonVariant.Secondary -> BorderStroke(1.dp, RodiTheme.colors.gray300)
+    }
+}
+
+/**
+ * Rodi 공용 버튼. 기본 높이 48dp, 기본 모양 [RodiRadius.md].
+ * 기존 화면(ParkingDetailContent 등)처럼 모양을 다르게 써야 하면 [shape]를 오버라이드한다.
+ */
+@Composable
+fun RodiButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    variant: RodiButtonVariant = RodiButtonVariant.Primary,
+    enabled: Boolean = true,
+    shape: Shape = RodiButtonDefaults.shape(),
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(RodiButtonDefaults.Height),
+        shape = shape,
+        colors = RodiButtonDefaults.colors(variant),
+        border = RodiButtonDefaults.border(variant),
+    ) {
+        Text(text, style = RodiTheme.typography.button1)
+    }
+}
