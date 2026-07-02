@@ -1,31 +1,293 @@
-# HANDOFF — <작업 제목>
+# HANDOFF — core:ui 커스텀 Snackbar + RodiTheme Semantic Colors 분리
 
 > Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
 > 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
 
-Status: PLANNING            <!-- PLANNING | READY_FOR_IMPL | IMPL_DONE | IN_REVIEW | DONE | BLOCKED -->
-Branch: <feature/xxx>
+Status: READY_FOR_IMPL
+Branch: feat/snackbar-and-theme
 
 ## Context (왜)
-<이 작업이 필요한 배경 한두 줄>
+
+`docs/BACKLOG.md`에 정리된 대로, `/Users/uihyeon/StudioProjects/dnd-14th-2-android` 프로젝트의
+디자인시스템(스낵바 큐잉, 테마의 CompositionLocal 분리 패턴)을 참고해 Rodi의 `core:ui`를 보강한다.
+이 스펙은 그 참고 프로젝트의 구조를 조사한 결과(BACKLOG.md에 기록됨)와 Rodi 현재 코드를 직접 읽어
+작성했다 — Codex는 `dnd-14th-2-android` 디렉토리에 접근할 필요 없이 이 스펙만으로 구현한다
+(그 경로는 프로젝트 워크스페이스 밖이라 샌드박스에서 접근 불가하다).
+
+현재 Rodi는 스낵바가 전혀 없고(에러/성공 피드백을 어떻게 보여줄지 미정), `RodiColors`
+(`core/ui/.../theme/RodiColors.kt`)에 `pinStart`/`pinArrival`/`tagDangerBg`처럼 "의미 있는" 색이
+팔레트 색상과 뒤섞여 있다. 참고 프로젝트처럼 `RodiTheme.colors`(팔레트)와 `RodiTheme.semantic`
+(의미 매핑)을 분리하는 첫 걸음으로, 이 3개 필드를 새 `RodiSemanticColors`로 옮긴다.
 
 ## Spec (무엇을·어떻게)
-<구현할 내용. 구체적으로. 모호하면 Codex는 추측하지 말 것>
+
+### 1. Semantic Colors 분리 — `core/ui/.../theme/`
+
+**`RodiSemanticColors.kt`** 신규 작성 (`RodiColors.kt`와 같은 패턴 — `@Immutable` data class +
+`staticCompositionLocalOf`):
+```kotlin
+package com.dororong.rodi.core.ui.theme
+
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
+
+@Immutable
+data class RodiSemanticColors(
+    val pinStart: Color,
+    val pinArrival: Color,
+    val tagDangerBg: Color,
+)
+
+val LightRodiSemanticColors = RodiSemanticColors(
+    pinStart = Color(0xFF347BFF),
+    pinArrival = Color(0xFFF3493C),
+    tagDangerBg = Color(0xFFFFD6D6),
+)
+
+val LocalRodiSemanticColors = staticCompositionLocalOf { LightRodiSemanticColors }
+```
+
+**`RodiColors.kt`** 수정 — `pinStart`/`pinArrival`/`tagDangerBg` 필드 3개와 `LightRodiColors`의
+해당 초기화 라인 3개를 제거한다(값은 위로 그대로 이동했으므로 색상 자체는 안 바뀐다).
+
+**`RodiTheme.kt`** 수정 — `RodiTheme` 함수 본문에 `LocalRodiSemanticColors provides
+LightRodiSemanticColors` 를 `CompositionLocalProvider`에 추가하고, `object RodiTheme`에
+접근자 추가:
+```kotlin
+val semantic: RodiSemanticColors
+    @Composable @ReadOnlyComposable get() = LocalRodiSemanticColors.current
+```
+
+**호출부 갱신** — `feature/home/src/main/java/com/dororong/rodi/feature/home/components/sheet/DetailCommonRows.kt`
+177~188번째 줄 근처의 `RodiTheme.colors.pinStart`/`RodiTheme.colors.pinArrival` (총 4곳)을
+`RodiTheme.semantic.pinStart`/`RodiTheme.semantic.pinArrival`로 변경한다. 이 파일 외에 이 3개
+필드를 쓰는 곳은 없다(사전 확인 완료).
+
+### 2. 커스텀 Snackbar — `core/ui/.../components/snackbar/`
+
+새 하위 패키지 `com.dororong.rodi.core.ui.components.snackbar`에 4개 파일. 아이콘은 아직 Figma
+리소스가 없으므로 이번 스펙에서는 아이콘 없이 텍스트 전용으로 구현한다(`RodiSnackbarData.icon`은
+`Painter?` 하나만 받는 최소 형태로 열어두고, `null`이면 아이콘 영역을 렌더링하지 않는다 — 추후
+Figma 아이콘이 생기면 호출부에서 `painterResource(...)`만 넘기면 되도록).
+
+**`RodiSnackbarData.kt`**:
+```kotlin
+package com.dororong.rodi.core.ui.components.snackbar
+
+import androidx.compose.ui.graphics.painter.Painter
+
+enum class RodiSnackbarDuration(val millis: Long) {
+    Short(2_000),
+    Long(3_500),
+    Indefinite(Long.MAX_VALUE),
+}
+
+data class RodiSnackbarData(
+    val message: String,
+    val icon: Painter? = null,
+    val duration: RodiSnackbarDuration = RodiSnackbarDuration.Short,
+    val actionLabel: String? = null,
+    val onAction: (() -> Unit)? = null,
+)
+```
+
+**`RodiSnackbarHostState.kt`** — `ArrayDeque` 큐잉. 참고 프로젝트의 `show()`/`showImmediately()`
+패턴을 그대로 따른다:
+```kotlin
+package com.dororong.rodi.core.ui.components.snackbar
+
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+
+class RodiSnackbarHostState {
+    private val queue = ArrayDeque<RodiSnackbarData>()
+
+    var current: RodiSnackbarData? by mutableStateOf(null)
+        private set
+
+    fun show(data: RodiSnackbarData) {
+        queue.addLast(data)
+    }
+
+    fun showImmediately(data: RodiSnackbarData) {
+        queue.addFirst(data)
+    }
+
+    suspend fun observe() {
+        while (true) {
+            if (current == null && queue.isNotEmpty()) {
+                current = queue.removeFirst()
+                if (current?.duration != RodiSnackbarDuration.Indefinite) {
+                    delay(current?.duration?.millis ?: 0L)
+                    current = null
+                }
+            } else {
+                delay(100)
+            }
+        }
+    }
+
+    fun dismiss() {
+        current = null
+    }
+}
+```
+(`observe()`는 폴링 방식으로 단순하게 구현 — `snapshotFlow` 등으로 최적화하는 건 이번 스코프
+아님. 폴링 주기 100ms는 스낵바 표시 타이밍에 육안으로 체감되지 않는 수준이라 문제 없음.)
+
+**`RodiSnackbar.kt`** — 실제 UI. 높이 56dp, `RodiRadius.md`(12dp) 라운드, `RodiTheme.colors.black`
+배경에 `RodiTheme.colors.white` 텍스트(다크 배경 위 스낵바 — 기존 앱 배경이 흰색이라 스낵바가
+화면에서 도드라지도록):
+```kotlin
+package com.dororong.rodi.core.ui.components.snackbar
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.theme.RodiRadius
+import com.dororong.rodi.core.ui.theme.RodiTheme
+
+@Composable
+fun RodiSnackbar(
+    data: RodiSnackbarData,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clip(RoundedCornerShape(RodiRadius.md))
+            .background(RodiTheme.colors.black)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        data.icon?.let {
+            Image(
+                painter = it,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Text(
+            text = data.message,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.white,
+            modifier = Modifier.weight(1f),
+        )
+        if (data.actionLabel != null && data.onAction != null) {
+            TextButton(onClick = data.onAction) {
+                Text(
+                    text = data.actionLabel,
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.primary300,
+                )
+            }
+        }
+    }
+}
+```
+`RodiTheme.typography.body3Medium`이 실제로 존재하는 이름인지 `core/ui/.../theme/RodiTypography.kt`를
+먼저 확인하고, 없으면 그 파일에 정의된 가장 가까운 본문 스타일(대략 14~16sp Medium)로 대체할 것 —
+존재하지 않는 이름을 추측해서 쓰지 말 것.
+
+**`RodiSnackbarHost.kt`** — 호스트 컴포저블. `AnimatedVisibility`(fade + slideInVertically from
+bottom / slideOutVertically to bottom, 300ms)로 전환, 화면 하단에서 16dp 띄운 위치:
+```kotlin
+package com.dororong.rodi.core.ui.components.snackbar
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+
+@Composable
+fun RodiSnackbarHost(
+    state: RodiSnackbarHostState,
+    modifier: Modifier = Modifier,
+) {
+    LaunchedEffect(state) { state.observe() }
+
+    Box(modifier = modifier.padding(16.dp)) {
+        AnimatedVisibility(
+            visible = state.current != null,
+            enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it },
+            exit = fadeOut(tween(300)) + slideOutVertically(tween(300)) { it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            state.current?.let { RodiSnackbar(data = it) }
+        }
+    }
+}
+```
 
 ## Files to touch
-<예상 수정 파일 경로>
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiSemanticColors.kt` (신규)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiColors.kt` (필드 3개 제거)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/theme/RodiTheme.kt` (semantic 접근자 추가)
+- `feature/home/src/main/java/com/dororong/rodi/feature/home/components/sheet/DetailCommonRows.kt`
+  (`colors.pinStart`/`colors.pinArrival` → `semantic.pinStart`/`semantic.pinArrival`, 4곳)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarData.kt` (신규)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarHostState.kt` (신규)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbar.kt` (신규)
+- `core/ui/src/main/java/com/dororong/rodi/core/ui/components/snackbar/RodiSnackbarHost.kt` (신규)
 
 ## Acceptance criteria
-- [ ] <검수 기준 1>
-- [ ] <검수 기준 2>
+- [ ] `RodiSemanticColors`가 `pinStart`/`pinArrival`/`tagDangerBg`를 갖고, `RodiTheme.semantic`으로
+      접근 가능하다. `RodiColors`에는 더 이상 이 3개 필드가 없다.
+- [ ] `DetailCommonRows.kt`의 기존 호출부가 `RodiTheme.semantic.*`으로 갱신되어 화면 동작(핀 색상)이
+      시각적으로 동일하게 유지된다.
+- [ ] `RodiSnackbarHostState.show()`로 여러 개를 연달아 호출하면 `ArrayDeque` 큐 순서대로 하나씩
+      표시된다(동시에 여러 개가 겹쳐 보이지 않음). `showImmediately()`는 큐 맨 앞에 끼어든다.
+- [ ] `RodiSnackbar`/`RodiSnackbarHost`가 Material 아이콘을 쓰지 않는다(아이콘 없는 상태 기본).
+- [ ] 색/타이포 하드코딩 없이 전부 `RodiTheme.colors`/`RodiTheme.typography`/`RodiRadius` 토큰만
+      사용한다(배경 black/텍스트 white도 토큰 경유).
+- [ ] `./gradlew assembleDebug`, `./gradlew lint` 통과.
+- [ ] 아직 어느 화면에도 `RodiSnackbarHost`를 실제로 붙이지 않는다 — 컴포넌트만 추가(Out of scope 참고).
 
 ## Verification
 ```
+./gradlew :core:ui:assembleDebug
 ./gradlew assembleDebug
+./gradlew lint
 ```
+Preview로 `RodiSnackbar`의 성공/에러/액션 있음 케이스를 각각 확인(Preview 작성은 스펙에 없지만
+android-compose 스킬의 Preview 컨벤션을 따라 자유롭게 추가해도 됨 — 필수는 아님).
 
 ## Out of scope
-<이번에 건드리지 않을 것>
+- 실제 화면(Home/Entry)에 `RodiSnackbarHost`를 연결하는 작업 — 이번엔 컴포넌트만 만든다. 어디에
+  어떤 문구로 띄울지는 각 기능 작업에서 개별적으로 결정.
+- 성공/에러 아이콘 리소스 — Figma에 없어서 이번엔 아이콘 없이 텍스트 전용. 아이콘이 필요해지면
+  Figma에서 추출 후 `data.icon`에 `painterResource(...)`로 넘기면 된다(API는 이미 열려있음).
+- `RodiTheme.colors`/`RodiTheme.semantic`/`RodiTheme.typography` 3-CompositionLocal 구조로의
+  전면 재편(참고 프로젝트 수준) — 이번엔 semantic 분리 첫 걸음만. `Dimensions.kt` 통합 등 나머지는
+  `docs/BACKLOG.md`에 남겨진 후속 항목으로 별도 진행.
+- 커스텀 스낵바를 기존 Material3 `SnackbarHost`/`Scaffold` 배선과 통합하는 작업.
 
 ---
 ## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
