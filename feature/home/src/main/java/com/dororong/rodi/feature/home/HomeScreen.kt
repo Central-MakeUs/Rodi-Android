@@ -59,9 +59,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.data.navi.NaviApp
-import com.dororong.rodi.core.data.navi.NaviPreference
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.ui.terms.TermsDocument
 import com.dororong.rodi.core.ui.terms.TermsWebView
@@ -91,7 +90,7 @@ private const val PARKING_FOCUS_ZOOM = 15
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(vm: HomeViewModel = viewModel()) {
+fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
@@ -225,7 +224,6 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                     NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
                 }
 
-                is HomeEffect.SaveNaviPreference -> NaviPreference.setAlways(context, effect.app)
             }
         }
     }
@@ -438,7 +436,6 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
                         }
                         val navigate: () -> Unit = {
-                            val saved = NaviPreference.getAlways(context)
                             val kakaoMapInstalled = runCatching {
                                 context.packageManager.getPackageInfo("net.daum.android.map", 0); true
                             }.getOrDefault(false)
@@ -448,7 +445,6 @@ fun HomeScreen(vm: HomeViewModel = viewModel()) {
                             vm.onIntent(
                                 HomeIntent.OnNavigateClick(
                                     course = selectedCourse,
-                                    savedApp = saved,
                                     kakaoMapInstalled = kakaoMapInstalled,
                                     kakaoNaviInstalled = kakaoNaviInstalled,
                                 ),

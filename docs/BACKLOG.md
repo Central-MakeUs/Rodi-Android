@@ -4,6 +4,9 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **Repository 인터페이스 domain 이동 검토** — 현재 `RouteResult`(Kakao `LatLng` 포함)와 `NaviApp`이
+  `core:data` 타입이라 Hilt 도입 작업에서는 Repository 인터페이스/구현체를 함께 `core:data`에 둠.
+  domain purity를 위해 vendor 타입 분리 후 `core:domain` 이동 여부를 별도 작업으로 검토.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.

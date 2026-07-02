@@ -7,6 +7,8 @@ group = "com.dororong.rodi.buildlogic"
 dependencies {
     compileOnly(libs.android.gradlePlugin)
     compileOnly(libs.compose.gradlePlugin)
+    compileOnly(libs.hilt.gradlePlugin)
+    compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
 }
 
@@ -23,6 +25,10 @@ gradlePlugin {
         register("androidLibraryCompose") {
             id = "dororong.rodi.android.library.compose"
             implementationClass = "AndroidLibraryComposeConventionPlugin"
+        }
+        register("androidHilt") {
+            id = "dororong.rodi.android.hilt"
+            implementationClass = "AndroidHiltConventionPlugin"
         }
         register("jvmLibrary") {
             id = "dororong.rodi.jvm.library"
