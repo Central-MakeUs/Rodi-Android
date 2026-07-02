@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # Claude(검토자)가 작업 트리 diff를 HANDOFF 스펙과 대조해 리뷰한다.
-# 사용: scripts/review.sh [--auto]
-#   --auto : APPROVE 시 커밋·아카이브·PR 자동 생성 (relay.sh 전용)
+# 사용: scripts/review.sh [--auto] [--no-pr]
+#   --auto   : APPROVE 시 커밋·아카이브·PR 자동 생성 (relay.sh 전용)
+#   --no-pr  : --auto와 함께 쓰면 커밋·아카이브까지만 하고 push/PR 생성은 생략
+#              (사용자가 직접 확인해야 하는 작업용 — 로컬 커밋으로만 남긴다)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 AUTO="${1:-}"
+NO_PR="${2:-}"
 
 HANDOFF="docs/handoff/HANDOFF.md"
 
@@ -113,8 +116,10 @@ TMPL
   git commit -m "chore(handoff): $TIMESTAMP 아카이브"
   echo "  ✓ 아카이브: $ARCHIVE_DIR/$ARCHIVE_NAME"
 
-  # 5) 브랜치 push + PR 생성 (gh CLI 필요)
-  if command -v gh &>/dev/null; then
+  # 5) 브랜치 push + PR 생성 (gh CLI 필요) — --no-pr 지정 시 생략
+  if [[ "$NO_PR" == "--no-pr" ]]; then
+    echo "  ℹ --no-pr 지정 — push/PR 생성 생략. 로컬 브랜치 $(git branch --show-current)에 커밋만 남았습니다."
+  elif command -v gh &>/dev/null; then
     CURRENT_BRANCH="${BRANCH:-$(git branch --show-current)}"
     git push -u origin "$CURRENT_BRANCH" 2>/dev/null || git push
     if gh pr create \

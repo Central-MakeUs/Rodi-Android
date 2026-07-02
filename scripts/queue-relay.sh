@@ -34,12 +34,14 @@ QUEUE_TMP="$(mktemp)"
 trap 'rm -f "$QUEUE_TMP"' EXIT
 grep -E '^[^#>[:space:]].*\|.*\|' "$QUEUE_FILE" > "$QUEUE_TMP"
 
-while IFS='|' read -r branch intent skip_plan base_branch; do
+while IFS='|' read -r branch intent skip_plan base_branch pr_mode; do
   branch="$(echo "$branch" | xargs)"
   intent="$(echo "$intent" | xargs)"
   skip_plan="$(echo "$skip_plan" | xargs)"
   base_branch="$(echo "${base_branch:-develop}" | xargs)"
   [[ -z "$base_branch" ]] && base_branch="develop"
+  pr_mode="$(echo "${pr_mode:-yes}" | xargs)"
+  [[ -z "$pr_mode" ]] && pr_mode="yes"
 
   if (( processed >= MAX_ITEMS )); then
     log "▶ 최대 처리 건수($MAX_ITEMS) 도달 — 나머지는 다음 실행으로 넘김"
@@ -83,14 +85,13 @@ while IFS='|' read -r branch intent skip_plan base_branch; do
   fi
 
   # macOS 기본 bash(3.2)는 set -u 상태에서 빈 배열 "${arr[@]}" 확장 시 "unbound variable"로
-  # 죽는다 — 배열 대신 skip_plan 값으로 분기해 호출한다.
-  if [[ "$skip_plan" == "yes" ]]; then
-    RELAY_RESULT=0
-    scripts/auto-relay.sh "$intent" --skip-plan --max-retries 2 </dev/null >>"$ITEM_LOG" 2>&1 || RELAY_RESULT=$?
-  else
-    RELAY_RESULT=0
-    scripts/auto-relay.sh "$intent" --max-retries 2 </dev/null >>"$ITEM_LOG" 2>&1 || RELAY_RESULT=$?
-  fi
+  # 죽는다 — 배열 대신 skip_plan/pr_mode 값으로 분기해 호출한다.
+  RELAY_ARGS="--max-retries 2"
+  [[ "$skip_plan" == "yes" ]] && RELAY_ARGS="$RELAY_ARGS --skip-plan"
+  [[ "$pr_mode" == "no" ]] && RELAY_ARGS="$RELAY_ARGS --no-pr"
+
+  RELAY_RESULT=0
+  scripts/auto-relay.sh "$intent" $RELAY_ARGS </dev/null >>"$ITEM_LOG" 2>&1 || RELAY_RESULT=$?
 
   if [[ "$RELAY_RESULT" -eq 0 ]]; then
     log "  ✓ 성공 — 로그: $ITEM_LOG"
