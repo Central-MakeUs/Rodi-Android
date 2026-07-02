@@ -53,13 +53,14 @@ while IFS='|' read -r branch intent skip_plan base_branch; do
 
   ITEM_LOG="$LOG_DIR/$(date '+%Y%m%d-%H%M%S')-$(basename "$branch").log"
 
+  CHECKOUT_RESULT=0
   if git show-ref --verify --quiet "refs/heads/$branch"; then
     log "  기존 브랜치 사용: $branch"
-    git checkout "$branch" </dev/null >>"$ITEM_LOG" 2>&1
+    git checkout "$branch" </dev/null >>"$ITEM_LOG" 2>&1 || CHECKOUT_RESULT=$?
   elif [[ "$base_branch" == "develop" ]]; then
     log "  새 브랜치 생성: $branch (from origin/develop)"
     git fetch origin --quiet </dev/null
-    git checkout -b "$branch" origin/develop </dev/null >>"$ITEM_LOG" 2>&1
+    git checkout -b "$branch" origin/develop </dev/null >>"$ITEM_LOG" 2>&1 || CHECKOUT_RESULT=$?
   else
     if ! git show-ref --verify --quiet "refs/heads/$base_branch"; then
       log "  ✗ base_branch '$base_branch' 가 로컬에 없음 — 이 항목 건너뜀"
@@ -68,7 +69,17 @@ while IFS='|' read -r branch intent skip_plan base_branch; do
       continue
     fi
     log "  새 브랜치 생성: $branch (from local $base_branch — 아직 develop에 안 머지된 의존 브랜치)"
-    git checkout -b "$branch" "$base_branch" </dev/null >>"$ITEM_LOG" 2>&1
+    git checkout -b "$branch" "$base_branch" </dev/null >>"$ITEM_LOG" 2>&1 || CHECKOUT_RESULT=$?
+  fi
+
+  # 체크아웃/브랜치 생성이 실패하면(dirty 워킹트리, 이름 충돌 등) 엉뚱한 브랜치 위에서
+  # auto-relay.sh를 돌리는 사고를 막기 위해 실제 체크아웃된 브랜치를 재확인하고 다르면 건너뛴다.
+  ACTUAL_BRANCH="$(git branch --show-current)"
+  if [[ "$CHECKOUT_RESULT" -ne 0 || "$ACTUAL_BRANCH" != "$branch" ]]; then
+    log "  ✗ 브랜치 전환 실패 (기대: $branch, 실제: $ACTUAL_BRANCH) — 이 항목 건너뜀. 로그: $ITEM_LOG"
+    failed+=("$branch(체크아웃 실패)")
+    processed=$((processed + 1))
+    continue
   fi
 
   # macOS 기본 bash(3.2)는 set -u 상태에서 빈 배열 "${arr[@]}" 확장 시 "unbound variable"로
