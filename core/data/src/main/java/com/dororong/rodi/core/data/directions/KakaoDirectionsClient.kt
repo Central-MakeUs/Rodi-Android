@@ -1,6 +1,5 @@
 package com.dororong.rodi.core.data.directions
 
-import android.util.Log
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.CoursePoint
@@ -8,6 +7,7 @@ import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import timber.log.Timber
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -26,7 +26,6 @@ import kotlin.math.sqrt
  */
 object KakaoDirectionsClient {
 
-    private const val TAG = "KakaoDirections"
     private const val BASE_URL = "https://apis-navi.kakaomobility.com/v1/directions"
     private const val MAX_API_WAYPOINTS = 4
 
@@ -60,16 +59,16 @@ object KakaoDirectionsClient {
 
         val restKey = BuildConfig.KAKAO_REST_API_KEY
         if (restKey.isBlank()) {
-            Log.w(TAG, "REST API 키가 없어 직선으로 폴백합니다.")
+            Timber.w("REST API 키가 없어 직선으로 폴백합니다.")
             return@withContext straightFallback()
         }
         if (waypoints.size > MAX_API_WAYPOINTS) {
-            Log.w(TAG, "경유지가 API 제한을 초과해 직선으로 폴백합니다.")
+            Timber.w("경유지가 API 제한을 초과해 직선으로 폴백합니다.")
             return@withContext straightFallback()
         }
         runCatching { requestDirections(origin, waypoints, destination, restKey) }
             .getOrElse {
-                Log.w(TAG, "길찾기 실패, 직선으로 폴백: ${it.message}")
+                Timber.w(it, "길찾기 실패, 직선으로 폴백합니다.")
                 straightFallback()
             }
     }

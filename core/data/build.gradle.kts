@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.retrofit.core)
     implementation(libs.retrofit.converter.kotlinx.serialization)
+    implementation(libs.timber)
     ksp(libs.hilt.compiler)
     ksp(libs.androidx.room.compiler)
 }
