@@ -43,7 +43,7 @@ fun TermsAgreementContent(
         onButtonClick = onNext,
         modifier = modifier,
     ) {
-        Text("루티 서비스 시작하기", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
+        Text("루티 서비스 시작하기", style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
         Spacer(Modifier.height(RodiSpacing.sm))
         Text("아래 약관에 동의해주세요", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Spacer(Modifier.height(RodiSpacing.lg))

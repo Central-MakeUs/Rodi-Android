@@ -69,7 +69,7 @@ fun DrivingPrecautionsContent(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("운전 자격 및 주의 사항", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
+                Text("운전 자격 및 주의 사항", style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
                 Spacer(Modifier.height(RodiSpacing.sm))
                 Text(
                     "안전한 연습을 위해 아래 내용을 반드시 확인해 주세요.",
@@ -87,7 +87,7 @@ fun DrivingPrecautionsContent(
             ) {
                 Text(
                     text = warningText(),
-                    style = RodiTheme.typography.caption1Regular,
+                    style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.black,
                     modifier = Modifier.padding(RodiSpacing.md),
                 )
