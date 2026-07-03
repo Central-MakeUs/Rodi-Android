@@ -21,7 +21,7 @@
 - 테스트 컨벤션: `docs/TESTING.md` 참고
 
 ## `:app`에 남은 것
-`MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/AppRoot`(게이트→홈 라우팅).
+`MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/RodiApp`(Navigation3 `NavDisplay` 기반 게이트→홈 라우팅).
 화면·기능 코드는 전부 `core:*`/`feature:*`로 이관 완료.
 
 ## 모듈 맵

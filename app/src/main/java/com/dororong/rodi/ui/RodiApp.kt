@@ -21,7 +21,7 @@ import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
 
 @Composable
-fun AppRoot() {
+fun RodiApp() {
     val context = LocalContext.current
     val prefs = remember { EntryPreferences(context) }
     val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
