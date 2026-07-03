@@ -7,7 +7,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.ui.AppRoot
+import com.dororong.rodi.ui.RodiApp
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             RodiTheme {
-                AppRoot()
+                RodiApp()
             }
         }
     }
