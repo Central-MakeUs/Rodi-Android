@@ -174,8 +174,8 @@ fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
             val isStart = i == 0
             val isEnd = i == points.lastIndex
             val dotColor = when {
-                isStart -> RodiTheme.colors.pinStart
-                isEnd -> RodiTheme.colors.pinArrival
+                isStart -> RodiTheme.semantic.pinStart
+                isEnd -> RodiTheme.semantic.pinArrival
                 else -> RodiTheme.colors.gray400
             }
             val roleLabel = when {
@@ -184,8 +184,8 @@ fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
                 else -> "경유지 $i"
             }
             val roleLabelColor = when {
-                isStart -> RodiTheme.colors.pinStart
-                isEnd -> RodiTheme.colors.pinArrival
+                isStart -> RodiTheme.semantic.pinStart
+                isEnd -> RodiTheme.semantic.pinArrival
                 else -> RodiTheme.colors.gray800
             }
             val roleLabelWeight = if (isStart || isEnd) FontWeight.SemiBold else FontWeight.Medium

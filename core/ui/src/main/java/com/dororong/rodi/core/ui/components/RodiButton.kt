@@ -1,8 +1,11 @@
 package com.dororong.rodi.core.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
@@ -11,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -72,5 +76,38 @@ fun RodiButton(
         border = RodiButtonDefaults.border(variant),
     ) {
         Text(text, style = RodiTheme.typography.button1)
+    }
+}
+
+@Preview(name = "RodiButton - Primary", showBackground = true, widthDp = 360)
+@Composable
+private fun RodiButtonPrimaryPreview() {
+    RodiTheme {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RodiButton(text = "확인", onClick = {})
+            RodiButton(text = "비활성", onClick = {}, enabled = false)
+        }
+    }
+}
+
+@Preview(name = "RodiButton - Secondary", showBackground = true, widthDp = 360)
+@Composable
+private fun RodiButtonSecondaryPreview() {
+    RodiTheme {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            RodiButton(text = "취소", onClick = {}, variant = RodiButtonVariant.Secondary)
+            RodiButton(
+                text = "비활성",
+                onClick = {},
+                variant = RodiButtonVariant.Secondary,
+                enabled = false,
+            )
+        }
     }
 }

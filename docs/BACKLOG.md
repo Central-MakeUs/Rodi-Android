@@ -4,6 +4,10 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **Pretendard ExtraBold 폰트 파일 확보** — Figma Typography 시스템(`price 2/bold`, 14px)이
+  Pretendard ExtraBold(800)을 쓰는데 `core/ui/src/main/res/font/`에 Regular/Medium/SemiBold/Bold
+  4개만 있음. `RodiTypography.price2`는 임시로 Bold(700)로 대체 구현했으니, ExtraBold ttf를
+  받으면 `RodiFontFamily`에 추가하고 `price2`를 `FontWeight.ExtraBold`로 교체할 것.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.

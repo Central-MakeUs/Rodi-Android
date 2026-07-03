@@ -16,6 +16,13 @@ data class RodiColors(
     val primary600: Color,
     val primary700: Color,
     val primary800: Color,
+    val primary900: Color,
+    val primary950: Color,
+    val primary20: Color,
+    // Point
+    val pointRed: Color,
+    val pointOrange: Color,
+    val pointYellow: Color,
     // Gray
     val gray50: Color,
     val gray100: Color,
@@ -31,10 +38,6 @@ data class RodiColors(
     val black: Color,
     val white: Color,
     val handleBar: Color,
-    // Semantic
-    val pinStart: Color,
-    val pinArrival: Color,
-    val tagDangerBg: Color,
 )
 
 val LightRodiColors = RodiColors(
@@ -43,10 +46,16 @@ val LightRodiColors = RodiColors(
     primary200 = Color(0xFFBAB6FF),
     primary300 = Color(0xFF9D97FF),
     primary400 = Color(0xFF8278FF),
-    primary500 = Color(0xFF6C5CFF),
+    primary500 = Color(0xFF7062FF),
     primary600 = Color(0xFF5640FF),
     primary700 = Color(0xFF3800F6),
     primary800 = Color(0xFF2600B1),
+    primary900 = Color(0xFF13006D),
+    primary950 = Color(0xFF0A004A),
+    primary20 = Color(0xFFF4F4FF),
+    pointRed = Color(0xFFC51D23),
+    pointOrange = Color(0xFFFF8453),
+    pointYellow = Color(0xFFFFB200),
     gray50 = Color(0xFFFAFAFA),
     gray100 = Color(0xFFF5F5F5),
     gray200 = Color(0xFFEFEFEF),
@@ -60,9 +69,6 @@ val LightRodiColors = RodiColors(
     black = Color(0xFF222222),
     white = Color(0xFFFFFFFF),
     handleBar = Color(0xFFC6C8CB),
-    pinStart = Color(0xFF347BFF),
-    pinArrival = Color(0xFFF3493C),
-    tagDangerBg = Color(0xFFFFD6D6),
 )
 
 val LocalRodiColors = staticCompositionLocalOf { LightRodiColors }

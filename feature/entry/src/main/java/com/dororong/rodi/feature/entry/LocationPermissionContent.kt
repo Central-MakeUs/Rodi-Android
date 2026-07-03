@@ -55,7 +55,7 @@ fun LocationPermissionContent(
             Spacer(modifier = Modifier.height(40.dp))
             Text(
                 text = "현재 위치를 기반으로 주변 운전 연습 코스를\n추천하기 위해 위치정보를 사용합니다.",
-                style = RodiTheme.typography.headline1,
+                style = RodiTheme.typography.headline2,
                 color = RodiTheme.colors.black,
                 textAlign = TextAlign.Center,
             )

@@ -77,7 +77,7 @@ fun EntryScaffold(
                 Icon(
                     painter = painterResource(CoreUiR.drawable.ic_chevron_right),
                     contentDescription = "뒤로",
-                    tint = RodiTheme.colors.gray900,
+                    tint = RodiTheme.colors.black,
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)

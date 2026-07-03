@@ -43,7 +43,7 @@ fun TermsAgreementContent(
         onButtonClick = onNext,
         modifier = modifier,
     ) {
-        Text("루티 서비스 시작하기", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
+        Text("루티 서비스 시작하기", style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
         Spacer(Modifier.height(RodiSpacing.sm))
         Text("아래 약관에 동의해주세요", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Spacer(Modifier.height(RodiSpacing.lg))
@@ -53,6 +53,7 @@ fun TermsAgreementContent(
             checked = allChecked,
             text = "약관 전체 동의",
             onToggle = { onAllToggle(!allChecked) },
+            textColor = if (allChecked) RodiTheme.colors.black else RodiTheme.colors.gray800,
             modifier = Modifier
                 .height(50.dp)
                 .border(
@@ -68,6 +69,7 @@ fun TermsAgreementContent(
             checked = service,
             text = TermsDocuments.SERVICE.requiredTitle,
             onToggle = onServiceToggle,
+            textColor = if (service) RodiTheme.colors.black else RodiTheme.colors.gray800,
             trailingChevron = true,
             onChevronClick = { onTermsClick(TermsDocuments.SERVICE.url) },
             modifier = Modifier.padding(start = 16.dp),
@@ -76,6 +78,7 @@ fun TermsAgreementContent(
             checked = privacy,
             text = TermsDocuments.PRIVACY.requiredTitle,
             onToggle = onPrivacyToggle,
+            textColor = if (privacy) RodiTheme.colors.black else RodiTheme.colors.gray800,
             trailingChevron = true,
             onChevronClick = { onTermsClick(TermsDocuments.PRIVACY.url) },
             modifier = Modifier.padding(start = 16.dp),
@@ -84,6 +87,7 @@ fun TermsAgreementContent(
             checked = location,
             text = TermsDocuments.LOCATION.requiredTitle,
             onToggle = onLocationToggle,
+            textColor = if (location) RodiTheme.colors.black else RodiTheme.colors.gray800,
             trailingChevron = true,
             onChevronClick = { onTermsClick(TermsDocuments.LOCATION.url) },
             modifier = Modifier.padding(start = 16.dp),

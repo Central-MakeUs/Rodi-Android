@@ -43,6 +43,9 @@
   "Phase 1/2" 같은 내부 계획 용어·HANDOFF 제목을 그대로 커밋 메시지에 쓰지 않는다 — 계획 문서는
   아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
+- **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
+  widthDp = 360)` + `RodiTheme { }` 래핑으로 최소 1개(variant/상태가 여러 개면 그만큼) 작성한다.
+  기존 예시는 `RodiButton.kt`/`RodiSnackbar.kt` 참고.
 
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.
