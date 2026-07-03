@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.usecase.SetEntryCompletedUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -101,7 +102,13 @@ class EntryViewModel @Inject constructor(
 
     fun complete(onDone: () -> Unit) {
         viewModelScope.launch {
-            setEntryCompletedUseCase()
+            try {
+                setEntryCompletedUseCase()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                return@launch
+            }
             onDone()
         }
     }

@@ -7,5 +7,5 @@ import javax.inject.Inject
 class SetNaviAlwaysUseCase @Inject constructor(
     private val naviPreferenceRepository: NaviPreferenceRepository,
 ) {
-    operator fun invoke(app: NaviApp) = naviPreferenceRepository.setAlways(app)
+    suspend operator fun invoke(app: NaviApp) = naviPreferenceRepository.setAlways(app)
 }

@@ -4,6 +4,7 @@ import com.dororong.rodi.core.domain.usecase.SetEntryCompletedUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -135,6 +136,34 @@ class EntryViewModelTest {
 
         coVerify(exactly = 1) { setEntryCompletedUseCase() }
         assertTrue(done)
+    }
+
+    @Test
+    fun `complete does not invoke callback when use case throws`() = runTest(testDispatcher) {
+        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+        coEvery { setEntryCompletedUseCase() } throws IllegalStateException("failed")
+        val viewModel = EntryViewModel(setEntryCompletedUseCase)
+        var done = false
+
+        viewModel.complete { done = true }
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { setEntryCompletedUseCase() }
+        assertFalse(done)
+    }
+
+    @Test
+    fun `complete does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
+        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+        coEvery { setEntryCompletedUseCase() } throws CancellationException("cancelled")
+        val viewModel = EntryViewModel(setEntryCompletedUseCase)
+        var done = false
+
+        viewModel.complete { done = true }
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { setEntryCompletedUseCase() }
+        assertFalse(done)
     }
 
     private fun testSetEntryCompletedUseCase(): SetEntryCompletedUseCase =
