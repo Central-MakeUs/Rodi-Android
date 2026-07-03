@@ -31,6 +31,7 @@
 | `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference` |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
 | `:core:common` | 확장함수/유틸(`runSuspendCatching` 등) |
+| `:feature:auth` | 카카오 로그인(임시 화면 + SDK 로직, 서버 연동 전) |
 | `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항), `EntryFlow` + 단계별 Content |
 | `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
 

@@ -55,6 +55,7 @@ android {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:ui"))
+    implementation(project(":feature:auth"))
     implementation(project(":feature:entry"))
     implementation(project(":feature:home"))
     implementation(platform(libs.androidx.compose.bom))

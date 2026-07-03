@@ -17,6 +17,7 @@ import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.core.data.EntryPreferences
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
 
@@ -35,7 +36,7 @@ fun RodiApp() {
 
     LaunchedEffect(completedValue) {
         if (backStack.isEmpty()) {
-            backStack.add(if (completedValue) HomeRoute else EntryRoute)
+            backStack.add(LoginRoute)
         }
     }
 
@@ -52,6 +53,14 @@ fun RodiApp() {
         ),
         entryProvider = { key ->
             when (key) {
+                LoginRoute -> NavEntry(key) {
+                    LoginScreen(
+                        onNavigateNext = {
+                            backStack.clear()
+                            backStack.add(if (completedValue) HomeRoute else EntryRoute)
+                        },
+                    )
+                }
                 EntryRoute -> NavEntry(key) {
                     EntryFlow(
                         onComplete = {
