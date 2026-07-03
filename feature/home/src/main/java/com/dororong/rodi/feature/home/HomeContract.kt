@@ -1,7 +1,7 @@
 package com.dororong.rodi.feature.home
 
-import com.dororong.rodi.core.data.navi.NaviApp
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.NaviApp
 
 sealed interface HomeIntent {
     data class OnCourseClick(val id: Int) : HomeIntent

@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":core:common"))
     implementation(libs.javax.inject)
+    api(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
