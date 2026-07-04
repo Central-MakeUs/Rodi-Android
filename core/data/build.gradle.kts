@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.testing.Test
 
 plugins {
     id("dororong.rodi.android.library")
@@ -22,12 +23,17 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.security.crypto)
     implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kotlinx.coroutines.android)
@@ -40,4 +46,8 @@ dependencies {
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
     ksp(libs.androidx.room.compiler)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

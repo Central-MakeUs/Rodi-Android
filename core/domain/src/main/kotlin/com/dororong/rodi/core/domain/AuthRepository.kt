@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.domain
 
 interface AuthRepository {
-    suspend fun loginWithKakao(kakaoAccessToken: String)
+    /** @return isNewMember(이번 로그인으로 신규 가입됐는지) */
+    suspend fun loginWithKakao(kakaoAccessToken: String): Boolean
 }

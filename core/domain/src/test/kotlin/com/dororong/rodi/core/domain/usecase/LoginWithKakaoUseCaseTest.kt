@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.domain.usecase
 
 import com.dororong.rodi.core.domain.AuthRepository
+import com.dororong.rodi.core.domain.AuthException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -14,20 +15,20 @@ class LoginWithKakaoUseCaseTest {
     @Test
     fun `invoke returns success when repository login succeeds`() = runTest {
         val repository = mockk<AuthRepository>()
-        coEvery { repository.loginWithKakao("access-token") } returns Unit
+        coEvery { repository.loginWithKakao("access-token") } returns true
         val useCase = LoginWithKakaoUseCase(repository)
 
         val result = useCase("access-token")
 
         assertTrue(result.isSuccess)
-        assertEquals(Unit, result.getOrThrow())
+        assertEquals(true, result.getOrThrow())
         coVerify(exactly = 1) { repository.loginWithKakao("access-token") }
     }
 
     @Test
     fun `invoke wraps repository failure as Result failure`() = runTest {
         val repository = mockk<AuthRepository>()
-        coEvery { repository.loginWithKakao("access-token") } throws RuntimeException("boom")
+        coEvery { repository.loginWithKakao("access-token") } throws AuthException.InvalidCredential("boom")
         val useCase = LoginWithKakaoUseCase(repository)
 
         val result = useCase("access-token")

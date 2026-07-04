@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.auth
 
 import app.cash.turbine.test
+import com.dororong.rodi.core.domain.AuthException
 import com.dororong.rodi.core.domain.usecase.LoginWithKakaoUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,7 +36,7 @@ class LoginViewModelTest {
     @Test
     fun `onKakaoLoginResult emits NavigateNext when login succeeds`() = runTest(testDispatcher) {
         val useCase = mockk<LoginWithKakaoUseCase>()
-        coEvery { useCase("access-token") } returns Result.success(Unit)
+        coEvery { useCase("access-token") } returns Result.success(true)
         val viewModel = LoginViewModel(useCase)
 
         viewModel.effect.test {
@@ -51,7 +52,8 @@ class LoginViewModelTest {
     @Test
     fun `onKakaoLoginResult emits snackbar and returns Idle when login fails`() = runTest(testDispatcher) {
         val useCase = mockk<LoginWithKakaoUseCase>()
-        coEvery { useCase("access-token") } returns Result.failure(RuntimeException("boom"))
+        coEvery { useCase("access-token") } returns
+            Result.failure(AuthException.InvalidCredential("카카오 인증에 실패했습니다."))
         val viewModel = LoginViewModel(useCase)
 
         viewModel.effect.test {
@@ -59,7 +61,7 @@ class LoginViewModelTest {
             advanceUntilIdle()
 
             assertEquals(
-                LoginEffect.ShowSnackbar("로그인에 실패했습니다. 잠시 후 다시 시도해주세요."),
+                LoginEffect.ShowSnackbar("카카오 인증에 실패했습니다."),
                 awaitItem(),
             )
             assertEquals(LoginUiState.Idle, viewModel.uiState.value)

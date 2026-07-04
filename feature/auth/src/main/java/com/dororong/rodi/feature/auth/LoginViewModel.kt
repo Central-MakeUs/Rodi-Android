@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.domain.AuthException
 import com.dororong.rodi.core.domain.usecase.LoginWithKakaoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -40,8 +41,10 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             loginWithKakaoUseCase(accessToken)
                 .onSuccess { _effect.send(LoginEffect.NavigateNext) }
-                .onFailure {
-                    _effect.send(LoginEffect.ShowSnackbar("로그인에 실패했습니다. 잠시 후 다시 시도해주세요."))
+                .onFailure { error ->
+                    val message = (error as? AuthException)?.message
+                        ?: "로그인에 실패했습니다. 잠시 후 다시 시도해주세요."
+                    _effect.send(LoginEffect.ShowSnackbar(message))
                     _uiState.update { LoginUiState.Idle }
                 }
         }

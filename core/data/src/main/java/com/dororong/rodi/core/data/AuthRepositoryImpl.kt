@@ -1,12 +1,24 @@
 package com.dororong.rodi.core.data
 
+import com.dororong.rodi.core.data.auth.AuthApi
+import com.dororong.rodi.core.data.auth.AuthTokenStore
+import com.dororong.rodi.core.data.auth.OAuthLoginRequest
+import com.dororong.rodi.core.data.network.toAuthException
+import com.dororong.rodi.core.domain.AuthException
 import com.dororong.rodi.core.domain.AuthRepository
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
-// 로그인 API 확정 전 placeholder(NetworkModule.BASE_URL과 동일 사유).
-// 현재는 카카오 액세스 토큰 획득 성공을 곧 로그인 성공으로 간주한다.
-// 서버 연동 시 이 안에서 Retrofit 호출로 토큰을 전달하고 응답(세션/회원 상태 등)을 반영하도록 교체.
-class AuthRepositoryImpl @Inject constructor() : AuthRepository {
-    override suspend fun loginWithKakao(kakaoAccessToken: String) {
+class AuthRepositoryImpl @Inject constructor(
+    private val authApi: AuthApi,
+    private val tokenStore: AuthTokenStore,
+    private val json: Json,
+) : AuthRepository {
+    override suspend fun loginWithKakao(kakaoAccessToken: String): Boolean {
+        val envelope = runCatching { authApi.oauthLogin("kakao", OAuthLoginRequest(kakaoAccessToken)) }
+            .getOrElse { throw it.toAuthException(json) }
+        val body = envelope.data ?: throw AuthException.Unknown("응답에 로그인 정보가 없습니다.")
+        tokenStore.save(body.accessToken, body.refreshToken)
+        return body.isNewMember
     }
 }

@@ -16,6 +16,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.core.data.EntryPreferences
+import com.dororong.rodi.core.data.auth.AuthTokenStore
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
@@ -25,6 +26,7 @@ import com.dororong.rodi.feature.home.HomeScreen
 fun RodiApp() {
     val context = LocalContext.current
     val prefs = remember { EntryPreferences(context) }
+    val tokenStore = remember { AuthTokenStore(context) }
     val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
     val backStack = remember { mutableStateListOf<Any>() }
 
@@ -36,7 +38,12 @@ fun RodiApp() {
 
     LaunchedEffect(completedValue) {
         if (backStack.isEmpty()) {
-            backStack.add(LoginRoute)
+            val destination = if (tokenStore.isLoggedIn) {
+                if (completedValue) HomeRoute else EntryRoute
+            } else {
+                LoginRoute
+            }
+            backStack.add(destination)
         }
     }
 
