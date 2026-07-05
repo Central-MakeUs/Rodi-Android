@@ -7,7 +7,7 @@
 ## 정체성
 - 앱: **Rodi** (구 Routi — 브랜드 잔재 정리 완료)
 - 패키지: `com.dororong.rodi`
-- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:entry/home`). 목표 전체 구조는
+- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:auth/entry/home`). 목표 전체 구조는
   `docs/ARCHITECTURE_TARGET.md` 참고
 
 ## 빌드/버전

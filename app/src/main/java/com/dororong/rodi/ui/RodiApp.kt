@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -22,29 +23,35 @@ import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
 import dagger.hilt.android.EntryPointAccessors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun RodiApp() {
     val context = LocalContext.current
     val prefs = remember { EntryPreferences(context) }
-    val tokenStore = remember {
-        EntryPointAccessors.fromApplication(
-            context.applicationContext,
-            AuthTokenStoreEntryPoint::class.java,
-        ).authTokenStore()
-    }
+    val appContext = remember(context) { context.applicationContext }
     val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
+    val isLoggedIn by produceState<Boolean?>(initialValue = null, appContext) {
+        value = withContext(Dispatchers.IO) {
+            EntryPointAccessors.fromApplication(
+                appContext,
+                AuthTokenStoreEntryPoint::class.java,
+            ).authTokenStore().isLoggedIn
+        }
+    }
     val backStack = remember { mutableStateListOf<Any>() }
 
     val completedValue = completed
-    if (completedValue == null) {
+    val isLoggedInValue = isLoggedIn
+    if (completedValue == null || isLoggedInValue == null) {
         LoadingScreen()
         return
     }
 
-    LaunchedEffect(completedValue) {
+    LaunchedEffect(completedValue, isLoggedInValue) {
         if (backStack.isEmpty()) {
-            val destination = if (tokenStore.isLoggedIn) {
+            val destination = if (isLoggedInValue) {
                 if (completedValue) HomeRoute else EntryRoute
             } else {
                 LoginRoute

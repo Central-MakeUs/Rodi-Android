@@ -20,12 +20,14 @@ interface KakaoLoginManagerEntryPoint {
 
 @ActivityScoped
 class KakaoLoginManager @Inject constructor(
-    @ActivityContext private val context: Context,
+    @param:ActivityContext private val context: Context,
 ) {
     fun login(onSuccess: (accessToken: String) -> Unit, onFailure: (message: String) -> Unit) {
-        val resultHandler: (OAuthToken?, Throwable?) -> Unit = { token, _ ->
+        val resultHandler: (OAuthToken?, Throwable?) -> Unit = { token, error ->
             when {
                 token?.accessToken != null -> onSuccess(token.accessToken)
+                error is ClientError && error.reason == ClientErrorCause.Cancelled ->
+                    onFailure("로그인이 취소되었습니다.")
                 else -> onFailure("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.")
             }
         }

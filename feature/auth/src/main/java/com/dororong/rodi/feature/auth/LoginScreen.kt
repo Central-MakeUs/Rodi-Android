@@ -57,10 +57,15 @@ fun LoginScreen(
     LoginContent(
         uiState = uiState,
         onKakaoLoginClick = {
-            kakaoLoginManager?.login(
-                onSuccess = viewModel::onKakaoLoginResult,
-                onFailure = viewModel::onKakaoLoginFailed,
-            )
+            val manager = kakaoLoginManager
+            if (manager != null) {
+                manager.login(
+                    onSuccess = viewModel::onKakaoLoginResult,
+                    onFailure = viewModel::onKakaoLoginFailed,
+                )
+            } else {
+                viewModel.onKakaoLoginFailed("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
+            }
         },
         onSkipClick = viewModel::onSkipClick,
     )

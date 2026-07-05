@@ -1,10 +1,12 @@
 package com.dororong.rodi.core.data.network
 
 import com.dororong.rodi.core.domain.AuthException
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import retrofit2.HttpException
@@ -40,6 +42,16 @@ class AuthErrorMapperTest {
     }
 
     @Test
+    fun `maps AUTH_400_1 to InvalidRequest`() {
+        val exception = httpException(400, """{"isSuccess":false,"code":"AUTH_400_1","message":"지원하지 않는 provider입니다."}""")
+
+        val result = exception.toAuthException(json)
+
+        assertTrue(result is AuthException.InvalidRequest)
+        assertEquals("지원하지 않는 provider입니다.", result.message)
+    }
+
+    @Test
     fun `maps unknown error code to Unknown`() {
         val exception = httpException(500, """{"isSuccess":false,"code":"COMMON_500","message":"서버 오류"}""")
 
@@ -53,5 +65,12 @@ class AuthErrorMapperTest {
         val result = IOException("연결 실패").toAuthException(json)
 
         assertTrue(result is AuthException.Network)
+    }
+
+    @Test
+    fun `rethrows CancellationException instead of mapping it`() {
+        assertThrows(CancellationException::class.java) {
+            CancellationException("cancelled").toAuthException(json)
+        }
     }
 }

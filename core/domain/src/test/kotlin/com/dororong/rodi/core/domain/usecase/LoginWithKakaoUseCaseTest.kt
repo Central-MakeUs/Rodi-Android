@@ -5,8 +5,10 @@ import com.dororong.rodi.core.domain.AuthException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -36,5 +38,19 @@ class LoginWithKakaoUseCaseTest {
         assertTrue(result.isFailure)
         assertEquals("boom", result.exceptionOrNull()?.message)
         coVerify(exactly = 1) { repository.loginWithKakao("access-token") }
+    }
+
+    @Test
+    fun `invoke rethrows CancellationException instead of wrapping it`() = runTest {
+        val repository = mockk<AuthRepository>()
+        coEvery { repository.loginWithKakao("access-token") } throws CancellationException("cancelled")
+        val useCase = LoginWithKakaoUseCase(repository)
+
+        try {
+            useCase("access-token")
+            fail("CancellationException should be rethrown")
+        } catch (_: CancellationException) {
+            coVerify(exactly = 1) { repository.loginWithKakao("access-token") }
+        }
     }
 }

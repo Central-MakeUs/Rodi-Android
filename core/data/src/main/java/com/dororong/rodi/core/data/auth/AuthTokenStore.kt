@@ -1,12 +1,15 @@
 package com.dororong.rodi.core.data.auth
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.io.IOException
+import java.security.GeneralSecurityException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,13 +28,8 @@ interface AuthTokenStoreEntryPoint {
 class AuthTokenStore @Inject constructor(
     @ApplicationContext context: Context,
 ) {
-    private val prefs = EncryptedSharedPreferences.create(
-        context,
-        "auth_secure_prefs",
-        MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-        EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-        EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-    )
+    private val appContext = context.applicationContext
+    private val prefs = createPrefsWithRecovery(appContext)
 
     val accessToken: String? get() = prefs.getString(KEY_ACCESS_TOKEN, null)
     val refreshToken: String? get() = prefs.getString(KEY_REFRESH_TOKEN, null)
@@ -49,7 +47,28 @@ class AuthTokenStore @Inject constructor(
     }
 
     private companion object {
+        const val PREFS_NAME = "auth_secure_prefs"
         const val KEY_ACCESS_TOKEN = "access_token"
         const val KEY_REFRESH_TOKEN = "refresh_token"
+
+        fun createPrefsWithRecovery(context: Context): SharedPreferences =
+            try {
+                createPrefs(context)
+            } catch (_: GeneralSecurityException) {
+                context.deleteSharedPreferences(PREFS_NAME)
+                createPrefs(context)
+            } catch (_: IOException) {
+                context.deleteSharedPreferences(PREFS_NAME)
+                createPrefs(context)
+            }
+
+        fun createPrefs(context: Context): SharedPreferences =
+            EncryptedSharedPreferences.create(
+                context,
+                PREFS_NAME,
+                MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+            )
     }
 }

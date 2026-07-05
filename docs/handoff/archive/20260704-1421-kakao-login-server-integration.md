@@ -222,10 +222,9 @@ class AuthTokenStore @Inject constructor(
     }
 }
 ```
-`AuthTokenStore`는 Hilt 싱글톤이지만, `EntryPreferences`가 `RodiApp`에서 수동으로
-`remember { EntryPreferences(context) }`로 만들어지는 것과 동일하게, Compose 쪽에서도
-`AuthTokenStore(context)`를 직접 생성해도 된다(내부가 EncryptedSharedPreferences라 여러
-인스턴스가 같은 파일을 봐도 데이터 정합성 문제 없음 — 인메모리 캐시를 두지 않았기 때문).
+`AuthTokenStore`는 Hilt 싱글톤이므로 Compose 쪽에서는 `AuthTokenStoreEntryPoint`를 통해
+애플리케이션 컴포넌트에서 가져온다. 내부가 EncryptedSharedPreferences라 저장 데이터는 같은 파일을
+보지만, Keystore 초기화 비용과 인스턴스 수명 관리를 위해 직접 생성하지 않는다.
 
 ### 7. `core:data` — `AuthRepositoryImpl` 실제 구현으로 교체
 `core/data/src/main/java/com/dororong/rodi/core/data/AuthRepositoryImpl.kt` 전체 교체:
@@ -298,7 +297,12 @@ fun onKakaoLoginResult(accessToken: String) {
 ### 10. 앱 라우팅 — 세션 있으면 로그인 화면 스킵
 `app/src/main/java/com/dororong/rodi/ui/RodiApp.kt` 수정:
 ```kotlin
-val tokenStore = remember { AuthTokenStore(context) }
+val tokenStore = remember {
+    EntryPointAccessors.fromApplication(
+        context.applicationContext,
+        AuthTokenStoreEntryPoint::class.java,
+    ).authTokenStore()
+}
 ```
 를 `prefs`/`backStack` 선언 근처에 추가하고, 백스택 최초 진입 로직을 아래로 교체:
 ```kotlin
