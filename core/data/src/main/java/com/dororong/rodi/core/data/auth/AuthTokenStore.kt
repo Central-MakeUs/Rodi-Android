@@ -3,9 +3,18 @@ package com.dororong.rodi.core.data.auth
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
 import javax.inject.Inject
 import javax.inject.Singleton
+
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+interface AuthTokenStoreEntryPoint {
+    fun authTokenStore(): AuthTokenStore
+}
 
 /**
  * 로그인 세션(액세스/리프레시 토큰)을 EncryptedSharedPreferences에 저장한다.
