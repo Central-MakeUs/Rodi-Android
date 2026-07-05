@@ -10,12 +10,13 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.dororong.rodi.core.ui.R
 
-/** Pretendard 폰트 패밀리. core/ui/src/main/res/font/ 에 4 weight 배치 필요. */
+/** Pretendard 폰트 패밀리. core/ui/src/main/res/font/ 에 5 weight 배치 필요. */
 val RodiFontFamily = FontFamily(
     Font(R.font.pretendard_regular, FontWeight.Normal),
     Font(R.font.pretendard_medium, FontWeight.Medium),
     Font(R.font.pretendard_semibold, FontWeight.SemiBold),
     Font(R.font.pretendard_bold, FontWeight.Bold),
+    Font(R.font.pretendard_extrabold, FontWeight.ExtraBold),
 )
 
 /**
@@ -30,7 +31,7 @@ data class RodiTypography(
     val headline1: TextStyle,       // Bold 18
     val headline2: TextStyle,       // Bold 17
     val price1: TextStyle,          // Bold 16
-    val price2: TextStyle,          // ExtraBold 14 (폰트 파일 없어 Bold로 대체, BACKLOG 참고)
+    val price2: TextStyle,          // ExtraBold 14
     val body1SemiBold: TextStyle,   // SemiBold 16
     val body1Medium: TextStyle,
     val body1Regular: TextStyle,
@@ -70,7 +71,7 @@ val DefaultRodiTypography = RodiTypography(
     headline1 = rodiStyle(18, FontWeight.Bold),
     headline2 = rodiStyle(17, FontWeight.Bold),
     price1 = rodiStyle(16, FontWeight.Bold),
-    price2 = rodiStyle(14, FontWeight.Bold),
+    price2 = rodiStyle(14, FontWeight.ExtraBold),
     body1SemiBold = rodiStyle(16, FontWeight.SemiBold),
     body1Medium = rodiStyle(16, FontWeight.Medium),
     body1Regular = rodiStyle(16, FontWeight.Normal),

@@ -4,48 +4,33 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **Pretendard ExtraBold 폰트 파일 확보** — Figma Typography 시스템(`price 2/bold`, 14px)이
-  Pretendard ExtraBold(800)을 쓰는데 `core/ui/src/main/res/font/`에 Regular/Medium/SemiBold/Bold
-  4개만 있음. `RodiTypography.price2`는 임시로 Bold(700)로 대체 구현했으니, ExtraBold ttf를
-  받으면 `RodiFontFamily`에 추가하고 `price2`를 `FontWeight.ExtraBold`로 교체할 것.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **Nav3 도입 + 하드코딩 축소** — Navigation 3(`androidx.navigation3`)로 전환하고
-  `kotlinx.serialization`으로 라우트를 타입-세이프하게 정의해 문자열 하드코딩 제거.
-- [ ] **EntryRepository/NaviPreferenceRepository UseCase 래핑** — `feat/domain-usecases`(PR #15)에서
-  `CourseRepository`만 UseCase로 감쌌다. 같은 패턴으로 `EntryRepository`(isCompleted/setCompleted),
-  `NaviPreferenceRepository`(getAlways/setAlways)도 UseCase로 감싸 `EntryViewModel`/`HomeViewModel`이
-  Repository 대신 UseCase를 주입받도록 정리(원래 도메인 UseCase 작업의 Out of scope 항목).
-- [ ] **커스텀 스낵바 도입 — PR #18 진행 중** — `/Users/uihyeon/StudioProjects/dnd-14th-2-android`의
-  `designsystem/components/snackbar/`(PickleSnackbar/SnackbarHost/SnackbarState)를 참고해
-  `core:ui`에 Rodi판 Snackbar를 만든다. 단순 이식이 아니라 Rodi 토큰으로 재설계하되, 다음
-  요소들은 구조적으로 참고할 가치가 있음:
-  - `ArrayDeque` 기반 큐잉으로 여러 스낵바 순차 표시 (`show()`/`showImmediately()`)
-  - Icon 타입을 sealed interface로(Success/Error/None/Custom) — Material 아이콘 금지 컨벤션과
-    맞물려 Figma 아이콘 리소스로 대체
-  - 위치(`SnackbarPosition`: BelowStatusBar/BelowTopAppBar/AboveSystemNavigation/
-    AboveBottomContents/Custom)와 지속시간(`SnackbarDuration`: TOAST_SHORT~SNACKBAR_INDEFINITE)을
-    독립된 enum/sealed로 분리해 조합 가능하게
-  - `AnimatedVisibility` + `AnimatedContent`(fade + slideInVertically/slideOutVertically, 300ms)
-  - `toastSuccess()`/`toastError()` 같은 호출부 편의 헬퍼 함수
-- [ ] **테마 시스템 고도화** — 마찬가지로 `dnd-14th-2-android`의 `designsystem/theme/`
-  (Theme.kt/Color.kt/Typography.kt/Dimensions.kt)를 참고해 `RodiTheme`을 확장.
-  **목표: 이 참고 프로젝트와 같거나 더 나은 완성도로, Rodi가 앞으로의 모든 프로젝트에서 기준이
-  되는 디자인 시스템/테마 구조를 갖추는 것.** 참고 프로젝트 구조:
-  - `PickleTheme.colors` / `.semantic` / `.typography` 3개의 `CompositionLocal`을
-    `ReadOnlyComposable`로 노출하는 패턴 (색상 토큰과 "의미 있는" 색상 매핑을 분리)
-  - `SemanticColors`: 카카오/구글 로그인 브랜드색, 도메인 상태색(예: guilty/innocent) 등
-    화면 의미 단위로 색을 매핑 — Rodi라면 코스/주차장/경로 상태 등에 적용 가능
-  - `Dimensions.kt` 단일 객체로 버튼/입력필드/아이콘/앱바/보더라디우스 등 수치 상수 중앙화
-    (현재 `RodiTheme.spacing`/`radius`와 통합 또는 대체 검토)
-  - 컴포넌트 네이밍은 프로젝트 프리픽스 통일(`Pickle*` → Rodi라면 `Rodi*`), `components/<종류>/model/`
-    하위에 Type/Size 등 sealed 모델 분리
-  - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
+- [ ] **테마 시스템 고도화 (부분 완료, 잔여 작업)** — `core:ui/theme/`에 `RodiSemanticColors`
+  (pin/tag 등 일부 도메인 색상)와 `RodiDimens`(spacing/radius)까지는 도입됨. 참고 프로젝트
+  (`/Users/uihyeon/StudioProjects/dnd-14th-2-android`의 `designsystem/theme/`) 대비 남은 격차:
+  - `RodiSemanticColors`가 현재 pin/tag 일부만 커버 — 코스/주차장/경로 상태, 소셜 로그인
+    브랜드색 등 화면 의미 단위 매핑으로 확장 여지
+  - `RodiDimens`는 spacing/radius만 있음 — 버튼/입력필드/아이콘/앱바 등 컴포넌트별 수치까지
+    중앙화할지 검토
+  - `components/<종류>/model/` 하위에 Type/Size 등 sealed 모델 분리 패턴은 아직 미도입
+  - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 재확인 필요
 
 ## 완료 (이력)
+- [x] Pretendard ExtraBold 폰트 파일 확보 — `core/ui/src/main/res/font/pretendard_extrabold.ttf`
+  추가, `RodiFontFamily`에 `FontWeight.ExtraBold` 매핑, `price2`를 `FontWeight.ExtraBold`로 교체.
+- [x] Nav3 도입 (PR #20) — `AppRoot` 최상위 라우팅을 Navigation 3(`NavDisplay`)로 교체
+  (`app/.../ui/RodiApp.kt`).
+- [x] EntryRepository/NaviPreferenceRepository UseCase 래핑 (PR #19) — `GetEntryCompletedUseCase`/
+  `SetEntryCompletedUseCase`/`GetNaviAlwaysUseCase`/`SetNaviAlwaysUseCase` 추가, `EntryViewModel`/
+  `HomeViewModel`이 Repository 대신 UseCase를 주입받도록 정리.
+- [x] 커스텀 스낵바 도입 (PR #18) — `core:ui/components/snackbar/`에 `RodiSnackbar`/`RodiSnackbarHost`/
+  `RodiSnackbarHostState`/`RodiSnackbarData` 추가. `ArrayDeque` 큐잉·`RodiSnackbarDuration` 분리는
+  참고 프로젝트대로 반영했으나, Icon은 sealed interface 대신 `Painter?`로, 위치(`SnackbarPosition`)는
+  별도 enum 없이 단순화해 구현.
 - [x] Routi → Rodi 브랜드 식별자 정리 (PR #8)
 - [x] 단위 테스트 + 테스트 자동화/CI 검증 (PR #17) — JUnit5 + MockK로 UseCase/ViewModel 핵심
   로직 테스트 작성, GitHub Actions에 테스트 게이트 추가. `docs/TESTING.md`에 컨벤션 정리.
