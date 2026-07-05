@@ -23,6 +23,11 @@ class AuthRepositoryImpl @Inject constructor(
         } catch (e: Throwable) {
             throw e.toAuthException(json)
         }
+        if (!envelope.isSuccess) {
+            throw AuthException.Unknown(
+                envelope.message.ifBlank { "로그인 요청이 실패했습니다." },
+            )
+        }
         val body = envelope.data ?: throw AuthException.Unknown(
             envelope.message.ifBlank { "응답에 로그인 정보가 없습니다." },
         )

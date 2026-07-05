@@ -63,6 +63,30 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `loginWithKakao does not save tokens when envelope fails even if data exists`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("access-token")) } returns ApiEnvelope(
+            isSuccess = false,
+            code = "AUTH_401_5",
+            message = "카카오 토큰이 유효하지 않습니다.",
+            data = AuthTokenResponse(
+                accessToken = "server-access-token",
+                refreshToken = "server-refresh-token",
+                isNewMember = false,
+            ),
+        )
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        val exception = assertThrowsSuspend<AuthException.Unknown> {
+            repository.loginWithKakao("access-token")
+        }
+
+        assertEquals("카카오 토큰이 유효하지 않습니다.", exception.message)
+        verify(exactly = 0) { tokenStore.save(any(), any()) }
+    }
+
+    @Test
     fun `loginWithKakao maps api failure to auth exception`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
