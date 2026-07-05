@@ -3,7 +3,6 @@ package com.dororong.rodi.core.ui.terms
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
-import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -35,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import timber.log.Timber
 
 @Composable
 fun TermsWebView(
@@ -126,10 +126,7 @@ fun TermsWebView(
                                 error: WebResourceError?
                             ) {
                                 super.onReceivedError(view, request, error)
-                                Log.e(
-                                    "NotionWebView",
-                                    "Error: ${error?.description}"
-                                )
+                                Timber.e("TermsWebView error: ${error?.description}")
                                 if (request?.isForMainFrame == true) {
                                     if (retryCount == 0) {
                                         retryCount = 1
