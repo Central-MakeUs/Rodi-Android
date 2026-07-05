@@ -62,6 +62,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsDocument
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -94,6 +95,12 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
+
+    // firstOrNull/haversine 필터라 매번 다시 계산하지 않도록 의존 값이 실제로 바뀔 때만 재계산한다.
+    val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
+    val filteredCourses = remember(state.courses, state.distanceFilterKm, state.userLat, state.userLng) {
+        state.filteredCourses
+    }
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -136,7 +143,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
     val screenHeightDp = LocalConfiguration.current.screenHeightDp
     val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
-    val sheetPeekHeight = if (state.selectedCourse == null) peekHeight else 1.dp
+    val sheetPeekHeight = if (selectedCourse == null) peekHeight else 1.dp
     val density = LocalDensity.current
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
@@ -182,7 +189,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     } else {
         peekHeightPx
     }
-    val mapBottomPaddingPx = if (state.selectedCourse == null) peekHeightPx else detailSheetHeightPx
+    val mapBottomPaddingPx = if (selectedCourse == null) peekHeightPx else detailSheetHeightPx
 
     LaunchedEffect(kakaoMap) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -212,18 +219,15 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         }
     }
 
-    LaunchedEffect(vm) {
-        vm.effect.collect { effect ->
-            when (effect) {
-                is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
-                is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.course)
-                is HomeEffect.ShowNaviPicker -> naviCourse = effect.course
-                is HomeEffect.ShowInstallNaviPicker -> installNaviCourse = effect.course
-                is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
-                    NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
-                    NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
-                }
-
+    CollectEffect(vm.effect) { effect ->
+        when (effect) {
+            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
+            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.course)
+            is HomeEffect.ShowNaviPicker -> naviCourse = effect.course
+            is HomeEffect.ShowInstallNaviPicker -> installNaviCourse = effect.course
+            is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
+                NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
+                NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
             }
         }
     }
@@ -266,11 +270,11 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
     // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
     // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
-    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, state.filteredCourses) {
+    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, filteredCourses) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val course = state.selectedCourse
+        val course = selectedCourse
         if (course == null) {
-            map.renderCourseChips(context, state.filteredCourses)
+            map.renderCourseChips(context, filteredCourses)
         } else if (course.isParking) {
             map.renderCourseChips(context, listOf(course))
         } else {
@@ -299,7 +303,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     // 한 번에 정렬한다. 직선 미리보기 단계에서는 절대 카메라를 움직이지 않는다.
     LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, sheetSettled) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val course = state.selectedCourse
+        val course = selectedCourse
         val paddingPx = if (course == null || scaffoldHeightPx == 0 || sheetOffsetPx == Float.MAX_VALUE) {
             peekHeightPx
         } else {
@@ -333,7 +337,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             ): Outline {
                 val offset = sheetOffsetPx
                 val radiusPx = if (
-                    state.selectedCourse == null &&
+                    selectedCourse == null &&
                     offset != Float.MAX_VALUE &&
                     scaffoldHeightPx > 0
                 ) {
@@ -374,7 +378,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                                 state = rememberDraggableState { },
                                 orientation = Orientation.Vertical,
                                 // 코스/주차장 상세가 열려 있을 때는 올리기·내리기 모두 막는다.
-                                enabled = state.selectedCourse == null,
+                                enabled = selectedCourse == null,
                                 onDragStopped = { velocity ->
                                     if (velocity < -200f) scaffoldState.bottomSheetState.expand()
                                     else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
@@ -410,18 +414,17 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     }
 
                     val listState = rememberLazyListState()
-                    val selectedCourse = state.selectedCourse
                     if (selectedCourse == null) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
                         ) {
-                            if (state.filteredCourses.isEmpty()) {
+                            if (filteredCourses.isEmpty()) {
                                 CourseEmptyContent()
                             } else {
                                 CourseListContent(
-                                    courses = state.filteredCourses,
+                                    courses = filteredCourses,
                                     onCourseClick = { id ->
                                         vm.onIntent(HomeIntent.OnCourseClick(id))
                                         isAtCurrentLocation = false
@@ -512,7 +515,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
                 // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
                 AnimatedVisibility(
-                    visible = state.selectedCourse == null,
+                    visible = selectedCourse == null,
                     enter = fadeIn(),
                     exit = fadeOut(),
                     modifier = Modifier
