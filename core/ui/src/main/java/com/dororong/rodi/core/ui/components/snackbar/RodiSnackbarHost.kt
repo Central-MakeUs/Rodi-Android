@@ -8,6 +8,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -17,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -24,6 +26,7 @@ import kotlinx.coroutines.delay
 fun RodiSnackbarHost(
     state: RodiSnackbarHostState,
     modifier: Modifier = Modifier,
+    bottomPadding: Dp = 114.dp,
 ) {
     val current = state.current
 
@@ -54,7 +57,12 @@ fun RodiSnackbarHost(
     var lastShown by remember { mutableStateOf<RodiSnackbarData?>(null) }
     if (current != null) lastShown = current
 
-    Box(modifier = modifier.fillMaxSize().padding(16.dp)) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .navigationBarsPadding()
+            .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = bottomPadding),
+    ) {
         AnimatedVisibility(
             visible = current != null,
             enter = fadeIn(tween(300)) + slideInVertically(tween(300)) { it },

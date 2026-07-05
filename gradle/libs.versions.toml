@@ -18,6 +18,7 @@ kotlinxSerialization = "1.7.3"
 
 # DataStore
 datastore = "1.1.7"
+securityCrypto = "1.1.0"
 
 # Network / DB
 retrofit = "2.11.0"
@@ -83,6 +84,7 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 # Network / DB
 retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
@@ -114,6 +116,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 # Kakao SDK
 kakao-maps = { group = "com.kakao.maps.open", name = "android", version.ref = "kakaoMap" }
 kakao-navi = { group = "com.kakao.sdk", name = "v2-navi", version.ref = "kakaoSdk" }
+kakao-user = { group = "com.kakao.sdk", name = "v2-user", version.ref = "kakaoSdk" }
 
 # Google Play Services
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }

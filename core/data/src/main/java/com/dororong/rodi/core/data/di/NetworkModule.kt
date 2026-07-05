@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.BuildConfig
+import com.dororong.rodi.core.data.auth.AuthApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,8 +15,8 @@ import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
-// 실제 서버 도메인 확정 전 placeholder. 서버 연동 시 교체.
-private const val BASE_URL = "https://api.rodi.app/"
+// 로그인/토큰 API 서버. Notion "카카오 로그인 API 연동 가이드" 기준.
+private const val BASE_URL = "https://api.stillstar.store/api/v1/"
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -54,4 +55,8 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
 }

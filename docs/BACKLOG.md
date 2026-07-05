@@ -4,6 +4,23 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator)** — 현재는 로그인(`/auth/oauth/kakao`)만
+  연동돼 있고 `Authorization` 헤더가 필요한 보호 API가 아직 하나도 없어 자동 갱신 로직을 미룸.
+  실제 보호 API가 생기면 `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해
+  401(`AUTH_401_6`) 응답 시 `/auth/token/refresh`로 재발급 후 재시도하도록 구현.
+  **주의**: 서버 정책상 이미 폐기된(재발급에 쓴) refreshToken을 다시 제출하면 재사용 탐지로
+  해당 회원의 **모든 세션이 폐기**된다(`AUTH_401_4`). 여러 요청이 동시에 401을 맞아 각자
+  재발급을 호출하면 이 상황이 발생하므로, "요청 시점에 쓰인 accessToken과 현재
+  `AuthTokenStore`에 저장된 값이 다르면(이미 다른 스레드가 갱신함) 재발급을 다시 호출하지
+  않고 저장된 값으로만 재시도"하는 single-flight 락을 반드시 넣을 것. 순환 의존(OkHttpClient →
+  AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용 Retrofit/OkHttpClient
+  인스턴스를 따로 구성해야 함.
+- [ ] **로그아웃 API(`POST /auth/logout`) 연동** — 프로필/설정 화면이 생기면
+  `AuthRepository.logout()`/`LogoutUseCase`를 추가하고 `AuthTokenStore.clear()` 호출.
+- [ ] **`isNewMember` 기반 온보딩 분기** — `LoginWithKakaoUseCase`가 이미 로그인 응답의
+  `isNewMember`를 반환하지만 사용하는 곳이 없음(온보딩/닉네임 설정 화면 부재). 해당 화면이
+  생기면 `LoginViewModel.onKakaoLoginResult`에서 이 값으로 `NavigateToOnboarding` vs
+  `NavigateNext`를 분기.
 - [ ] **Pretendard ExtraBold 폰트 파일 확보** — Figma Typography 시스템(`price 2/bold`, 14px)이
   Pretendard ExtraBold(800)을 쓰는데 `core/ui/src/main/res/font/`에 Regular/Medium/SemiBold/Bold
   4개만 있음. `RodiTypography.price2`는 임시로 Bold(700)로 대체 구현했으니, ExtraBold ttf를
