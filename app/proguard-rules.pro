@@ -11,7 +11,7 @@
 -renamesourcefileattribute SourceFile
 
 # Manifest에서 참조하는 Android 진입점.
--keep class com.dororong.rodi.RoutiApplication { *; }
+-keep class com.dororong.rodi.RodiApplication { *; }
 -keep class com.dororong.rodi.MainActivity { *; }
 
 # native 메서드를 가진 클래스를 보존한다. Kakao Maps는 native 라이브러리와 JNI 호출을 포함한다.

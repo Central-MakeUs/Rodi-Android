@@ -9,6 +9,7 @@ import com.kakao.sdk.navi.NaviClient
 import com.kakao.sdk.navi.model.CoordType
 import com.kakao.sdk.navi.model.Location
 import com.kakao.sdk.navi.model.NaviOption
+import java.util.Locale
 
 /**
  * 카카오내비 앱에 코스(출발→경유→목적)를 전달해 길 안내를 시작한다.
@@ -32,15 +33,15 @@ object KakaoNaviLauncher {
 
         val destination = Location(
             name = course.destination.name,
-            x = "%.6f".format(course.destination.lng),
-            y = "%.6f".format(course.destination.lat),
+            x = course.destination.lng.toNaviCoordinate(),
+            y = course.destination.lat.toNaviCoordinate(),
         )
 
         val viaList = if (course.isParking) {
             emptyList()
         } else {
             (listOf(course.origin) + course.waypointPoints).map { p ->
-                Location(name = p.name, x = "%.6f".format(p.lng), y = "%.6f".format(p.lat))
+                Location(name = p.name, x = p.lng.toNaviCoordinate(), y = p.lat.toNaviCoordinate())
             }
         }
 
@@ -61,3 +62,5 @@ object KakaoNaviLauncher {
         }
     }
 }
+
+internal fun Double.toNaviCoordinate(): String = String.format(Locale.US, "%.6f", this)

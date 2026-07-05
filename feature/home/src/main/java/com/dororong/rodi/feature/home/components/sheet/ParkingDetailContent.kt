@@ -36,7 +36,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.ParkingDetail
 import com.dororong.rodi.core.ui.components.RodiButton
@@ -348,7 +347,7 @@ private fun formatFee(minutes: Int?, fee: Int?): String {
 private fun ParkingDetailContentFreePreview() {
     BottomSheetPreviewWrapper {
         ParkingDetailContent(
-            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == true },
+            course = HomePreviewData.freeParking,
             onDismiss = {},
             onNavigate = {},
         )
@@ -360,7 +359,7 @@ private fun ParkingDetailContentFreePreview() {
 private fun ParkingDetailContentPaidPreview() {
     BottomSheetPreviewWrapper {
         ParkingDetailContent(
-            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
+            course = HomePreviewData.paidParking,
             onDismiss = {},
             onNavigate = {},
         )
@@ -372,7 +371,7 @@ private fun ParkingDetailContentPaidPreview() {
 private fun ParkingDetailContentAddressExpandedPreview() {
     BottomSheetPreviewWrapper {
         ParkingDetailContent(
-            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
+            course = HomePreviewData.paidParking,
             onDismiss = {},
             onNavigate = {},
             initialAddressExpanded = true,
@@ -385,7 +384,7 @@ private fun ParkingDetailContentAddressExpandedPreview() {
 private fun ParkingDetailContentHoursExpandedPreview() {
     BottomSheetPreviewWrapper {
         ParkingDetailContent(
-            course = SampleCourses.RODI_COURSES.first { it.isParking && it.parkingDetail?.isFree == false },
+            course = HomePreviewData.paidParking,
             onDismiss = {},
             onNavigate = {},
             initialHoursExpanded = true,
