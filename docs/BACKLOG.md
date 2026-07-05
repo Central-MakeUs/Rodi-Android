@@ -4,6 +4,10 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
+  지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
+  `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
+  릴리스가 나오면 버전 교체.
 - [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator)** — 현재는 로그인(`/auth/oauth/kakao`)만
   연동돼 있고 `Authorization` 헤더가 필요한 보호 API가 아직 하나도 없어 자동 갱신 로직을 미룸.
   실제 보호 API가 생기면 `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해
