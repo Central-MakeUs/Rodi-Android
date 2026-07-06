@@ -1,0 +1,45 @@
+name: Play Store Update Watch
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: playstore-watch
+  cancel-in-progress: false
+
+jobs:
+  check-update:
+    name: Check Play Store Update
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install google-play-scraper requests
+
+      - name: Check Play Store status
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python .github/playstore-watch/check_playstore_update.py
+
+      - name: Commit updated state
+        run: |
+          if git diff --quiet -- .github/playstore-watch/playstore-state.json; then
+            echo "No state change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/playstore-watch/playstore-state.json
+          git commit -m "chore: update playstore watch state [skip ci]"
+          git push

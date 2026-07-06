@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.Difficulty
 import com.dororong.rodi.core.domain.PracticeTag
@@ -233,7 +232,7 @@ fun VerticalStepList(course: Course, modifier: Modifier = Modifier) {
 private fun VerticalStepListPreview() {
     RodiTheme {
         VerticalStepList(
-            course = SampleCourses.ALL.first(),
+            course = HomePreviewData.courses.first(),
             modifier = Modifier.padding(16.dp),
         )
     }

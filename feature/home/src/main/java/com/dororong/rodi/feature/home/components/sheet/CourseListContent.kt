@@ -33,7 +33,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -192,7 +191,11 @@ fun CourseCard(
 @Composable
 private fun CourseListContentCollapsedPreview() {
     BottomSheetPreviewWrapper {
-        CourseListContent(courses = SampleCourses.ALL.filterNot { it.isParking }.take(3), onCourseClick = {}, expandFraction = 0f)
+        CourseListContent(
+            courses = HomePreviewData.courses.take(3),
+            onCourseClick = {},
+            expandFraction = 0f,
+        )
     }
 }
 
@@ -200,7 +203,11 @@ private fun CourseListContentCollapsedPreview() {
 @Composable
 private fun CourseListContentExpandedPreview() {
     BottomSheetPreviewWrapper {
-        CourseListContent(courses = SampleCourses.ALL.take(6), onCourseClick = {}, expandFraction = 1f)
+        CourseListContent(
+            courses = HomePreviewData.all,
+            onCourseClick = {},
+            expandFraction = 1f,
+        )
     }
 }
 
@@ -217,7 +224,7 @@ private fun CourseListContentEmptyPreview() {
 private fun CourseCardDefaultPreview() {
     RodiTheme {
         CourseCard(
-            course = SampleCourses.ALL.first(),
+            course = HomePreviewData.courses.first(),
             onClick = {},
         )
     }
@@ -228,7 +235,7 @@ private fun CourseCardDefaultPreview() {
 private fun CourseCardAddressExpandedPreview() {
     RodiTheme {
         CourseCard(
-            course = SampleCourses.ALL.first(),
+            course = HomePreviewData.courses.first(),
             onClick = {},
             initialAddressExpanded = true,
         )
@@ -246,11 +253,11 @@ private fun CourseCardMixedPreview() {
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             CourseCard(
-                course = SampleCourses.ALL.first { !it.isParking },
+                course = HomePreviewData.courses.first(),
                 onClick = {},
             )
             CourseCard(
-                course = SampleCourses.RODI_COURSES.first { it.isParking },
+                course = HomePreviewData.freeParking,
                 onClick = {},
             )
         }

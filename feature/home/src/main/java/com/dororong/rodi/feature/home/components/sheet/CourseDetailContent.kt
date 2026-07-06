@@ -29,7 +29,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import com.dororong.rodi.core.data.SampleCourses
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.ui.components.RodiButton
@@ -175,7 +174,7 @@ fun CourseDetailContent(
 private fun CourseDetailContentRoutingPreview() {
     BottomSheetPreviewWrapper {
         CourseDetailContent(
-            course = SampleCourses.ALL.first { !it.isParking },
+            course = HomePreviewData.courses.first(),
             route = null,
             isRouting = true,
             onDismiss = {},
@@ -189,7 +188,7 @@ private fun CourseDetailContentRoutingPreview() {
 private fun CourseDetailContentRouteReadyPreview() {
     BottomSheetPreviewWrapper {
         CourseDetailContent(
-            course = SampleCourses.ALL.first { !it.isParking },
+            course = HomePreviewData.courses.first(),
             route = RouteResult(
                 points = emptyList(),
                 isRealRoute = true,
@@ -207,7 +206,7 @@ private fun CourseDetailContentRouteReadyPreview() {
 private fun CourseDetailContentAddressExpandedPreview() {
     BottomSheetPreviewWrapper {
         CourseDetailContent(
-            course = SampleCourses.ALL.first { !it.isParking },
+            course = HomePreviewData.courses.first(),
             route = RouteResult(
                 points = emptyList(),
                 isRealRoute = true,

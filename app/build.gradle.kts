@@ -55,6 +55,7 @@ android {
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:ui"))
+    implementation(project(":feature:auth"))
     implementation(project(":feature:entry"))
     implementation(project(":feature:home"))
     implementation(platform(libs.androidx.compose.bom))
@@ -68,6 +69,10 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kakao.navi)
+    // AndroidManifest.xml이 이 라이브러리의 AuthCodeHandlerActivity를 직접 참조한다.
+    // feature:auth를 통해 transitive로 포함돼 런타임엔 문제없지만, lint의 MissingClass
+    // 검사는 app 모듈의 직접 의존성만 보므로 명시적으로 추가한다.
+    implementation(libs.kakao.user)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
