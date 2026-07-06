@@ -52,10 +52,11 @@ private const val TOTAL_STEPS = 3
 fun EntryScaffold(
     currentStep: Int,
     onBack: (() -> Unit)?,
-    buttonText: String,
-    buttonEnabled: Boolean,
-    onButtonClick: () -> Unit,
+    buttonText: String = "",
+    buttonEnabled: Boolean = false,
+    onButtonClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    bottomBar: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -105,15 +106,19 @@ fun EntryScaffold(
             content = content,
         )
 
-        // 하단 고정 버튼 48dp + 상하 10dp
-        RodiButton(
-            text = buttonText,
-            onClick = onButtonClick,
-            enabled = buttonEnabled,
-            modifier = Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
-        )
+        if (bottomBar != null) {
+            bottomBar()
+        } else {
+            // 하단 고정 버튼 48dp + 상하 10dp
+            RodiButton(
+                text = buttonText,
+                onClick = onButtonClick,
+                enabled = buttonEnabled,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
+            )
+        }
     }
 }
 

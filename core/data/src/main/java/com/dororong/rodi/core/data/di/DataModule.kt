@@ -2,10 +2,12 @@ package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.CourseRepositoryImpl
 import com.dororong.rodi.core.data.EntryRepositoryImpl
+import com.dororong.rodi.core.data.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.domain.CourseRepository
 import com.dororong.rodi.core.domain.EntryRepository
 import com.dororong.rodi.core.domain.NaviPreferenceRepository
+import com.dororong.rodi.core.domain.OnboardingRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -22,4 +24,7 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindEntryRepository(impl: EntryRepositoryImpl): EntryRepository
+
+    @Binds
+    abstract fun bindOnboardingRepository(impl: OnboardingRepositoryImpl): OnboardingRepository
 }

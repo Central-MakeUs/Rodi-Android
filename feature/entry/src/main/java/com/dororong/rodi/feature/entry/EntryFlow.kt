@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.terms.TermsWebView
@@ -55,7 +56,45 @@ fun EntryFlow(
                 onCompanionToggle = viewModel::toggleCompanion,
                 onAgreeToggle = viewModel::togglePrecautionAgreement,
                 onBack = { viewModel.back() },
-                onComplete = { viewModel.complete(onComplete) },
+                onComplete = viewModel::next,
+            )
+
+            EntryStep.NICKNAME -> {
+                LaunchedEffect(Unit) { viewModel.ensureNicknameGenerated() }
+                NicknameContent(
+                    nickname = viewModel.nickname,
+                    onBack = { viewModel.back() },
+                    onNext = viewModel::next,
+                )
+            }
+
+            EntryStep.CAREER -> CareerContent(
+                drivingPeriod = viewModel.drivingPeriod,
+                recentFrequency = viewModel.recentFrequency,
+                roadExperience = viewModel.roadExperience,
+                soloDrivingRange = viewModel.soloDrivingRange,
+                soloParkingLevel = viewModel.soloParkingLevel,
+                nextEnabled = viewModel.isCareerStepValid,
+                onDrivingPeriodSelect = viewModel::selectDrivingPeriod,
+                onRecentFrequencySelect = viewModel::selectRecentFrequency,
+                onRoadExperienceSelect = viewModel::selectRoadExperience,
+                onSoloDrivingRangeSelect = viewModel::selectSoloDrivingRange,
+                onSoloParkingLevelSelect = viewModel::selectSoloParkingLevel,
+                onBack = { viewModel.back() },
+                onNext = viewModel::next,
+            )
+
+            EntryStep.PREFERENCE -> PreferenceContent(
+                practiceSituations = viewModel.practiceSituations,
+                vehicleType = viewModel.vehicleType,
+                goal = viewModel.goal,
+                nextEnabled = viewModel.isPreferenceNextEnabled,
+                onPracticeSituationToggle = viewModel::togglePracticeSituation,
+                onVehicleTypeSelect = viewModel::selectVehicleType,
+                onGoalChange = viewModel::updateGoal,
+                onBack = { viewModel.back() },
+                onSkip = { viewModel.complete(onComplete) },
+                onNext = { viewModel.complete(onComplete) },
             )
 
             EntryStep.TERMS_WEBVIEW -> {
