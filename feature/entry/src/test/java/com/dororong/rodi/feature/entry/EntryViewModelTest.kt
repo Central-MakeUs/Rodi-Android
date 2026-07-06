@@ -43,40 +43,42 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `next moves through six entry steps and stays at preference`() {
+    fun `initial step is terms`() {
         val viewModel = testViewModel()
 
-        viewModel.next()
         assertEquals(EntryStep.TERMS, viewModel.step)
-
-        viewModel.next()
-        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-
-        viewModel.next()
-        assertEquals(EntryStep.NICKNAME, viewModel.step)
-
-        viewModel.next()
-        assertEquals(EntryStep.CAREER, viewModel.step)
-
-        viewModel.next()
-        assertEquals(EntryStep.PREFERENCE, viewModel.step)
-
-        viewModel.next()
-        assertEquals(EntryStep.PREFERENCE, viewModel.step)
     }
 
     @Test
-    fun `back moves through previous six steps and returns false at location`() {
+    fun `next moves through onboarding, precautions, location and stays at location`() {
+        val viewModel = testViewModel()
+
+        viewModel.next()
+        assertEquals(EntryStep.NICKNAME, viewModel.step)
+
+        viewModel.next()
+        assertEquals(EntryStep.CAREER, viewModel.step)
+
+        viewModel.next()
+        assertEquals(EntryStep.PREFERENCE, viewModel.step)
+
+        viewModel.next()
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+
+        viewModel.next()
+        assertEquals(EntryStep.LOCATION, viewModel.step)
+
+        viewModel.next()
+        assertEquals(EntryStep.LOCATION, viewModel.step)
+    }
+
+    @Test
+    fun `back moves through previous steps and returns false at terms`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.back())
-        assertEquals(EntryStep.LOCATION, viewModel.step)
+        assertEquals(EntryStep.TERMS, viewModel.step)
 
-        viewModel.next()
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.LOCATION, viewModel.step)
-
-        viewModel.next()
         viewModel.next()
         assertTrue(viewModel.back())
         assertEquals(EntryStep.TERMS, viewModel.step)
@@ -85,6 +87,13 @@ class EntryViewModelTest {
         viewModel.next()
         viewModel.next()
         viewModel.next()
+        viewModel.next()
+        assertEquals(EntryStep.LOCATION, viewModel.step)
+
+        assertTrue(viewModel.back())
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+
+        assertTrue(viewModel.back())
         assertEquals(EntryStep.PREFERENCE, viewModel.step)
 
         assertTrue(viewModel.back())
@@ -92,9 +101,6 @@ class EntryViewModelTest {
 
         assertTrue(viewModel.back())
         assertEquals(EntryStep.NICKNAME, viewModel.step)
-
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
 
         viewModel.openWebView("https://example.com")
         assertTrue(viewModel.back())
@@ -208,13 +214,13 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `preference next requires situation and vehicle but not goal`() {
+    fun `preference next requires situation but not vehicle or goal`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.isPreferenceNextEnabled)
 
         viewModel.togglePracticeSituation(PracticeSituation.U_TURN)
-        assertFalse(viewModel.isPreferenceNextEnabled)
+        assertTrue(viewModel.isPreferenceNextEnabled)
 
         viewModel.selectVehicleType(VehicleType.SUV)
         assertTrue(viewModel.isPreferenceNextEnabled)

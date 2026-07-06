@@ -26,6 +26,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
  */
 @Composable
 fun LocationPermissionContent(
+    onBack: (() -> Unit)? = null,
     onPermissionResolved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -35,7 +36,7 @@ fun LocationPermissionContent(
 
     EntryScaffold(
         currentStep = 1,
-        onBack = null,
+        onBack = onBack,
         buttonText = "계속하기",
         buttonEnabled = true,
         onButtonClick = {

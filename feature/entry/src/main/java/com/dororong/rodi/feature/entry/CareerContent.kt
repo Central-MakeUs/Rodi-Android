@@ -47,6 +47,7 @@ fun CareerContent(
         buttonEnabled = nextEnabled,
         onButtonClick = onNext,
         modifier = modifier,
+        showProgress = true,
     ) {
         Column(
             modifier = Modifier

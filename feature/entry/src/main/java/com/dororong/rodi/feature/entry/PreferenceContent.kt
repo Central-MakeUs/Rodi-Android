@@ -49,6 +49,7 @@ fun PreferenceContent(
         currentStep = 3,
         onBack = onBack,
         modifier = modifier,
+        showProgress = true,
         bottomBar = {
             Row(
                 modifier = Modifier

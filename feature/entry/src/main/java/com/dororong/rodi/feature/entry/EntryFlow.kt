@@ -13,7 +13,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
- * 진입 게이트 호스트: 위치권한 → 약관 → 주의사항 3단계를 상태 머신으로 전환한다.
+ * 진입 게이트 호스트: 약관 → 주의사항 → 위치권한 3단계를 상태 머신으로 전환한다.
  * 마지막 단계 완료 시 [onComplete].
  */
 @Composable
@@ -23,7 +23,7 @@ fun EntryFlow(
 ) {
     val step = viewModel.step
 
-    BackHandler(enabled = step != EntryStep.LOCATION) { viewModel.back() }
+    BackHandler(enabled = step != EntryStep.TERMS) { viewModel.back() }
 
     AnimatedContent(
         targetState = step,
@@ -32,7 +32,8 @@ fun EntryFlow(
     ) { target ->
         when (target) {
             EntryStep.LOCATION -> LocationPermissionContent(
-                onPermissionResolved = viewModel::next,
+                onBack = { viewModel.back() },
+                onPermissionResolved = { viewModel.complete(onComplete) },
             )
 
             EntryStep.TERMS -> TermsAgreementContent(
@@ -43,7 +44,7 @@ fun EntryFlow(
                 onServiceToggle = viewModel::toggleServiceTerms,
                 onPrivacyToggle = viewModel::togglePrivacyTerms,
                 onLocationToggle = viewModel::toggleLocationTerms,
-                onBack = { viewModel.back() },
+                onBack = null,
                 onNext = viewModel::next,
                 onTermsClick = { url -> viewModel.openWebView(url) },
             )
@@ -93,8 +94,8 @@ fun EntryFlow(
                 onVehicleTypeSelect = viewModel::selectVehicleType,
                 onGoalChange = viewModel::updateGoal,
                 onBack = { viewModel.back() },
-                onSkip = { viewModel.complete(onComplete) },
-                onNext = { viewModel.complete(onComplete) },
+                onSkip = viewModel::next,
+                onNext = viewModel::next,
             )
 
             EntryStep.TERMS_WEBVIEW -> {

@@ -26,6 +26,7 @@ fun NicknameContent(
         buttonEnabled = true,
         onButtonClick = onNext,
         modifier = modifier,
+        showProgress = true,
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

@@ -21,7 +21,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class EntryStep { LOCATION, TERMS, PRECAUTIONS, NICKNAME, CAREER, PREFERENCE, TERMS_WEBVIEW }
+enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, TERMS_WEBVIEW }
 
 /**
  * 진입 게이트 단계 상태 머신. 마지막 단계 완료 시 DataStore에 완료를 저장하고 [onDone] 호출.
@@ -32,7 +32,7 @@ class EntryViewModel @Inject constructor(
     private val saveOnboardingProfileUseCase: SaveOnboardingProfileUseCase,
 ) : ViewModel() {
 
-    var step by mutableStateOf(EntryStep.LOCATION)
+    var step by mutableStateOf(EntryStep.TERMS)
         private set
 
     var webViewUrl by mutableStateOf("")
@@ -88,7 +88,7 @@ class EntryViewModel @Inject constructor(
             (roadExperience != RoadExperience.SOLO || (soloDrivingRange != null && soloParkingLevel != null))
 
     val isPreferenceNextEnabled: Boolean
-        get() = practiceSituations.isNotEmpty() && vehicleType != null
+        get() = practiceSituations.isNotEmpty()
 
     fun setAllTermsChecked(checked: Boolean) {
         serviceTermsChecked = checked
@@ -166,12 +166,12 @@ class EntryViewModel @Inject constructor(
 
     fun next() {
         step = when (step) {
-            EntryStep.LOCATION -> EntryStep.TERMS
-            EntryStep.TERMS -> EntryStep.PRECAUTIONS
-            EntryStep.PRECAUTIONS -> EntryStep.NICKNAME
+            EntryStep.TERMS -> EntryStep.NICKNAME
             EntryStep.NICKNAME -> EntryStep.CAREER
             EntryStep.CAREER -> EntryStep.PREFERENCE
-            EntryStep.PREFERENCE -> EntryStep.PREFERENCE
+            EntryStep.PREFERENCE -> EntryStep.PRECAUTIONS
+            EntryStep.PRECAUTIONS -> EntryStep.LOCATION
+            EntryStep.LOCATION -> EntryStep.LOCATION
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
         }
     }
@@ -184,13 +184,13 @@ class EntryViewModel @Inject constructor(
     /** 뒤로. 첫 단계면 false(처리할 것 없음). */
     fun back(): Boolean {
         step = when (step) {
-            EntryStep.PRECAUTIONS -> EntryStep.TERMS
-            EntryStep.TERMS -> EntryStep.LOCATION
-            EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
-            EntryStep.NICKNAME -> EntryStep.PRECAUTIONS
+            EntryStep.NICKNAME -> EntryStep.TERMS
             EntryStep.CAREER -> EntryStep.NICKNAME
             EntryStep.PREFERENCE -> EntryStep.CAREER
-            EntryStep.LOCATION -> return false
+            EntryStep.PRECAUTIONS -> EntryStep.PREFERENCE
+            EntryStep.LOCATION -> EntryStep.PRECAUTIONS
+            EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
+            EntryStep.TERMS -> return false
         }
         return true
     }
