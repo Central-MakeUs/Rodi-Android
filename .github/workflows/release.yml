@@ -53,3 +53,12 @@ jobs:
             app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
           generate_release_notes: true
+
+      - name: Notify personal Discord
+        env:
+          PERSONAL_DISCORD_WEBHOOK_URL: ${{ secrets.PERSONAL_DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -X POST "$PERSONAL_DISCORD_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "{\"content\": \"✅ Rodi 릴리스 빌드 성공: ${{ github.ref_name }}\nhttps://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}\"}" \
+            -m 5 --silent
