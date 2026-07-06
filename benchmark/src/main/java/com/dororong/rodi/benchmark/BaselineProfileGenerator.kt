@@ -2,6 +2,7 @@ package com.dororong.rodi.benchmark
 
 import androidx.benchmark.macro.junit4.BaselineProfileRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -14,13 +15,14 @@ class BaselineProfileGenerator {
 
     @Test
     fun generate() {
-        baselineProfileRule.collect(packageName = PACKAGE_NAME) {
+        baselineProfileRule.collect(packageName = targetPackageName) {
             pressHome()
             startActivityAndWait()
         }
     }
 
     private companion object {
-        const val PACKAGE_NAME = "com.dororong.rodi"
+        val targetPackageName: String
+            get() = InstrumentationRegistry.getInstrumentation().targetContext.packageName
     }
 }

@@ -9,7 +9,7 @@ PKG="com.dororong.rodi"
 ACTIVITY=".MainActivity"
 ITERATIONS=3
 APK_PATH=""
-SERIAL="$(adb devices | awk 'NR==2{print $1}')"
+SERIAL=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -19,6 +19,12 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if ! [[ "$ITERATIONS" =~ ^[0-9]+$ ]] || [[ "$ITERATIONS" -lt 1 ]]; then
+  echo "✗ ITERATIONS는 1 이상이어야 합니다"; exit 1
+fi
+if [[ -z "$SERIAL" ]]; then
+  SERIAL="$(adb devices | awk 'NR==2{print $1}')"
+fi
 if [[ -z "$SERIAL" ]]; then
   echo "✗ 연결된 기기가 없습니다 (adb devices)"; exit 1
 fi
