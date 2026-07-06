@@ -96,7 +96,6 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     val state by vm.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    // firstOrNull/haversine 필터라 매번 다시 계산하지 않도록 의존 값이 실제로 바뀔 때만 재계산한다.
     val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
     val filteredCourses = remember(state.courses, state.distanceFilterKm, state.userLat, state.userLng) {
         state.filteredCourses
