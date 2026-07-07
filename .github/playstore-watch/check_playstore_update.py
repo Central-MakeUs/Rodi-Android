@@ -2,6 +2,7 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 import requests
 from google_play_scraper import app as fetch_app
@@ -36,7 +37,7 @@ def notify_discord(message: str) -> None:
     resp.raise_for_status()
 
 
-def build_notification(previous: dict, current: dict) -> str | None:
+def build_notification(previous: dict, current: dict) -> Optional[str]:
     was_live = previous.get("live", False)
     is_live = current["live"]
 
@@ -66,10 +67,15 @@ def main() -> None:
     current = fetch_current_state()
     previous = load_previous_state()
 
-    if previous:
-        message = build_notification(previous, current)
-        if message:
-            notify_discord(message)
+    print(f"Previous Play Store state: {previous or 'none'}")
+    print(f"Current Play Store state: {current}")
+
+    message = build_notification(previous, current)
+    if message:
+        notify_discord(message)
+        print("Discord notification sent")
+    else:
+        print("No notification needed")
 
     save_state(current)
 

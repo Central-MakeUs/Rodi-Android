@@ -34,7 +34,7 @@ jobs:
 
       - name: Commit updated state
         run: |
-          if git diff --quiet -- .github/playstore-watch/playstore-state.json; then
+          if [ -z "$(git status --porcelain -- .github/playstore-watch/playstore-state.json)" ]; then
             echo "No state change"
             exit 0
           fi
