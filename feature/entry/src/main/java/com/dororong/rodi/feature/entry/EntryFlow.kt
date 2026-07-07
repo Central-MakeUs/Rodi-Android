@@ -13,7 +13,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
- * 진입 게이트 호스트: 약관 → 주의사항 → 위치권한 3단계를 상태 머신으로 전환한다.
+ * 진입 게이트 호스트: 약관 → 닉네임 → 경력 → 선호 → 주의사항 → 위치권한 순으로 상태 머신을 전환한다.
  * 마지막 단계 완료 시 [onComplete].
  */
 @Composable

@@ -17,7 +17,7 @@ Figma("루티 DESIGN")에 위치권한/약관/주의사항 이후에 이어지�
 
 **사용자와 확인해 정리된 결정 사항 (모두 확정, 재질문 불필요):**
 - 목표 텍스트 입력(선택 3-3)은 **선택사항**. "다음" 활성화는 텍스트와 무관.
-- PREFERENCE 화면 "다음" 활성화 조건은 **상황 칩 1개 이상 + 차종 1개 선택** (텍스트 무관). 사용자가
+- PREFERENCE 화면 "다음" 활성화 조건은 **상황 칩 1개 이상** (차종/텍스트 무관). 사용자가
   잠정 결정한 것이라 실제 컨펌 전까지 확정 아님 — 나중에 바뀔 수 있음을 감안해 이 조건은
   `EntryViewModel.isPreferenceNextEnabled` 한 곳에만 존재하게 구현한다(다른 곳에 로직 중복 금지).
 - 닉네임은 **서버에서 랜덤 배정 예정**이나 백엔드 API가 없어 이번엔 로컬 랜덤 생성으로 대체한다
@@ -385,7 +385,7 @@ val isCareerStepValid: Boolean
         (roadExperience != RoadExperience.SOLO || (soloDrivingRange != null && soloParkingLevel != null))
 
 val isPreferenceNextEnabled: Boolean
-    get() = practiceSituations.isNotEmpty() && vehicleType != null
+    get() = practiceSituations.isNotEmpty()
 ```
 
 `next()`/`back()` 확장:
@@ -511,7 +511,7 @@ bottomBar = { ... })` — `bottomBar`로 "건너뛰기"(`Secondary`, `fillMaxWid
 - [ ] `CAREER`: "혼자 연습" 선택 후 다른 값으로 바꾸면 조건부 질문이 사라지고 그 값들이 초기화됨
 - [ ] `PREFERENCE`: 상황 칩은 최대 3개까지만 선택되고, 선택 순서대로 1/2/3 배지가 표시되며, 이미 3개
       선택된 상태에서 다른 칩을 눌러도 무시됨
-- [ ] `PREFERENCE`: "다음"은 상황 1개 이상 + 차종 선택 시에만 활성화(목표 텍스트 유무 무관),
+- [ ] `PREFERENCE`: "다음"은 상황 1개 이상일 때 활성화(차종/목표 텍스트는 무관),
       "건너뛰기"는 항상 활성화
 - [ ] `PREFERENCE`: "다음"/"건너뛰기" 둘 다 `OnboardingProfile`을 저장한 뒤 온보딩 완료 처리(기존
       `EntryPreferences.setCompleted` 그대로 호출)까지 이어짐
@@ -574,7 +574,7 @@ bottomBar = { ... })` — `bottomBar`로 "건너뛰기"(`Secondary`, `fillMaxWid
 - 에뮬레이터(emulator-5554) 실기기 검증: 앱 완전 재설치 후 LOCATION→TERMS→PRECAUTIONS(기존 3화면 시각
   변화 없음 확인) → NICKNAME(닉네임 랜덤 생성 확인) → CAREER("혼자 연습" 선택 시 조건부 질문 2개 노출,
   다른 값으로 변경 시 초기화 확인) → PREFERENCE(상황 칩 3개 선택 시 순서 배지 1/2/3 정상 표시, 4번째
-  탭 무시 확인, 차종 선택 전 "다음" 비활성 확인) → "다음" 클릭 → Home 정상 진입까지 전 과정 수동 확인
+  탭 무시 확인, 상황 선택 전 "다음" 비활성 확인) → "다음" 클릭 → Home 정상 진입까지 전 과정 수동 확인
 - `adb run-as ... cat files/datastore/onboarding.preferences_pb`로 저장값이 실제 탭한 선택지와 정확히
   일치함을 확인(driving_period=UNDER_1_MONTH, recent_frequency=RARELY, road_experience=WITH_COMPANION,
   practice_situations=[U_TURN,TURN,PARKING] 순서 보존, vehicle_type=SMALL)
