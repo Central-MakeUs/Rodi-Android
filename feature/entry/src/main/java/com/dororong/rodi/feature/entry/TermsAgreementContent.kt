@@ -28,7 +28,7 @@ fun TermsAgreementContent(
     onServiceToggle: () -> Unit,
     onPrivacyToggle: () -> Unit,
     onLocationToggle: () -> Unit,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onNext: () -> Unit,
     onTermsClick: (String) -> Unit,
     modifier: Modifier = Modifier,

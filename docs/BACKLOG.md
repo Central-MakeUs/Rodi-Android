@@ -8,6 +8,22 @@
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
   릴리스가 나오면 버전 교체.
+- [ ] **온보딩 설문(닉네임/경력/선호) 서버 API 연동** — 지금은 `core:data`의 `OnboardingPreferences`
+  (DataStore)에 로컬 저장만 한다. 닉네임도 서버 랜덤 생성이 최종 목표이나 백엔드 API가 없어
+  `core:common`의 `NicknameGenerator`(로컬 단어 조합)로 대체했다. 백엔드 API 확정되면 Retrofit
+  연동으로 교체하고 로컬 저장 로직은 제거/폴백으로 전환할 것.
+- [ ] **온보딩 설문 점수 배점 확정** — Figma 코멘트("레벨 관련 정보 적어주기")는 온보딩 답변마다
+  점수를 매겨 클라이언트에서 합산 후 서버로 전송하는 방식인데, 2026-07-04 기준 배점 자체가
+  미확정이라 이번 구현(`feature/onboarding-profile-survey`)에서는 점수 계산 로직을 아예 넣지 않았다.
+  배점 확정되면 `core:domain`에 점수 계산 UseCase 추가.
+- [ ] **닉네임 마이페이지 수정 기능** — 온보딩에서 자동 배정된 닉네임은 이번 스코프에서 수정 UI가
+  없다(사용자 확인: "닉네임 수정은 나중에 마이페이지에서"). 마이페이지 화면 작업 시 함께 고려.
+- [ ] **`NicknameGenerator` 단어 리스트 PM 검수** — 형용사구/동물 각 10개씩 임시로 채워 넣었다
+  (`core/common/.../NicknameGenerator.kt`). 실제 서비스에 쓸 최종 리스트는 PM 검수 필요.
+- [ ] **`PracticeSituation`(온보딩 선호 상황) ↔ `PracticeTag`(Course 특징) 통합 검토** — 두 enum이
+  라벨 상당수 겹치지만(유턴/좌우회전/주차/차선변경/교차로/회전교차로/고속진입/직선주행 등) 완전히
+  같지 않아 이번엔 별도 enum으로 분리했다. 코스 추천 매칭 로직을 설계할 때 두 개념을 어떻게
+  연결할지(혹은 통합할지) 재검토할 것.
 - [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator)** — 현재는 로그인(`/auth/oauth/kakao`)만
   연동돼 있고 `Authorization` 헤더가 필요한 보호 API가 아직 하나도 없어 자동 갱신 로직을 미룸.
   실제 보호 API가 생기면 `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해

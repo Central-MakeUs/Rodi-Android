@@ -52,10 +52,12 @@ private const val TOTAL_STEPS = 3
 fun EntryScaffold(
     currentStep: Int,
     onBack: (() -> Unit)?,
-    buttonText: String,
-    buttonEnabled: Boolean,
-    onButtonClick: () -> Unit,
+    buttonText: String = "",
+    buttonEnabled: Boolean = false,
+    onButtonClick: () -> Unit = {},
     modifier: Modifier = Modifier,
+    bottomBar: (@Composable () -> Unit)? = null,
+    showProgress: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -86,15 +88,16 @@ fun EntryScaffold(
                 )
             }
         }
-        // 진행 인디케이터: top 4, 좌우 16, 세그먼트 gap 2, bottom 32
-        StepProgressIndicator(
-            currentStep = currentStep,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = RodiSpacing.md)
-                .padding(top = RodiSpacing.xs),
-        )
-        Spacer(Modifier.height(RodiSpacing.xl)) // bottom 32
+        if (showProgress) {
+            StepProgressIndicator(
+                currentStep = currentStep,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = RodiSpacing.md)
+                    .padding(top = RodiSpacing.xs),
+            )
+            Spacer(Modifier.height(RodiSpacing.xl))
+        }
 
         // 콘텐츠 영역
         Column(
@@ -105,15 +108,19 @@ fun EntryScaffold(
             content = content,
         )
 
-        // 하단 고정 버튼 48dp + 상하 10dp
-        RodiButton(
-            text = buttonText,
-            onClick = onButtonClick,
-            enabled = buttonEnabled,
-            modifier = Modifier
-                .navigationBarsPadding()
-                .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
-        )
+        if (bottomBar != null) {
+            bottomBar()
+        } else {
+            // 하단 고정 버튼 48dp + 상하 10dp
+            RodiButton(
+                text = buttonText,
+                onClick = onButtonClick,
+                enabled = buttonEnabled,
+                modifier = Modifier
+                    .navigationBarsPadding()
+                    .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
+            )
+        }
     }
 }
 

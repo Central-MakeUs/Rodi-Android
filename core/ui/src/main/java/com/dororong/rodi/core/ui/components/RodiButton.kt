@@ -63,13 +63,14 @@ fun RodiButton(
     modifier: Modifier = Modifier,
     variant: RodiButtonVariant = RodiButtonVariant.Primary,
     enabled: Boolean = true,
+    fillMaxWidth: Boolean = true,
     shape: Shape = RodiButtonDefaults.shape(),
 ) {
     Button(
         onClick = onClick,
         enabled = enabled,
         modifier = modifier
-            .fillMaxWidth()
+            .let { if (fillMaxWidth) it.fillMaxWidth() else it }
             .height(RodiButtonDefaults.Height),
         shape = shape,
         colors = RodiButtonDefaults.colors(variant),
