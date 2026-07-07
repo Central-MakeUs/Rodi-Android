@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -23,6 +22,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import dagger.hilt.android.EntryPointAccessors
@@ -44,13 +44,11 @@ fun LoginScreen(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val uiState by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(viewModel) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                LoginEffect.NavigateNext -> onNavigateNext()
-                is LoginEffect.ShowSnackbar ->
-                    snackbarHostState.show(RodiSnackbarData(message = effect.message))
-            }
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            LoginEffect.NavigateNext -> onNavigateNext()
+            is LoginEffect.ShowSnackbar ->
+                snackbarHostState.show(RodiSnackbarData(message = effect.message))
         }
     }
 

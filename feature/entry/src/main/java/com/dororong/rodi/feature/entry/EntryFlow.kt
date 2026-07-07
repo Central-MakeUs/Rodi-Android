@@ -7,12 +7,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
- * 진입 게이트 호스트: 위치권한 → 약관 → 주의사항 3단계를 상태 머신으로 전환한다.
+ * 진입 게이트 호스트: 약관 → 닉네임 → 경력 → 선호 → 주의사항 → 위치권한 순으로 상태 머신을 전환한다.
  * 마지막 단계 완료 시 [onComplete].
  */
 @Composable
@@ -22,7 +23,7 @@ fun EntryFlow(
 ) {
     val step = viewModel.step
 
-    BackHandler(enabled = step != EntryStep.LOCATION) { viewModel.back() }
+    BackHandler(enabled = step != EntryStep.TERMS) { viewModel.back() }
 
     AnimatedContent(
         targetState = step,
@@ -31,7 +32,8 @@ fun EntryFlow(
     ) { target ->
         when (target) {
             EntryStep.LOCATION -> LocationPermissionContent(
-                onPermissionResolved = viewModel::next,
+                onBack = { viewModel.back() },
+                onPermissionResolved = { viewModel.complete(onComplete) },
             )
 
             EntryStep.TERMS -> TermsAgreementContent(
@@ -42,7 +44,7 @@ fun EntryFlow(
                 onServiceToggle = viewModel::toggleServiceTerms,
                 onPrivacyToggle = viewModel::togglePrivacyTerms,
                 onLocationToggle = viewModel::toggleLocationTerms,
-                onBack = { viewModel.back() },
+                onBack = null,
                 onNext = viewModel::next,
                 onTermsClick = { url -> viewModel.openWebView(url) },
             )
@@ -55,7 +57,45 @@ fun EntryFlow(
                 onCompanionToggle = viewModel::toggleCompanion,
                 onAgreeToggle = viewModel::togglePrecautionAgreement,
                 onBack = { viewModel.back() },
-                onComplete = { viewModel.complete(onComplete) },
+                onComplete = viewModel::next,
+            )
+
+            EntryStep.NICKNAME -> {
+                LaunchedEffect(Unit) { viewModel.ensureNicknameGenerated() }
+                NicknameContent(
+                    nickname = viewModel.nickname,
+                    onBack = { viewModel.back() },
+                    onNext = viewModel::next,
+                )
+            }
+
+            EntryStep.CAREER -> CareerContent(
+                drivingPeriod = viewModel.drivingPeriod,
+                recentFrequency = viewModel.recentFrequency,
+                roadExperience = viewModel.roadExperience,
+                soloDrivingRange = viewModel.soloDrivingRange,
+                soloParkingLevel = viewModel.soloParkingLevel,
+                nextEnabled = viewModel.isCareerStepValid,
+                onDrivingPeriodSelect = viewModel::selectDrivingPeriod,
+                onRecentFrequencySelect = viewModel::selectRecentFrequency,
+                onRoadExperienceSelect = viewModel::selectRoadExperience,
+                onSoloDrivingRangeSelect = viewModel::selectSoloDrivingRange,
+                onSoloParkingLevelSelect = viewModel::selectSoloParkingLevel,
+                onBack = { viewModel.back() },
+                onNext = viewModel::next,
+            )
+
+            EntryStep.PREFERENCE -> PreferenceContent(
+                practiceSituations = viewModel.practiceSituations,
+                vehicleType = viewModel.vehicleType,
+                goal = viewModel.goal,
+                nextEnabled = viewModel.isPreferenceNextEnabled,
+                onPracticeSituationToggle = viewModel::togglePracticeSituation,
+                onVehicleTypeSelect = viewModel::selectVehicleType,
+                onGoalChange = viewModel::updateGoal,
+                onBack = { viewModel.back() },
+                onSkip = viewModel::next,
+                onNext = viewModel::next,
             )
 
             EntryStep.TERMS_WEBVIEW -> {

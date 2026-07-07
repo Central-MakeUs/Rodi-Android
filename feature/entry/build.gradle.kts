@@ -8,7 +8,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:domain"))
+    implementation(project(":core:common"))
+    api(project(":core:domain"))
     implementation(project(":core:ui"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

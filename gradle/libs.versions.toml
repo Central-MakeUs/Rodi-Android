@@ -8,6 +8,10 @@ coreKtx = "1.19.0"
 lifecycleRuntimeKtx = "2.11.0"
 activityCompose = "1.13.0"
 navigation3 = "1.1.4"
+benchmark = "1.4.1"
+baselineProfilePlugin = "1.5.0-alpha07"
+profileinstaller = "1.4.1"
+uiautomator = "2.4.0"
 
 # Compose
 composeBom = "2026.06.00"
@@ -65,6 +69,9 @@ androidx-lifecycle-viewmodel-navigation3 = { group = "androidx.lifecycle", name 
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-navigation3-runtime = { group = "androidx.navigation3", name = "navigation3-runtime", version.ref = "navigation3" }
 androidx-navigation3-ui = { group = "androidx.navigation3", name = "navigation3-ui", version.ref = "navigation3" }
+androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "benchmark" }
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
+androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 
 # Compose
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -124,6 +131,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 [plugins]
 # 앱/모듈에서 alias로 적용하는 Gradle 플러그인 (build-logic classpath는 [libraries] 참고)
 android-application = { id = "com.android.application", version.ref = "agp" }
+androidx-baselineprofile = { id = "androidx.baselineprofile", version.ref = "baselineProfilePlugin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
