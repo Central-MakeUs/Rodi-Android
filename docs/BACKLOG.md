@@ -4,6 +4,10 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
+  지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
+  `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
+  릴리스가 나오면 버전 교체.
 - [ ] **온보딩 설문(닉네임/경력/선호) 서버 API 연동** — 지금은 `core:data`의 `OnboardingPreferences`
   (DataStore)에 로컬 저장만 한다. 닉네임도 서버 랜덤 생성이 최종 목표이나 백엔드 API가 없어
   `core:common`의 `NicknameGenerator`(로컬 단어 조합)로 대체했다. 백엔드 API 확정되면 Retrofit
