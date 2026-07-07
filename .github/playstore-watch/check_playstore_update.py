@@ -11,6 +11,7 @@ from google_play_scraper.exceptions import NotFoundError
 PACKAGE_NAME = "com.dororong.rodi"
 STORE_URL = f"https://play.google.com/store/apps/details?id={PACKAGE_NAME}"
 STATE_FILE = Path(__file__).parent / "playstore-state.json"
+UPDATE_FIELDS = ("version", "updated", "released", "recentChanges")
 
 
 def load_previous_state() -> dict:
@@ -28,7 +29,13 @@ def fetch_current_state() -> dict:
         result = fetch_app(PACKAGE_NAME, lang="ko", country="kr")
     except NotFoundError:
         return {"live": False}
-    return {"live": True, "version": result.get("version"), "updated": result.get("updated")}
+    return {
+        "live": True,
+        "version": result.get("version"),
+        "updated": result.get("updated"),
+        "released": result.get("released"),
+        "recentChanges": result.get("recentChanges"),
+    }
 
 
 def notify_discord(message: str) -> None:
@@ -51,8 +58,19 @@ def build_notification(previous: dict, current: dict) -> Optional[str]:
     if was_live and not is_live:
         return "⚠️ **Rodi가 플레이스토어에서 내려갔습니다** (정지/삭제 여부 확인 필요)"
 
-    if was_live and is_live and previous.get("updated") != current.get("updated"):
-        updated_at = datetime.fromtimestamp(current["updated"], tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    changed_fields = [
+        field
+        for field in UPDATE_FIELDS
+        if field in previous and previous.get(field) != current.get(field)
+    ]
+
+    if was_live and is_live and changed_fields:
+        updated = current.get("updated")
+        updated_at = (
+            datetime.fromtimestamp(updated, tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            if updated
+            else current.get("released") or "알 수 없음"
+        )
         return (
             "📢 **Rodi 플레이스토어 업데이트 감지됨**\n"
             f"- 버전: {previous.get('version') or '알 수 없음'} → {current.get('version')}\n"

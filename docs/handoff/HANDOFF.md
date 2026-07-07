@@ -16,12 +16,14 @@ Play Store 게시 감지용 GitHub Actions는 성공했지만, 상태 파일이 
 
 ## Files to touch
 - `.github/playstore-watch/check_playstore_update.py`
+- `.github/playstore-watch/playstore-state.json`
 - `.github/workflows/playstore-watch.yml`
 - `docs/handoff/HANDOFF.md`
 
 ## Acceptance criteria
 - [x] 상태 파일이 없고 앱이 live이면 디스코드 게시 알림 메시지가 생성된다.
 - [x] 새 상태 파일이 untracked여도 워크플로 커밋 단계에서 감지된다.
+- [x] Play Store `updated`가 null이어도 이후 변경 감지에 쓸 공개 메타데이터를 상태에 저장한다.
 - [x] 앱 debug build가 성공한다.
 
 ## Verification
@@ -32,14 +34,14 @@ PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -c '<notification branch c
 ```
 
 ## Out of scope
-- GitHub Actions 강제 실행 및 원격 브랜치 푸시
 - Play Console 설정 변경
 
 ---
 ## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
-- Changed files: `.github/playstore-watch/check_playstore_update.py`, `.github/workflows/playstore-watch.yml`, `docs/handoff/HANDOFF.md`
-- Build/test: `PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -m py_compile .github/playstore-watch/check_playstore_update.py` GREEN; notification branch checks GREEN; `./gradlew assembleDebug` GREEN
+- Changed files: `.github/playstore-watch/check_playstore_update.py`, `.github/playstore-watch/playstore-state.json`, `.github/workflows/playstore-watch.yml`, `docs/handoff/HANDOFF.md`
+- Build/test: `PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -m py_compile .github/playstore-watch/check_playstore_update.py` GREEN; notification branch checks GREEN; `./gradlew assembleDebug` GREEN; `gh workflow run playstore-watch.yml --ref develop` GREEN
 - Open questions: none
+- Note: manual run `28873869781` sent Discord notification at 2026-07-07 23:26 KST and committed initial state `f5642af`.
 
 ---
 ## Claude Review  <!-- Claude가 검토 후 채움 -->
