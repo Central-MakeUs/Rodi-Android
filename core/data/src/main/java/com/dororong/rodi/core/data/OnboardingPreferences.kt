@@ -20,7 +20,7 @@ class OnboardingPreferences(private val context: Context) {
             prefs[KEY_NICKNAME] = profile.nickname
             profile.drivingPeriod?.let { prefs[KEY_DRIVING_PERIOD] = it.name }
             profile.recentFrequency?.let { prefs[KEY_RECENT_FREQUENCY] = it.name }
-            profile.roadExperience?.let { prefs[KEY_ROAD_EXPERIENCE] = it.name }
+            prefs[KEY_ROAD_EXPERIENCES] = profile.roadExperiences.map { it.name }.toSet()
             profile.soloDrivingRange?.let { prefs[KEY_SOLO_DRIVING_RANGE] = it.name }
             profile.soloParkingLevel?.let { prefs[KEY_SOLO_PARKING_LEVEL] = it.name }
             prefs[KEY_PRACTICE_SITUATIONS] = profile.practiceSituations.map { it.name }.toSet()
@@ -33,7 +33,7 @@ class OnboardingPreferences(private val context: Context) {
         val KEY_NICKNAME = stringPreferencesKey("nickname")
         val KEY_DRIVING_PERIOD = stringPreferencesKey("driving_period")
         val KEY_RECENT_FREQUENCY = stringPreferencesKey("recent_frequency")
-        val KEY_ROAD_EXPERIENCE = stringPreferencesKey("road_experience")
+        val KEY_ROAD_EXPERIENCES = stringSetPreferencesKey("road_experience")
         val KEY_SOLO_DRIVING_RANGE = stringPreferencesKey("solo_driving_range")
         val KEY_SOLO_PARKING_LEVEL = stringPreferencesKey("solo_parking_level")
         val KEY_PRACTICE_SITUATIONS = stringSetPreferencesKey("practice_situations")
