@@ -1,10 +1,11 @@
 package com.dororong.rodi.feature.auth
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -15,12 +16,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.ui.components.RodiButtonDefaults
+import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 // 카카오 브랜드 가이드 고정 색상 — RodiTheme 토큰 대상 아님. SemanticColors 도입(BACKLOG) 시 이관 검토.
-private val KakaoYellow = Color(0xFFFEE500)
-private val KakaoContent = Color(0xFF191919)
+private val KakaoYellow = Color(0xFFFDE500)
+private val KakaoContent = Color(0xFF222222)
 
 @Composable
 fun KakaoLoginButton(
@@ -33,28 +34,29 @@ fun KakaoLoginButton(
         enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
-            .height(RodiButtonDefaults.Height),
-        shape = RodiButtonDefaults.shape(),
+            .height(52.dp),
+        shape = RoundedCornerShape(RodiRadius.sm),
         colors = ButtonDefaults.buttonColors(
             containerColor = KakaoYellow,
             contentColor = KakaoContent,
             disabledContainerColor = KakaoYellow,
             disabledContentColor = KakaoContent,
         ),
+        contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
             Icon(
                 painter = painterResource(R.drawable.ic_kakao),
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(22.dp),
                 tint = Color.Unspecified,
             )
             Text(
                 text = "카카오로 시작하기",
-                style = RodiTheme.typography.button1,
+                modifier = Modifier.align(Alignment.Center),
+                style = RodiTheme.typography.body2SemiBold,
             )
         }
     }

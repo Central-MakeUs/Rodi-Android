@@ -34,11 +34,13 @@ class AuthTokenStore @Inject constructor(
     val accessToken: String? get() = prefs.getString(KEY_ACCESS_TOKEN, null)
     val refreshToken: String? get() = prefs.getString(KEY_REFRESH_TOKEN, null)
     val isLoggedIn: Boolean get() = refreshToken != null
+    val hasRecentKakaoLogin: Boolean get() = prefs.getString(KEY_RECENT_PROVIDER, null) == PROVIDER_KAKAO
 
     fun save(accessToken: String, refreshToken: String) {
         prefs.edit()
             .putString(KEY_ACCESS_TOKEN, accessToken)
             .putString(KEY_REFRESH_TOKEN, refreshToken)
+            .putString(KEY_RECENT_PROVIDER, PROVIDER_KAKAO)
             .apply()
     }
 
@@ -50,6 +52,8 @@ class AuthTokenStore @Inject constructor(
         const val PREFS_NAME = "auth_secure_prefs"
         const val KEY_ACCESS_TOKEN = "access_token"
         const val KEY_REFRESH_TOKEN = "refresh_token"
+        const val KEY_RECENT_PROVIDER = "recent_provider"
+        const val PROVIDER_KAKAO = "kakao"
 
         fun createPrefsWithRecovery(context: Context): SharedPreferences =
             try {
