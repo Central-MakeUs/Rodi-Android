@@ -32,6 +32,17 @@ class EntryPreferences(private val context: Context) {
             }
             .map { it[KEY_COMPLETED] ?: false }
 
+    val hasGuestAccess: Flow<Boolean> =
+        context.entryDataStore.data
+            .catch { exception ->
+                if (exception is IOException) {
+                    emit(emptyPreferences())
+                } else {
+                    throw exception
+                }
+            }
+            .map { it[KEY_GUEST_ACCESS] ?: false }
+
     val progress: Flow<EntryProgress> =
         context.entryDataStore.data
             .catch { exception ->
@@ -61,6 +72,10 @@ class EntryPreferences(private val context: Context) {
         }
     }
 
+    suspend fun grantGuestAccess() {
+        context.entryDataStore.edit { it[KEY_GUEST_ACCESS] = true }
+    }
+
     suspend fun saveProgress(progress: EntryProgress) {
         context.entryDataStore.edit { prefs ->
             prefs[KEY_STEP] = progress.step.name
@@ -76,6 +91,7 @@ class EntryPreferences(private val context: Context) {
 
     private companion object {
         val KEY_COMPLETED = booleanPreferencesKey("entry_completed")
+        val KEY_GUEST_ACCESS = booleanPreferencesKey("guest_access")
         val KEY_STEP = stringPreferencesKey("entry_step")
         val KEY_WEB_VIEW_URL = stringPreferencesKey("entry_web_view_url")
         val KEY_SERVICE_TERMS_CHECKED = booleanPreferencesKey("service_terms_checked")

@@ -3,9 +3,18 @@ package com.dororong.rodi.core.data
 import com.dororong.rodi.core.data.auth.AuthApi
 import com.dororong.rodi.core.data.auth.AuthTokenResponse
 import com.dororong.rodi.core.data.auth.AuthTokenStore
+import com.dororong.rodi.core.data.auth.OAuthOnboardingProfileRequest
 import com.dororong.rodi.core.data.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.network.ApiEnvelope
 import com.dororong.rodi.core.domain.AuthException
+import com.dororong.rodi.core.domain.DrivingPeriod
+import com.dororong.rodi.core.domain.OnboardingProfile
+import com.dororong.rodi.core.domain.PracticeSituation
+import com.dororong.rodi.core.domain.RecentDrivingFrequency
+import com.dororong.rodi.core.domain.RoadExperience
+import com.dororong.rodi.core.domain.SoloDrivingRange
+import com.dororong.rodi.core.domain.SoloParkingLevel
+import com.dororong.rodi.core.domain.VehicleType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -41,6 +50,54 @@ class AuthRepositoryImplTest {
         assertEquals(true, result)
         verify(exactly = 1) { tokenStore.save("server-access-token", "server-refresh-token") }
         coVerify(exactly = 1) { authApi.oauthLogin("kakao", OAuthLoginRequest("access-token")) }
+    }
+
+    @Test
+    fun `loginWithKakao sends onboarding profile when local draft exists`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>(relaxed = true)
+        val profile = OnboardingProfile(
+            nickname = "로디",
+            drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+            recentFrequency = RecentDrivingFrequency.WEEKLY_1,
+            roadExperiences = listOf(RoadExperience.SOLO),
+            soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
+            soloParkingLevel = SoloParkingLevel.FAMILIAR_SPOT,
+            practiceSituations = listOf(PracticeSituation.PARKING),
+            vehicleType = VehicleType.SUV,
+            goal = "주차 연습",
+        )
+        val request = OAuthLoginRequest(
+            credential = "access-token",
+            onboardingProfile = OAuthOnboardingProfileRequest(
+                nickname = "로디",
+                drivingPeriod = "MONTH_1_TO_3",
+                recentFrequency = "WEEKLY_1",
+                roadExperiences = listOf("SOLO"),
+                soloDrivingRange = "FAMILIAR_ROAD",
+                soloParkingLevel = "FAMILIAR_SPOT",
+                practiceSituations = listOf("PARKING"),
+                vehicleType = "SUV",
+                goal = "주차 연습",
+            ),
+        )
+        coEvery { authApi.oauthLogin("kakao", request) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = AuthTokenResponse(
+                accessToken = "server-access-token",
+                refreshToken = "server-refresh-token",
+                isNewMember = false,
+            ),
+        )
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        val result = repository.loginWithKakao("access-token", profile)
+
+        assertEquals(false, result)
+        verify(exactly = 1) { tokenStore.save("server-access-token", "server-refresh-token") }
+        coVerify(exactly = 1) { authApi.oauthLogin("kakao", request) }
     }
 
     @Test
