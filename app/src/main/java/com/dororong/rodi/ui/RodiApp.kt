@@ -40,11 +40,20 @@ fun RodiApp() {
             ).authTokenStore().isLoggedIn
         }
     }
+    val hasRecentKakaoLogin by produceState<Boolean?>(initialValue = null, appContext) {
+        value = withContext(Dispatchers.IO) {
+            EntryPointAccessors.fromApplication(
+                appContext,
+                AuthTokenStoreEntryPoint::class.java,
+            ).authTokenStore().hasRecentKakaoLogin
+        }
+    }
     val backStack = remember { mutableStateListOf<Any>() }
 
     val completedValue = completed
     val isLoggedInValue = isLoggedIn
-    if (completedValue == null || isLoggedInValue == null) {
+    val hasRecentKakaoLoginValue = hasRecentKakaoLogin
+    if (completedValue == null || isLoggedInValue == null || hasRecentKakaoLoginValue == null) {
         LoadingScreen()
         return
     }
@@ -75,6 +84,7 @@ fun RodiApp() {
             when (key) {
                 LoginRoute -> NavEntry(key) {
                     LoginScreen(
+                        showRecentKakaoLogin = hasRecentKakaoLoginValue,
                         onNavigateNext = {
                             backStack.clear()
                             backStack.add(if (completedValue) HomeRoute else EntryRoute)
