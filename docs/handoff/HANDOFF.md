@@ -1,4 +1,4 @@
-# HANDOFF — Play Store Discord watch fix
+# HANDOFF — Splash screen update
 
 > Claude(기획)와 Codex(구현)가 주고받는 **단일 활성 작업 채널**.
 > 완료되면 `docs/handoff/archive/<날짜>-<작업>.md`로 옮기고 이 파일은 다음 작업으로 비운다.
@@ -7,44 +7,44 @@ Status: IMPL_DONE            <!-- PLANNING | READY_FOR_IMPL | IMPL_DONE | IN_REV
 Branch: develop
 
 ## Context (왜)
-Play Store 게시 감지용 GitHub Actions는 성공했지만, 상태 파일이 저장되지 않아 디스코드 웹훅 알림이 오지 않았다.
+앱 시작 시 Android 기본 스플래시 아이콘 대신 Rodi 브랜드 스플래시를 보여줘야 한다.
 
 ## Spec (무엇을·어떻게)
-- 상태 파일이 없고 현재 Play Store에 앱이 live이면 이번 실행에서 게시 알림을 보낸다.
-- 새로 생성된 상태 파일을 GitHub Actions가 untracked 상태에서도 감지해 커밋한다.
-- 이후 실행은 커밋된 상태를 기준으로 업데이트 알림을 보낸다.
+- Android 12+ 시스템 기본 스플래시 아이콘은 보이지 않게 한다.
+- 앱 초기 로딩 화면은 흰 배경 중앙에 Figma 기준 RODI 워드마크와 `운전연습의 시작, 로디` 문구만 보여준다.
+- 로그인 버튼, 최근 로그인 팝오버 등 로그인 화면의 다른 요소는 스플래시에 포함하지 않는다.
+- 커밋은 만들지 않는다.
 
 ## Files to touch
-- `.github/playstore-watch/check_playstore_update.py`
-- `.github/playstore-watch/playstore-state.json`
-- `.github/workflows/playstore-watch.yml`
+- `app/src/main/java/com/dororong/rodi/ui/RodiApp.kt`
+- `app/src/main/res/drawable/ic_rodi_wordmark.xml`
+- `app/src/main/res/drawable/ic_splash_transparent.xml`
+- `app/src/main/res/values-v31/themes.xml`
 - `docs/handoff/HANDOFF.md`
 
 ## Acceptance criteria
-- [x] 상태 파일이 없고 앱이 live이면 디스코드 게시 알림 메시지가 생성된다.
-- [x] 새 상태 파일이 untracked여도 워크플로 커밋 단계에서 감지된다.
-- [x] Play Store `updated`가 null이어도 이후 변경 감지에 쓸 공개 메타데이터를 상태에 저장한다.
+- [x] 기본 시스템 스플래시 아이콘이 표시되지 않는다.
+- [x] 앱 스플래시는 RODI 워드마크와 `운전연습의 시작, 로디` 문구만 표시한다.
 - [x] 앱 debug build가 성공한다.
 
 ## Verification
 ```
-PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -m py_compile .github/playstore-watch/check_playstore_update.py
-PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -c '<notification branch checks>'
 ./gradlew assembleDebug
 ```
 
 ## Out of scope
-- Play Console 설정 변경
+- 로그인 화면 레이아웃 변경
+- 앱 아이콘 변경
+- 커밋 생성
 
 ---
-## Codex Result   <!-- Codex가 구현 후 채움 → Status=IMPL_DONE (또는 막히면 BLOCKED) -->
-- Changed files: `.github/playstore-watch/check_playstore_update.py`, `.github/playstore-watch/playstore-state.json`, `.github/workflows/playstore-watch.yml`, `docs/handoff/HANDOFF.md`
-- Build/test: `PYTHONPYCACHEPREFIX=/private/tmp/rodi-pycache python3 -m py_compile .github/playstore-watch/check_playstore_update.py` GREEN; notification branch checks GREEN; `./gradlew assembleDebug` GREEN; `gh workflow run playstore-watch.yml --ref develop` GREEN
+## Codex Result
+- Changed files: `app/src/main/java/com/dororong/rodi/ui/RodiApp.kt`, `app/src/main/res/drawable/ic_rodi_wordmark.xml`, `app/src/main/res/drawable/ic_splash_transparent.xml`, `app/src/main/res/values-v31/themes.xml`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew assembleDebug` GREEN
 - Open questions: none
-- Note: manual run `28873869781` sent Discord notification at 2026-07-07 23:26 KST and committed initial state `f5642af`.
 
 ---
-## Claude Review  <!-- Claude가 검토 후 채움 -->
+## Claude Review
 - Blocking:
 - Nits:
 - Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
