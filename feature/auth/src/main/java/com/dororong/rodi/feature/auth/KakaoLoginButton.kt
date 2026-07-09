@@ -39,8 +39,8 @@ fun KakaoLoginButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = KakaoYellow,
             contentColor = KakaoContent,
-            disabledContainerColor = KakaoYellow,
-            disabledContentColor = KakaoContent,
+            disabledContainerColor = KakaoYellow.copy(alpha = 0.4f),
+            disabledContentColor = KakaoContent.copy(alpha = 0.4f),
         ),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {

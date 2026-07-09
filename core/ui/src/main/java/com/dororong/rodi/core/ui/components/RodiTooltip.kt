@@ -16,7 +16,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
@@ -43,7 +42,7 @@ fun RodiTooltip(
         ) {
             Text(
                 text = text,
-                style = RodiTheme.typography.body3SemiBold.copy(lineHeight = 16.sp),
+                style = RodiTheme.typography.body3SemiBold,
                 color = RodiTheme.colors.white,
             )
         }
