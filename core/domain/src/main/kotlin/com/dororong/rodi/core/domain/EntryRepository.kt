@@ -4,5 +4,7 @@ import kotlinx.coroutines.flow.Flow
 
 interface EntryRepository {
     val isCompleted: Flow<Boolean?>
+    val progress: Flow<EntryProgress>
     suspend fun setCompleted()
+    suspend fun saveProgress(progress: EntryProgress)
 }

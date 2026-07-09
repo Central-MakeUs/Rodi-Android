@@ -5,11 +5,14 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 /**
@@ -21,6 +24,15 @@ fun EntryFlow(
     onComplete: () -> Unit,
     viewModel: EntryViewModel = hiltViewModel(),
 ) {
+    if (!viewModel.isRestored) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(RodiTheme.colors.white),
+        )
+        return
+    }
+
     val step = viewModel.step
 
     BackHandler(enabled = step != EntryStep.TERMS) { viewModel.back() }
