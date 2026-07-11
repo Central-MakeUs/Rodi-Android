@@ -53,7 +53,7 @@ Figma 로그인 화면 기준으로 Android 로그인 화면의 하단 CTA와 �
 - Open questions: none
 
 ---
-## Claude Review  <!-- Claude가 검토 후 채움 -->
+## Claude Review
 - Blocking:
 - Nits:
 - Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
