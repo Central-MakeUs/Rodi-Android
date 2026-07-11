@@ -3,18 +3,25 @@ package com.dororong.rodi.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.MapViewportQuery
 import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.GetMapCoursesUseCase
 import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,9 +32,11 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import javax.inject.Inject
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     getCoursesUseCase: GetCoursesUseCase,
+    private val getMapCoursesUseCase: GetMapCoursesUseCase,
     private val getRouteUseCase: GetRouteUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
@@ -41,6 +50,9 @@ class HomeViewModel @Inject constructor(
         val distanceFilterKm: Int? = null,    // null=전체, 3, 5, 10
         val userLat: Double? = null,
         val userLng: Double? = null,
+        val viewportQuery: MapViewportQuery? = null,
+        val isLoadingMapCourses: Boolean = false,
+        val mapCourseLoadFailed: Boolean = false,
     ) {
         val selectedCourse: Course? get() = courses.firstOrNull { it.id == selectedCourseId }
         val selectedRoute: RouteResult? get() = selectedCourseId?.let { routeByCourse[it] }
@@ -61,8 +73,20 @@ class HomeViewModel @Inject constructor(
     private val _state = MutableStateFlow(UiState(courses = getCoursesUseCase()))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
+    private val viewportQueries = MutableStateFlow<MapViewportQuery?>(null)
+
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
+
+    init {
+        viewModelScope.launch {
+            viewportQueries
+                .filterNotNull()
+                .debounce(300)
+                .distinctUntilChanged()
+                .collectLatest(::loadMapCourses)
+        }
+    }
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
@@ -70,6 +94,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDismissDetail -> onDismissDetail()
             is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
             is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            is HomeIntent.OnViewportChanged -> onViewportChanged(intent.query)
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
@@ -111,6 +136,45 @@ class HomeViewModel @Inject constructor(
 
     private fun onLocationUpdate(lat: Double, lng: Double) {
         _state.update { it.copy(userLat = lat, userLng = lng) }
+    }
+
+    private fun onViewportChanged(query: MapViewportQuery) {
+        if (_state.value.viewportQuery == query) return
+        _state.update { it.copy(viewportQuery = query) }
+        viewportQueries.value = query
+    }
+
+    private suspend fun loadMapCourses(query: MapViewportQuery) {
+        _state.update {
+            it.copy(
+                viewportQuery = query,
+                isLoadingMapCourses = true,
+                mapCourseLoadFailed = false,
+            )
+        }
+        getMapCoursesUseCase(query)
+            .onSuccess { courses ->
+                _state.update { current ->
+                    val selected = current.selectedCourse
+                    val nextCourses = if (selected != null && courses.none { it.id == selected.id }) {
+                        courses + selected
+                    } else {
+                        courses
+                    }
+                    current.copy(
+                        courses = nextCourses,
+                        isLoadingMapCourses = false,
+                    )
+                }
+            }
+            .onFailure {
+                _state.update { current ->
+                    current.copy(
+                        isLoadingMapCourses = false,
+                        mapCourseLoadFailed = true,
+                    )
+                }
+            }
     }
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {

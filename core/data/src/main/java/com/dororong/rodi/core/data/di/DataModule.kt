@@ -4,6 +4,8 @@ import com.dororong.rodi.core.data.AuthRepositoryImpl
 import com.dororong.rodi.core.data.CourseRepositoryImpl
 import com.dororong.rodi.core.data.EntryRepositoryImpl
 import com.dororong.rodi.core.data.OnboardingRepositoryImpl
+import com.dororong.rodi.core.data.map.LocalSyntheticMapCourseDataSource
+import com.dororong.rodi.core.data.map.MapCourseDataSource
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.domain.AuthRepository
 import com.dororong.rodi.core.domain.CourseRepository
@@ -18,6 +20,9 @@ import dagger.hilt.components.SingletonComponent
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+    @Binds
+    abstract fun bindMapCourseDataSource(impl: LocalSyntheticMapCourseDataSource): MapCourseDataSource
+
     @Binds
     abstract fun bindCourseRepository(impl: CourseRepositoryImpl): CourseRepository
 

@@ -4,12 +4,14 @@ import app.cash.turbine.test
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.CourseFeatures
 import com.dororong.rodi.core.domain.GeoPoint
+import com.dororong.rodi.core.domain.MapViewportQuery
 import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.domain.RodiItemType
 import com.dororong.rodi.core.domain.RouteResult
 import com.dororong.rodi.core.domain.Waypoint
 import com.dororong.rodi.core.domain.WaypointType
 import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.GetMapCoursesUseCase
 import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
@@ -19,8 +21,11 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -52,6 +57,82 @@ class HomeViewModelTest {
         val viewModel = createViewModel(courses = courses)
 
         assertEquals(courses, viewModel.state.value.courses)
+    }
+
+    @Test
+    fun `viewport query replaces courses after debounce`() = runTest(testDispatcher) {
+        val mapCourse = testCourse(id = 2)
+        val query = testViewportQuery()
+        val getMapCoursesUseCase = mockk<GetMapCoursesUseCase>()
+        coEvery { getMapCoursesUseCase(query) } returns Result.success(listOf(mapCourse))
+        val viewModel = createViewModel(getMapCoursesUseCase = getMapCoursesUseCase)
+
+        viewModel.onIntent(HomeIntent.OnViewportChanged(query))
+        advanceTimeBy(299)
+        runCurrent()
+        assertEquals(listOf(testCourse()), viewModel.state.value.courses)
+
+        advanceTimeBy(1)
+        advanceUntilIdle()
+
+        assertEquals(listOf(mapCourse), viewModel.state.value.courses)
+        assertFalse(viewModel.state.value.isLoadingMapCourses)
+    }
+
+    @Test
+    fun `identical viewport query is requested once`() = runTest(testDispatcher) {
+        val query = testViewportQuery()
+        val getMapCoursesUseCase = mockk<GetMapCoursesUseCase>()
+        coEvery { getMapCoursesUseCase(query) } returns Result.success(emptyList())
+        val viewModel = createViewModel(getMapCoursesUseCase = getMapCoursesUseCase)
+
+        viewModel.onIntent(HomeIntent.OnViewportChanged(query))
+        viewModel.onIntent(HomeIntent.OnViewportChanged(query))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { getMapCoursesUseCase(query) }
+    }
+
+    @Test
+    fun `viewport failure keeps last courses`() = runTest(testDispatcher) {
+        val courses = listOf(testCourse())
+        val query = testViewportQuery()
+        val getMapCoursesUseCase = mockk<GetMapCoursesUseCase>()
+        coEvery { getMapCoursesUseCase(query) } returns Result.failure(IllegalStateException("failed"))
+        val viewModel = createViewModel(courses = courses, getMapCoursesUseCase = getMapCoursesUseCase)
+
+        viewModel.onIntent(HomeIntent.OnViewportChanged(query))
+        advanceUntilIdle()
+
+        assertEquals(courses, viewModel.state.value.courses)
+        assertTrue(viewModel.state.value.mapCourseLoadFailed)
+    }
+
+    @Test
+    fun `new viewport cancels previous load and keeps latest courses`() = runTest(testDispatcher) {
+        val firstQuery = testViewportQuery().copy(zoomLevel = 10)
+        val latestQuery = testViewportQuery().copy(zoomLevel = 11)
+        val staleCourse = testCourse(id = 2)
+        val latestCourse = testCourse(id = 3)
+        val getMapCoursesUseCase = mockk<GetMapCoursesUseCase>()
+        coEvery { getMapCoursesUseCase(firstQuery) } coAnswers {
+            delay(1_000)
+            Result.success(listOf(staleCourse))
+        }
+        coEvery { getMapCoursesUseCase(latestQuery) } returns Result.success(listOf(latestCourse))
+        val viewModel = createViewModel(getMapCoursesUseCase = getMapCoursesUseCase)
+
+        viewModel.onIntent(HomeIntent.OnViewportChanged(firstQuery))
+        advanceTimeBy(300)
+        runCurrent()
+        viewModel.onIntent(HomeIntent.OnViewportChanged(latestQuery))
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        assertEquals(listOf(latestCourse), viewModel.state.value.courses)
+        assertEquals(latestQuery, viewModel.state.value.viewportQuery)
+        coVerify(exactly = 1) { getMapCoursesUseCase(firstQuery) }
+        coVerify(exactly = 1) { getMapCoursesUseCase(latestQuery) }
     }
 
     @Test
@@ -218,6 +299,7 @@ class HomeViewModelTest {
 
     private fun createViewModel(
         courses: List<Course> = listOf(testCourse()),
+        getMapCoursesUseCase: GetMapCoursesUseCase = mockk(),
         getRouteUseCase: GetRouteUseCase = mockk(),
         getNaviAlwaysUseCase: GetNaviAlwaysUseCase = mockk(),
         setNaviAlwaysUseCase: SetNaviAlwaysUseCase = mockk(),
@@ -226,6 +308,7 @@ class HomeViewModelTest {
         every { getCoursesUseCase() } returns courses
         return HomeViewModel(
             getCoursesUseCase = getCoursesUseCase,
+            getMapCoursesUseCase = getMapCoursesUseCase,
             getRouteUseCase = getRouteUseCase,
             getNaviAlwaysUseCase = getNaviAlwaysUseCase,
             setNaviAlwaysUseCase = setNaviAlwaysUseCase,
@@ -277,4 +360,10 @@ private fun testWaypoints() = listOf(
 private fun testRouteResult() = RouteResult(
     points = listOf(GeoPoint(37.5665, 126.9780), GeoPoint(37.5651, 126.9895)),
     isRealRoute = true,
+)
+
+private fun testViewportQuery() = MapViewportQuery(
+    northEast = GeoPoint(37.7, 127.2),
+    southWest = GeoPoint(37.3, 126.7),
+    zoomLevel = 13,
 )

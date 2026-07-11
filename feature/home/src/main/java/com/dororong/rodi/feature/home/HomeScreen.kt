@@ -50,17 +50,21 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.domain.Course
+import com.dororong.rodi.core.domain.GeoPoint
 import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsDocument
@@ -68,12 +72,22 @@ import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.hasLocationPermission
+import com.dororong.rodi.feature.home.components.ClusterLabPanel
+import com.dororong.rodi.feature.home.map.BrowseLabelTag
+import com.dororong.rodi.feature.home.map.ClusterPolicy
+import com.dororong.rodi.feature.home.map.GridClusterer
+import com.dororong.rodi.feature.home.map.MapViewportQueryFactory
+import com.dororong.rodi.feature.home.map.ProjectedMapItem
+import com.dororong.rodi.feature.home.map.clearBrowseLabels
+import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
+import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderCourse
 import com.dororong.rodi.feature.home.map.renderCourseChips
 import com.dororong.rodi.feature.home.map.renderCourseMarkers
+import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -116,6 +130,10 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
     }
     var mapRetryKey by remember { mutableIntStateOf(0) }
+    var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
+    var clusterCount by remember { mutableIntStateOf(0) }
+    val clusterBackgroundColor = RodiTheme.colors.primary600.toArgb()
+    val clusterTextColor = RodiTheme.colors.white.toArgb()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -190,14 +208,36 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     }
     val mapBottomPaddingPx = if (selectedCourse == null) peekHeightPx else detailSheetHeightPx
 
-    LaunchedEffect(kakaoMap) {
+    LaunchedEffect(kakaoMap, mapViewSize) {
         val map = kakaoMap ?: return@LaunchedEffect
+        val dispatchViewport: (KakaoMap) -> Unit = { viewportMap ->
+            if (mapViewSize.width > 0 && mapViewSize.height > 0) {
+                val northEast = viewportMap.fromScreenPoint(mapViewSize.width, 0)
+                val southWest = viewportMap.fromScreenPoint(0, mapViewSize.height)
+                if (northEast != null && southWest != null) {
+                    vm.onIntent(
+                        HomeIntent.OnViewportChanged(
+                            MapViewportQueryFactory.fromCorners(
+                                northEast = GeoPoint(northEast.latitude, northEast.longitude),
+                                southWest = GeoPoint(southWest.latitude, southWest.longitude),
+                                zoomLevel = viewportMap.zoomLevel,
+                            ),
+                        ),
+                    )
+                }
+            }
+        }
+        map.setCameraMinLevel(MIN_ZOOM)
+        map.setGestureEnable(GestureType.Rotate, false)
+        map.setGestureEnable(GestureType.RotateZoom, false)
+        map.setGestureEnable(GestureType.Tilt, false)
         map.setOnCameraMoveStartListener { _, gestureType ->
             if (gestureType != GestureType.Unknown) {
                 isAtCurrentLocation = false
             }
         }
         map.setOnCameraMoveEndListener { movedMap, _, _ ->
+            dispatchViewport(movedMap)
             if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
                 coroutineScope.launch {
                     delay(1_500)
@@ -211,11 +251,30 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         }
         // 장소 칩 탭 → 코스 상세 진입
         map.setOnLabelClickListener { _, _, label ->
-            val courseId = label.tag as? Int ?: return@setOnLabelClickListener true
-            vm.onIntent(HomeIntent.OnCourseClick(courseId))
-            isAtCurrentLocation = false
+            when (val tag = label.tag) {
+                is BrowseLabelTag.Cluster -> {
+                    map.moveCamera(
+                        CameraUpdateFactory.newCenterPosition(
+                            LatLng.from(tag.center.lat, tag.center.lng),
+                            tag.targetZoom,
+                        ),
+                        CameraAnimation.from(350),
+                    )
+                }
+
+                is BrowseLabelTag.Course -> {
+                    vm.onIntent(HomeIntent.OnCourseClick(tag.id))
+                    isAtCurrentLocation = false
+                }
+
+                is Int -> {
+                    vm.onIntent(HomeIntent.OnCourseClick(tag))
+                    isAtCurrentLocation = false
+                }
+            }
             true
         }
+        dispatchViewport(map)
     }
 
     CollectEffect(vm.effect) { effect ->
@@ -269,14 +328,61 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
     // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
     // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
-    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, filteredCourses) {
+    LaunchedEffect(
+        kakaoMap,
+        mapViewSize,
+        state.viewportQuery,
+        state.selectedCourseId,
+        state.selectedRoute,
+        filteredCourses,
+        clusterBackgroundColor,
+        clusterTextColor,
+    ) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = selectedCourse
         if (course == null) {
-            map.renderCourseChips(context, filteredCourses)
+            map.clearCourse()
+            val width = mapViewSize.width
+            val height = mapViewSize.height
+            val zoomLevel = state.viewportQuery?.zoomLevel ?: DEFAULT_ZOOM
+            val projectedCourses = filteredCourses.mapNotNull { item ->
+                val start = item.startWaypoint
+                val screenPoint = map.toScreenPoint(LatLng.from(start.lat, start.lng))
+                    ?: return@mapNotNull null
+                if (screenPoint.x !in 0..width || screenPoint.y !in 0..height) return@mapNotNull null
+                item to ProjectedMapItem(
+                    id = item.id,
+                    point = GeoPoint(start.lat, start.lng),
+                    x = screenPoint.x,
+                    y = screenPoint.y,
+                )
+            }
+            val policy = ClusterPolicy.forZoom(zoomLevel)
+            if (policy == null) {
+                clusterCount = 0
+                map.renderIndividualMarkers(context, projectedCourses.map { it.first })
+            } else {
+                val clusters = GridClusterer.cluster(
+                    items = projectedCourses.map { it.second },
+                    viewportWidth = width,
+                    viewportHeight = height,
+                    policy = policy,
+                )
+                clusterCount = clusters.size
+                map.renderClusters(
+                    context = context,
+                    clusters = clusters,
+                    backgroundColor = clusterBackgroundColor,
+                    textColor = clusterTextColor,
+                )
+            }
         } else if (course.isParking) {
+            clusterCount = 0
+            map.clearCourse()
             map.renderCourseChips(context, listOf(course))
         } else {
+            clusterCount = 0
+            map.clearBrowseLabels()
             val route = state.selectedRoute
             if (route == null) {
                 map.renderCourseMarkers(context, course)
@@ -488,7 +594,9 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     val mapView = rememberMapViewWithLifecycle()
 
                     AndroidView(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSizeChanged { mapViewSize = it },
                         factory = {
                             mapView.start(
                                 object : MapLifeCycleCallback() {
@@ -500,6 +608,10 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                                 },
                                 object : KakaoMapReadyCallback() {
                                     override fun onMapReady(map: KakaoMap) {
+                                        map.setCameraMinLevel(MIN_ZOOM)
+                                        map.setGestureEnable(GestureType.Rotate, false)
+                                        map.setGestureEnable(GestureType.RotateZoom, false)
+                                        map.setGestureEnable(GestureType.Tilt, false)
                                         kakaoMap = map
                                     }
 
@@ -512,6 +624,32 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     )
                 }
 
+                val labZoom = state.viewportQuery?.zoomLevel ?: DEFAULT_ZOOM
+                val labPolicy = ClusterPolicy.forZoom(labZoom)
+                ClusterLabPanel(
+                    zoomLevel = labZoom,
+                    mode = ClusterPolicy.modeForZoom(labZoom),
+                    columns = labPolicy?.columns,
+                    rows = labPolicy?.rows,
+                    query = state.viewportQuery,
+                    courseCount = filteredCourses.size,
+                    clusterCount = clusterCount,
+                    isLoading = state.isLoadingMapCourses,
+                    hasError = state.mapCourseLoadFailed,
+                    onZoomSelected = { zoom ->
+                        kakaoMap?.let { map ->
+                            map.moveCamera(
+                                CameraUpdateFactory.zoomTo(zoom),
+                                CameraAnimation.from(300),
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(start = 8.dp, top = 8.dp),
+                )
+
                 // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
                 AnimatedVisibility(
                     visible = selectedCourse == null,
@@ -520,7 +658,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
-                        .padding(top = 12.dp),
+                        .padding(top = 168.dp),
                 ) {
                     DistanceFilterBar(
                         selectedKm = state.distanceFilterKm,

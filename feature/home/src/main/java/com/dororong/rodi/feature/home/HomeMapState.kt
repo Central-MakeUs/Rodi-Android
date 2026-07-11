@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.kakao.vectormap.LatLng
 
 internal const val DEFAULT_ZOOM = 13
+internal const val MIN_ZOOM = 7
 private const val HOME_PREFS = "rodi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 internal val SEOUL = LatLng.from(37.5563, 126.9220)
