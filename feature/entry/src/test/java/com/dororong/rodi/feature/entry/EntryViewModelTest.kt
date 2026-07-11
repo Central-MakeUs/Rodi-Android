@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.entry
 
+import app.cash.turbine.test
 import com.dororong.rodi.core.domain.DrivingPeriod
 import com.dororong.rodi.core.domain.EntryProgress
 import com.dororong.rodi.core.domain.EntryProgressStep
@@ -236,9 +237,9 @@ class EntryViewModelTest {
     fun `nickname is generated only once`() {
         val viewModel = testViewModel()
 
-        viewModel.ensureNicknameGenerated()
+        viewModel.next()
         val nickname = viewModel.nickname
-        viewModel.ensureNicknameGenerated()
+        viewModel.next()
 
         assertTrue(nickname.isNotBlank())
         assertEquals(nickname, viewModel.nickname)
@@ -365,7 +366,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `finish stores entry completion and invokes callback`() = runTest(testDispatcher) {
+    fun `finish stores entry completion and emits completion effect`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -374,14 +375,14 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        var done = false
-
         advanceUntilIdle()
-        viewModel.finish { done = true }
-        advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertTrue(done)
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            assertEquals(EntryEffect.CompleteEntry, awaitItem())
+        }
     }
 
     @Test
@@ -394,14 +395,14 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } throws IllegalStateException("failed")
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        var done = false
-
         advanceUntilIdle()
-        viewModel.finish { done = true }
-        advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertFalse(done)
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            expectNoEvents()
+        }
     }
 
     @Test
@@ -414,14 +415,14 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } throws CancellationException("cancelled")
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        var done = false
-
         advanceUntilIdle()
-        viewModel.finish { done = true }
-        advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertFalse(done)
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            expectNoEvents()
+        }
     }
 
     private fun testViewModel(
@@ -463,3 +464,24 @@ class EntryViewModelTest {
         mockk()
 
 }
+
+private val EntryViewModel.isRestored: Boolean get() = state.value.isRestored
+private val EntryViewModel.step: EntryStep get() = state.value.step
+private val EntryViewModel.webViewUrl: String get() = state.value.webViewUrl
+private val EntryViewModel.serviceTermsChecked: Boolean get() = state.value.serviceTermsChecked
+private val EntryViewModel.privacyTermsChecked: Boolean get() = state.value.privacyTermsChecked
+private val EntryViewModel.locationTermsChecked: Boolean get() = state.value.locationTermsChecked
+private val EntryViewModel.licenseChecked: Boolean get() = state.value.licenseChecked
+private val EntryViewModel.companionChecked: Boolean get() = state.value.companionChecked
+private val EntryViewModel.precautionAgreementChecked: Boolean get() = state.value.precautionAgreementChecked
+private val EntryViewModel.nickname: String get() = state.value.nickname
+private val EntryViewModel.drivingPeriod: DrivingPeriod? get() = state.value.drivingPeriod
+private val EntryViewModel.recentFrequency: RecentDrivingFrequency? get() = state.value.recentFrequency
+private val EntryViewModel.roadExperiences: List<RoadExperience> get() = state.value.roadExperiences
+private val EntryViewModel.soloDrivingRange: SoloDrivingRange? get() = state.value.soloDrivingRange
+private val EntryViewModel.soloParkingLevel: SoloParkingLevel? get() = state.value.soloParkingLevel
+private val EntryViewModel.practiceSituations: List<PracticeSituation> get() = state.value.practiceSituations
+private val EntryViewModel.vehicleType: VehicleType? get() = state.value.vehicleType
+private val EntryViewModel.goal: String get() = state.value.goal
+private val EntryViewModel.isCareerStepValid: Boolean get() = state.value.isCareerStepValid
+private val EntryViewModel.isPreferenceNextEnabled: Boolean get() = state.value.isPreferenceNextEnabled
