@@ -117,6 +117,8 @@ private fun PracticeSituationQuestion(
             Spacer(Modifier.width(RodiSpacing.sm))
             Text("최대 3개", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
         }
+        Spacer(Modifier.height(10.dp))
+        Text("1순위부터 순서대로 선택해주세요.", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
         Spacer(Modifier.height(RodiSpacing.sm))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -169,12 +171,13 @@ private fun GoalQuestion(
         Spacer(Modifier.height(RodiSpacing.sm))
         OutlinedTextField(
             value = goal,
-            onValueChange = onGoalChange,
+            onValueChange = { onGoalChange(it.take(MAX_GOAL_LENGTH)) },
             modifier = Modifier.fillMaxWidth(),
-            minLines = 3,
+            minLines = 1,
+            maxLines = 2,
             placeholder = {
                 Text(
-                    "복잡한 강남 자신있게 운전하기!",
+                    "ex)강남 운전 자신있게 하기!",
                     style = RodiTheme.typography.body3Medium,
                     color = RodiTheme.colors.gray500,
                 )
@@ -182,15 +185,24 @@ private fun GoalQuestion(
             textStyle = RodiTheme.typography.body3Medium,
             shape = RoundedCornerShape(RodiRadius.sm),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = RodiTheme.colors.primary600,
+                focusedBorderColor = RodiTheme.colors.gray900,
                 unfocusedBorderColor = RodiTheme.colors.gray300,
                 focusedTextColor = RodiTheme.colors.black,
                 unfocusedTextColor = RodiTheme.colors.black,
                 cursorColor = RodiTheme.colors.primary600,
             ),
         )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "${goal.length}/$MAX_GOAL_LENGTH",
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray600,
+            modifier = Modifier.align(Alignment.End),
+        )
     }
 }
+
+private const val MAX_GOAL_LENGTH = 30
 
 @Preview(showBackground = true, widthDp = 360, heightDp = 760)
 @Composable

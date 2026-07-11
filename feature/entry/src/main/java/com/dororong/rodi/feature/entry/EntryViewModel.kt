@@ -65,7 +65,7 @@ class EntryViewModel @Inject constructor(
     var recentFrequency: RecentDrivingFrequency? by mutableStateOf(null)
         private set
 
-    var roadExperience: RoadExperience? by mutableStateOf(null)
+    var roadExperiences: List<RoadExperience> by mutableStateOf(emptyList())
         private set
 
     var soloDrivingRange: SoloDrivingRange? by mutableStateOf(null)
@@ -84,8 +84,13 @@ class EntryViewModel @Inject constructor(
         private set
 
     val isCareerStepValid: Boolean
-        get() = drivingPeriod != null && recentFrequency != null && roadExperience != null &&
-            (roadExperience != RoadExperience.SOLO || (soloDrivingRange != null && soloParkingLevel != null))
+        get() {
+            val period = drivingPeriod ?: return false
+            if (period.allowsCareerStepSkip) return true
+            if (recentFrequency == null || roadExperiences.isEmpty()) return false
+            return !roadExperiences.contains(RoadExperience.SOLO) ||
+                (soloDrivingRange != null && soloParkingLevel != null)
+        }
 
     val isPreferenceNextEnabled: Boolean
         get() = practiceSituations.isNotEmpty()
@@ -126,15 +131,25 @@ class EntryViewModel @Inject constructor(
 
     fun selectDrivingPeriod(value: DrivingPeriod) {
         drivingPeriod = value
+        if (value.allowsCareerStepSkip) {
+            recentFrequency = null
+            roadExperiences = emptyList()
+            soloDrivingRange = null
+            soloParkingLevel = null
+        }
     }
 
     fun selectRecentFrequency(value: RecentDrivingFrequency) {
         recentFrequency = value
     }
 
-    fun selectRoadExperience(value: RoadExperience) {
-        roadExperience = value
-        if (value != RoadExperience.SOLO) {
+    fun toggleRoadExperience(value: RoadExperience) {
+        roadExperiences = if (roadExperiences.contains(value)) {
+            roadExperiences - value
+        } else {
+            roadExperiences + value
+        }
+        if (!roadExperiences.contains(RoadExperience.SOLO)) {
             soloDrivingRange = null
             soloParkingLevel = null
         }
@@ -161,7 +176,7 @@ class EntryViewModel @Inject constructor(
     }
 
     fun updateGoal(value: String) {
-        goal = value
+        goal = value.take(MAX_GOAL_LENGTH)
     }
 
     fun next() {
@@ -201,7 +216,7 @@ class EntryViewModel @Inject constructor(
                 nickname = nickname,
                 drivingPeriod = drivingPeriod,
                 recentFrequency = recentFrequency,
-                roadExperience = roadExperience,
+                roadExperiences = roadExperiences,
                 soloDrivingRange = soloDrivingRange,
                 soloParkingLevel = soloParkingLevel,
                 practiceSituations = practiceSituations,
@@ -220,3 +235,8 @@ class EntryViewModel @Inject constructor(
         }
     }
 }
+
+private val DrivingPeriod.allowsCareerStepSkip: Boolean
+    get() = this == DrivingPeriod.YEAR_2_TO_10 || this == DrivingPeriod.OVER_YEAR_10
+
+private const val MAX_GOAL_LENGTH = 30

@@ -175,12 +175,38 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `solo road experience requires conditional answers and clears them when changed`() {
+    fun `long driving period completes career step without detail questions`() {
+        val viewModel = testViewModel()
+
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+
+        assertTrue(viewModel.isCareerStepValid)
+        assertEquals(null, viewModel.recentFrequency)
+        assertEquals(emptyList<RoadExperience>(), viewModel.roadExperiences)
+    }
+
+    @Test
+    fun `short driving period requires recent frequency and road experience`() {
+        val viewModel = testViewModel()
+
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        assertFalse(viewModel.isCareerStepValid)
+
+        viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
+        assertFalse(viewModel.isCareerStepValid)
+
+        viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
+        assertTrue(viewModel.isCareerStepValid)
+    }
+
+    @Test
+    fun `solo road experience among multiple selections requires conditional answers and clears them when removed`() {
         val viewModel = testViewModel()
 
         viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
-        viewModel.selectRoadExperience(RoadExperience.SOLO)
+        viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
+        viewModel.toggleRoadExperience(RoadExperience.SOLO)
         assertFalse(viewModel.isCareerStepValid)
 
         viewModel.selectSoloDrivingRange(SoloDrivingRange.FAMILIAR_ROAD)
@@ -189,10 +215,20 @@ class EntryViewModelTest {
         viewModel.selectSoloParkingLevel(SoloParkingLevel.FAMILIAR_SPOT)
         assertTrue(viewModel.isCareerStepValid)
 
-        viewModel.selectRoadExperience(RoadExperience.WITH_COMPANION)
+        viewModel.toggleRoadExperience(RoadExperience.SOLO)
         assertEquals(null, viewModel.soloDrivingRange)
         assertEquals(null, viewModel.soloParkingLevel)
+        assertEquals(listOf(RoadExperience.WITH_COMPANION), viewModel.roadExperiences)
         assertTrue(viewModel.isCareerStepValid)
+    }
+
+    @Test
+    fun `goal is limited to thirty characters`() {
+        val viewModel = testViewModel()
+
+        viewModel.updateGoal("1234567890123456789012345678901")
+
+        assertEquals("123456789012345678901234567890", viewModel.goal)
     }
 
     @Test

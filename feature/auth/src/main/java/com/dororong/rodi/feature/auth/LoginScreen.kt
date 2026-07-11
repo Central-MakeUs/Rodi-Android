@@ -1,11 +1,16 @@
 package com.dororong.rodi.feature.auth
 
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
@@ -16,9 +21,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.dororong.rodi.core.ui.components.RodiTooltip
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
@@ -30,6 +37,7 @@ import dagger.hilt.android.EntryPointAccessors
 @Composable
 fun LoginScreen(
     onNavigateNext: () -> Unit,
+    showRecentKakaoLogin: Boolean,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val activity = LocalActivity.current
@@ -54,6 +62,7 @@ fun LoginScreen(
 
     LoginContent(
         uiState = uiState,
+        showRecentKakaoLogin = showRecentKakaoLogin,
         onKakaoLoginClick = {
             val manager = kakaoLoginManager
             if (manager != null) {
@@ -73,6 +82,7 @@ fun LoginScreen(
 @Composable
 fun LoginContent(
     uiState: LoginUiState,
+    showRecentKakaoLogin: Boolean,
     onKakaoLoginClick: () -> Unit,
     onSkipClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -84,41 +94,79 @@ fun LoginContent(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        TextButton(
-            onClick = onSkipClick,
+        if (!showRecentKakaoLogin) {
+            TextButton(
+                onClick = onSkipClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 12.dp, end = RodiSpacing.md),
+            ) {
+                Text(
+                    text = "둘러보기",
+                    style = RodiTheme.typography.caption2SemiBold,
+                    color = RodiTheme.colors.gray500,
+                )
+            }
+        }
+
+        Column(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(RodiSpacing.md),
+                .align(Alignment.Center)
+                .offset(y = (-42).dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            Image(
+                painter = painterResource(R.drawable.ic_rodi_logo),
+                contentDescription = "Rodi",
+            )
+            Spacer(modifier = Modifier.height(RodiSpacing.sm))
             Text(
-                text = "둘러보기",
-                style = RodiTheme.typography.body2Medium,
-                color = RodiTheme.colors.gray500,
+                text = "운전연습의 시작, 로디",
+                style = RodiTheme.typography.body1Medium,
+                color = RodiTheme.colors.black,
             )
         }
-        Text(
-            text = "Rodi",
-            modifier = Modifier.align(Alignment.Center),
-            style = RodiTheme.typography.heading1,
-            color = RodiTheme.colors.primary600,
-        )
-        KakaoLoginButton(
-            onClick = onKakaoLoginClick,
-            enabled = uiState != LoginUiState.LoggingIn,
+
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(horizontal = RodiSpacing.md, vertical = 40.dp)
                 .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (showRecentKakaoLogin) {
+                RodiTooltip(text = "최근에 로그인했어요!")
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            KakaoLoginButton(
+                onClick = onKakaoLoginClick,
+                enabled = uiState != LoginUiState.LoggingIn,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Preview(name = "Login - First", showBackground = true, widthDp = 360, heightDp = 760)
+@Composable
+private fun LoginContentFirstPreview() {
+    RodiTheme {
+        LoginContent(
+            uiState = LoginUiState.Idle,
+            showRecentKakaoLogin = false,
+            onKakaoLoginClick = {},
+            onSkipClick = {},
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 760)
+@Preview(name = "Login - Recent Kakao", showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
-private fun LoginContentPreview() {
+private fun LoginContentRecentKakaoPreview() {
     RodiTheme {
         LoginContent(
             uiState = LoginUiState.Idle,
+            showRecentKakaoLogin = true,
             onKakaoLoginClick = {},
             onSkipClick = {},
         )

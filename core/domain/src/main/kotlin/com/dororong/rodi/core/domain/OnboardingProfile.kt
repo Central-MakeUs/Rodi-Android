@@ -69,7 +69,7 @@ data class OnboardingProfile(
     val nickname: String,
     val drivingPeriod: DrivingPeriod?,
     val recentFrequency: RecentDrivingFrequency?,
-    val roadExperience: RoadExperience?,
+    val roadExperiences: List<RoadExperience>,
     val soloDrivingRange: SoloDrivingRange?,
     val soloParkingLevel: SoloParkingLevel?,
     val practiceSituations: List<PracticeSituation>,

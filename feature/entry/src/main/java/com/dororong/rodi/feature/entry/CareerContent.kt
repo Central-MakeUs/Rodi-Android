@@ -4,13 +4,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -27,13 +30,13 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 fun CareerContent(
     drivingPeriod: DrivingPeriod?,
     recentFrequency: RecentDrivingFrequency?,
-    roadExperience: RoadExperience?,
+    roadExperiences: List<RoadExperience>,
     soloDrivingRange: SoloDrivingRange?,
     soloParkingLevel: SoloParkingLevel?,
     nextEnabled: Boolean,
     onDrivingPeriodSelect: (DrivingPeriod) -> Unit,
     onRecentFrequencySelect: (RecentDrivingFrequency) -> Unit,
-    onRoadExperienceSelect: (RoadExperience) -> Unit,
+    onRoadExperienceToggle: (RoadExperience) -> Unit,
     onSoloDrivingRangeSelect: (SoloDrivingRange) -> Unit,
     onSoloParkingLevelSelect: (SoloParkingLevel) -> Unit,
     onBack: () -> Unit,
@@ -70,23 +73,28 @@ fun CareerContent(
                 label = DrivingPeriod::label,
                 onSelect = onDrivingPeriodSelect,
             )
-            Spacer(Modifier.height(RodiSpacing.lg))
-            SingleChoiceQuestion(
-                title = "가장 최근, 운전을 언제 하셨나요?",
-                values = RecentDrivingFrequency.entries,
-                selected = recentFrequency,
-                label = RecentDrivingFrequency::label,
-                onSelect = onRecentFrequencySelect,
-            )
-            Spacer(Modifier.height(RodiSpacing.lg))
-            SingleChoiceQuestion(
-                title = "면허 취득 후 도로 주행을 해본 적이 있나요?",
-                values = RoadExperience.entries,
-                selected = roadExperience,
-                label = RoadExperience::label,
-                onSelect = onRoadExperienceSelect,
-            )
-            if (roadExperience == RoadExperience.SOLO) {
+
+            if (drivingPeriod.requiresDetailedCareerQuestions) {
+                Spacer(Modifier.height(RodiSpacing.lg))
+                SingleChoiceQuestion(
+                    title = "가장 최근, 운전을 언제 하셨나요?",
+                    values = RecentDrivingFrequency.entries,
+                    selected = recentFrequency,
+                    label = RecentDrivingFrequency::label,
+                    onSelect = onRecentFrequencySelect,
+                )
+                Spacer(Modifier.height(RodiSpacing.lg))
+                MultiChoiceQuestion(
+                    title = "면허 취득후 도로주행을 해본 적이 있나요?",
+                    assistiveText = "복수선택",
+                    values = RoadExperience.entries,
+                    selected = roadExperiences,
+                    label = RoadExperience::label,
+                    onToggle = onRoadExperienceToggle,
+                )
+            }
+
+            if (roadExperiences.contains(RoadExperience.SOLO)) {
                 Spacer(Modifier.height(RodiSpacing.lg))
                 SingleChoiceQuestion(
                     title = "혼자 운전, 어디까지 해봤나요?",
@@ -108,6 +116,9 @@ fun CareerContent(
         }
     }
 }
+
+private val DrivingPeriod?.requiresDetailedCareerQuestions: Boolean
+    get() = this != null && this != DrivingPeriod.YEAR_2_TO_10 && this != DrivingPeriod.OVER_YEAR_10
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -137,6 +148,39 @@ private fun <T> SingleChoiceQuestion(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun <T> MultiChoiceQuestion(
+    title: String,
+    assistiveText: String,
+    values: List<T>,
+    selected: List<T>,
+    label: (T) -> String,
+    onToggle: (T) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+            Spacer(Modifier.width(4.dp))
+            Text(assistiveText, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
+        }
+        Spacer(Modifier.height(RodiSpacing.sm))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            values.forEach { value ->
+                RodiSelectableChip(
+                    text = label(value),
+                    selected = selected.contains(value),
+                    onClick = { onToggle(value) },
+                )
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, widthDp = 360, heightDp = 760)
 @Composable
 private fun CareerContentPreview() {
@@ -144,13 +188,13 @@ private fun CareerContentPreview() {
         CareerContent(
             drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
             recentFrequency = RecentDrivingFrequency.WEEKLY_1,
-            roadExperience = RoadExperience.SOLO,
+            roadExperiences = listOf(RoadExperience.SOLO),
             soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
             soloParkingLevel = null,
             nextEnabled = false,
             onDrivingPeriodSelect = {},
             onRecentFrequencySelect = {},
-            onRoadExperienceSelect = {},
+            onRoadExperienceToggle = {},
             onSoloDrivingRangeSelect = {},
             onSoloParkingLevelSelect = {},
             onBack = {},
