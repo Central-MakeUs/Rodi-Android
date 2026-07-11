@@ -10,8 +10,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
@@ -34,15 +40,32 @@ fun EntryFlow(
     }
 
     val step = viewModel.step
+    val snackbarHostState = remember { RodiSnackbarHostState() }
+    val networkErrorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
+
+    LaunchedEffect(viewModel.submissionErrorMessage) {
+        viewModel.submissionErrorMessage?.let { message ->
+            snackbarHostState.show(
+                RodiSnackbarData(
+                    message = message,
+                    icon = networkErrorIcon,
+                    actionLabel = "새로고침",
+                    onAction = viewModel::startOnboardingAnalysis,
+                ),
+            )
+            viewModel.consumeSubmissionError()
+        }
+    }
 
     BackHandler(enabled = step != EntryStep.TERMS) { viewModel.back() }
 
-    AnimatedContent(
-        targetState = step,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "entryStep",
-    ) { target ->
-        when (target) {
+    Box(Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "entryStep",
+        ) { target ->
+            when (target) {
             EntryStep.LOCATION -> LocationPermissionContent(
                 onBack = { viewModel.back() },
                 onPermissionResolved = { viewModel.finish(onComplete) },
@@ -114,8 +137,6 @@ fun EntryFlow(
                     OnboardingAnalysisDialog(
                         state = state,
                         level = requireNotNull(viewModel.onboardingLevel),
-                        isFailed = viewModel.submissionFailed,
-                        onRetry = viewModel::startOnboardingAnalysis,
                         onConfirm = viewModel::continueAfterOnboardingAnalysis,
                     )
                 }
@@ -127,6 +148,8 @@ fun EntryFlow(
                     modifier = Modifier.fillMaxSize(),
                 )
             }
+            }
         }
+        RodiSnackbarHost(snackbarHostState)
     }
 }

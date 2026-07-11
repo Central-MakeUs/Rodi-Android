@@ -105,7 +105,7 @@ class EntryViewModel @Inject constructor(
     var onboardingLevel: OnboardingLevel? by mutableStateOf(null)
         private set
 
-    var submissionFailed by mutableStateOf(false)
+    var submissionErrorMessage: String? by mutableStateOf(null)
         private set
 
     var onboardingAnalysisState: OnboardingAnalysisState? by mutableStateOf(null)
@@ -280,7 +280,7 @@ class EntryViewModel @Inject constructor(
             val profile = currentOnboardingProfile()
             val level = profile.calculateLevel()
             onboardingLevel = level
-            submissionFailed = false
+            submissionErrorMessage = null
             onboardingAnalysisState = OnboardingAnalysisState.ANALYZING
             try {
                 saveOnboardingProfileUseCase(profile)
@@ -292,7 +292,8 @@ class EntryViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {
-                submissionFailed = true
+                onboardingAnalysisState = null
+                submissionErrorMessage = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?"
                 return@launch
             }
             onboardingAnalysisState = OnboardingAnalysisState.RESULT
@@ -302,6 +303,10 @@ class EntryViewModel @Inject constructor(
     fun continueAfterOnboardingAnalysis() {
         onboardingAnalysisState = null
         next()
+    }
+
+    fun consumeSubmissionError() {
+        submissionErrorMessage = null
     }
 
     fun finish(onDone: () -> Unit) {

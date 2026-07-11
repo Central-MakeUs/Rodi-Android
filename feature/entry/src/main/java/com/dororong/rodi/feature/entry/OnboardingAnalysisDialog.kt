@@ -32,8 +32,6 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 fun OnboardingAnalysisDialog(
     state: OnboardingAnalysisState,
     level: OnboardingLevel,
-    isFailed: Boolean,
-    onRetry: () -> Unit,
     onConfirm: () -> Unit,
 ) {
     Dialog(
@@ -49,10 +47,9 @@ fun OnboardingAnalysisDialog(
             shape = RoundedCornerShape(12.dp),
             color = RodiTheme.colors.white,
         ) {
-            when {
-                isFailed -> AnalysisFailureContent(onRetry)
-                state == OnboardingAnalysisState.ANALYZING -> AnalysisLoadingContent()
-                else -> AnalysisResultContent(level, onConfirm)
+            when (state) {
+                OnboardingAnalysisState.ANALYZING -> AnalysisLoadingContent()
+                OnboardingAnalysisState.RESULT -> AnalysisResultContent(level, onConfirm)
             }
         }
     }
@@ -142,32 +139,6 @@ private fun AnalysisResultContent(
     }
 }
 
-@Composable
-private fun AnalysisFailureContent(onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .height(260.dp)
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = "분석을 완료하지 못했어요.",
-            style = RodiTheme.typography.heading2,
-            color = RodiTheme.colors.black,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = "네트워크 연결을 확인한 뒤 다시 시도해주세요.",
-            style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(20.dp))
-        RodiButton(text = "다시 시도", onClick = onRetry)
-    }
-}
-
 private val OnboardingLevel.displayName: String
     get() = when (this) {
         OnboardingLevel.SEED -> "Seed"
@@ -202,8 +173,6 @@ private fun OnboardingAnalysisDialogPreview() {
         OnboardingAnalysisDialog(
             state = OnboardingAnalysisState.RESULT,
             level = OnboardingLevel.ROOKIE,
-            isFailed = false,
-            onRetry = {},
             onConfirm = {},
         )
     }
