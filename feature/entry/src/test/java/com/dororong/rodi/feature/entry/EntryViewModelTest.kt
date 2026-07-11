@@ -365,7 +365,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `complete stores entry completion and invokes callback`() = runTest(testDispatcher) {
+    fun `finish stores entry completion and invokes callback`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -377,16 +377,15 @@ class EntryViewModelTest {
         var done = false
 
         advanceUntilIdle()
-        viewModel.complete { done = true }
+        viewModel.finish { done = true }
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { saveOnboardingProfileUseCase(any()) }
         coVerify(exactly = 1) { setEntryCompletedUseCase() }
         assertTrue(done)
     }
 
     @Test
-    fun `complete does not invoke callback when use case throws`() = runTest(testDispatcher) {
+    fun `finish does not invoke callback when use case throws`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -398,16 +397,15 @@ class EntryViewModelTest {
         var done = false
 
         advanceUntilIdle()
-        viewModel.complete { done = true }
+        viewModel.finish { done = true }
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { saveOnboardingProfileUseCase(any()) }
         coVerify(exactly = 1) { setEntryCompletedUseCase() }
         assertFalse(done)
     }
 
     @Test
-    fun `complete does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
+    fun `finish does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -419,7 +417,7 @@ class EntryViewModelTest {
         var done = false
 
         advanceUntilIdle()
-        viewModel.complete { done = true }
+        viewModel.finish { done = true }
         advanceUntilIdle()
 
         coVerify(exactly = 1) { setEntryCompletedUseCase() }
@@ -463,4 +461,5 @@ class EntryViewModelTest {
 
     private fun testGetOnboardingProfileUseCase(): GetOnboardingProfileUseCase =
         mockk()
+
 }

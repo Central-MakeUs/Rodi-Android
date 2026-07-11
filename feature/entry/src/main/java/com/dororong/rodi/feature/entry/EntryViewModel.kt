@@ -9,6 +9,7 @@ import com.dororong.rodi.core.common.NicknameGenerator
 import com.dororong.rodi.core.domain.DrivingPeriod
 import com.dororong.rodi.core.domain.EntryProgress
 import com.dororong.rodi.core.domain.EntryProgressStep
+import com.dororong.rodi.core.domain.OnboardingLevel
 import com.dororong.rodi.core.domain.OnboardingProfile
 import com.dororong.rodi.core.domain.PracticeSituation
 import com.dororong.rodi.core.domain.RecentDrivingFrequency
@@ -16,6 +17,7 @@ import com.dororong.rodi.core.domain.RoadExperience
 import com.dororong.rodi.core.domain.SoloDrivingRange
 import com.dororong.rodi.core.domain.SoloParkingLevel
 import com.dororong.rodi.core.domain.VehicleType
+import com.dororong.rodi.core.domain.calculateLevel
 import com.dororong.rodi.core.domain.usecase.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.GetOnboardingProfileUseCase
 import com.dororong.rodi.core.domain.usecase.SaveEntryProgressUseCase
@@ -25,9 +27,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import javax.inject.Inject
 
-enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, TERMS_WEBVIEW }
+enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, ANALYZING, RESULT, TERMS_WEBVIEW }
 
 /**
  * 진입 게이트 단계 상태 머신. 마지막 단계 완료 시 DataStore에 완료를 저장하고 [onDone] 호출.
@@ -95,6 +100,12 @@ class EntryViewModel @Inject constructor(
     var goal by mutableStateOf("")
         private set
 
+    var onboardingLevel: OnboardingLevel? by mutableStateOf(null)
+        private set
+
+    var submissionFailed by mutableStateOf(false)
+        private set
+
     val isCareerStepValid: Boolean
         get() {
             val period = drivingPeriod ?: return false
@@ -109,11 +120,17 @@ class EntryViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            val progress = getEntryProgressUseCase().first()
-            val profile = getOnboardingProfileUseCase().first()
-            restoreProgress(progress)
-            restoreOnboardingProfile(profile)
-            isRestored = true
+            try {
+                val progress = getEntryProgressUseCase().first()
+                val profile = getOnboardingProfileUseCase().first()
+                restoreProgress(progress)
+                restoreOnboardingProfile(profile)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+            } finally {
+                isRestored = true
+            }
         }
     }
 
@@ -227,6 +244,9 @@ class EntryViewModel @Inject constructor(
             EntryStep.PREFERENCE -> EntryStep.PRECAUTIONS
             EntryStep.PRECAUTIONS -> EntryStep.LOCATION
             EntryStep.LOCATION -> EntryStep.LOCATION
+            EntryStep.ANALYZING,
+            EntryStep.RESULT,
+            -> EntryStep.LOCATION
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
         }
         persistEntryProgress()
@@ -246,6 +266,9 @@ class EntryViewModel @Inject constructor(
             EntryStep.PREFERENCE -> EntryStep.CAREER
             EntryStep.PRECAUTIONS -> EntryStep.PREFERENCE
             EntryStep.LOCATION -> EntryStep.PRECAUTIONS
+            EntryStep.ANALYZING,
+            EntryStep.RESULT,
+            -> return false
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
         }
@@ -253,21 +276,33 @@ class EntryViewModel @Inject constructor(
         return true
     }
 
-    fun complete(onDone: () -> Unit) {
+    fun submitOnboarding() {
         viewModelScope.launch {
-            val profile = OnboardingProfile(
-                nickname = nickname,
-                drivingPeriod = drivingPeriod,
-                recentFrequency = recentFrequency,
-                roadExperiences = roadExperiences,
-                soloDrivingRange = soloDrivingRange,
-                soloParkingLevel = soloParkingLevel,
-                practiceSituations = practiceSituations,
-                vehicleType = vehicleType,
-                goal = goal,
-            )
+            val profile = currentOnboardingProfile()
+            val level = profile.calculateLevel()
+            onboardingLevel = level
+            submissionFailed = false
+            step = EntryStep.ANALYZING
             try {
                 saveOnboardingProfileUseCase(profile)
+                coroutineScope {
+                    val submission = async { saveOnboardingProfileUseCase.submit(profile, level) }
+                    delay(ANALYSIS_DURATION_MILLIS)
+                    submission.await()
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                submissionFailed = true
+                return@launch
+            }
+            step = EntryStep.RESULT
+        }
+    }
+
+    fun finish(onDone: () -> Unit) {
+        viewModelScope.launch {
+            try {
                 setEntryCompletedUseCase()
             } catch (e: CancellationException) {
                 throw e
@@ -371,7 +406,11 @@ private fun EntryStep.toEntryProgressStep(): EntryProgressStep =
         EntryStep.PREFERENCE -> EntryProgressStep.PREFERENCE
         EntryStep.PRECAUTIONS -> EntryProgressStep.PRECAUTIONS
         EntryStep.LOCATION -> EntryProgressStep.LOCATION
+        EntryStep.ANALYZING,
+        EntryStep.RESULT,
+        -> EntryProgressStep.LOCATION
         EntryStep.TERMS_WEBVIEW -> EntryProgressStep.TERMS_WEBVIEW
     }
 
 private const val MAX_GOAL_LENGTH = 30
+private const val ANALYSIS_DURATION_MILLIS = 3_000L

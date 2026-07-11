@@ -45,7 +45,17 @@ fun EntryFlow(
         when (target) {
             EntryStep.LOCATION -> LocationPermissionContent(
                 onBack = { viewModel.back() },
-                onPermissionResolved = { viewModel.complete(onComplete) },
+                onPermissionResolved = viewModel::submitOnboarding,
+            )
+
+            EntryStep.ANALYZING -> OnboardingAnalysisContent(
+                isFailed = viewModel.submissionFailed,
+                onRetry = viewModel::submitOnboarding,
+            )
+
+            EntryStep.RESULT -> OnboardingResultContent(
+                level = requireNotNull(viewModel.onboardingLevel),
+                onStart = { viewModel.finish(onComplete) },
             )
 
             EntryStep.TERMS -> TermsAgreementContent(
