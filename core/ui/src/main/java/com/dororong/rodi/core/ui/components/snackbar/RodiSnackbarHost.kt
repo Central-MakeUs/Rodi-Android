@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun RodiSnackbarHost(
@@ -37,7 +38,7 @@ fun RodiSnackbarHost(
             return@LaunchedEffect
         }
         if (current.duration != RodiSnackbarDuration.Indefinite) {
-            delay(current.duration.millis)
+            delay(current.duration.millis.milliseconds)
             state.dismiss()
         }
     }

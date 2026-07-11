@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.source.local.security
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,15 +29,15 @@ class AuthTokenStore @Inject constructor(
     val hasRecentKakaoLogin: Boolean get() = prefs.getString(KEY_RECENT_PROVIDER, null) == PROVIDER_KAKAO
 
     fun save(accessToken: String, refreshToken: String) {
-        prefs.edit()
-            .putString(KEY_ACCESS_TOKEN, accessToken)
-            .putString(KEY_REFRESH_TOKEN, refreshToken)
-            .putString(KEY_RECENT_PROVIDER, PROVIDER_KAKAO)
-            .apply()
+        prefs.edit {
+            putString(KEY_ACCESS_TOKEN, accessToken)
+                .putString(KEY_REFRESH_TOKEN, refreshToken)
+                .putString(KEY_RECENT_PROVIDER, PROVIDER_KAKAO)
+        }
     }
 
     fun clear() {
-        prefs.edit().clear().apply()
+        prefs.edit { clear() }
     }
 
     private companion object {

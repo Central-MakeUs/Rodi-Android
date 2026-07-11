@@ -34,6 +34,7 @@ import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun RodiApp(
@@ -44,7 +45,7 @@ fun RodiApp(
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(1_000)
+        delay(1_000.milliseconds)
         splashElapsed = true
     }
 

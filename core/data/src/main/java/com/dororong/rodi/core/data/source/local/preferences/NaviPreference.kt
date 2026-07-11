@@ -5,6 +5,7 @@ import com.dororong.rodi.core.domain.model.navi.NaviApp
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.content.edit
 
 @Singleton
 class NaviPreference @Inject constructor(
@@ -19,9 +20,7 @@ class NaviPreference @Inject constructor(
 
     fun setAlways(app: NaviApp) {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_ALWAYS, app.key)
-            .apply()
+            .edit { putString(KEY_ALWAYS, app.key) }
     }
 
     private companion object {

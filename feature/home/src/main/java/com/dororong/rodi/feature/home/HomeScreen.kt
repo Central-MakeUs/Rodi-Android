@@ -101,6 +101,7 @@ import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val PARKING_FOCUS_ZOOM = 15
 
@@ -216,7 +217,7 @@ fun HomeScreen(
         map.setOnCameraMoveEndListener { movedMap, _, _ ->
             if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
                 coroutineScope.launch {
-                    delay(1_500)
+                    delay(1_500.milliseconds)
                     if (kakaoMap === movedMap && mapScreenState == MapScreenState.Loading) {
                         hasLoadedMapInSession = true
                         context.markMapLoaded()
@@ -275,7 +276,7 @@ fun HomeScreen(
     LaunchedEffect(kakaoMap, mapScreenState) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (mapScreenState != MapScreenState.Loading) return@LaunchedEffect
-        delay(5_000)
+        delay(5_000.milliseconds)
         if (kakaoMap === map && mapScreenState == MapScreenState.Loading) {
             hasLoadedMapInSession = true
             context.markMapLoaded()
