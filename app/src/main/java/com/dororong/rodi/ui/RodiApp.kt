@@ -46,6 +46,7 @@ fun RodiApp() {
     val prefs = remember { EntryPreferences(context) }
     val appContext = remember(context) { context.applicationContext }
     val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
+    val hasGuestAccess by prefs.hasGuestAccess.collectAsStateWithLifecycle(initialValue = null)
     val isLoggedIn by produceState<Boolean?>(initialValue = null, appContext) {
         value = withContext(Dispatchers.IO) {
             EntryPointAccessors.fromApplication(
@@ -66,6 +67,7 @@ fun RodiApp() {
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
     val completedValue = completed
+    val hasGuestAccessValue = hasGuestAccess
     val isLoggedInValue = isLoggedIn
     LaunchedEffect(Unit) {
         delay(1_000)
@@ -75,6 +77,7 @@ fun RodiApp() {
     val hasRecentKakaoLoginValue = hasRecentKakaoLogin
     if (
         completedValue == null ||
+        hasGuestAccessValue == null ||
         isLoggedInValue == null ||
         hasRecentKakaoLoginValue == null ||
         !splashElapsed
@@ -83,9 +86,9 @@ fun RodiApp() {
         return
     }
 
-    LaunchedEffect(completedValue, isLoggedInValue) {
+    LaunchedEffect(completedValue, hasGuestAccessValue, isLoggedInValue) {
         if (backStack.isEmpty()) {
-            val destination = if (isLoggedInValue) {
+            val destination = if (isLoggedInValue || hasGuestAccessValue) {
                 if (completedValue) HomeRoute else EntryRoute
             } else {
                 LoginRoute

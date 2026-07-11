@@ -2,10 +2,22 @@ package com.dororong.rodi.core.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.dororong.rodi.core.domain.DrivingPeriod
 import com.dororong.rodi.core.domain.OnboardingProfile
+import com.dororong.rodi.core.domain.PracticeSituation
+import com.dororong.rodi.core.domain.RecentDrivingFrequency
+import com.dororong.rodi.core.domain.RoadExperience
+import com.dororong.rodi.core.domain.SoloDrivingRange
+import com.dororong.rodi.core.domain.SoloParkingLevel
+import com.dororong.rodi.core.domain.VehicleType
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 private val Context.onboardingDataStore by preferencesDataStore(name = "onboarding")
 
@@ -15,16 +27,43 @@ private val Context.onboardingDataStore by preferencesDataStore(name = "onboardi
  */
 class OnboardingPreferences(private val context: Context) {
 
+    val profile: Flow<OnboardingProfile> =
+        context.onboardingDataStore.data
+            .catch { exception ->
+                if (exception is IOException) {
+                    emit(emptyPreferences())
+                } else {
+                    throw exception
+                }
+            }
+            .map { prefs ->
+                OnboardingProfile(
+                    nickname = prefs[KEY_NICKNAME].orEmpty(),
+                    drivingPeriod = prefs[KEY_DRIVING_PERIOD].toEnumOrNull<DrivingPeriod>(),
+                    recentFrequency = prefs[KEY_RECENT_FREQUENCY].toEnumOrNull<RecentDrivingFrequency>(),
+                    roadExperiences = prefs[KEY_ROAD_EXPERIENCES].toEnumList<RoadExperience>(),
+                    soloDrivingRange = prefs[KEY_SOLO_DRIVING_RANGE].toEnumOrNull<SoloDrivingRange>(),
+                    soloParkingLevel = prefs[KEY_SOLO_PARKING_LEVEL].toEnumOrNull<SoloParkingLevel>(),
+                    practiceSituations = prefs[KEY_PRACTICE_SITUATIONS].toEnumList<PracticeSituation>(),
+                    vehicleType = prefs[KEY_VEHICLE_TYPE].toEnumOrNull<VehicleType>(),
+                    goal = prefs[KEY_GOAL].orEmpty(),
+                )
+            }
+
     suspend fun saveProfile(profile: OnboardingProfile) {
         context.onboardingDataStore.edit { prefs ->
             prefs[KEY_NICKNAME] = profile.nickname
-            profile.drivingPeriod?.let { prefs[KEY_DRIVING_PERIOD] = it.name }
-            profile.recentFrequency?.let { prefs[KEY_RECENT_FREQUENCY] = it.name }
+            profile.drivingPeriod?.let { prefs[KEY_DRIVING_PERIOD] = it.name } ?: prefs.remove(KEY_DRIVING_PERIOD)
+            profile.recentFrequency?.let { prefs[KEY_RECENT_FREQUENCY] = it.name } ?: prefs.remove(KEY_RECENT_FREQUENCY)
             prefs[KEY_ROAD_EXPERIENCES] = profile.roadExperiences.map { it.name }.toSet()
-            profile.soloDrivingRange?.let { prefs[KEY_SOLO_DRIVING_RANGE] = it.name }
-            profile.soloParkingLevel?.let { prefs[KEY_SOLO_PARKING_LEVEL] = it.name }
+            profile.soloDrivingRange?.let { prefs[KEY_SOLO_DRIVING_RANGE] = it.name } ?: prefs.remove(
+                KEY_SOLO_DRIVING_RANGE,
+            )
+            profile.soloParkingLevel?.let { prefs[KEY_SOLO_PARKING_LEVEL] = it.name } ?: prefs.remove(
+                KEY_SOLO_PARKING_LEVEL,
+            )
             prefs[KEY_PRACTICE_SITUATIONS] = profile.practiceSituations.map { it.name }.toSet()
-            profile.vehicleType?.let { prefs[KEY_VEHICLE_TYPE] = it.name }
+            profile.vehicleType?.let { prefs[KEY_VEHICLE_TYPE] = it.name } ?: prefs.remove(KEY_VEHICLE_TYPE)
             prefs[KEY_GOAL] = profile.goal
         }
     }
@@ -40,4 +79,12 @@ class OnboardingPreferences(private val context: Context) {
         val KEY_VEHICLE_TYPE = stringPreferencesKey("vehicle_type")
         val KEY_GOAL = stringPreferencesKey("goal")
     }
+}
+
+private inline fun <reified T : Enum<T>> String?.toEnumOrNull(): T? =
+    this?.let { value -> runCatching { enumValueOf<T>(value) }.getOrNull() }
+
+private inline fun <reified T : Enum<T>> Set<String>?.toEnumList(): List<T> {
+    val values = this.orEmpty()
+    return enumValues<T>().filter { values.contains(it.name) }
 }

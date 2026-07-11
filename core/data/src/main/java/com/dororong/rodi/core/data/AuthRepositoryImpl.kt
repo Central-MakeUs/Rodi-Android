@@ -2,10 +2,12 @@ package com.dororong.rodi.core.data
 
 import com.dororong.rodi.core.data.auth.AuthApi
 import com.dororong.rodi.core.data.auth.AuthTokenStore
+import com.dororong.rodi.core.data.auth.OAuthOnboardingProfileRequest
 import com.dororong.rodi.core.data.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.network.toAuthException
 import com.dororong.rodi.core.domain.AuthException
 import com.dororong.rodi.core.domain.AuthRepository
+import com.dororong.rodi.core.domain.OnboardingProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -15,9 +17,18 @@ class AuthRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val json: Json,
 ) : AuthRepository {
-    override suspend fun loginWithKakao(kakaoAccessToken: String): Boolean {
+    override suspend fun loginWithKakao(
+        kakaoAccessToken: String,
+        onboardingProfile: OnboardingProfile?,
+    ): Boolean {
         val envelope = try {
-            authApi.oauthLogin("kakao", OAuthLoginRequest(kakaoAccessToken))
+            authApi.oauthLogin(
+                "kakao",
+                OAuthLoginRequest(
+                    credential = kakaoAccessToken,
+                    onboardingProfile = onboardingProfile?.toOAuthRequest(),
+                ),
+            )
         } catch (e: CancellationException) {
             throw e
         } catch (e: Throwable) {
@@ -35,3 +46,16 @@ class AuthRepositoryImpl @Inject constructor(
         return body.isNewMember
     }
 }
+
+private fun OnboardingProfile.toOAuthRequest(): OAuthOnboardingProfileRequest =
+    OAuthOnboardingProfileRequest(
+        nickname = nickname.ifBlank { null },
+        drivingPeriod = drivingPeriod?.name,
+        recentFrequency = recentFrequency?.name,
+        roadExperiences = roadExperiences.map { it.name },
+        soloDrivingRange = soloDrivingRange?.name,
+        soloParkingLevel = soloParkingLevel?.name,
+        practiceSituations = practiceSituations.map { it.name },
+        vehicleType = vehicleType?.name,
+        goal = goal.ifBlank { null },
+    )

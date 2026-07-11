@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.auth.AuthApi
+import com.dororong.rodi.core.data.onboarding.OnboardingApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -59,4 +60,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideOnboardingApi(retrofit: Retrofit): OnboardingApi = retrofit.create(OnboardingApi::class.java)
 }

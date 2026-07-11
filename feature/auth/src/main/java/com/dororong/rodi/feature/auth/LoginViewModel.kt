@@ -3,8 +3,10 @@ package com.dororong.rodi.feature.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.AuthException
+import com.dororong.rodi.core.domain.usecase.GrantGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.LoginWithKakaoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +30,7 @@ sealed interface LoginEffect {
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginWithKakaoUseCase: LoginWithKakaoUseCase,
+    private val grantGuestAccessUseCase: GrantGuestAccessUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -58,7 +61,14 @@ class LoginViewModel @Inject constructor(
 
     fun onSkipClick() {
         viewModelScope.launch {
-            _effect.send(LoginEffect.NavigateNext)
+            try {
+                grantGuestAccessUseCase()
+                _effect.send(LoginEffect.NavigateNext)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Throwable) {
+                _effect.send(LoginEffect.ShowSnackbar("둘러보기를 시작할 수 없습니다. 다시 시도해주세요."))
+            }
         }
     }
 }

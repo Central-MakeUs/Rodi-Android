@@ -1,23 +1,34 @@
 package com.dororong.rodi.feature.entry
 
+import app.cash.turbine.test
 import com.dororong.rodi.core.domain.DrivingPeriod
+import com.dororong.rodi.core.domain.EntryProgress
+import com.dororong.rodi.core.domain.EntryProgressStep
+import com.dororong.rodi.core.domain.OnboardingProfile
 import com.dororong.rodi.core.domain.PracticeSituation
 import com.dororong.rodi.core.domain.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.RoadExperience
 import com.dororong.rodi.core.domain.SoloDrivingRange
 import com.dororong.rodi.core.domain.SoloParkingLevel
 import com.dororong.rodi.core.domain.VehicleType
+import com.dororong.rodi.core.domain.usecase.GetEntryProgressUseCase
+import com.dororong.rodi.core.domain.usecase.GetOnboardingProfileUseCase
+import com.dororong.rodi.core.domain.usecase.SaveEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.SaveOnboardingProfileUseCase
 import com.dororong.rodi.core.domain.usecase.SetEntryCompletedUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -47,6 +58,46 @@ class EntryViewModelTest {
         val viewModel = testViewModel()
 
         assertEquals(EntryStep.TERMS, viewModel.step)
+    }
+
+    @Test
+    fun `restores saved entry step and onboarding selections`() = runTest(testDispatcher) {
+        val viewModel = testViewModel(
+            savedProgress = EntryProgress(
+                step = EntryProgressStep.PREFERENCE,
+                serviceTermsChecked = true,
+                privacyTermsChecked = true,
+                locationTermsChecked = true,
+            ),
+            savedProfile = OnboardingProfile(
+                nickname = "로디",
+                drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+                recentFrequency = RecentDrivingFrequency.WEEKLY_1,
+                roadExperiences = listOf(RoadExperience.SOLO),
+                soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
+                soloParkingLevel = SoloParkingLevel.FAMILIAR_SPOT,
+                practiceSituations = listOf(PracticeSituation.PARKING, PracticeSituation.LANE_CHANGE),
+                vehicleType = VehicleType.SUV,
+                goal = "주차 연습",
+            ),
+        )
+
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isRestored)
+        assertEquals(EntryStep.PREFERENCE, viewModel.step)
+        assertTrue(viewModel.serviceTermsChecked)
+        assertTrue(viewModel.privacyTermsChecked)
+        assertTrue(viewModel.locationTermsChecked)
+        assertEquals("로디", viewModel.nickname)
+        assertEquals(DrivingPeriod.MONTH_1_TO_3, viewModel.drivingPeriod)
+        assertEquals(RecentDrivingFrequency.WEEKLY_1, viewModel.recentFrequency)
+        assertEquals(listOf(RoadExperience.SOLO), viewModel.roadExperiences)
+        assertEquals(SoloDrivingRange.FAMILIAR_ROAD, viewModel.soloDrivingRange)
+        assertEquals(SoloParkingLevel.FAMILIAR_SPOT, viewModel.soloParkingLevel)
+        assertEquals(listOf(PracticeSituation.PARKING, PracticeSituation.LANE_CHANGE), viewModel.practiceSituations)
+        assertEquals(VehicleType.SUV, viewModel.vehicleType)
+        assertEquals("주차 연습", viewModel.goal)
     }
 
     @Test
@@ -118,6 +169,28 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `step and gate selections are saved when changed`() = runTest(testDispatcher) {
+        val saveEntryProgressUseCase = testSaveEntryProgressUseCase()
+        val viewModel = testViewModel(saveEntryProgressUseCase = saveEntryProgressUseCase)
+        advanceUntilIdle()
+
+        viewModel.setAllTermsChecked(true)
+        viewModel.next()
+        advanceUntilIdle()
+
+        coVerify {
+            saveEntryProgressUseCase(
+                match {
+                    it.step == EntryProgressStep.NICKNAME &&
+                        it.serviceTermsChecked &&
+                        it.privacyTermsChecked &&
+                        it.locationTermsChecked
+                },
+            )
+        }
+    }
+
+    @Test
     fun `setAllTermsChecked updates only terms checkboxes`() {
         val viewModel = testViewModel()
         viewModel.toggleLicense()
@@ -166,9 +239,9 @@ class EntryViewModelTest {
     fun `nickname is generated only once`() {
         val viewModel = testViewModel()
 
-        viewModel.ensureNicknameGenerated()
+        viewModel.next()
         val nickname = viewModel.nickname
-        viewModel.ensureNicknameGenerated()
+        viewModel.next()
 
         assertTrue(nickname.isNotBlank())
         assertEquals(nickname, viewModel.nickname)
@@ -263,61 +336,163 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `complete stores entry completion and invokes callback`() = runTest(testDispatcher) {
-        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+    fun `onboarding selections are saved when changed`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
-        coEvery { setEntryCompletedUseCase() } returns Unit
-        coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        val viewModel = EntryViewModel(setEntryCompletedUseCase, saveOnboardingProfileUseCase)
-        var done = false
-
-        viewModel.complete { done = true }
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { saveOnboardingProfileUseCase(any()) }
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertTrue(done)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
+        viewModel.toggleRoadExperience(RoadExperience.SOLO)
+        viewModel.selectSoloDrivingRange(SoloDrivingRange.FAMILIAR_ROAD)
+        viewModel.selectSoloParkingLevel(SoloParkingLevel.FAMILIAR_SPOT)
+        viewModel.togglePracticeSituation(PracticeSituation.PARKING)
+        viewModel.selectVehicleType(VehicleType.SUV)
+        viewModel.updateGoal("주차 연습")
+        advanceUntilIdle()
+
+        coVerify {
+            saveOnboardingProfileUseCase(
+                match {
+                    it.drivingPeriod == DrivingPeriod.MONTH_1_TO_3 &&
+                        it.recentFrequency == RecentDrivingFrequency.WEEKLY_1 &&
+                        it.roadExperiences == listOf(RoadExperience.SOLO) &&
+                        it.soloDrivingRange == SoloDrivingRange.FAMILIAR_ROAD &&
+                        it.soloParkingLevel == SoloParkingLevel.FAMILIAR_SPOT &&
+                        it.practiceSituations == listOf(PracticeSituation.PARKING) &&
+                        it.vehicleType == VehicleType.SUV &&
+                        it.goal == "주차 연습"
+                },
+            )
+        }
     }
 
     @Test
-    fun `complete does not invoke callback when use case throws`() = runTest(testDispatcher) {
+    fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns Unit
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        runCurrent()
+        advanceTimeBy(2_999)
+        runCurrent()
+
+        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+    }
+
+    @Test
+    fun `onboarding analysis emits failure only after three seconds when local save fails`() =
+        runTest(testDispatcher) {
+            val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+            val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+            coEvery { saveOnboardingProfileUseCase(any()) } throws IllegalStateException("failed")
+            advanceUntilIdle()
+
+            viewModel.effect.test {
+                viewModel.startOnboardingAnalysis()
+                runCurrent()
+                advanceTimeBy(2_999)
+                runCurrent()
+
+                assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+                expectNoEvents()
+
+                advanceTimeBy(1)
+                runCurrent()
+
+                assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+                assertEquals(EntryEffect.ShowSubmissionError, awaitItem())
+            }
+        }
+
+    @Test
+    fun `finish stores entry completion and emits completion effect`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            setEntryCompletedUseCase = setEntryCompletedUseCase,
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+        )
+        coEvery { setEntryCompletedUseCase() } returns Unit
+        coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            assertEquals(EntryEffect.CompleteEntry, awaitItem())
+        }
+    }
+
+    @Test
+    fun `finish does not invoke callback when use case throws`() = runTest(testDispatcher) {
+        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            setEntryCompletedUseCase = setEntryCompletedUseCase,
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+        )
         coEvery { setEntryCompletedUseCase() } throws IllegalStateException("failed")
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        val viewModel = EntryViewModel(setEntryCompletedUseCase, saveOnboardingProfileUseCase)
-        var done = false
-
-        viewModel.complete { done = true }
         advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { saveOnboardingProfileUseCase(any()) }
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertFalse(done)
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            expectNoEvents()
+        }
     }
 
     @Test
-    fun `complete does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
+    fun `finish does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            setEntryCompletedUseCase = setEntryCompletedUseCase,
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+        )
         coEvery { setEntryCompletedUseCase() } throws CancellationException("cancelled")
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        val viewModel = EntryViewModel(setEntryCompletedUseCase, saveOnboardingProfileUseCase)
-        var done = false
-
-        viewModel.complete { done = true }
         advanceUntilIdle()
+        viewModel.effect.test {
+            viewModel.finish()
+            advanceUntilIdle()
 
-        coVerify(exactly = 1) { setEntryCompletedUseCase() }
-        assertFalse(done)
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            expectNoEvents()
+        }
     }
 
-    private fun testViewModel(): EntryViewModel {
-        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
-        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+    private fun testViewModel(
+        setEntryCompletedUseCase: SetEntryCompletedUseCase = testSetEntryCompletedUseCase(),
+        saveOnboardingProfileUseCase: SaveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase(),
+        getEntryProgressUseCase: GetEntryProgressUseCase = testGetEntryProgressUseCase(),
+        saveEntryProgressUseCase: SaveEntryProgressUseCase = testSaveEntryProgressUseCase(),
+        getOnboardingProfileUseCase: GetOnboardingProfileUseCase = testGetOnboardingProfileUseCase(),
+        savedProgress: EntryProgress = EntryProgress(),
+        savedProfile: OnboardingProfile = OnboardingProfile(),
+    ): EntryViewModel {
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
-        return EntryViewModel(setEntryCompletedUseCase, saveOnboardingProfileUseCase)
+        every { getEntryProgressUseCase() } returns flowOf(savedProgress)
+        coEvery { saveEntryProgressUseCase(any()) } returns Unit
+        every { getOnboardingProfileUseCase() } returns flowOf(savedProfile)
+        return EntryViewModel(
+            setEntryCompletedUseCase = setEntryCompletedUseCase,
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            getEntryProgressUseCase = getEntryProgressUseCase,
+            saveEntryProgressUseCase = saveEntryProgressUseCase,
+            getOnboardingProfileUseCase = getOnboardingProfileUseCase,
+        )
     }
 
     private fun testSetEntryCompletedUseCase(): SetEntryCompletedUseCase =
@@ -325,4 +500,35 @@ class EntryViewModelTest {
 
     private fun testSaveOnboardingProfileUseCase(): SaveOnboardingProfileUseCase =
         mockk()
+
+    private fun testGetEntryProgressUseCase(): GetEntryProgressUseCase =
+        mockk()
+
+    private fun testSaveEntryProgressUseCase(): SaveEntryProgressUseCase =
+        mockk()
+
+    private fun testGetOnboardingProfileUseCase(): GetOnboardingProfileUseCase =
+        mockk()
+
 }
+
+private val EntryViewModel.isRestored: Boolean get() = state.value.isRestored
+private val EntryViewModel.step: EntryStep get() = state.value.step
+private val EntryViewModel.webViewUrl: String get() = state.value.webViewUrl
+private val EntryViewModel.serviceTermsChecked: Boolean get() = state.value.serviceTermsChecked
+private val EntryViewModel.privacyTermsChecked: Boolean get() = state.value.privacyTermsChecked
+private val EntryViewModel.locationTermsChecked: Boolean get() = state.value.locationTermsChecked
+private val EntryViewModel.licenseChecked: Boolean get() = state.value.licenseChecked
+private val EntryViewModel.companionChecked: Boolean get() = state.value.companionChecked
+private val EntryViewModel.precautionAgreementChecked: Boolean get() = state.value.precautionAgreementChecked
+private val EntryViewModel.nickname: String get() = state.value.nickname
+private val EntryViewModel.drivingPeriod: DrivingPeriod? get() = state.value.drivingPeriod
+private val EntryViewModel.recentFrequency: RecentDrivingFrequency? get() = state.value.recentFrequency
+private val EntryViewModel.roadExperiences: List<RoadExperience> get() = state.value.roadExperiences
+private val EntryViewModel.soloDrivingRange: SoloDrivingRange? get() = state.value.soloDrivingRange
+private val EntryViewModel.soloParkingLevel: SoloParkingLevel? get() = state.value.soloParkingLevel
+private val EntryViewModel.practiceSituations: List<PracticeSituation> get() = state.value.practiceSituations
+private val EntryViewModel.vehicleType: VehicleType? get() = state.value.vehicleType
+private val EntryViewModel.goal: String get() = state.value.goal
+private val EntryViewModel.isCareerStepValid: Boolean get() = state.value.isCareerStepValid
+private val EntryViewModel.isPreferenceNextEnabled: Boolean get() = state.value.isPreferenceNextEnabled
