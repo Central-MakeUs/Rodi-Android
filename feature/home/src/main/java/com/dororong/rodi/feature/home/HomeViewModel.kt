@@ -51,6 +51,7 @@ class HomeViewModel @Inject constructor(
         val userLat: Double? = null,
         val userLng: Double? = null,
         val viewportQuery: MapViewportQuery? = null,
+        val loadedViewportQuery: MapViewportQuery? = null,
         val isLoadingMapCourses: Boolean = false,
         val mapCourseLoadFailed: Boolean = false,
     ) {
@@ -163,6 +164,7 @@ class HomeViewModel @Inject constructor(
                     }
                     current.copy(
                         courses = nextCourses,
+                        loadedViewportQuery = query,
                         isLoadingMapCourses = false,
                     )
                 }

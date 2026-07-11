@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.GeoPoint
+import com.dororong.rodi.core.domain.MapViewportQuery
 
 enum class MapMarkerMode(val label: String) {
     NATIONAL_CLUSTER("전국 클러스터"),
@@ -33,6 +34,11 @@ data class ProjectedMapItem(
     val y: Int,
 )
 
+data class MapCoursePoint(
+    val id: Int,
+    val point: GeoPoint,
+)
+
 data class MapCluster(
     val memberIds: List<Int>,
     val center: GeoPoint,
@@ -43,6 +49,12 @@ data class MapCluster(
 ) {
     val count: Int get() = memberIds.size
 }
+
+data class NationalGridSnapshot(
+    val query: MapViewportQuery,
+    val courseCount: Int,
+    val clusters: List<MapCluster>,
+)
 
 object GridClusterer {
     fun cluster(
@@ -69,6 +81,54 @@ object GridClusterer {
                 )
                 MapCluster(
                     memberIds = members.map(ProjectedMapItem::id),
+                    center = center,
+                    focusPoint = members.minBy { member ->
+                        val latDistance = member.point.lat - center.lat
+                        val lngDistance = member.point.lng - center.lng
+                        latDistance * latDistance + lngDistance * lngDistance
+                    }.point,
+                    column = cell.first,
+                    row = cell.second,
+                    targetZoom = policy.targetZoom,
+                )
+            }
+            .sortedWith(compareBy(MapCluster::row, MapCluster::column))
+            .toList()
+    }
+
+    fun clusterInFixedGeoGrid(
+        items: List<MapCoursePoint>,
+        bounds: MapViewportQuery,
+        policy: ClusterGridPolicy,
+    ): List<MapCluster> {
+        val northEast = bounds.northEast
+        val southWest = bounds.southWest
+        val latitudeSpan = northEast.lat - southWest.lat
+        val longitudeSpan = northEast.lng - southWest.lng
+        if (latitudeSpan <= 0.0 || longitudeSpan <= 0.0) return emptyList()
+
+        return items
+            .asSequence()
+            .filter { item ->
+                item.point.lat in southWest.lat..northEast.lat &&
+                        item.point.lng in southWest.lng..northEast.lng
+            }
+            .groupBy { item ->
+                val column = ((item.point.lng - southWest.lng) / longitudeSpan * policy.columns)
+                    .toInt()
+                    .coerceIn(0, policy.columns - 1)
+                val row = ((northEast.lat - item.point.lat) / latitudeSpan * policy.rows)
+                    .toInt()
+                    .coerceIn(0, policy.rows - 1)
+                column to row
+            }
+            .map { (cell, members) ->
+                val center = GeoPoint(
+                    lat = members.map { it.point.lat }.average(),
+                    lng = members.map { it.point.lng }.average(),
+                )
+                MapCluster(
+                    memberIds = members.map(MapCoursePoint::id),
                     center = center,
                     focusPoint = members.minBy { member ->
                         val latDistance = member.point.lat - center.lat

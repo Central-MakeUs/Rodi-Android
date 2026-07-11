@@ -9,6 +9,7 @@ internal const val MIN_ZOOM = 7
 private const val HOME_PREFS = "rodi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
 internal val SEOUL = LatLng.from(37.5563, 126.9220)
+internal val NATIONAL_OVERVIEW = LatLng.from(36.35, 127.70)
 internal var hasLoadedMapInSession = false
 
 internal enum class MapScreenState {

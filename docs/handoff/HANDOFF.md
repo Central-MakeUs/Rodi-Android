@@ -12,7 +12,8 @@ Branch: codex/spike-map-clustering
 
 ## Spec (무엇을·어떻게)
 - 기본 줌은 13, 최소 줌은 7로 제한한다.
-- 줌 7~10은 전체 MapView를 3열×5행, 줌 11~13은 4열×6행으로 클러스터링한다.
+- CLUSTER LAB의 줌 7 버튼은 전국 중심으로 이동한다. 이때 조회 완료된 전체 MapView의 NE/SW를 전국 기준판으로 고정하고, 이 범위의 3열×5행 클러스터를 한 번만 계산해 줌 7~10에서 재사용한다.
+- 줌 11~13은 현재 전체 MapView를 4열×6행으로 분할해 클러스터링한다.
 - 줌 14 이상은 개별 마커를 표시한다.
 - 전국 클러스터 클릭은 중심 좌표에서 줌 11, 지역 클러스터 클릭은 줌 14로 이동한다.
 - 회전·기울기 제스처를 비활성화한다.
@@ -22,6 +23,7 @@ Branch: codex/spike-map-clustering
 - 실서버 API 대신 고정 시드 약 300개의 합성 데이터를 범위 필터링하는 로컬 데이터 소스를 사용한다.
 - 탐색 클러스터·개별 마커·선택 경로 레이어를 분리한다.
 - CLUSTER LAB 패널에 줌, 모드, 그리드, NE/SW, 조회·클러스터 수와 줌 이동 버튼을 제공한다.
+- 스파이크 검증 중에는 바텀시트·지도 하단 padding을 제거해 전체 지도를 표시한다.
 
 ## Files to touch
 - `core/domain/src/main/kotlin/com/dororong/rodi/core/domain/`
@@ -34,10 +36,12 @@ Branch: codex/spike-map-clustering
 ## Acceptance criteria
 - [x] 앱 최초 진입 기본 줌이 13이다.
 - [x] 지도는 줌 7보다 축소되지 않고 회전·기울기 제스처가 동작하지 않는다.
-- [x] 줌 7~10은 3×5, 줌 11~13은 4×6, 줌 14 이상은 개별 마커다.
+- [x] 줌 7의 3×5 기준판·클러스터 멤버·개수를 한 번만 계산하고 줌 10까지 유지한다.
+- [x] 줌 11~13은 4×6, 줌 14 이상은 개별 마커다.
 - [x] 전국·지역 클러스터 클릭 시 각각 줌 11·14로 이동한다.
 - [x] BBox는 바텀시트와 무관하게 전체 MapView의 NE/SW 두 점으로 구성된다.
 - [x] 최신 viewport 요청만 UI에 반영되고 동일 쿼리는 중복 조회하지 않는다.
+- [x] 바텀시트 없이 전체 지도가 보인다.
 - [x] 줌별 스크린샷과 전국→지역→개별 마커 녹화를 남긴다.
 - [x] 관련 테스트와 debug build가 성공한다.
 
@@ -58,9 +62,9 @@ git diff --check
 
 ---
 ## Codex Result
-- Changed files: `core/domain` 지도 조회 계약·UseCase, `core/data` 합성 지도 데이터 소스·Repository, `feature/home` viewport 조회·그리드 클러스터·지도 레이어·CLUSTER LAB·테스트, `docs/verification/clustering-spike.md`
+- Changed files: `feature/home` 고정 전국 그리드 스냅샷·재렌더 방지·바텀시트 숨김, 관련 ViewModel/클러스터 테스트, `docs/verification/clustering-spike.md`
 - Build/test: `git diff --check`, `:core:domain:test`, `:core:data:testDebugUnitTest`, `:feature:home:testDebugUnitTest`, `assembleDebug` GREEN
-- Open questions: none. 실제 서버 연결과 클러스터 최종 디자인은 스펙대로 후속 작업 범위다.
+- Open questions: 첫 줌 7 진입 시점의 NE/SW를 세션 기준판으로 사용한다. 서버가 전국 집계 클러스터를 제공하면 이 스냅샷 책임을 서버로 이전할 수 있다.
 
 ---
 ## Claude Review

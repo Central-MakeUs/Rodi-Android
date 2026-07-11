@@ -76,6 +76,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(mapCourse), viewModel.state.value.courses)
+        assertEquals(query, viewModel.state.value.loadedViewportQuery)
         assertFalse(viewModel.state.value.isLoadingMapCourses)
     }
 

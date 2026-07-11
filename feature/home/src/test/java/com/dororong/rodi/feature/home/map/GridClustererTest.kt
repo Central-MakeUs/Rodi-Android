@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.GeoPoint
+import com.dororong.rodi.core.domain.MapViewportQuery
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -76,6 +77,38 @@ class GridClustererTest {
         assertTrue(GridClusterer.cluster(emptyList(), 0, 500, policy).isEmpty())
     }
 
+    @Test
+    fun `keeps national cells fixed to the zoom 7 geographic bounds`() {
+        val policy = ClusterPolicy.forZoom(7)!!
+        val bounds = MapViewportQuery(
+            northEast = GeoPoint(40.0, 130.0),
+            southWest = GeoPoint(30.0, 120.0),
+            zoomLevel = 7,
+        )
+
+        val clusters = GridClusterer.clusterInFixedGeoGrid(
+            items = listOf(
+                point(1, 39.0, 121.0),
+                point(2, 38.5, 122.0),
+                point(3, 30.0, 130.0),
+                point(4, 29.9, 126.0),
+            ),
+            bounds = bounds,
+            policy = policy,
+        )
+
+        assertEquals(2, clusters.size)
+        assertEquals(listOf(1, 2), clusters[0].memberIds)
+        assertEquals(0, clusters[0].column)
+        assertEquals(0, clusters[0].row)
+        assertEquals(listOf(3), clusters[1].memberIds)
+        assertEquals(2, clusters[1].column)
+        assertEquals(4, clusters[1].row)
+    }
+
     private fun item(id: Int, lat: Double, lng: Double, x: Int, y: Int) =
         ProjectedMapItem(id, GeoPoint(lat, lng), x, y)
+
+    private fun point(id: Int, lat: Double, lng: Double) =
+        MapCoursePoint(id, GeoPoint(lat, lng))
 }

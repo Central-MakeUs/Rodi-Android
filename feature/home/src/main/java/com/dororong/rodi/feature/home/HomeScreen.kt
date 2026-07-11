@@ -76,7 +76,10 @@ import com.dororong.rodi.feature.home.components.ClusterLabPanel
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.GridClusterer
+import com.dororong.rodi.feature.home.map.MapCoursePoint
+import com.dororong.rodi.feature.home.map.MapMarkerMode
 import com.dororong.rodi.feature.home.map.MapViewportQueryFactory
+import com.dororong.rodi.feature.home.map.NationalGridSnapshot
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
@@ -102,6 +105,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val PARKING_FOCUS_ZOOM = 15
+private const val SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE = false
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -132,6 +136,8 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var clusterCount by remember { mutableIntStateOf(0) }
+    var nationalGridSnapshot by remember { mutableStateOf<NationalGridSnapshot?>(null) }
+    var renderedNationalGridSnapshot by remember { mutableStateOf<NationalGridSnapshot?>(null) }
     val clusterBackgroundColor = RodiTheme.colors.primary600.toArgb()
     val clusterTextColor = RodiTheme.colors.white.toArgb()
 
@@ -160,7 +166,11 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
     val screenHeightDp = LocalConfiguration.current.screenHeightDp
     val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
-    val sheetPeekHeight = if (selectedCourse == null) peekHeight else 1.dp
+    val sheetPeekHeight = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+        if (selectedCourse == null) peekHeight else 1.dp
+    } else {
+        0.dp
+    }
     val density = LocalDensity.current
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
@@ -178,13 +188,16 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
     // 코스 선택 시 시트 펼침
     LaunchedEffect(state.selectedCourseId) {
-        if (state.selectedCourseId != null) {
+        if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE && state.selectedCourseId != null) {
             scaffoldState.bottomSheetState.expand()
         }
     }
 
     // 바텀시트 펼쳐진 상태에서 뒤로가기 → 기본 형태(PartiallyExpanded)로 복귀
-    BackHandler(enabled = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
+    BackHandler(
+        enabled = SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE &&
+                scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded,
+    ) {
         if (state.selectedCourseId != null) vm.onIntent(HomeIntent.OnDismissDetail)
         coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
     }
@@ -206,7 +219,11 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     } else {
         peekHeightPx
     }
-    val mapBottomPaddingPx = if (selectedCourse == null) peekHeightPx else detailSheetHeightPx
+    val mapBottomPaddingPx = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+        if (selectedCourse == null) peekHeightPx else detailSheetHeightPx
+    } else {
+        0
+    }
 
     LaunchedEffect(kakaoMap, mapViewSize) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -325,6 +342,29 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         }
     }
 
+    LaunchedEffect(state.loadedViewportQuery, filteredCourses) {
+        if (nationalGridSnapshot != null) return@LaunchedEffect
+        val query = state.loadedViewportQuery ?: return@LaunchedEffect
+        val policy = ClusterPolicy.forZoom(query.zoomLevel) ?: return@LaunchedEffect
+        if (query.zoomLevel != MIN_ZOOM || policy.mode != MapMarkerMode.NATIONAL_CLUSTER) {
+            return@LaunchedEffect
+        }
+        nationalGridSnapshot = NationalGridSnapshot(
+            query = query,
+            courseCount = filteredCourses.size,
+            clusters = GridClusterer.clusterInFixedGeoGrid(
+                items = filteredCourses.map { course ->
+                    MapCoursePoint(
+                        id = course.id,
+                        point = GeoPoint(course.startWaypoint.lat, course.startWaypoint.lng),
+                    )
+                },
+                bounds = query,
+                policy = policy,
+            ),
+        )
+    }
+
     // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
     // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
     // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
@@ -335,6 +375,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         state.selectedCourseId,
         state.selectedRoute,
         filteredCourses,
+        nationalGridSnapshot,
         clusterBackgroundColor,
         clusterTextColor,
     ) {
@@ -360,8 +401,25 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             val policy = ClusterPolicy.forZoom(zoomLevel)
             if (policy == null) {
                 clusterCount = 0
+                renderedNationalGridSnapshot = null
                 map.renderIndividualMarkers(context, projectedCourses.map { it.first })
+            } else if (policy.mode == MapMarkerMode.NATIONAL_CLUSTER) {
+                val snapshot = nationalGridSnapshot
+                clusterCount = snapshot?.clusters?.size ?: 0
+                if (snapshot == null) {
+                    renderedNationalGridSnapshot = null
+                    map.clearBrowseLabels()
+                } else if (renderedNationalGridSnapshot != snapshot) {
+                    map.renderClusters(
+                        context = context,
+                        clusters = snapshot.clusters,
+                        backgroundColor = clusterBackgroundColor,
+                        textColor = clusterTextColor,
+                    )
+                    renderedNationalGridSnapshot = snapshot
+                }
             } else {
+                renderedNationalGridSnapshot = null
                 val clusters = GridClusterer.cluster(
                     items = projectedCourses.map { it.second },
                     viewportWidth = width,
@@ -378,10 +436,12 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             }
         } else if (course.isParking) {
             clusterCount = 0
+            renderedNationalGridSnapshot = null
             map.clearCourse()
             map.renderCourseChips(context, listOf(course))
         } else {
             clusterCount = 0
+            renderedNationalGridSnapshot = null
             map.clearBrowseLabels()
             val route = state.selectedRoute
             if (route == null) {
@@ -409,7 +469,9 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, sheetSettled) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = selectedCourse
-        val paddingPx = if (course == null || scaffoldHeightPx == 0 || sheetOffsetPx == Float.MAX_VALUE) {
+        val paddingPx = if (!SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+            0
+        } else if (course == null || scaffoldHeightPx == 0 || sheetOffsetPx == Float.MAX_VALUE) {
             peekHeightPx
         } else {
             (scaffoldHeightPx - sheetOffsetPx).toInt().coerceIn(0, scaffoldHeightPx)
@@ -467,122 +529,128 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
             scaffoldState = scaffoldState,
             sheetPeekHeight = sheetPeekHeight,
-            sheetContainerColor = RodiTheme.colors.white,
-            sheetShadowElevation = 8.dp,
+            sheetContainerColor = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+                RodiTheme.colors.white
+            } else {
+                RodiTheme.colors.white.copy(alpha = 0f)
+            },
+            sheetShadowElevation = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) 8.dp else 0.dp,
             sheetShape = sheetShape,
             sheetSwipeEnabled = false,
             sheetDragHandle = null,
             sheetContent = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // 커스텀 드래그 핸들
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 12.dp)
-                            .draggable(
-                                state = rememberDraggableState { },
-                                orientation = Orientation.Vertical,
-                                // 코스/주차장 상세가 열려 있을 때는 올리기·내리기 모두 막는다.
-                                enabled = selectedCourse == null,
-                                onDragStopped = { velocity ->
-                                    if (velocity < -200f) scaffoldState.bottomSheetState.expand()
-                                    else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
-                                },
-                            )
-                            .graphicsLayer {
-                                val offset = sheetOffsetPx
-                                alpha = if (offset != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                                    (offset / 150f).coerceIn(0f, 1f)
-                                } else {
-                                    1f
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(60.dp)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(RodiTheme.colors.handleBar),
-                        )
-                    }
-                    val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
-                    val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
-
-                    val visibleHeightDp = with(density) {
-                        if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                            maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
-                        } else {
-                            Dp.Unspecified
-                        }
-                    }
-
-                    val listState = rememberLazyListState()
-                    if (selectedCourse == null) {
+                if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // 커스텀 드래그 핸들
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
-                        ) {
-                            if (filteredCourses.isEmpty()) {
-                                CourseEmptyContent()
-                            } else {
-                                CourseListContent(
-                                    courses = filteredCourses,
-                                    onCourseClick = { id ->
-                                        vm.onIntent(HomeIntent.OnCourseClick(id))
-                                        isAtCurrentLocation = false
+                                .padding(top = 8.dp, bottom = 12.dp)
+                                .draggable(
+                                    state = rememberDraggableState { },
+                                    orientation = Orientation.Vertical,
+                                    // 코스/주차장 상세가 열려 있을 때는 올리기·내리기 모두 막는다.
+                                    enabled = selectedCourse == null,
+                                    onDragStopped = { velocity ->
+                                        if (velocity < -200f) scaffoldState.bottomSheetState.expand()
+                                        else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
                                     },
-                                    expandFraction = expandFraction,
-                                    onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
-                                    listState = listState,
-                                    modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
-                                        visibleHeightDp,
-                                    ) else Modifier,
                                 )
-                            }
-                        }
-                    } else {
-                        val dismissDetail: () -> Unit = {
-                            vm.onIntent(HomeIntent.OnDismissDetail)
-                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                        }
-                        val navigate: () -> Unit = {
-                            val kakaoMapInstalled = runCatching {
-                                context.packageManager.getPackageInfo("net.daum.android.map", 0); true
-                            }.getOrDefault(false)
-                            val kakaoNaviInstalled = runCatching {
-                                context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
-                            }.getOrDefault(false)
-                            vm.onIntent(
-                                HomeIntent.OnNavigateClick(
-                                    course = selectedCourse,
-                                    kakaoMapInstalled = kakaoMapInstalled,
-                                    kakaoNaviInstalled = kakaoNaviInstalled,
-                                ),
+                                .graphicsLayer {
+                                    val offset = sheetOffsetPx
+                                    alpha = if (offset != Float.MAX_VALUE && scaffoldHeightPx > 0) {
+                                        (offset / 150f).coerceIn(0f, 1f)
+                                    } else {
+                                        1f
+                                    }
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(60.dp)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(RodiTheme.colors.handleBar),
                             )
                         }
-                        StableMeasuredDetailSheet(
-                            itemKey = selectedCourse.id,
-                            maxHeight = boxHeightDp,
-                        ) { detailModifier ->
-                            if (selectedCourse.isParking) {
-                                ParkingDetailContent(
-                                    course = selectedCourse,
-                                    onDismiss = dismissDetail,
-                                    onNavigate = navigate,
-                                    modifier = detailModifier,
-                                )
+                        val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
+                        val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
+
+                        val visibleHeightDp = with(density) {
+                            if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
+                                maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
                             } else {
-                                CourseDetailContent(
-                                    course = selectedCourse,
-                                    route = state.selectedRoute,
-                                    isRouting = state.isRouting,
-                                    onDismiss = dismissDetail,
-                                    onNavigate = navigate,
-                                    modifier = detailModifier,
+                                Dp.Unspecified
+                            }
+                        }
+
+                        val listState = rememberLazyListState()
+                        if (selectedCourse == null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
+                            ) {
+                                if (filteredCourses.isEmpty()) {
+                                    CourseEmptyContent()
+                                } else {
+                                    CourseListContent(
+                                        courses = filteredCourses,
+                                        onCourseClick = { id ->
+                                            vm.onIntent(HomeIntent.OnCourseClick(id))
+                                            isAtCurrentLocation = false
+                                        },
+                                        expandFraction = expandFraction,
+                                        onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                                        listState = listState,
+                                        modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
+                                            visibleHeightDp,
+                                        ) else Modifier,
+                                    )
+                                }
+                            }
+                        } else {
+                            val dismissDetail: () -> Unit = {
+                                vm.onIntent(HomeIntent.OnDismissDetail)
+                                coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+                            }
+                            val navigate: () -> Unit = {
+                                val kakaoMapInstalled = runCatching {
+                                    context.packageManager.getPackageInfo("net.daum.android.map", 0); true
+                                }.getOrDefault(false)
+                                val kakaoNaviInstalled = runCatching {
+                                    context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
+                                }.getOrDefault(false)
+                                vm.onIntent(
+                                    HomeIntent.OnNavigateClick(
+                                        course = selectedCourse,
+                                        kakaoMapInstalled = kakaoMapInstalled,
+                                        kakaoNaviInstalled = kakaoNaviInstalled,
+                                    ),
                                 )
+                            }
+                            StableMeasuredDetailSheet(
+                                itemKey = selectedCourse.id,
+                                maxHeight = boxHeightDp,
+                            ) { detailModifier ->
+                                if (selectedCourse.isParking) {
+                                    ParkingDetailContent(
+                                        course = selectedCourse,
+                                        onDismiss = dismissDetail,
+                                        onNavigate = navigate,
+                                        modifier = detailModifier,
+                                    )
+                                } else {
+                                    CourseDetailContent(
+                                        course = selectedCourse,
+                                        route = state.selectedRoute,
+                                        isRouting = state.isRouting,
+                                        onDismiss = dismissDetail,
+                                        onNavigate = navigate,
+                                        modifier = detailModifier,
+                                    )
+                                }
                             }
                         }
                     }
@@ -626,20 +694,32 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
                 val labZoom = state.viewportQuery?.zoomLevel ?: DEFAULT_ZOOM
                 val labPolicy = ClusterPolicy.forZoom(labZoom)
+                val isNationalSnapshotVisible = labPolicy?.mode == MapMarkerMode.NATIONAL_CLUSTER &&
+                        nationalGridSnapshot != null
                 ClusterLabPanel(
                     zoomLevel = labZoom,
                     mode = ClusterPolicy.modeForZoom(labZoom),
                     columns = labPolicy?.columns,
                     rows = labPolicy?.rows,
                     query = state.viewportQuery,
-                    courseCount = filteredCourses.size,
+                    courseCount = nationalGridSnapshot?.courseCount
+                        ?.takeIf { isNationalSnapshotVisible }
+                        ?: filteredCourses.size,
                     clusterCount = clusterCount,
                     isLoading = state.isLoadingMapCourses,
                     hasError = state.mapCourseLoadFailed,
                     onZoomSelected = { zoom ->
                         kakaoMap?.let { map ->
+                            if (zoom == MIN_ZOOM) {
+                                nationalGridSnapshot = null
+                                renderedNationalGridSnapshot = null
+                            }
                             map.moveCamera(
-                                CameraUpdateFactory.zoomTo(zoom),
+                                if (zoom == MIN_ZOOM) {
+                                    CameraUpdateFactory.newCenterPosition(NATIONAL_OVERVIEW, zoom)
+                                } else {
+                                    CameraUpdateFactory.zoomTo(zoom)
+                                },
                                 CameraAnimation.from(300),
                             )
                         }
@@ -667,13 +747,20 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 }
 
                 // 설정/현위치 버튼 — 시트 우상단 위 12dp에 부유
-                if (sheetOffsetPx != Float.MAX_VALUE) {
-                    val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
+                if (!SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE || sheetOffsetPx != Float.MAX_VALUE) {
+                    val buttonTopDp = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
+                        with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
+                    } else {
+                        8.dp
+                    }
                     Column(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
+                            .statusBarsPadding()
                             .padding(end = 12.dp)
-                            .absoluteOffset(y = buttonTopDp - 48.dp),
+                            .absoluteOffset(
+                                y = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) buttonTopDp - 48.dp else 0.dp,
+                            ),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
