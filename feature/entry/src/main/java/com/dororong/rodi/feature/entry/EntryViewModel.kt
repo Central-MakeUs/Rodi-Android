@@ -32,7 +32,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 
-enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, ANALYZING, RESULT, TERMS_WEBVIEW }
+enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, TERMS_WEBVIEW }
+
+enum class OnboardingAnalysisState { ANALYZING, RESULT }
 
 /**
  * 진입 게이트 단계 상태 머신. 마지막 단계 완료 시 DataStore에 완료를 저장하고 [onDone] 호출.
@@ -104,6 +106,9 @@ class EntryViewModel @Inject constructor(
         private set
 
     var submissionFailed by mutableStateOf(false)
+        private set
+
+    var onboardingAnalysisState: OnboardingAnalysisState? by mutableStateOf(null)
         private set
 
     val isCareerStepValid: Boolean
@@ -244,9 +249,6 @@ class EntryViewModel @Inject constructor(
             EntryStep.PREFERENCE -> EntryStep.PRECAUTIONS
             EntryStep.PRECAUTIONS -> EntryStep.LOCATION
             EntryStep.LOCATION -> EntryStep.LOCATION
-            EntryStep.ANALYZING,
-            EntryStep.RESULT,
-            -> EntryStep.LOCATION
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
         }
         persistEntryProgress()
@@ -266,9 +268,6 @@ class EntryViewModel @Inject constructor(
             EntryStep.PREFERENCE -> EntryStep.CAREER
             EntryStep.PRECAUTIONS -> EntryStep.PREFERENCE
             EntryStep.LOCATION -> EntryStep.PRECAUTIONS
-            EntryStep.ANALYZING,
-            EntryStep.RESULT,
-            -> return false
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
         }
@@ -276,13 +275,13 @@ class EntryViewModel @Inject constructor(
         return true
     }
 
-    fun submitOnboarding() {
+    fun startOnboardingAnalysis() {
         viewModelScope.launch {
             val profile = currentOnboardingProfile()
             val level = profile.calculateLevel()
             onboardingLevel = level
             submissionFailed = false
-            step = EntryStep.ANALYZING
+            onboardingAnalysisState = OnboardingAnalysisState.ANALYZING
             try {
                 saveOnboardingProfileUseCase(profile)
                 coroutineScope {
@@ -296,8 +295,13 @@ class EntryViewModel @Inject constructor(
                 submissionFailed = true
                 return@launch
             }
-            step = EntryStep.RESULT
+            onboardingAnalysisState = OnboardingAnalysisState.RESULT
         }
+    }
+
+    fun continueAfterOnboardingAnalysis() {
+        onboardingAnalysisState = null
+        next()
     }
 
     fun finish(onDone: () -> Unit) {
@@ -406,9 +410,6 @@ private fun EntryStep.toEntryProgressStep(): EntryProgressStep =
         EntryStep.PREFERENCE -> EntryProgressStep.PREFERENCE
         EntryStep.PRECAUTIONS -> EntryProgressStep.PRECAUTIONS
         EntryStep.LOCATION -> EntryProgressStep.LOCATION
-        EntryStep.ANALYZING,
-        EntryStep.RESULT,
-        -> EntryProgressStep.LOCATION
         EntryStep.TERMS_WEBVIEW -> EntryProgressStep.TERMS_WEBVIEW
     }
 

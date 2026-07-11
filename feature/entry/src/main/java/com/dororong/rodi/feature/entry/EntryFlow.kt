@@ -45,17 +45,7 @@ fun EntryFlow(
         when (target) {
             EntryStep.LOCATION -> LocationPermissionContent(
                 onBack = { viewModel.back() },
-                onPermissionResolved = viewModel::submitOnboarding,
-            )
-
-            EntryStep.ANALYZING -> OnboardingAnalysisContent(
-                isFailed = viewModel.submissionFailed,
-                onRetry = viewModel::submitOnboarding,
-            )
-
-            EntryStep.RESULT -> OnboardingResultContent(
-                level = requireNotNull(viewModel.onboardingLevel),
-                onStart = { viewModel.finish(onComplete) },
+                onPermissionResolved = { viewModel.finish(onComplete) },
             )
 
             EntryStep.TERMS -> TermsAgreementContent(
@@ -107,18 +97,29 @@ fun EntryFlow(
                 onNext = viewModel::next,
             )
 
-            EntryStep.PREFERENCE -> PreferenceContent(
-                practiceSituations = viewModel.practiceSituations,
-                vehicleType = viewModel.vehicleType,
-                goal = viewModel.goal,
-                nextEnabled = viewModel.isPreferenceNextEnabled,
-                onPracticeSituationToggle = viewModel::togglePracticeSituation,
-                onVehicleTypeSelect = viewModel::selectVehicleType,
-                onGoalChange = viewModel::updateGoal,
-                onBack = { viewModel.back() },
-                onSkip = viewModel::next,
-                onNext = viewModel::next,
-            )
+            EntryStep.PREFERENCE -> Box(Modifier.fillMaxSize()) {
+                PreferenceContent(
+                    practiceSituations = viewModel.practiceSituations,
+                    vehicleType = viewModel.vehicleType,
+                    goal = viewModel.goal,
+                    nextEnabled = viewModel.isPreferenceNextEnabled,
+                    onPracticeSituationToggle = viewModel::togglePracticeSituation,
+                    onVehicleTypeSelect = viewModel::selectVehicleType,
+                    onGoalChange = viewModel::updateGoal,
+                    onBack = { viewModel.back() },
+                    onSkip = viewModel::startOnboardingAnalysis,
+                    onNext = viewModel::startOnboardingAnalysis,
+                )
+                viewModel.onboardingAnalysisState?.let { state ->
+                    OnboardingAnalysisDialog(
+                        state = state,
+                        level = requireNotNull(viewModel.onboardingLevel),
+                        isFailed = viewModel.submissionFailed,
+                        onRetry = viewModel::startOnboardingAnalysis,
+                        onConfirm = viewModel::continueAfterOnboardingAnalysis,
+                    )
+                }
+            }
 
             EntryStep.TERMS_WEBVIEW -> {
                 TermsWebView(
