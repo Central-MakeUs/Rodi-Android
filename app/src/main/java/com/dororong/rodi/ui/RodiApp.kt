@@ -1,21 +1,34 @@
 package com.dororong.rodi.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.dororong.rodi.R
 import com.dororong.rodi.core.data.EntryPreferences
 import com.dororong.rodi.core.data.auth.AuthTokenStoreEntryPoint
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -24,6 +37,7 @@ import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
 import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -50,18 +64,25 @@ fun RodiApp() {
         }
     }
     val backStack = remember { mutableStateListOf<Any>() }
+    var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
     val completedValue = completed
     val hasGuestAccessValue = hasGuestAccess
     val isLoggedInValue = isLoggedIn
+    LaunchedEffect(Unit) {
+        delay(1_000)
+        splashElapsed = true
+    }
+
     val hasRecentKakaoLoginValue = hasRecentKakaoLogin
     if (
         completedValue == null ||
         hasGuestAccessValue == null ||
         isLoggedInValue == null ||
-        hasRecentKakaoLoginValue == null
+        hasRecentKakaoLoginValue == null ||
+        !splashElapsed
     ) {
-        LoadingScreen()
+        SplashScreen()
         return
     }
 
@@ -77,7 +98,7 @@ fun RodiApp() {
     }
 
     if (backStack.isEmpty()) {
-        LoadingScreen()
+        SplashScreen()
         return
     }
 
@@ -116,6 +137,30 @@ fun RodiApp() {
 }
 
 @Composable
-private fun LoadingScreen() {
-    Box(Modifier.fillMaxSize().background(RodiTheme.colors.white))
+private fun SplashScreen() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(RodiTheme.colors.white),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_rodi_wordmark),
+                contentDescription = null,
+                modifier = Modifier
+                    .width(146.dp)
+                    .height(45.dp),
+            )
+            BasicText(
+                text = "운전연습의 시작, 로디",
+                style = RodiTheme.typography.body1Medium.copy(
+                    color = RodiTheme.colors.black,
+                ),
+            )
+        }
+    }
 }

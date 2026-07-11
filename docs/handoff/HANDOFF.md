@@ -60,7 +60,7 @@ Branch: develop
 - [x] 앱 debug build가 성공한다.
 
 ## Verification
-```
+```bash
 git diff --check
 ./gradlew :core:domain:test
 ./gradlew :core:data:testDebugUnitTest
@@ -81,7 +81,7 @@ git diff --check
 - Open questions: 서버 계약은 `onboardingProfile` 필드와 enum `name` 값 기준으로 구현했다. 백엔드 최종 스펙이 다르면 필드명/값 매핑만 맞추면 된다.
 
 ---
-## Claude Review  <!-- Claude가 검토 후 채움 -->
+## Claude Review
 - Blocking:
 - Nits:
 - Verdict:   <!-- APPROVE | NEEDS_CHANGES -->
