@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,7 +63,7 @@ fun RodiApp() {
         }
     }
     val backStack = remember { mutableStateListOf<Any>() }
-    var splashElapsed by remember { mutableStateOf(false) }
+    var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
     val completedValue = completed
     val isLoggedInValue = isLoggedIn
