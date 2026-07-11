@@ -70,6 +70,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDismissDetail -> onDismissDetail()
             is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
             is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            HomeIntent.OnSettingsClick -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSettings) }
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)

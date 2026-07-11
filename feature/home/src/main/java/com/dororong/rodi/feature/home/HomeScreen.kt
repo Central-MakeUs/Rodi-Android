@@ -30,7 +30,6 @@ import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -38,7 +37,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,12 +58,23 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
-import com.dororong.rodi.core.ui.terms.TermsDocument
-import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.component.DistanceFilterBar
+import com.dororong.rodi.feature.home.component.MapLoadingScreen
+import com.dororong.rodi.feature.home.component.MapNetworkErrorScreen
+import com.dororong.rodi.feature.home.component.MyLocationButton
+import com.dororong.rodi.feature.home.component.NaviPickerMode
+import com.dororong.rodi.feature.home.component.NaviPickerSheet
+import com.dororong.rodi.feature.home.component.SettingsButton
+import com.dororong.rodi.feature.home.component.sheet.CourseDetailContent
+import com.dororong.rodi.feature.home.component.sheet.CourseEmptyContent
+import com.dororong.rodi.feature.home.component.sheet.CourseListContent
+import com.dororong.rodi.feature.home.component.sheet.ParkingDetailContent
+import com.dororong.rodi.feature.home.component.sheet.StableMeasuredDetailSheet
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.hasLocationPermission
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
@@ -74,6 +83,12 @@ import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderCourse
 import com.dororong.rodi.feature.home.map.renderCourseChips
 import com.dororong.rodi.feature.home.map.renderCourseMarkers
+import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
+import com.dororong.rodi.feature.home.map.MapScreenState
+import com.dororong.rodi.feature.home.map.SEOUL
+import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
+import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
+import com.dororong.rodi.feature.home.map.markMapLoaded
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -91,9 +106,12 @@ private const val PARKING_FOCUS_ZOOM = 15
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
+fun HomeScreen(
+    onNavigateSettings: () -> Unit,
+    vm: HomeViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
-    val state by vm.state.collectAsState()
+    val state by vm.state.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
@@ -107,8 +125,6 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     var naviCourse by remember { mutableStateOf<Course?>(null) }
     var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
-    var showSettings by rememberSaveable { mutableStateOf(false) }
-    var selectedTermsDocument by remember { mutableStateOf<TermsDocument?>(null) }
     var initialCameraMap by remember { mutableStateOf<KakaoMap?>(null) }
     var hasMovedToCurrentLocation by remember { mutableStateOf(false) }
     val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
@@ -220,6 +236,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
+            HomeEffect.NavigateSettings -> onNavigateSettings()
             is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
             is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.course)
             is HomeEffect.ShowNaviPicker -> naviCourse = effect.course
@@ -539,7 +556,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SettingsButton(onClick = { showSettings = true })
+                        SettingsButton(onClick = { vm.onIntent(HomeIntent.OnSettingsClick) })
                         MyLocationButton(
                             isActive = isAtCurrentLocation,
                             onClick = {
@@ -568,25 +585,6 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
 
             MapScreenState.Ready -> Unit
         }
-    }
-
-    if (selectedTermsDocument != null) {
-        BackHandler { selectedTermsDocument = null }
-    } else if (showSettings) {
-        BackHandler { showSettings = false }
-    }
-
-    val termsDocument = selectedTermsDocument
-    if (termsDocument != null) {
-        TermsWebView(
-            url = termsDocument.url,
-            modifier = Modifier.fillMaxSize(),
-        )
-    } else if (showSettings) {
-        SettingsTermsScreen(
-            onBack = { showSettings = false },
-            onTermsClick = { selectedTermsDocument = it },
-        )
     }
 
     naviCourse?.let { course ->

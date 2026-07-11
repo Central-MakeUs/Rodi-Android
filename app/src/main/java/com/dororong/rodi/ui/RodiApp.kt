@@ -32,6 +32,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
+import com.dororong.rodi.feature.settings.SettingsScreen
 import kotlinx.coroutines.delay
 
 @Composable
@@ -94,7 +95,14 @@ fun RodiApp(
                     )
                 }
                 HomeRoute -> NavEntry(key) {
-                    HomeScreen()
+                    HomeScreen(onNavigateSettings = { backStack.add(SettingsRoute) })
+                }
+                SettingsRoute -> NavEntry(key) {
+                    SettingsScreen(
+                        onBack = {
+                            if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                        },
+                    )
                 }
                 else -> error("Unknown route: $key")
             }

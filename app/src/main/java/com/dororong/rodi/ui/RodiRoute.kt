@@ -10,3 +10,6 @@ data object EntryRoute
 
 @Serializable
 data object HomeRoute
+
+@Serializable
+data object SettingsRoute

@@ -128,6 +128,18 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `settings click emits navigation effect`() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+
+        viewModel.effect.test {
+            viewModel.onIntent(HomeIntent.OnSettingsClick)
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateSettings, awaitItem())
+        }
+    }
+
+    @Test
     fun `onNavigateClick launches saved KakaoMap when installed`() = runTest(testDispatcher) {
         val course = testCourse()
         val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()

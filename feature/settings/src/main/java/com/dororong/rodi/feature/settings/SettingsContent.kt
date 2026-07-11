@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -28,7 +28,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 @Composable
-fun SettingsTermsScreen(
+fun SettingsContent(
     onBack: () -> Unit,
     onTermsClick: (TermsDocument) -> Unit,
 ) {
@@ -106,11 +106,11 @@ fun SettingsTermsScreen(
     }
 }
 
-@Preview(name = "SettingsTermsScreen - Default", showBackground = true, widthDp = 360, heightDp = 812)
+@Preview(name = "SettingsContent - Default", showBackground = true, widthDp = 360, heightDp = 812)
 @Composable
-private fun SettingsTermsScreenPreview() {
+private fun SettingsContentPreview() {
     RodiTheme {
-        SettingsTermsScreen(
+        SettingsContent(
             onBack = {},
             onTermsClick = {},
         )
