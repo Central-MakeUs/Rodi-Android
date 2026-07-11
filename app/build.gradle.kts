@@ -61,6 +61,7 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:domain"))
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:entry"))
@@ -71,6 +72,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.androidx.hilt.navigation.compose)
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.profileinstaller)
@@ -85,6 +87,8 @@ dependencies {
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)

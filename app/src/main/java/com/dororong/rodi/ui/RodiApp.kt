@@ -14,82 +14,48 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.R
-import com.dororong.rodi.core.data.EntryPreferences
-import com.dororong.rodi.core.data.auth.AuthTokenStoreEntryPoint
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
 import com.dororong.rodi.feature.home.HomeScreen
-import dagger.hilt.android.EntryPointAccessors
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 @Composable
-fun RodiApp() {
-    val context = LocalContext.current
-    val prefs = remember { EntryPreferences(context) }
-    val appContext = remember(context) { context.applicationContext }
-    val completed by prefs.isCompleted.collectAsStateWithLifecycle(initialValue = null)
-    val hasGuestAccess by prefs.hasGuestAccess.collectAsStateWithLifecycle(initialValue = null)
-    val isLoggedIn by produceState<Boolean?>(initialValue = null, appContext) {
-        value = withContext(Dispatchers.IO) {
-            EntryPointAccessors.fromApplication(
-                appContext,
-                AuthTokenStoreEntryPoint::class.java,
-            ).authTokenStore().isLoggedIn
-        }
-    }
-    val hasRecentKakaoLogin by produceState<Boolean?>(initialValue = null, appContext) {
-        value = withContext(Dispatchers.IO) {
-            EntryPointAccessors.fromApplication(
-                appContext,
-                AuthTokenStoreEntryPoint::class.java,
-            ).authTokenStore().hasRecentKakaoLogin
-        }
-    }
+fun RodiApp(
+    viewModel: RodiAppViewModel = hiltViewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val backStack = remember { mutableStateListOf<Any>() }
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
-    val completedValue = completed
-    val hasGuestAccessValue = hasGuestAccess
-    val isLoggedInValue = isLoggedIn
     LaunchedEffect(Unit) {
         delay(1_000)
         splashElapsed = true
     }
 
-    val hasRecentKakaoLoginValue = hasRecentKakaoLogin
-    if (
-        completedValue == null ||
-        hasGuestAccessValue == null ||
-        isLoggedInValue == null ||
-        hasRecentKakaoLoginValue == null ||
-        !splashElapsed
-    ) {
+    if (!state.isReady || !splashElapsed) {
         SplashScreen()
         return
     }
 
-    LaunchedEffect(completedValue, hasGuestAccessValue, isLoggedInValue) {
+    LaunchedEffect(state.isEntryCompleted, state.hasGuestAccess, state.authSession.isLoggedIn) {
         if (backStack.isEmpty()) {
-            val destination = if (isLoggedInValue || hasGuestAccessValue) {
-                if (completedValue) HomeRoute else EntryRoute
+            val destination = if (state.authSession.isLoggedIn || state.hasGuestAccess) {
+                if (state.isEntryCompleted) HomeRoute else EntryRoute
             } else {
                 LoginRoute
             }
@@ -112,10 +78,10 @@ fun RodiApp() {
             when (key) {
                 LoginRoute -> NavEntry(key) {
                     LoginScreen(
-                        showRecentKakaoLogin = hasRecentKakaoLoginValue,
+                        showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         onNavigateNext = {
                             backStack.clear()
-                            backStack.add(if (completedValue) HomeRoute else EntryRoute)
+                            backStack.add(if (state.isEntryCompleted) HomeRoute else EntryRoute)
                         },
                     )
                 }

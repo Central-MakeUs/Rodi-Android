@@ -1,8 +1,8 @@
 package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.BuildConfig
-import com.dororong.rodi.core.data.auth.AuthApi
-import com.dororong.rodi.core.data.onboarding.OnboardingApi
+import com.dororong.rodi.core.data.source.remote.api.AuthApi
+import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
