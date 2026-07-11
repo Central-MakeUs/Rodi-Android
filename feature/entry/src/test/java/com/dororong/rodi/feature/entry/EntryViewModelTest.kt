@@ -25,8 +25,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -364,6 +366,51 @@ class EntryViewModelTest {
             )
         }
     }
+
+    @Test
+    fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns Unit
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        runCurrent()
+        advanceTimeBy(2_999)
+        runCurrent()
+
+        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+    }
+
+    @Test
+    fun `onboarding analysis emits failure only after three seconds when local save fails`() =
+        runTest(testDispatcher) {
+            val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+            val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+            coEvery { saveOnboardingProfileUseCase(any()) } throws IllegalStateException("failed")
+            advanceUntilIdle()
+
+            viewModel.effect.test {
+                viewModel.startOnboardingAnalysis()
+                runCurrent()
+                advanceTimeBy(2_999)
+                runCurrent()
+
+                assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+                expectNoEvents()
+
+                advanceTimeBy(1)
+                runCurrent()
+
+                assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+                assertEquals(EntryEffect.ShowSubmissionError, awaitItem())
+            }
+        }
 
     @Test
     fun `finish stores entry completion and emits completion effect`() = runTest(testDispatcher) {

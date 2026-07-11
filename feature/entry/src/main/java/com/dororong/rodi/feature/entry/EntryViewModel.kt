@@ -24,7 +24,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
@@ -215,9 +215,9 @@ class EntryViewModel @Inject constructor(
                 )
             }
             try {
-                saveOnboardingProfileUseCase(profile)
-                coroutineScope {
+                supervisorScope {
                     val submission = async {
+                        saveOnboardingProfileUseCase(profile)
                         saveOnboardingProfileUseCase.submit(profile, level)
                     }
                     delay(ANALYSIS_DURATION_MILLIS.milliseconds)
