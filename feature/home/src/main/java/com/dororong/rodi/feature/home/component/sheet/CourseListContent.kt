@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.component.sheet
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -35,6 +35,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.HomePreviewData
+import com.dororong.rodi.feature.home.shortenJibunAddress
+import com.dororong.rodi.feature.home.shortenRoadAddress
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 @Composable
@@ -117,71 +120,6 @@ fun CourseListContent(
                         .height(8.dp),
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun CourseEmptyContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(330.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
-            style = RodiTheme.typography.headline1,
-            color = RodiTheme.colors.gray800,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요.",
-            style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.gray800,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-fun CourseCard(
-    course: Course,
-    onClick: () -> Unit,
-    initialAddressExpanded: Boolean = false,
-) {
-    var addressExpanded by rememberSaveable(course.id) { mutableStateOf(initialAddressExpanded) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp)
-            .animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            course.title,
-            style = RodiTheme.typography.body1SemiBold,
-            color = RodiTheme.colors.black,
-            maxLines = 1,
-        )
-        RatingRegionRow(
-            rating = course.rating,
-            region = course.regionDisplay,
-            onChevronClick = { addressExpanded = !addressExpanded },
-        )
-        if (addressExpanded) {
-            ExpandableAddressCard(
-                roadAddress = course.roadAddress.shortenRoadAddress(),
-                jibunAddress = course.jibunAddress.shortenJibunAddress(),
-            )
-            Spacer(modifier = Modifier.height(0.5.dp))
-        } else {
-            TagRow(difficulty = course.difficultyEnum, tags = course.tags)
-            Spacer(modifier = Modifier.height(8.dp))
-            SummaryBox(text = course.summary, bgColor = RodiTheme.colors.gray50)
         }
     }
 }

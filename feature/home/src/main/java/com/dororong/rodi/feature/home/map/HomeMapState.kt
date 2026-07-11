@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.map
 
 import android.content.Context
 import androidx.core.content.edit

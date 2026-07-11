@@ -17,16 +17,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-sealed interface LoginUiState {
-    data object Idle : LoginUiState
-    data object LoggingIn : LoginUiState
-}
-
-sealed interface LoginEffect {
-    data object NavigateNext : LoginEffect
-    data class ShowSnackbar(val message: String) : LoginEffect
-}
-
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginWithKakaoUseCase: LoginWithKakaoUseCase,

@@ -1,9 +1,7 @@
-package com.dororong.rodi.feature.entry
+package com.dororong.rodi.feature.entry.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,26 +19,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.feature.entry.R
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 private val APP_BAR_HEIGHT = 56.dp
-private const val TOTAL_STEPS = 3
 
 /**
  * 진입 플로우 공통 골격: 앱바(56dp, 뒤로) + 진행 인디케이터 + 콘텐츠 + 하단 고정 버튼.
@@ -120,77 +112,6 @@ fun EntryScaffold(
                     .navigationBarsPadding()
                     .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
             )
-        }
-    }
-}
-
-@Composable
-fun StepProgressIndicator(
-    currentStep: Int,
-    modifier: Modifier = Modifier,
-) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        repeat(TOTAL_STEPS) { i ->
-            Box(
-                Modifier
-                    .weight(1f)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(if (i < currentStep) RodiTheme.colors.primary600 else RodiTheme.colors.gray300),
-            )
-        }
-    }
-}
-
-/**
- * 체크 행: 체크 아이콘(미선택 gray300 / 선택 primary600) + 라벨 + 선택적 chevron.
- */
-@Composable
-fun CheckRow(
-    checked: Boolean,
-    text: String,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier,
-    textColor: Color = RodiTheme.colors.black,
-    trailingChevron: Boolean = false,
-    onChevronClick: (() -> Unit)? = null,
-) {
-    val checkInteractionSource = remember { MutableInteractionSource() }
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .toggleable(
-                value = checked,
-                role = Role.Checkbox,
-                interactionSource = checkInteractionSource,
-                indication = null,
-                onValueChange = { onToggle() },
-            )
-            .padding(vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_check),
-            contentDescription = null,
-            tint = if (checked) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(Modifier.width(RodiSpacing.sm))
-        Text(text, style = RodiTheme.typography.body1Medium, color = textColor, modifier = Modifier.weight(1f))
-        if (trailingChevron) {
-            IconButton(
-                onClick = { onChevronClick?.invoke() },
-                enabled = onChevronClick != null,
-                modifier = Modifier.size(32.dp),
-            ) {
-                Icon(
-                    painter = painterResource(CoreUiR.drawable.ic_chevron_right),
-                    contentDescription = "상세 보기",
-                    tint = RodiTheme.colors.gray500,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
         }
     }
 }

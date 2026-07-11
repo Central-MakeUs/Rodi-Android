@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.component
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.R
 
 @Composable
 fun DistanceFilterBar(
@@ -72,72 +73,6 @@ fun DistanceFilterBar(
 }
 
 
-@Composable
-fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier.size(40.dp),
-        shape = CircleShape,
-        color = RodiTheme.colors.white,
-        shadowElevation = 2.dp,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(R.drawable.ic_crosshair),
-                contentDescription = "현재 위치",
-                tint = if (isActive) RodiTheme.colors.primary600 else RodiTheme.colors.gray900,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-    }
-}
-
-@Composable
-fun SettingsButton(onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        modifier = Modifier
-            .size(40.dp)
-            .semantics { contentDescription = "설정" },
-        shape = CircleShape,
-        color = RodiTheme.colors.white,
-        shadowElevation = 2.dp,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(R.drawable.ic_settings),
-                contentDescription = null,
-                tint = RodiTheme.colors.gray900,
-                modifier = Modifier.size(24.dp),
-            )
-        }
-    }
-}
-
-@Preview(name = "MyLocationButton - Inactive/Active", showBackground = true, widthDp = 360)
-@Composable
-private fun MyLocationButtonPreview() {
-    RodiTheme {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.padding(16.dp),
-        ) {
-            MyLocationButton(isActive = false, onClick = {})
-            MyLocationButton(isActive = true, onClick = {})
-        }
-    }
-}
-
-@Preview(name = "SettingsButton - Default", showBackground = true, widthDp = 360)
-@Composable
-private fun SettingsButtonPreview() {
-    RodiTheme {
-        Box(modifier = Modifier.padding(16.dp)) {
-            SettingsButton(onClick = {})
-        }
-    }
-}
-
 @Preview(name = "DistanceFilterBar - Selections", showBackground = true, widthDp = 360)
 @Composable
 private fun DistanceFilterBarPreview() {
@@ -151,27 +86,6 @@ private fun DistanceFilterBarPreview() {
             DistanceFilterBar(selectedKm = null, onSelect = {})
             DistanceFilterBar(selectedKm = 3, onSelect = {})
             DistanceFilterBar(selectedKm = 5, onSelect = {})
-        }
-    }
-}
-
-@Preview(name = "MapControls - Combined", showBackground = true, widthDp = 360, heightDp = 220)
-@Composable
-private fun MapControlsCombinedPreview() {
-    RodiTheme {
-        Column(
-            modifier = Modifier
-                .background(RodiTheme.colors.gray200)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            DistanceFilterBar(selectedKm = null, onSelect = {})
-            DistanceFilterBar(selectedKm = 10, onSelect = {})
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MyLocationButton(isActive = false, onClick = {})
-                MyLocationButton(isActive = true, onClick = {})
-                SettingsButton(onClick = {})
-            }
         }
     }
 }

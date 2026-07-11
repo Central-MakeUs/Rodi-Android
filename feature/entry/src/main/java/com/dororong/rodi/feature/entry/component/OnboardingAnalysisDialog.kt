@@ -1,5 +1,7 @@
-package com.dororong.rodi.feature.entry
+package com.dororong.rodi.feature.entry.component
 
+import com.dororong.rodi.feature.entry.OnboardingAnalysisState
+import com.dororong.rodi.feature.entry.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box

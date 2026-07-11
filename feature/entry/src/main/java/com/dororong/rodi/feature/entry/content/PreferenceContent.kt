@@ -1,5 +1,6 @@
-package com.dororong.rodi.feature.entry
+package com.dororong.rodi.feature.entry.content
 
+import com.dororong.rodi.feature.entry.component.EntryScaffold
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi

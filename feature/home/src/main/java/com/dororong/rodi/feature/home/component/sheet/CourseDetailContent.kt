@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.component.sheet
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,45 +33,11 @@ import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
-
-@Composable
-fun StableMeasuredDetailSheet(
-    itemKey: Int,
-    maxHeight: Dp,
-    content: @Composable (Modifier) -> Unit,
-) {
-    val density = LocalDensity.current
-    var measuredHeightPx by rememberSaveable(itemKey, maxHeight.value) { mutableStateOf<Float?>(null) }
-    val measuredHeightDp = measuredHeightPx?.let { with(density) { it.toDp() } }
-    val maxHeightModifier = if (maxHeight.isSpecified && maxHeight > 0.dp) {
-        Modifier.heightIn(max = maxHeight)
-    } else {
-        Modifier
-    }
-
-    if (measuredHeightDp == null) {
-        content(
-            Modifier
-                .fillMaxWidth()
-                .then(maxHeightModifier)
-                .onGloballyPositioned { coordinates ->
-                    val heightPx = coordinates.size.height.toFloat()
-                    if (heightPx <= 0f || measuredHeightPx != null) return@onGloballyPositioned
-                    val maxHeightPx = with(density) {
-                        if (maxHeight.isSpecified && maxHeight > 0.dp) maxHeight.toPx() else Float.POSITIVE_INFINITY
-                    }
-                    measuredHeightPx = heightPx.coerceAtMost(maxHeightPx)
-                },
-        )
-    } else {
-        content(
-            Modifier
-                .fillMaxWidth()
-                .height(measuredHeightDp)
-                .then(maxHeightModifier),
-        )
-    }
-}
+import com.dororong.rodi.feature.home.HomePreviewData
+import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.feature.home.distanceText
+import com.dororong.rodi.feature.home.shortenJibunAddress
+import com.dororong.rodi.feature.home.shortenRoadAddress
 
 @Composable
 fun CourseDetailContent(

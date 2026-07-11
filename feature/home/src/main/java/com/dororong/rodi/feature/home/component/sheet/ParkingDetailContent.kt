@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.component.sheet
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +41,10 @@ import com.dororong.rodi.core.domain.model.course.ParkingDetail
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.HomePreviewData
+import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.feature.home.shortenJibunAddress
+import com.dororong.rodi.feature.home.shortenRoadAddress
 
 @Composable
 fun ParkingDetailContent(

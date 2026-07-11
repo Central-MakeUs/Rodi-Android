@@ -1,5 +1,7 @@
-package com.dororong.rodi.feature.entry
+package com.dororong.rodi.feature.entry.content
 
+import com.dororong.rodi.feature.entry.component.CheckRow
+import com.dororong.rodi.feature.entry.component.EntryScaffold
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
