@@ -2,12 +2,13 @@ package com.dororong.rodi.core.data.onboarding
 
 import com.dororong.rodi.core.data.network.ApiEnvelope
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface OnboardingApi {
     @POST("members/me/onboarding")
-    suspend fun submit(@Body request: OnboardingRequest): ApiEnvelope<Unit>
+    suspend fun submit(@Body request: OnboardingRequest): ApiEnvelope<JsonObject>
 }
 
 @Serializable
