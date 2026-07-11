@@ -1,9 +1,9 @@
 package com.dororong.rodi.feature.auth
 
 import app.cash.turbine.test
-import com.dororong.rodi.core.domain.AuthException
-import com.dororong.rodi.core.domain.usecase.GrantGuestAccessUseCase
-import com.dororong.rodi.core.domain.usecase.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.usecase.auth.GrantGuestAccessUseCase
+import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk

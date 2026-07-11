@@ -28,9 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.Difficulty
-import com.dororong.rodi.core.domain.PracticeTag
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.Difficulty
+import com.dororong.rodi.core.domain.model.course.PracticeTag
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable

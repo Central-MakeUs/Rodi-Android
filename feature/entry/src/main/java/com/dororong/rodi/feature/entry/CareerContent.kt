@@ -17,11 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.domain.DrivingPeriod
-import com.dororong.rodi.core.domain.RecentDrivingFrequency
-import com.dororong.rodi.core.domain.RoadExperience
-import com.dororong.rodi.core.domain.SoloDrivingRange
-import com.dororong.rodi.core.domain.SoloParkingLevel
+import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
+import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
+import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
+import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme

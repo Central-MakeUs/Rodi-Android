@@ -6,8 +6,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.dororong.rodi.core.domain.EntryProgress
-import com.dororong.rodi.core.domain.EntryProgressStep
+import com.dororong.rodi.core.domain.model.entry.EntryProgress
+import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map

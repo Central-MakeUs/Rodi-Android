@@ -1,15 +1,15 @@
 package com.dororong.rodi.core.data
 
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.CourseFeatures
-import com.dororong.rodi.core.domain.OperatingHours
-import com.dororong.rodi.core.domain.ParkingDetail
-import com.dororong.rodi.core.domain.RodiItem
-import com.dororong.rodi.core.domain.RodiItemType
-import com.dororong.rodi.core.domain.RouteDetail
-import com.dororong.rodi.core.domain.RoutePoint
-import com.dororong.rodi.core.domain.Waypoint
-import com.dororong.rodi.core.domain.WaypointType
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.CourseFeatures
+import com.dororong.rodi.core.domain.model.course.OperatingHours
+import com.dororong.rodi.core.domain.model.course.ParkingDetail
+import com.dororong.rodi.core.domain.model.course.RodiItem
+import com.dororong.rodi.core.domain.model.course.RodiItemType
+import com.dororong.rodi.core.domain.model.course.RouteDetail
+import com.dororong.rodi.core.domain.model.course.RoutePoint
+import com.dororong.rodi.core.domain.model.course.Waypoint
+import com.dororong.rodi.core.domain.model.course.WaypointType
 
 private fun w(
     order: Int,

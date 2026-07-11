@@ -5,9 +5,10 @@ import com.dororong.rodi.core.data.auth.AuthTokenStore
 import com.dororong.rodi.core.data.auth.OAuthOnboardingProfileRequest
 import com.dororong.rodi.core.data.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.network.toAuthException
-import com.dororong.rodi.core.domain.AuthException
-import com.dororong.rodi.core.domain.AuthRepository
-import com.dororong.rodi.core.domain.OnboardingProfile
+import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
@@ -17,6 +18,11 @@ class AuthRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val json: Json,
 ) : AuthRepository {
+    override suspend fun getSession(): AuthSession = AuthSession(
+        isLoggedIn = tokenStore.isLoggedIn,
+        hasRecentKakaoLogin = tokenStore.hasRecentKakaoLogin,
+    )
+
     override suspend fun loginWithKakao(
         kakaoAccessToken: String,
         onboardingProfile: OnboardingProfile?,

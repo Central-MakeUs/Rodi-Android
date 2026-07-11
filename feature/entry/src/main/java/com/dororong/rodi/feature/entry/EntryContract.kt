@@ -1,13 +1,13 @@
 package com.dororong.rodi.feature.entry
 
-import com.dororong.rodi.core.domain.DrivingPeriod
-import com.dororong.rodi.core.domain.OnboardingLevel
-import com.dororong.rodi.core.domain.PracticeSituation
-import com.dororong.rodi.core.domain.RecentDrivingFrequency
-import com.dororong.rodi.core.domain.RoadExperience
-import com.dororong.rodi.core.domain.SoloDrivingRange
-import com.dororong.rodi.core.domain.SoloParkingLevel
-import com.dororong.rodi.core.domain.VehicleType
+import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
+import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
+import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
+import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
+import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
+import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 
 enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, TERMS_WEBVIEW }
 

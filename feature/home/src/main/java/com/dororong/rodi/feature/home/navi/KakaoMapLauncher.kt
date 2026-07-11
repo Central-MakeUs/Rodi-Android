@@ -6,8 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.core.net.toUri
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.CoursePoint
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.CoursePoint
 
 /**
  * 코스(출발→경유→목적)를 **카카오맵 앱**으로 보내 지도 위에 경로선을 표시한다.

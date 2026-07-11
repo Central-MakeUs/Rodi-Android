@@ -1,6 +1,6 @@
 package com.dororong.rodi.core.data.network
 
-import com.dororong.rodi.core.domain.AuthException
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json

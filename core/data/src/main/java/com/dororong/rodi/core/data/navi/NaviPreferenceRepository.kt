@@ -1,8 +1,8 @@
 package com.dororong.rodi.core.data.navi
 
 import android.content.Context
-import com.dororong.rodi.core.domain.NaviApp
-import com.dororong.rodi.core.domain.NaviPreferenceRepository
+import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

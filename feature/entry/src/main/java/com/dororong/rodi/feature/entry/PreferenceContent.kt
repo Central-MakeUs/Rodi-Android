@@ -22,8 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.domain.PracticeSituation
-import com.dororong.rodi.core.domain.VehicleType
+import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
+import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.components.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.RodiSelectableChip

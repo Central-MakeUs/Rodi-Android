@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.dororong.rodi.feature.home.R
-import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 enum class NaviPickerMode {

@@ -2,9 +2,9 @@ package com.dororong.rodi.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.AuthException
-import com.dororong.rodi.core.domain.usecase.GrantGuestAccessUseCase
-import com.dororong.rodi.core.domain.usecase.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.usecase.auth.GrantGuestAccessUseCase
+import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel

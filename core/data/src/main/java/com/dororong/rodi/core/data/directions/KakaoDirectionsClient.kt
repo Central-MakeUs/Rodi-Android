@@ -1,8 +1,8 @@
 package com.dororong.rodi.core.data.directions
 
 import com.dororong.rodi.core.data.BuildConfig
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.CoursePoint
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.CoursePoint
 import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

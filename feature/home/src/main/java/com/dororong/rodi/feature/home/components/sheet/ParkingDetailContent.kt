@@ -36,8 +36,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.ParkingDetail
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.ParkingDetail
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme

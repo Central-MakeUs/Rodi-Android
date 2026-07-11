@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil3.compose.AsyncImage
-import com.dororong.rodi.core.domain.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 

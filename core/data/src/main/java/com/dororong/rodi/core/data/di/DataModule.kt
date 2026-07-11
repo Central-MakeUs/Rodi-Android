@@ -5,11 +5,11 @@ import com.dororong.rodi.core.data.CourseRepositoryImpl
 import com.dororong.rodi.core.data.EntryRepositoryImpl
 import com.dororong.rodi.core.data.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.navi.NaviPreferenceRepositoryImpl
-import com.dororong.rodi.core.domain.AuthRepository
-import com.dororong.rodi.core.domain.CourseRepository
-import com.dororong.rodi.core.domain.EntryRepository
-import com.dororong.rodi.core.domain.NaviPreferenceRepository
-import com.dororong.rodi.core.domain.OnboardingRepository
+import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.CourseRepository
+import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

@@ -1,8 +1,8 @@
 package com.dororong.rodi.core.data
 
 import android.content.Context
-import com.dororong.rodi.core.domain.EntryProgress
-import com.dororong.rodi.core.domain.EntryRepository
+import com.dororong.rodi.core.domain.model.entry.EntryProgress
+import com.dororong.rodi.core.domain.repository.EntryRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject

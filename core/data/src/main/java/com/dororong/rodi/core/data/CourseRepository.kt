@@ -1,10 +1,10 @@
 package com.dororong.rodi.core.data
 
 import com.dororong.rodi.core.data.directions.KakaoDirectionsClient
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.CourseRepository
-import com.dororong.rodi.core.domain.GeoPoint
-import com.dororong.rodi.core.domain.RouteResult
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.repository.CourseRepository
+import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.course.RouteResult
 import javax.inject.Inject
 
 class CourseRepositoryImpl @Inject constructor() : CourseRepository {

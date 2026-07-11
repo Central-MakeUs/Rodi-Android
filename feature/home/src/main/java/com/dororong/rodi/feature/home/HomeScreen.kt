@@ -60,8 +60,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsDocument
 import com.dororong.rodi.core.ui.terms.TermsWebView

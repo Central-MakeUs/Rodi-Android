@@ -1,7 +1,7 @@
 package com.dororong.rodi.core.data.navi
 
 import android.content.Context
-import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.domain.model.navi.NaviApp
 
 object NaviPreference {
 
