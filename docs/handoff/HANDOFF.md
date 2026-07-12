@@ -24,7 +24,10 @@ Domain/Data/Feature 패키지와 Gradle 의존성 구성이 기능 추가 과정
 
 - Changed files: `app`, `core/domain`, `core/data`, `feature/auth`, `feature/entry`, `feature/home`,
   `feature/settings`, `gradle/libs.versions.toml`, `settings.gradle.kts`, `AGENTS.md`, `docs/PROJECT.md`,
-  `docs/ARCHITECTURE_TARGET.md`
+  `docs/ARCHITECTURE_TARGET.md`; review follow-up: `RodiAppViewModelTest`, `AuthRepositoryImplTest`,
+  `KakaoDirectionsClient`, `RatingRegionRow`, `SettingsScreen`
 - Build/test: Domain dependency static check GREEN; `./gradlew test` GREEN; `./gradlew lint` GREEN;
-  `./gradlew assembleDebug` GREEN; `git diff --check` GREEN
-- Open questions: Home -> Settings -> terms -> back manual device verification was not run. Local feature/settings/build/docs commits are pending because the Codex git-write approval quota was unavailable during delivery.
+  `./gradlew assembleDebug` GREEN; review follow-up `:app:testDebugUnitTest`, `:core:data:testDebugUnitTest`,
+  `:feature:home:testDebugUnitTest`, `:feature:settings:testDebugUnitTest`, `assembleDebug` GREEN;
+  `git diff --check` GREEN
+- Open questions: Home -> Settings -> terms -> back manual device verification was not run.

@@ -5,20 +5,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import com.dororong.rodi.core.ui.terms.TermsDocument
+import com.dororong.rodi.core.ui.terms.TermsDocuments
 import com.dororong.rodi.core.ui.terms.TermsWebView
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
-    var selectedTermsDocument by remember { mutableStateOf<TermsDocument?>(null) }
-    val termsDocument = selectedTermsDocument
+    var selectedTermsUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    val termsDocument = selectedTermsUrl?.let { url ->
+        TermsDocuments.ALL.firstOrNull { it.url == url }
+    }
 
     BackHandler {
         if (termsDocument != null) {
-            selectedTermsDocument = null
+            selectedTermsUrl = null
         } else {
             onBack()
         }
@@ -32,7 +34,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     } else {
         SettingsContent(
             onBack = onBack,
-            onTermsClick = { selectedTermsDocument = it },
+            onTermsClick = { selectedTermsUrl = it.url },
         )
     }
 }

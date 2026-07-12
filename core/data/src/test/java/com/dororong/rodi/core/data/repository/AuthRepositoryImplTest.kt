@@ -17,6 +17,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
@@ -28,6 +29,20 @@ import java.io.IOException
 
 class AuthRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
+
+    @Test
+    fun `getSession maps token store state`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        every { tokenStore.isLoggedIn } returns true
+        every { tokenStore.hasRecentKakaoLogin } returns false
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        val session = repository.getSession()
+
+        assertEquals(true, session.isLoggedIn)
+        assertEquals(false, session.hasRecentKakaoLogin)
+    }
 
     @Test
     fun `loginWithKakao saves tokens and returns isNewMember when api succeeds`() = runTest {

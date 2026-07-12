@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,7 +58,10 @@ fun RatingRegionRow(
         )
         Text(" ･ ", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
         Row(
-            modifier = Modifier.clickable(onClick = onChevronClick),
+            modifier = Modifier.clickable(
+                onClick = onChevronClick,
+                role = Role.Button,
+            ),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(region, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)

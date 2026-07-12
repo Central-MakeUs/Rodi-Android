@@ -17,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -54,5 +55,23 @@ class RodiAppViewModelTest {
         assertEquals(false, viewModel.state.value.isEntryCompleted)
         assertEquals(true, viewModel.state.value.hasGuestAccess)
         assertEquals(true, viewModel.state.value.authSession.hasRecentKakaoLogin)
+    }
+
+    @Test
+    fun `falls back to a ready guest state when session lookup fails`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(false)
+        every { getGuestAccess() } returns flowOf(true)
+        coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.isReady)
+        assertFalse(viewModel.state.value.isEntryCompleted)
+        assertFalse(viewModel.state.value.hasGuestAccess)
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
     }
 }

@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.course.CoursePoint
 import com.kakao.vectormap.LatLng
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -70,8 +71,9 @@ class KakaoDirectionsClient @Inject constructor() {
             return@withContext straightFallback()
         }
         runCatching { requestDirections(origin, waypoints, destination, restKey) }
-            .getOrElse {
-                Timber.w(it, "길찾기 실패, 직선으로 폴백합니다.")
+            .getOrElse { error ->
+                if (error is CancellationException) throw error
+                Timber.w(error, "길찾기 실패, 직선으로 폴백합니다.")
                 straightFallback()
             }
     }
