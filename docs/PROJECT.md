@@ -7,7 +7,7 @@
 ## 정체성
 - 앱: **Rodi** (구 Routi — 브랜드 잔재 정리 완료)
 - 패키지: `com.dororong.rodi`
-- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:auth/entry/home`). 목표 전체 구조는
+- 구조: 멀티모듈(`:core:domain/data/ui/common` + `:feature:auth/entry/home/settings`). 전체 구조는
   `docs/ARCHITECTURE_TARGET.md` 참고
 
 ## 빌드/버전
@@ -34,6 +34,7 @@
 | `:feature:auth` | 카카오 로그인 화면 + SDK 로직, 서버 로그인 API 연동 완료(재발급/로그아웃은 미연동) |
 | `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항) + 온보딩 설문(닉네임·경력·선호), `EntryFlow` + 단계별 Content |
 | `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
+| `:feature:settings` | 설정과 약관 목록·WebView. Home과 직접 의존하지 않고 App route로 연결 |
 
 ## 컨벤션 (필수)
 - **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.typography`만. 하드코딩 금지.
@@ -44,6 +45,10 @@
   "Phase 1/2" 같은 내부 계획 용어·HANDOFF 제목을 그대로 커밋 메시지에 쓰지 않는다 — 계획 문서는
   아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
+- **패키지**: 같은 역할 파일이 2개 이상이면 역할 패키지를 만들고, 하나면 feature 루트에 둔다.
+  Contract는 feature 루트에 하나로 유지하고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
+- **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.
+  BOM·compiler·debug/runtime 전용 의존성은 bundle에서 제외한다.
 - **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
   widthDp = 360)` + `RodiTheme { }` 래핑으로 최소 1개(variant/상태가 여러 개면 그만큼) 작성한다.
   기존 예시는 `RodiButton.kt`/`RodiSnackbar.kt` 참고.

@@ -1,13 +1,14 @@
 package com.dororong.rodi.feature.home
 
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.NaviApp
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.navi.NaviApp
 
 sealed interface HomeIntent {
     data class OnCourseClick(val id: Int) : HomeIntent
     data object OnDismissDetail : HomeIntent
     data class OnDistanceFilterChange(val km: Int?) : HomeIntent
     data class OnLocationUpdate(val lat: Double, val lng: Double) : HomeIntent
+    data object OnSettingsClick : HomeIntent
 
     data class OnNavigateClick(
         val course: Course,
@@ -21,6 +22,7 @@ sealed interface HomeIntent {
 }
 
 sealed interface HomeEffect {
+    data object NavigateSettings : HomeEffect
     data class LaunchKakaoMap(val course: Course) : HomeEffect
     data class LaunchKakaoNavi(val course: Course) : HomeEffect
     data class ShowNaviPicker(val course: Course) : HomeEffect

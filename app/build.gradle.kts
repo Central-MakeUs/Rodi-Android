@@ -61,22 +61,21 @@ android {
 
 dependencies {
     implementation(project(":core:data"))
+    implementation(project(":core:domain"))
     implementation(project(":core:ui"))
     implementation(project(":feature:auth"))
     implementation(project(":feature:entry"))
     implementation(project(":feature:home"))
+    implementation(project(":feature:settings"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-    implementation(libs.androidx.navigation3.runtime)
-    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.bundles.navigation3)
     implementation(libs.androidx.profileinstaller)
-    implementation(libs.hilt.android)
-    implementation(libs.kakao.maps)
-    implementation(libs.kakao.navi)
+    implementation(libs.bundles.hilt.compose)
+    implementation(libs.bundles.kakao.navigation)
     // AndroidManifest.xml이 이 라이브러리의 AuthCodeHandlerActivity를 직접 참조한다.
     // feature:auth를 통해 transitive로 포함돼 런타임엔 문제없지만, lint의 MissingClass
     // 검사는 app 모듈의 직접 의존성만 보므로 명시적으로 추가한다.
@@ -85,10 +84,10 @@ dependencies {
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.bundles.android.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     baselineProfile(project(":benchmark"))
 }

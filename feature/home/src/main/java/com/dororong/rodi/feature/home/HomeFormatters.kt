@@ -1,7 +1,7 @@
 package com.dororong.rodi.feature.home
 
-import com.dororong.rodi.core.domain.RouteResult
-import com.dororong.rodi.core.domain.Waypoint
+import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.course.Waypoint
 import java.util.Locale
 
 fun distanceText(route: RouteResult?, isRouting: Boolean): String = when {

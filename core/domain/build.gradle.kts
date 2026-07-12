@@ -7,8 +7,7 @@ dependencies {
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
 
-    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.bundles.unit.test)
     testRuntimeOnly(libs.junit.platform.launcher)
-    testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -2,8 +2,8 @@ package com.dororong.rodi.core.data.di
 
 import android.content.Context
 import androidx.room.Room
-import com.dororong.rodi.core.data.db.RodiDatabase
-import com.dororong.rodi.core.data.db.SchemaPlaceholderDao
+import com.dororong.rodi.core.data.source.local.database.RodiDatabase
+import com.dororong.rodi.core.data.source.local.database.dao.SchemaPlaceholderDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

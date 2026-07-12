@@ -2,13 +2,13 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.Course
-import com.dororong.rodi.core.domain.NaviApp
-import com.dororong.rodi.core.domain.RouteResult
-import com.dororong.rodi.core.domain.usecase.GetCoursesUseCase
-import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
-import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
-import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -70,6 +70,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDismissDetail -> onDismissDetail()
             is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
             is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            HomeIntent.OnSettingsClick -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSettings) }
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
