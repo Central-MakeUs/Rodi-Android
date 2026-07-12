@@ -56,6 +56,20 @@ data class NationalGridSnapshot(
     val clusters: List<MapCluster>,
 )
 
+object NationalGrid {
+    val query = MapViewportQuery(
+        northEast = GeoPoint(39.3, 131.8),
+        southWest = GeoPoint(32.7, 124.4),
+        zoomLevel = 7,
+    )
+    val policy = ClusterGridPolicy(
+        mode = MapMarkerMode.NATIONAL_CLUSTER,
+        columns = 3,
+        rows = 5,
+        targetZoom = 11,
+    )
+}
+
 object GridClusterer {
     fun cluster(
         items: List<ProjectedMapItem>,

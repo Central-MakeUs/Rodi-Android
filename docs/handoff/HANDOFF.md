@@ -12,7 +12,7 @@ Branch: codex/spike-map-clustering
 
 ## Spec (무엇을·어떻게)
 - 기본 줌은 13, 최소 줌은 7로 제한한다.
-- CLUSTER LAB의 줌 7 버튼은 전국 중심으로 이동한다. 이때 조회 완료된 전체 MapView의 NE/SW를 전국 기준판으로 고정하고, 이 범위의 3열×5행 클러스터를 한 번만 계산해 줌 7~10에서 재사용한다.
+- CLUSTER LAB의 줌 7 버튼은 전국 중심으로 이동한다. 줌 7~10은 화면 BBox와 무관한 고정 대한민국 범위(NE 39.3, 131.8 / SW 32.7, 124.4)를 한 번 조회·캐시해 3열×5행 클러스터를 재사용한다.
 - 줌 11~13은 현재 전체 MapView를 4열×6행으로 분할해 클러스터링한다.
 - 줌 14 이상은 개별 마커를 표시한다.
 - 전국 클러스터 클릭은 중심 좌표에서 줌 11, 지역 클러스터 클릭은 줌 14로 이동한다.
@@ -36,6 +36,7 @@ Branch: codex/spike-map-clustering
 ## Acceptance criteria
 - [x] 앱 최초 진입 기본 줌이 13이다.
 - [x] 지도는 줌 7보다 축소되지 않고 회전·기울기 제스처가 동작하지 않는다.
+- [x] 고정 대한민국 범위의 전국 데이터를 한 번만 조회·캐시한다.
 - [x] 줌 7의 3×5 기준판·클러스터 멤버·개수를 한 번만 계산하고 줌 10까지 유지한다.
 - [x] 줌 11~13은 4×6, 줌 14 이상은 개별 마커다.
 - [x] 전국·지역 클러스터 클릭 시 각각 줌 11·14로 이동한다.
@@ -62,9 +63,9 @@ git diff --check
 
 ---
 ## Codex Result
-- Changed files: `feature/home` 고정 전국 그리드 스냅샷·재렌더 방지·바텀시트 숨김, 관련 ViewModel/클러스터 테스트, `docs/verification/clustering-spike.md`
+- Changed files: `feature/home` 고정 대한민국 범위 캐시·전국 그리드 스냅샷·재렌더 방지, 관련 ViewModel/클러스터 테스트, `docs/verification/clustering-spike.md`
 - Build/test: `git diff --check`, `:core:domain:test`, `:core:data:testDebugUnitTest`, `:feature:home:testDebugUnitTest`, `assembleDebug` GREEN
-- Open questions: 첫 줌 7 진입 시점의 NE/SW를 세션 기준판으로 사용한다. 서버가 전국 집계 클러스터를 제공하면 이 스냅샷 책임을 서버로 이전할 수 있다.
+- Open questions: 실제 서버에서는 고정 대한민국 범위의 개별 코스 목록 대신 전국 그리드 집계 응답으로 대체할 수 있다.
 
 ---
 ## Claude Review

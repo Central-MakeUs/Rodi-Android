@@ -9,6 +9,7 @@ sealed interface HomeIntent {
     data object OnDismissDetail : HomeIntent
     data class OnDistanceFilterChange(val km: Int?) : HomeIntent
     data class OnLocationUpdate(val lat: Double, val lng: Double) : HomeIntent
+    data object OnNationalCoursesRequested : HomeIntent
     data class OnViewportChanged(val query: MapViewportQuery) : HomeIntent
 
     data class OnNavigateClick(

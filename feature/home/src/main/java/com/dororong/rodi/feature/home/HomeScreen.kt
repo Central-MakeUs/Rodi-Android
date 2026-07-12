@@ -79,6 +79,7 @@ import com.dororong.rodi.feature.home.map.GridClusterer
 import com.dororong.rodi.feature.home.map.MapCoursePoint
 import com.dororong.rodi.feature.home.map.MapMarkerMode
 import com.dororong.rodi.feature.home.map.MapViewportQueryFactory
+import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.NationalGridSnapshot
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
@@ -156,6 +157,9 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     }
     LaunchedEffect(permissionGranted) {
         if (permissionGranted) currentLocation = context.awaitCurrentLocation()
+    }
+    LaunchedEffect(Unit) {
+        vm.onIntent(HomeIntent.OnNationalCoursesRequested)
     }
 
     // 위치 정보를 ViewModel에 전달 (거리 필터링용)
@@ -342,25 +346,20 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         }
     }
 
-    LaunchedEffect(state.loadedViewportQuery, filteredCourses) {
-        if (nationalGridSnapshot != null) return@LaunchedEffect
-        val query = state.loadedViewportQuery ?: return@LaunchedEffect
-        val policy = ClusterPolicy.forZoom(query.zoomLevel) ?: return@LaunchedEffect
-        if (query.zoomLevel != MIN_ZOOM || policy.mode != MapMarkerMode.NATIONAL_CLUSTER) {
-            return@LaunchedEffect
-        }
+    LaunchedEffect(state.nationalCourses) {
+        if (state.nationalCourses.isEmpty()) return@LaunchedEffect
         nationalGridSnapshot = NationalGridSnapshot(
-            query = query,
-            courseCount = filteredCourses.size,
+            query = NationalGrid.query,
+            courseCount = state.nationalCourses.size,
             clusters = GridClusterer.clusterInFixedGeoGrid(
-                items = filteredCourses.map { course ->
+                items = state.nationalCourses.map { course ->
                     MapCoursePoint(
                         id = course.id,
                         point = GeoPoint(course.startWaypoint.lat, course.startWaypoint.lng),
                     )
                 },
-                bounds = query,
-                policy = policy,
+                bounds = NationalGrid.query,
+                policy = NationalGrid.policy,
             ),
         )
     }
@@ -704,16 +703,24 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     query = state.viewportQuery,
                     courseCount = nationalGridSnapshot?.courseCount
                         ?.takeIf { isNationalSnapshotVisible }
-                        ?: filteredCourses.size,
+                        ?: if (labPolicy?.mode == MapMarkerMode.NATIONAL_CLUSTER) {
+                            state.nationalCourses.size
+                        } else {
+                            filteredCourses.size
+                        },
                     clusterCount = clusterCount,
-                    isLoading = state.isLoadingMapCourses,
-                    hasError = state.mapCourseLoadFailed,
+                    isLoading = if (labPolicy?.mode == MapMarkerMode.NATIONAL_CLUSTER) {
+                        state.isLoadingNationalCourses
+                    } else {
+                        state.isLoadingMapCourses
+                    },
+                    hasError = if (labPolicy?.mode == MapMarkerMode.NATIONAL_CLUSTER) {
+                        state.nationalCourseLoadFailed
+                    } else {
+                        state.mapCourseLoadFailed
+                    },
                     onZoomSelected = { zoom ->
                         kakaoMap?.let { map ->
-                            if (zoom == MIN_ZOOM) {
-                                nationalGridSnapshot = null
-                                renderedNationalGridSnapshot = null
-                            }
                             map.moveCamera(
                                 if (zoom == MIN_ZOOM) {
                                     CameraUpdateFactory.newCenterPosition(NATIONAL_OVERVIEW, zoom)

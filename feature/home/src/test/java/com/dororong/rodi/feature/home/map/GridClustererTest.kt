@@ -1,7 +1,6 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.GeoPoint
-import com.dororong.rodi.core.domain.MapViewportQuery
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -79,19 +78,15 @@ class GridClustererTest {
 
     @Test
     fun `keeps national cells fixed to the zoom 7 geographic bounds`() {
-        val policy = ClusterPolicy.forZoom(7)!!
-        val bounds = MapViewportQuery(
-            northEast = GeoPoint(40.0, 130.0),
-            southWest = GeoPoint(30.0, 120.0),
-            zoomLevel = 7,
-        )
+        val policy = NationalGrid.policy
+        val bounds = NationalGrid.query
 
         val clusters = GridClusterer.clusterInFixedGeoGrid(
             items = listOf(
-                point(1, 39.0, 121.0),
-                point(2, 38.5, 122.0),
-                point(3, 30.0, 130.0),
-                point(4, 29.9, 126.0),
+                point(1, 38.5, 125.0),
+                point(2, 38.1, 126.0),
+                point(3, 32.7, 131.8),
+                point(4, 32.6, 126.0),
             ),
             bounds = bounds,
             policy = policy,

@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.usecase.GetMapCoursesUseCase
 import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
+import com.dororong.rodi.feature.home.map.NationalGrid
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.FlowPreview
@@ -51,7 +52,9 @@ class HomeViewModel @Inject constructor(
         val userLat: Double? = null,
         val userLng: Double? = null,
         val viewportQuery: MapViewportQuery? = null,
-        val loadedViewportQuery: MapViewportQuery? = null,
+        val nationalCourses: List<Course> = emptyList(),
+        val isLoadingNationalCourses: Boolean = false,
+        val nationalCourseLoadFailed: Boolean = false,
         val isLoadingMapCourses: Boolean = false,
         val mapCourseLoadFailed: Boolean = false,
     ) {
@@ -75,6 +78,7 @@ class HomeViewModel @Inject constructor(
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val viewportQueries = MutableStateFlow<MapViewportQuery?>(null)
+    private var hasLoadedNationalCourses = false
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
@@ -95,6 +99,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDismissDetail -> onDismissDetail()
             is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
             is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            HomeIntent.OnNationalCoursesRequested -> onNationalCoursesRequested()
             is HomeIntent.OnViewportChanged -> onViewportChanged(intent.query)
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
@@ -139,6 +144,37 @@ class HomeViewModel @Inject constructor(
         _state.update { it.copy(userLat = lat, userLng = lng) }
     }
 
+    private fun onNationalCoursesRequested() {
+        val current = _state.value
+        if (hasLoadedNationalCourses || current.isLoadingNationalCourses) return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    isLoadingNationalCourses = true,
+                    nationalCourseLoadFailed = false,
+                )
+            }
+            getMapCoursesUseCase(NationalGrid.query)
+                .onSuccess { courses ->
+                    hasLoadedNationalCourses = true
+                    _state.update {
+                        it.copy(
+                            nationalCourses = courses,
+                            isLoadingNationalCourses = false,
+                        )
+                    }
+                }
+                .onFailure {
+                    _state.update {
+                        it.copy(
+                            isLoadingNationalCourses = false,
+                            nationalCourseLoadFailed = true,
+                        )
+                    }
+                }
+        }
+    }
+
     private fun onViewportChanged(query: MapViewportQuery) {
         if (_state.value.viewportQuery == query) return
         _state.update { it.copy(viewportQuery = query) }
@@ -164,7 +200,6 @@ class HomeViewModel @Inject constructor(
                     }
                     current.copy(
                         courses = nextCourses,
-                        loadedViewportQuery = query,
                         isLoadingMapCourses = false,
                     )
                 }

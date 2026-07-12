@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.usecase.GetMapCoursesUseCase
 import com.dororong.rodi.core.domain.usecase.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.SetNaviAlwaysUseCase
+import com.dororong.rodi.feature.home.map.NationalGrid
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -76,8 +77,24 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(mapCourse), viewModel.state.value.courses)
-        assertEquals(query, viewModel.state.value.loadedViewportQuery)
         assertFalse(viewModel.state.value.isLoadingMapCourses)
+    }
+
+    @Test
+    fun `national grid request caches fixed national courses once`() = runTest(testDispatcher) {
+        val nationalCourses = listOf(testCourse(id = 2), testCourse(id = 3))
+        val getMapCoursesUseCase = mockk<GetMapCoursesUseCase>()
+        coEvery { getMapCoursesUseCase(NationalGrid.query) } returns Result.success(nationalCourses)
+        val viewModel = createViewModel(getMapCoursesUseCase = getMapCoursesUseCase)
+
+        viewModel.onIntent(HomeIntent.OnNationalCoursesRequested)
+        advanceUntilIdle()
+        viewModel.onIntent(HomeIntent.OnNationalCoursesRequested)
+        advanceUntilIdle()
+
+        assertEquals(nationalCourses, viewModel.state.value.nationalCourses)
+        assertFalse(viewModel.state.value.isLoadingNationalCourses)
+        coVerify(exactly = 1) { getMapCoursesUseCase(NationalGrid.query) }
     }
 
     @Test
