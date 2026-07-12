@@ -28,26 +28,44 @@ sealed interface BrowseLabelTag {
 fun KakaoMap.renderClusters(
     context: Context,
     clusters: List<MapCluster>,
+    coursesById: Map<Int, Course>,
     @ColorInt backgroundColor: Int,
     @ColorInt textColor: Int,
 ) {
     clearBrowseLabels()
     val manager = labelManager ?: return
     val layer = browseLabelLayer() ?: return
+    val courseBitmap by lazy { context.drawableToBitmap(R.drawable.ic_pin_start, 34) }
+    val parkingBitmap by lazy { context.drawableToBitmap(R.drawable.ic_pin_park, 34) }
+    val courseStyles by lazy { manager.addLabelStyles(LabelStyles.from(LabelStyle.from(courseBitmap))) }
+    val parkingStyles by lazy { manager.addLabelStyles(LabelStyles.from(LabelStyle.from(parkingBitmap))) }
     clusters.forEach { cluster ->
-        val bitmap = createClusterBitmap(
-            count = cluster.count,
-            density = context.resources.displayMetrics.density,
-            backgroundColor = backgroundColor,
-            textColor = textColor,
-        )
-        val styles = manager.addLabelStyles(LabelStyles.from(LabelStyle.from(bitmap)))
-        layer.addLabel(
-            LabelOptions.from(LatLng.from(cluster.center.lat, cluster.center.lng))
-                .setStyles(styles)
-                .setClickable(true)
-                .setTag(BrowseLabelTag.Cluster(cluster.focusPoint, cluster.targetZoom)),
-        )
+        if (cluster.isClusterMarker) {
+            val bitmap = createClusterBitmap(
+                count = cluster.count,
+                density = context.resources.displayMetrics.density,
+                backgroundColor = backgroundColor,
+                textColor = textColor,
+            )
+            val styles = manager.addLabelStyles(LabelStyles.from(LabelStyle.from(bitmap)))
+            layer.addLabel(
+                LabelOptions.from(
+                    LatLng.from(cluster.representativePoint.lat, cluster.representativePoint.lng),
+                )
+                    .setStyles(styles)
+                    .setClickable(true)
+                    .setTag(BrowseLabelTag.Cluster(cluster.representativePoint, cluster.targetZoom)),
+            )
+        } else {
+            val course = coursesById[cluster.memberIds.single()] ?: return@forEach
+            val point = course.startWaypoint
+            layer.addLabel(
+                LabelOptions.from(LatLng.from(point.lat, point.lng))
+                    .setStyles(if (course.isParking) parkingStyles else courseStyles)
+                    .setClickable(true)
+                    .setTag(BrowseLabelTag.Course(course.id)),
+            )
+        }
     }
 }
 

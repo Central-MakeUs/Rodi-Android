@@ -48,6 +48,8 @@ data class MapCluster(
     val targetZoom: Int,
 ) {
     val count: Int get() = memberIds.size
+    val isClusterMarker: Boolean get() = count > 1
+    val representativePoint: GeoPoint get() = focusPoint
 }
 
 data class NationalGridSnapshot(

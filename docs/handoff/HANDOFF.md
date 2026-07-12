@@ -15,6 +15,8 @@ Branch: codex/spike-map-clustering
 - CLUSTER LAB의 줌 7 버튼은 전국 중심으로 이동한다. 줌 7~10은 화면 BBox와 무관한 고정 대한민국 범위(NE 39.3, 131.8 / SW 32.7, 124.4)를 한 번 조회·캐시해 3열×5행 클러스터를 재사용한다.
 - 줌 11~13은 현재 전체 MapView를 4열×6행으로 분할해 클러스터링한다.
 - 줌 14 이상은 개별 마커를 표시한다.
+- 클러스터 셀에 한 건만 있으면 숫자 클러스터 대신 코스 출발 또는 주차장 개별 마커를 표시한다.
+- 숫자 클러스터는 멤버 평균 좌표가 아닌 평균에 가장 가까운 실제 출발지에 표시한다.
 - 전국 클러스터 클릭은 중심 좌표에서 줌 11, 지역 클러스터 클릭은 줌 14로 이동한다.
 - 회전·기울기 제스처를 비활성화한다.
 - 카메라 이동 종료 후 전체 MapView 기준 우상단과 좌하단을 `fromScreenPoint()`로 변환한다.
@@ -39,6 +41,8 @@ Branch: codex/spike-map-clustering
 - [x] 고정 대한민국 범위의 전국 데이터를 한 번만 조회·캐시한다.
 - [x] 줌 7의 3×5 기준판·클러스터 멤버·개수를 한 번만 계산하고 줌 10까지 유지한다.
 - [x] 줌 11~13은 4×6, 줌 14 이상은 개별 마커다.
+- [x] 클러스터 셀 한 건은 개별 코스·주차장 마커로 표시된다.
+- [x] 숫자 클러스터는 실제 멤버 대표 지점에 표시된다.
 - [x] 전국·지역 클러스터 클릭 시 각각 줌 11·14로 이동한다.
 - [x] BBox는 바텀시트와 무관하게 전체 MapView의 NE/SW 두 점으로 구성된다.
 - [x] 최신 viewport 요청만 UI에 반영되고 동일 쿼리는 중복 조회하지 않는다.
@@ -63,9 +67,9 @@ git diff --check
 
 ---
 ## Codex Result
-- Changed files: `feature/home` 고정 대한민국 범위 캐시·전국 그리드 스냅샷·재렌더 방지, 관련 ViewModel/클러스터 테스트, `docs/verification/clustering-spike.md`
+- Changed files: `feature/home` 단건 개별 핀·실제 대표 지점 숫자 클러스터 렌더링, 관련 클러스터 테스트, `docs/verification/clustering-spike.md`
 - Build/test: `git diff --check`, `:core:domain:test`, `:core:data:testDebugUnitTest`, `:feature:home:testDebugUnitTest`, `assembleDebug` GREEN
-- Open questions: 실제 서버에서는 고정 대한민국 범위의 개별 코스 목록 대신 전국 그리드 집계 응답으로 대체할 수 있다.
+- Open questions: 실제 서버에서는 고정 대한민국 범위의 개별 코스 목록 대신 전국 그리드 집계 응답으로 대체할 수 있다. 지역 합성 데이터의 격자 분포 보정은 후속 작업이다.
 
 ---
 ## Claude Review

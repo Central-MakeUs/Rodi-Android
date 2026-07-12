@@ -77,6 +77,7 @@ import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.GridClusterer
 import com.dororong.rodi.feature.home.map.MapCoursePoint
+import com.dororong.rodi.feature.home.map.MapCluster
 import com.dororong.rodi.feature.home.map.MapMarkerMode
 import com.dororong.rodi.feature.home.map.MapViewportQueryFactory
 import com.dororong.rodi.feature.home.map.NationalGrid
@@ -404,7 +405,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 map.renderIndividualMarkers(context, projectedCourses.map { it.first })
             } else if (policy.mode == MapMarkerMode.NATIONAL_CLUSTER) {
                 val snapshot = nationalGridSnapshot
-                clusterCount = snapshot?.clusters?.size ?: 0
+                clusterCount = snapshot?.clusters?.count(MapCluster::isClusterMarker) ?: 0
                 if (snapshot == null) {
                     renderedNationalGridSnapshot = null
                     map.clearBrowseLabels()
@@ -412,6 +413,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     map.renderClusters(
                         context = context,
                         clusters = snapshot.clusters,
+                        coursesById = state.nationalCourses.associateBy(Course::id),
                         backgroundColor = clusterBackgroundColor,
                         textColor = clusterTextColor,
                     )
@@ -425,10 +427,11 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     viewportHeight = height,
                     policy = policy,
                 )
-                clusterCount = clusters.size
+                clusterCount = clusters.count(MapCluster::isClusterMarker)
                 map.renderClusters(
                     context = context,
                     clusters = clusters,
+                    coursesById = projectedCourses.associate { it.first.id to it.first },
                     backgroundColor = clusterBackgroundColor,
                     textColor = clusterTextColor,
                 )

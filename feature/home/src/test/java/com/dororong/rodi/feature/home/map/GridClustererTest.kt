@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.GeoPoint
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -49,8 +50,23 @@ class GridClustererTest {
         assertEquals(2, clusters.size)
         assertEquals(listOf(1, 2), clusters[0].memberIds)
         assertEquals(GeoPoint(38.0, 128.0), clusters[0].center)
-        assertTrue(clusters[0].focusPoint in listOf(GeoPoint(37.0, 127.0), GeoPoint(39.0, 129.0)))
+        assertTrue(clusters[0].representativePoint in listOf(GeoPoint(37.0, 127.0), GeoPoint(39.0, 129.0)))
+        assertTrue(clusters[0].isClusterMarker)
         assertEquals(11, clusters[0].targetZoom)
+    }
+
+    @Test
+    fun `renders a single member cell as an individual marker`() {
+        val coursePoint = GeoPoint(37.0, 127.0)
+        val cluster = GridClusterer.cluster(
+            items = listOf(ProjectedMapItem(1, coursePoint, 10, 10)),
+            viewportWidth = 300,
+            viewportHeight = 500,
+            policy = ClusterPolicy.forZoom(13)!!,
+        ).single()
+
+        assertEquals(coursePoint, cluster.representativePoint)
+        assertFalse(cluster.isClusterMarker)
     }
 
     @Test
