@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import retrofit2.HttpException
 import retrofit2.Response
+import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import java.io.IOException
 
 class AuthErrorMapperTest {
@@ -49,6 +50,26 @@ class AuthErrorMapperTest {
 
         assertTrue(result is AuthException.InvalidRequest)
         assertEquals("지원하지 않는 provider입니다.", result.message)
+    }
+
+    @Test
+    fun `maps AUTH_401_4 to SessionRevoked`() {
+        val result = ApiEnvelope<Nothing>(
+            isSuccess = false,
+            code = "AUTH_401_4",
+            message = "폐기된 토큰입니다.",
+        ).toAuthException()
+
+        assertTrue(result is AuthException.SessionRevoked)
+    }
+
+    @Test
+    fun `maps recovery errors from envelope`() {
+        val expired = ApiEnvelope<Nothing>(false, "MEMBER_409_1", "복구 기한이 지났습니다.").toAuthException()
+        val notFound = ApiEnvelope<Nothing>(false, "MEMBER_404_1", "복구 대상이 없습니다.").toAuthException()
+
+        assertTrue(expired is AuthException.RecoveryExpired)
+        assertTrue(notFound is AuthException.RecoveryNotFound)
     }
 
     @Test
