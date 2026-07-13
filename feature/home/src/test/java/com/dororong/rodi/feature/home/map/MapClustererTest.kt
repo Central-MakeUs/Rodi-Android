@@ -6,22 +6,26 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class GridClustererTest {
+class MapClustererTest {
     @Test
     fun `uses national grid from zoom 7 through 10`() {
         (7..10).forEach { zoom ->
             assertEquals(
-                ClusterGridPolicy(MapMarkerMode.NATIONAL_CLUSTER, 3, 5, 11),
+                MapClusterPolicy(
+                    mode = MapMarkerMode.NATIONAL_CLUSTER,
+                    targetZoom = 11,
+                    grid = MapClusterGrid(columns = 3, rows = 5),
+                ),
                 ClusterPolicy.forZoom(zoom),
             )
         }
     }
 
     @Test
-    fun `uses regional grid from zoom 11 through 13`() {
+    fun `uses regional distance clustering from zoom 11 through 13`() {
         (11..13).forEach { zoom ->
             assertEquals(
-                ClusterGridPolicy(MapMarkerMode.REGIONAL_CLUSTER, 4, 6, 14),
+                MapClusterPolicy(MapMarkerMode.REGIONAL_CLUSTER, targetZoom = 14),
                 ClusterPolicy.forZoom(zoom),
             )
         }
@@ -35,8 +39,12 @@ class GridClustererTest {
 
     @Test
     fun `groups members by screen cell and averages coordinates`() {
-        val policy = ClusterGridPolicy(MapMarkerMode.NATIONAL_CLUSTER, 3, 5, 11)
-        val clusters = GridClusterer.cluster(
+        val policy = MapClusterPolicy(
+            mode = MapMarkerMode.NATIONAL_CLUSTER,
+            targetZoom = 11,
+            grid = MapClusterGrid(columns = 3, rows = 5),
+        )
+        val clusters = MapClusterer.cluster(
             items = listOf(
                 item(1, 37.0, 127.0, 10, 10),
                 item(2, 39.0, 129.0, 90, 90),
@@ -58,11 +66,15 @@ class GridClustererTest {
     @Test
     fun `renders a single member cell as an individual marker`() {
         val coursePoint = GeoPoint(37.0, 127.0)
-        val cluster = GridClusterer.cluster(
+        val cluster = MapClusterer.cluster(
             items = listOf(ProjectedMapItem(1, coursePoint, 10, 10)),
             viewportWidth = 300,
             viewportHeight = 500,
-            policy = ClusterPolicy.forZoom(13)!!,
+            policy = MapClusterPolicy(
+                mode = MapMarkerMode.NATIONAL_CLUSTER,
+                targetZoom = 11,
+                grid = MapClusterGrid(columns = 3, rows = 5),
+            ),
         ).single()
 
         assertEquals(coursePoint, cluster.representativePoint)
@@ -70,9 +82,50 @@ class GridClustererTest {
     }
 
     @Test
+    fun `merges nearby points across former grid cell boundaries`() {
+        val clusters = MapClusterer.clusterByScreenDistance(
+            items = listOf(
+                item(1, 37.50, 126.90, 90, 100),
+                item(2, 37.51, 126.91, 170, 100),
+                item(3, 37.60, 127.00, 350, 400),
+            ),
+            viewportWidth = 400,
+            viewportHeight = 600,
+            minimumDistancePx = 100,
+            targetZoom = 14,
+        )
+
+        assertEquals(2, clusters.size)
+        assertEquals(listOf(1, 2), clusters.first { it.memberIds.contains(1) }.memberIds)
+        assertFalse(clusters.first { it.memberIds == listOf(3) }.isClusterMarker)
+    }
+
+    @Test
+    fun `merges chained nearby points to prevent adjacent cluster collisions`() {
+        val clusters = MapClusterer.clusterByScreenDistance(
+            items = listOf(
+                item(1, 37.50, 126.90, 0, 100),
+                item(2, 37.51, 126.91, 90, 100),
+                item(3, 37.52, 126.92, 180, 100),
+            ),
+            viewportWidth = 400,
+            viewportHeight = 600,
+            minimumDistancePx = 100,
+            targetZoom = 14,
+        )
+
+        assertEquals(1, clusters.size)
+        assertEquals(listOf(1, 2, 3), clusters.single().memberIds)
+    }
+
+    @Test
     fun `includes right and bottom boundary in final cell`() {
-        val policy = ClusterGridPolicy(MapMarkerMode.REGIONAL_CLUSTER, 4, 6, 14)
-        val cluster = GridClusterer.cluster(
+        val policy = MapClusterPolicy(
+            mode = MapMarkerMode.NATIONAL_CLUSTER,
+            targetZoom = 14,
+            grid = MapClusterGrid(columns = 4, rows = 6),
+        )
+        val cluster = MapClusterer.cluster(
             items = listOf(item(1, 37.0, 127.0, 400, 600)),
             viewportWidth = 400,
             viewportHeight = 600,
@@ -85,11 +138,15 @@ class GridClustererTest {
 
     @Test
     fun `excludes points outside viewport and handles invalid size`() {
-        val policy = ClusterGridPolicy(MapMarkerMode.NATIONAL_CLUSTER, 3, 5, 11)
+        val policy = MapClusterPolicy(
+            mode = MapMarkerMode.NATIONAL_CLUSTER,
+            targetZoom = 11,
+            grid = MapClusterGrid(columns = 3, rows = 5),
+        )
         val outside = listOf(item(1, 37.0, 127.0, -1, 20))
 
-        assertTrue(GridClusterer.cluster(outside, 300, 500, policy).isEmpty())
-        assertTrue(GridClusterer.cluster(emptyList(), 0, 500, policy).isEmpty())
+        assertTrue(MapClusterer.cluster(outside, 300, 500, policy).isEmpty())
+        assertTrue(MapClusterer.cluster(emptyList(), 0, 500, policy).isEmpty())
     }
 
     @Test
@@ -97,7 +154,7 @@ class GridClustererTest {
         val policy = NationalGrid.policy
         val bounds = NationalGrid.query
 
-        val clusters = GridClusterer.clusterInFixedGeoGrid(
+        val clusters = MapClusterer.clusterInFixedGeoGrid(
             items = listOf(
                 point(1, 38.5, 125.0),
                 point(2, 38.1, 126.0),

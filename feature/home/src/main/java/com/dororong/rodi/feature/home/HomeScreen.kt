@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -38,6 +39,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -65,6 +67,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.dororong.rodi.core.domain.Course
 import com.dororong.rodi.core.domain.GeoPoint
+import com.dororong.rodi.core.domain.MapViewportQuery
 import com.dororong.rodi.core.domain.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsDocument
@@ -75,7 +78,7 @@ import com.dororong.rodi.feature.home.location.hasLocationPermission
 import com.dororong.rodi.feature.home.components.ClusterLabPanel
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
-import com.dororong.rodi.feature.home.map.GridClusterer
+import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapCoursePoint
 import com.dororong.rodi.feature.home.map.MapCluster
 import com.dororong.rodi.feature.home.map.MapMarkerMode
@@ -83,6 +86,7 @@ import com.dororong.rodi.feature.home.map.MapViewportQueryFactory
 import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.NationalGridSnapshot
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
+import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
@@ -140,6 +144,9 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
     var clusterCount by remember { mutableIntStateOf(0) }
     var nationalGridSnapshot by remember { mutableStateOf<NationalGridSnapshot?>(null) }
     var renderedNationalGridSnapshot by remember { mutableStateOf<NationalGridSnapshot?>(null) }
+    var pendingRegionalViewportQuery by remember { mutableStateOf<MapViewportQuery?>(null) }
+    var shouldRefreshRegionalViewport by remember { mutableStateOf(false) }
+    val latestViewportQuery by rememberUpdatedState(state.viewportQuery)
     val clusterBackgroundColor = RodiTheme.colors.primary600.toArgb()
     val clusterTextColor = RodiTheme.colors.white.toArgb()
 
@@ -177,6 +184,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         0.dp
     }
     val density = LocalDensity.current
+    val regionalClusterDistancePx = with(density) { 56.dp.roundToPx() }
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
     val handleHeightDp = 24.dp
@@ -259,7 +267,29 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
             }
         }
         map.setOnCameraMoveEndListener { movedMap, _, _ ->
-            dispatchViewport(movedMap)
+            val northEast = movedMap.fromScreenPoint(mapViewSize.width, 0)
+            val southWest = movedMap.fromScreenPoint(0, mapViewSize.height)
+            val query = if (northEast != null && southWest != null) {
+                MapViewportQueryFactory.fromCorners(
+                    northEast = GeoPoint(northEast.latitude, northEast.longitude),
+                    southWest = GeoPoint(southWest.latitude, southWest.longitude),
+                    zoomLevel = movedMap.zoomLevel,
+                )
+            } else {
+                null
+            }
+            if (
+                query != null &&
+                !shouldRefreshRegionalViewport &&
+                ClusterPolicy.forZoom(query.zoomLevel)?.mode == MapMarkerMode.REGIONAL_CLUSTER &&
+                latestViewportQuery?.let { ClusterPolicy.forZoom(it.zoomLevel) }?.mode == MapMarkerMode.REGIONAL_CLUSTER
+            ) {
+                pendingRegionalViewportQuery = query
+            } else {
+                pendingRegionalViewportQuery = null
+                dispatchViewport(movedMap)
+            }
+            shouldRefreshRegionalViewport = false
             if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
                 coroutineScope.launch {
                     delay(1_500)
@@ -275,6 +305,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         map.setOnLabelClickListener { _, _, label ->
             when (val tag = label.tag) {
                 is BrowseLabelTag.Cluster -> {
+                    shouldRefreshRegionalViewport = true
                     map.moveCamera(
                         CameraUpdateFactory.newCenterPosition(
                             LatLng.from(tag.center.lat, tag.center.lng),
@@ -327,11 +358,13 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         if (initialCameraMap !== map) {
             initialCameraMap = map
             hasMovedToCurrentLocation = currentLocation != null
+            shouldRefreshRegionalViewport = true
             map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation ?: SEOUL, DEFAULT_ZOOM))
             return@LaunchedEffect
         }
         if (!hasMovedToCurrentLocation && currentLocation != null) {
             hasMovedToCurrentLocation = true
+            shouldRefreshRegionalViewport = true
             map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation, DEFAULT_ZOOM))
         }
     }
@@ -352,7 +385,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         nationalGridSnapshot = NationalGridSnapshot(
             query = NationalGrid.query,
             courseCount = state.nationalCourses.size,
-            clusters = GridClusterer.clusterInFixedGeoGrid(
+            clusters = MapClusterer.clusterInFixedGeoGrid(
                 items = state.nationalCourses.map { course ->
                     MapCoursePoint(
                         id = course.id,
@@ -378,6 +411,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
         nationalGridSnapshot,
         clusterBackgroundColor,
         clusterTextColor,
+        regionalClusterDistancePx,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = selectedCourse
@@ -421,11 +455,12 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 }
             } else {
                 renderedNationalGridSnapshot = null
-                val clusters = GridClusterer.cluster(
+                val clusters = MapClusterer.clusterByScreenDistance(
                     items = projectedCourses.map { it.second },
                     viewportWidth = width,
                     viewportHeight = height,
-                    policy = policy,
+                    minimumDistancePx = regionalClusterDistancePx,
+                    targetZoom = policy.targetZoom,
                 )
                 clusterCount = clusters.count(MapCluster::isClusterMarker)
                 map.renderClusters(
@@ -701,8 +736,8 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                 ClusterLabPanel(
                     zoomLevel = labZoom,
                     mode = ClusterPolicy.modeForZoom(labZoom),
-                    columns = labPolicy?.columns,
-                    rows = labPolicy?.rows,
+                    columns = labPolicy?.grid?.columns,
+                    rows = labPolicy?.grid?.rows,
                     query = state.viewportQuery,
                     courseCount = nationalGridSnapshot?.courseCount
                         ?.takeIf { isNationalSnapshotVisible }
@@ -724,6 +759,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     },
                     onZoomSelected = { zoom ->
                         kakaoMap?.let { map ->
+                            shouldRefreshRegionalViewport = true
                             map.moveCamera(
                                 if (zoom == MIN_ZOOM) {
                                     CameraUpdateFactory.newCenterPosition(NATIONAL_OVERVIEW, zoom)
@@ -756,6 +792,29 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                     )
                 }
 
+                val shouldShowSearchThisArea = pendingRegionalViewportQuery?.let { pendingQuery ->
+                    val searchedQuery = state.viewportQuery ?: return@let false
+                    ViewportSearchThreshold.isExceeded(searchedQuery, pendingQuery)
+                } == true
+                AnimatedVisibility(
+                    visible = selectedCourse == null && shouldShowSearchThisArea,
+                    enter = fadeIn(animationSpec = tween(durationMillis = 150)),
+                    exit = fadeOut(animationSpec = tween(durationMillis = 100)),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 224.dp),
+                ) {
+                    SearchThisAreaButton(
+                        onClick = {
+                            pendingRegionalViewportQuery?.let { query ->
+                                vm.onIntent(HomeIntent.OnViewportChanged(query))
+                            }
+                            pendingRegionalViewportQuery = null
+                        },
+                    )
+                }
+
                 // 설정/현위치 버튼 — 시트 우상단 위 12dp에 부유
                 if (!SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE || sheetOffsetPx != Float.MAX_VALUE) {
                     val buttonTopDp = if (SHOW_BOTTOM_SHEET_FOR_CLUSTERING_SPIKE) {
@@ -779,6 +838,7 @@ fun HomeScreen(vm: HomeViewModel = hiltViewModel()) {
                             isActive = isAtCurrentLocation,
                             onClick = {
                                 val loc = currentLocation ?: SEOUL
+                                shouldRefreshRegionalViewport = true
                                 kakaoMap?.moveCamera(
                                     CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
                                     CameraAnimation.from(250),

@@ -51,7 +51,11 @@ fun ClusterLabPanel(
                 color = RodiTheme.colors.primary700,
             )
             Text(
-                text = "zoom $zoomLevel · ${mode.label} · ${columns ?: "-"}×${rows ?: "-"}",
+                text = "zoom $zoomLevel · ${mode.label} · " + when (mode) {
+                    MapMarkerMode.NATIONAL_CLUSTER -> "${columns ?: "-"}×${rows ?: "-"}"
+                    MapMarkerMode.REGIONAL_CLUSTER -> "반경 56dp"
+                    MapMarkerMode.INDIVIDUAL -> "개별"
+                },
                 style = RodiTheme.typography.caption1Medium,
                 color = RodiTheme.colors.gray900,
             )

@@ -2,18 +2,35 @@ package com.dororong.rodi.core.data.map
 
 import com.dororong.rodi.core.domain.GeoPoint
 import com.dororong.rodi.core.domain.MapViewportQuery
+import com.dororong.rodi.core.data.SampleCourses
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class LocalSyntheticMapCourseDataSourceTest {
-    private val source = LocalSyntheticMapCourseDataSource()
+class LocalMapCourseFixtureDataSourceTest {
+    private val source = LocalMapCourseFixtureDataSource()
 
     @Test
-    fun `creates exactly 300 deterministic courses`() {
-        assertEquals(300, source.allCourses().size)
-        assertEquals(source.allCourses(), LocalSyntheticMapCourseDataSource().allCourses())
+    fun `adds deterministic n queen markers to the existing sample course data`() {
+        val courses = source.allCourses()
+
+        assertEquals(SampleCourses.RODI_COURSES.size + 40, courses.size)
+        assertEquals(courses, LocalMapCourseFixtureDataSource().allCourses())
+        assertEquals(40, courses.count { it.source == "local-n-queens-spike" })
+    }
+
+    @Test
+    fun `places each n queen board on unique rows and columns`() {
+        val boards = source.allCourses()
+            .filter { it.source == "local-n-queens-spike" }
+            .chunked(8)
+
+        assertEquals(5, boards.size)
+        boards.forEach { board ->
+            assertEquals(8, board.map { it.startWaypoint.lat }.distinct().size)
+            assertEquals(8, board.map { it.startWaypoint.lng }.distinct().size)
+        }
     }
 
     @Test

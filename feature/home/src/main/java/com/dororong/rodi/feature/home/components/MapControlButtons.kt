@@ -93,6 +93,24 @@ fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+fun SearchThisAreaButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.semantics { contentDescription = "현 지도에서 검색" },
+        shape = RoundedCornerShape(50),
+        color = RodiTheme.colors.white,
+        shadowElevation = 2.dp,
+    ) {
+        Text(
+            text = "현 지도에서 검색",
+            style = RodiTheme.typography.body2Medium,
+            color = RodiTheme.colors.gray900,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
+    }
+}
+
+@Composable
 fun SettingsButton(onClick: () -> Unit) {
     Surface(
         onClick = onClick,
@@ -172,6 +190,7 @@ private fun MapControlsCombinedPreview() {
                 MyLocationButton(isActive = true, onClick = {})
                 SettingsButton(onClick = {})
             }
+            SearchThisAreaButton(onClick = {})
         }
     }
 }
