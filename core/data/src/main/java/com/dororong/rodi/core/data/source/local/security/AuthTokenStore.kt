@@ -1,70 +1,76 @@
 package com.dororong.rodi.core.data.source.local.security
 
 import android.content.Context
-import android.content.SharedPreferences
-import androidx.core.content.edit
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.io.IOException
-import java.security.GeneralSecurityException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * 로그인 세션(액세스/리프레시 토큰)을 EncryptedSharedPreferences에 저장한다.
- * DataStore를 쓰지 않는 이유: 토큰은 평문 보관 금지 대상이라 Android Keystore 기반
- * 암호화가 필요하다(백엔드 문서의 "안전한 저장소" 요구사항).
- */
 @Singleton
 class AuthTokenStore @Inject constructor(
-    @ApplicationContext context: Context,
+    @param:ApplicationContext private val context: Context,
+    private val dataStore: AuthTokenDataStore,
 ) {
-    private val appContext = context.applicationContext
-    private val prefs = createPrefsWithRecovery(appContext)
+    private val mutex = Mutex()
 
-    val accessToken: String? get() = prefs.getString(KEY_ACCESS_TOKEN, null)
-    val refreshToken: String? get() = prefs.getString(KEY_REFRESH_TOKEN, null)
-    val isLoggedIn: Boolean get() = refreshToken != null
-    val hasRecentKakaoLogin: Boolean get() = prefs.getString(KEY_RECENT_PROVIDER, null) == PROVIDER_KAKAO
+    @Volatile
+    private var cachedTokens: AuthTokens? = null
 
-    fun save(accessToken: String, refreshToken: String) {
-        prefs.edit {
-            putString(KEY_ACCESS_TOKEN, accessToken)
-                .putString(KEY_REFRESH_TOKEN, refreshToken)
-                .putString(KEY_RECENT_PROVIDER, PROVIDER_KAKAO)
+    @Volatile
+    private var cacheInitialized = false
+
+    @Volatile
+    private var legacyStoreRemoved = false
+
+    suspend fun getTokens(): AuthTokens? = withContext(Dispatchers.IO) {
+        if (cacheInitialized) return@withContext cachedTokens
+
+        mutex.withLock {
+            if (!cacheInitialized) {
+                removeLegacyStore()
+                cachedTokens = dataStore.read()
+                cacheInitialized = true
+            }
+            cachedTokens
         }
     }
 
-    fun clear() {
-        prefs.edit { clear() }
+    suspend fun save(accessToken: String, refreshToken: String): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            removeLegacyStore()
+            val tokens = AuthTokens(accessToken, refreshToken, KAKAO_PROVIDER)
+            val saved = dataStore.save(tokens)
+            if (saved) {
+                cachedTokens = tokens
+                cacheInitialized = true
+            } else {
+                clearLocked()
+            }
+            saved
+        }
+    }
+
+    suspend fun clear(): Boolean = withContext(Dispatchers.IO) { mutex.withLock { clearLocked() } }
+
+    private suspend fun clearLocked(): Boolean {
+        cachedTokens = null
+        cacheInitialized = true
+        removeLegacyStore()
+        return dataStore.clear()
+    }
+
+    private fun removeLegacyStore() {
+        if (!legacyStoreRemoved) {
+            context.deleteSharedPreferences(LEGACY_PREFERENCES_NAME)
+            legacyStoreRemoved = true
+        }
     }
 
     private companion object {
-        const val PREFS_NAME = "auth_secure_prefs"
-        const val KEY_ACCESS_TOKEN = "access_token"
-        const val KEY_REFRESH_TOKEN = "refresh_token"
-        const val KEY_RECENT_PROVIDER = "recent_provider"
-        const val PROVIDER_KAKAO = "kakao"
-
-        fun createPrefsWithRecovery(context: Context): SharedPreferences =
-            try {
-                createPrefs(context)
-            } catch (_: GeneralSecurityException) {
-                context.deleteSharedPreferences(PREFS_NAME)
-                createPrefs(context)
-            } catch (_: IOException) {
-                context.deleteSharedPreferences(PREFS_NAME)
-                createPrefs(context)
-            }
-
-        fun createPrefs(context: Context): SharedPreferences =
-            EncryptedSharedPreferences.create(
-                context,
-                PREFS_NAME,
-                MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),
-                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
-            )
+        const val LEGACY_PREFERENCES_NAME = "auth_secure_prefs"
     }
 }

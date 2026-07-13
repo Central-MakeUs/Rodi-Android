@@ -4,12 +4,13 @@
    for details.
 -->
 <data-extraction-rules>
-    <!-- 로그인 세션(EncryptedSharedPreferences)은 Keystore 키가 백업/기기이전에 딸려가지
-         않아 복원 후 복호화가 불가능하다. 두 대상 모두에서 제외한다. -->
+    <!-- Keystore 키와 분리된 토큰 암호문은 복원·기기 이전 대상에서 제외한다. -->
     <cloud-backup>
         <exclude domain="sharedpref" path="auth_secure_prefs.xml"/>
+        <exclude domain="file" path="datastore/auth_tokens.preferences_pb"/>
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="auth_secure_prefs.xml"/>
+        <exclude domain="file" path="datastore/auth_tokens.preferences_pb"/>
     </device-transfer>
 </data-extraction-rules>
