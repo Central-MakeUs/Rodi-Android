@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
+import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
 import dagger.Module
 import dagger.Provides
@@ -31,7 +32,7 @@ object NetworkModule {
             redactHeader("Cookie")
             redactHeader("Set-Cookie")
             level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
+                HttpLoggingInterceptor.Level.BASIC
             } else {
                 HttpLoggingInterceptor.Level.NONE
             }
@@ -60,6 +61,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMemberApi(retrofit: Retrofit): MemberApi = retrofit.create(MemberApi::class.java)
 
     @Provides
     @Singleton

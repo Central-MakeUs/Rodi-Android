@@ -28,7 +28,7 @@
 | 모듈 | 역할 |
 |---|---|
 | `:core:domain` | 도메인 모델(`Course` 등) |
-| `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`AuthTokenStore`(로그인, EncryptedSharedPreferences) |
+| `:core:data` | `EntryPreferences`(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`MemberApi`/`AuthTokenStore`(로그인·세션 관리, Android Keystore AES-GCM + DataStore) |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
 | `:core:common` | 확장함수/유틸(`runSuspendCatching` 등) |
 | `:feature:auth` | 카카오 로그인 화면 + SDK 로직, 서버 로그인 API 연동 완료(재발급/로그아웃은 미연동) |

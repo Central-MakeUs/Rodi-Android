@@ -32,7 +32,6 @@ dependencies {
     api(project(":core:domain"))
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.room.runtime)
-    implementation(libs.androidx.security.crypto)
     implementation(libs.hilt.android)
     implementation(libs.kakao.maps)
     implementation(libs.kotlinx.coroutines.android)

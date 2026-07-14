@@ -23,7 +23,6 @@ kotlinxSerialization = "1.7.3"
 
 # DataStore
 datastore = "1.1.7"
-securityCrypto = "1.1.0"
 
 # Network / DB
 retrofit = "2.11.0"
@@ -94,7 +93,6 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # DataStore
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
-androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 
 # Network / DB
 retrofit-core = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
