@@ -1,11 +1,13 @@
 package com.dororong.rodi.core.data.repository
 
-import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
-import com.dororong.rodi.core.data.source.remote.api.AuthApi
+import com.dororong.rodi.core.data.mapper.authRequest
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toAccountRestoreResult
 import com.dororong.rodi.core.data.mapper.toAuthTokenResponse
 import com.dororong.rodi.core.data.mapper.toOAuthRequest
+import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
+import com.dororong.rodi.core.data.source.local.security.KAKAO_PROVIDER
+import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.model.auth.LogoutRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginRequest
@@ -33,7 +35,7 @@ class AuthRepositoryImpl @Inject constructor(
         val tokens = tokenStore.getTokens()
         return AuthSession(
             isLoggedIn = tokens != null,
-            hasRecentKakaoLogin = tokens?.hasRecentKakaoLogin == true,
+            hasRecentKakaoLogin = tokens?.isKakaoProvider == true,
         )
     }
 
@@ -68,7 +70,13 @@ class AuthRepositoryImpl @Inject constructor(
                 val body = request { authApi.reissue(TokenRefreshRequest(currentTokens.refreshToken)) }.requireData()
                 saveTokens(body.accessToken, body.refreshToken)
             } catch (exception: AuthException.SessionRevoked) {
-                tokenStore.clear()
+                try {
+                    clearTokens()
+                } catch (clearException: CancellationException) {
+                    throw clearException
+                } catch (clearException: Throwable) {
+                    exception.addSuppressed(clearException)
+                }
                 throw exception
             }
         }
@@ -91,7 +99,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private suspend fun saveTokens(accessToken: String, refreshToken: String) {
-        if (!tokenStore.save(accessToken, refreshToken)) {
+        if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
     }
@@ -102,13 +110,7 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun <T> request(block: suspend () -> T): T = try {
-        block()
-    } catch (exception: CancellationException) {
-        throw exception
-    } catch (exception: Throwable) {
-        throw exception.toAuthException(json)
-    }
+    private suspend fun <T> request(block: suspend () -> T): T = json.authRequest(block)
 
     private fun <T> ApiEnvelope<T>.requireData(): T {
         if (!isSuccess) throw toAuthException()

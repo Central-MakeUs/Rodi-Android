@@ -39,10 +39,14 @@ class AuthTokenStore @Inject constructor(
         }
     }
 
-    suspend fun save(accessToken: String, refreshToken: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun save(
+        accessToken: String,
+        refreshToken: String,
+        provider: String = KAKAO_PROVIDER,
+    ): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
             removeLegacyStore()
-            val tokens = AuthTokens(accessToken, refreshToken, KAKAO_PROVIDER)
+            val tokens = AuthTokens(accessToken, refreshToken, provider)
             val saved = dataStore.save(tokens)
             if (saved) {
                 cachedTokens = tokens

@@ -10,6 +10,7 @@ import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginResponse
 import com.dororong.rodi.core.data.source.remote.model.auth.TokenRefreshRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
+import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import io.mockk.coEvery
@@ -45,13 +46,13 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns tokenEnvelope(true)
-        coEvery { tokenStore.save("access-new", "refresh-new") } returns true
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         val repository = AuthRepositoryImpl(authApi, tokenStore, json)
 
         val isNewMember = repository.loginWithKakao("kakao-token")
 
         assertTrue(isNewMember)
-        coVerify { tokenStore.save("access-new", "refresh-new") }
+        coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
     }
 
     @Test
@@ -60,13 +61,13 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(false)
-        coEvery { tokenStore.save("access-new", "refresh-new") } returns true
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         val repository = AuthRepositoryImpl(authApi, tokenStore, json)
 
         repository.reissueToken()
 
         coVerify(exactly = 1) { authApi.reissue(TokenRefreshRequest("refresh-old")) }
-        coVerify { tokenStore.save("access-new", "refresh-new") }
+        coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
     }
 
     @Test
@@ -115,13 +116,13 @@ class AuthRepositoryImplTest {
                 nickname = "로디",
             ),
         )
-        coEvery { tokenStore.save("access-new", "refresh-new") } returns true
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         val repository = AuthRepositoryImpl(authApi, tokenStore, json)
 
         val result = repository.restoreWithKakao("kakao-token")
 
         assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
-        coVerify { tokenStore.save("access-new", "refresh-new") }
+        coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
     }
 
     @Test
@@ -144,7 +145,7 @@ class AuthRepositoryImplTest {
         val result = repository.restoreWithKakao("kakao-token")
 
         assertTrue(result is AccountRestoreResult.WithdrawalPending)
-        coVerify(exactly = 0) { tokenStore.save(any(), any()) }
+        coVerify(exactly = 0) { tokenStore.save(any(), any(), any()) }
     }
 
     @Test
@@ -201,16 +202,4 @@ class AuthRepositoryImplTest {
             isNewMember = isNewMember,
         ),
     )
-
-    private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
-        crossinline block: suspend () -> Unit,
-    ): T {
-        try {
-            block()
-        } catch (exception: Throwable) {
-            if (exception is T) return exception
-            throw exception
-        }
-        throw AssertionError("Expected ${T::class.simpleName} to be thrown")
-    }
 }

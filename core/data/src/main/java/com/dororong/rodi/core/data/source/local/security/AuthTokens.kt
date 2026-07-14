@@ -5,7 +5,7 @@ data class AuthTokens(
     val refreshToken: String,
     val provider: String,
 ) {
-    val hasRecentKakaoLogin: Boolean get() = provider == KAKAO_PROVIDER
+    val isKakaoProvider: Boolean get() = provider == KAKAO_PROVIDER
 }
 
 const val KAKAO_PROVIDER = "kakao"

@@ -27,8 +27,8 @@ class AuthTokenDataStore @Inject constructor(
     private val json: Json,
 ) {
     suspend fun read(): AuthTokens? {
-        val encodedTokens = context.authTokenDataStore.data.first()[KEY_TOKENS] ?: return null
         return try {
+            val encodedTokens = context.authTokenDataStore.data.first()[KEY_TOKENS] ?: return null
             val tokens = json.decodeFromString<EncryptedAuthTokens>(encodedTokens)
             AuthTokens(
                 accessToken = tokenEncryption.decrypt(tokens.accessToken, ACCESS_TOKEN_AAD),
@@ -39,6 +39,9 @@ class AuthTokenDataStore @Inject constructor(
             clear()
             null
         } catch (_: SerializationException) {
+            clear()
+            null
+        } catch (_: IOException) {
             clear()
             null
         }

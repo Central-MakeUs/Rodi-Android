@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.source.local.security
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import kotlinx.coroutines.CancellationException
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -22,29 +23,41 @@ class TokenEncryption @Inject constructor() {
             iv = Base64.encodeToString(cipher.iv, Base64.NO_WRAP),
             ciphertext = Base64.encodeToString(cipher.doFinal(plainText.toByteArray(Charsets.UTF_8)), Base64.NO_WRAP),
         )
+    } catch (exception: CancellationException) {
+        throw exception
     } catch (exception: Exception) {
         throw TokenEncryptionException(exception)
     }
 
     fun decrypt(payload: EncryptedPayload, associatedData: String): String = try {
-        require(payload.version == VERSION)
+        if (payload.version != VERSION) throw TokenEncryptionUnsupportedVersionException(payload.version)
+        val key = getKey() ?: throw TokenEncryptionMissingKeyException()
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(
             Cipher.DECRYPT_MODE,
-            getOrCreateKey(),
+            key,
             GCMParameterSpec(GCM_TAG_LENGTH_BITS, Base64.decode(payload.iv, Base64.NO_WRAP)),
         )
         cipher.updateAAD(associatedData.toByteArray(Charsets.UTF_8))
         String(cipher.doFinal(Base64.decode(payload.ciphertext, Base64.NO_WRAP)), Charsets.UTF_8)
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: TokenEncryptionException) {
+        throw exception
     } catch (exception: Exception) {
         throw TokenEncryptionException(exception)
     }
 
-    private fun getOrCreateKey(): SecretKey {
+    private fun getKey(): SecretKey? {
         val keyStore = KeyStore.getInstance(ANDROID_KEY_STORE).apply { load(null) }
         val existingKey = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
-        if (existingKey != null) return existingKey.secretKey
+        return existingKey?.secretKey
+    }
 
+    private fun getOrCreateKey(): SecretKey =
+        getKey() ?: synchronized(this) { getKey() ?: generateKey() }
+
+    private fun generateKey(): SecretKey {
         val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEY_STORE)
         keyGenerator.init(
             KeyGenParameterSpec.Builder(
@@ -69,4 +82,12 @@ class TokenEncryption @Inject constructor() {
     }
 }
 
-class TokenEncryptionException(cause: Throwable) : RuntimeException(cause)
+open class TokenEncryptionException(cause: Throwable) : RuntimeException(cause)
+
+class TokenEncryptionMissingKeyException : TokenEncryptionException(
+    IllegalStateException("Keystore key not found; session must be recreated"),
+)
+
+class TokenEncryptionUnsupportedVersionException(version: Int) : TokenEncryptionException(
+    IllegalArgumentException("Unsupported token payload version: $version"),
+)

@@ -26,6 +26,14 @@ fun Throwable.toAuthException(json: Json): AuthException = when (this) {
     else -> AuthException.Unknown(message ?: "알 수 없는 오류가 발생했습니다.")
 }
 
+suspend fun <T> Json.authRequest(block: suspend () -> T): T = try {
+    block()
+} catch (exception: CancellationException) {
+    throw exception
+} catch (exception: Throwable) {
+    throw exception.toAuthException(this)
+}
+
 fun ApiEnvelope<*>.toAuthException(): AuthException = code.toAuthException(
     message = message,
     fallbackMessage = "인증 요청에 실패했습니다.",

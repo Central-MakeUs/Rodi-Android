@@ -11,6 +11,19 @@ import java.time.Instant
 
 class AccountRestoreMapperTest {
     @Test
+    fun `maps success status to restored result`() {
+        val response = SocialLoginResponse(
+            status = "SUCCESS",
+            isNewMember = false,
+            nickname = "로디",
+        )
+
+        val result = response.toAccountRestoreResult()
+
+        assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
+    }
+
+    @Test
     fun `maps withdrawal pending timestamps to domain result`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
@@ -40,5 +53,14 @@ class AccountRestoreMapperTest {
         val exception = assertThrows(AuthException.Unknown::class.java) { response.toAuthTokenResponse() }
 
         assertTrue(exception.message!!.contains("accessToken"))
+    }
+
+    @Test
+    fun `rejects unsupported restore status`() {
+        val response = SocialLoginResponse(status = "LOCKED")
+
+        val exception = assertThrows(AuthException.Unknown::class.java) { response.toAccountRestoreResult() }
+
+        assertTrue(exception.message!!.contains("복구 응답 상태"))
     }
 }

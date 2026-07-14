@@ -4,10 +4,12 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
+import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -48,15 +50,14 @@ class MemberRepositoryImplTest {
         coVerify(exactly = 0) { memberApi.withdraw(any()) }
     }
 
-    private suspend inline fun <reified T : Throwable> assertThrowsSuspend(
-        crossinline block: suspend () -> Unit,
-    ): T {
-        try {
-            block()
-        } catch (exception: Throwable) {
-            if (exception is T) return exception
-            throw exception
-        }
-        throw AssertionError("Expected ${T::class.simpleName} to be thrown")
+    @Test
+    fun `withdraw propagates cancellation`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.withdraw("Bearer access") } throws CancellationException("cancelled")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json)
+
+        assertThrowsSuspend<CancellationException> { repository.withdraw() }
     }
 }
