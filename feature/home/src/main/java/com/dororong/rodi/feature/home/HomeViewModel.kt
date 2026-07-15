@@ -8,6 +8,7 @@ import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetLocationPermissionRequestedUseCase
 import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequestedUseCase
+import com.dororong.rodi.feature.home.map.MapViewport
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
@@ -37,6 +38,8 @@ class HomeViewModel @Inject constructor(
     private val markLocationPermissionRequestedUseCase: MarkLocationPermissionRequestedUseCase,
 ) : ViewModel() {
 
+    private val allCourses = getCoursesUseCase()
+
     data class UiState(
         val courses: List<Course> = emptyList(),
         val selectedCourseId: Int? = null,
@@ -62,7 +65,7 @@ class HomeViewModel @Inject constructor(
             }
     }
 
-    private val _state = MutableStateFlow(UiState(courses = getCoursesUseCase()))
+    private val _state = MutableStateFlow(UiState(courses = allCourses))
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
@@ -79,6 +82,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDismissDetail -> onDismissDetail()
             is HomeIntent.OnDistanceFilterChange -> onDistanceFilterChange(intent.km)
             is HomeIntent.OnLocationUpdate -> onLocationUpdate(intent.lat, intent.lng)
+            is HomeIntent.OnMapSearch -> onMapSearch(intent.viewport)
             HomeIntent.OnSettingsClick -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSettings) }
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
@@ -121,6 +125,17 @@ class HomeViewModel @Inject constructor(
 
     private fun onLocationUpdate(lat: Double, lng: Double) {
         _state.update { it.copy(userLat = lat, userLng = lng) }
+    }
+
+    private fun onMapSearch(viewport: MapViewport) {
+        _state.update {
+            it.copy(
+                courses = allCourses.filter { course ->
+                    course.startWaypoint.lat in viewport.southWest.lat..viewport.northEast.lat &&
+                        course.startWaypoint.lng in viewport.southWest.lng..viewport.northEast.lng
+                },
+            )
+        }
     }
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {

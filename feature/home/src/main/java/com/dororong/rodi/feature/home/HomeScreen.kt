@@ -79,6 +79,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.component.DistanceFilterBar
 import com.dororong.rodi.feature.home.component.MapLoadingScreen
 import com.dororong.rodi.feature.home.component.MapNetworkErrorScreen
+import com.dororong.rodi.feature.home.component.MapResearchButton
 import com.dororong.rodi.feature.home.component.MyLocationButton
 import com.dororong.rodi.feature.home.component.NaviPickerMode
 import com.dororong.rodi.feature.home.component.NaviPickerSheet
@@ -98,6 +99,8 @@ import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapCoursePoint
 import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
+import com.dororong.rodi.feature.home.map.MapViewport
+import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
@@ -106,6 +109,7 @@ import com.dororong.rodi.feature.home.map.renderCourseChips
 import com.dororong.rodi.feature.home.map.renderCourseMarkers
 import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderIndividualMarkers
+import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.SEOUL
@@ -160,9 +164,15 @@ fun HomeScreen(
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
+    var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
+    var searchedViewport by remember { mutableStateOf<MapViewport?>(null) }
     val clusterDistancePx = with(LocalDensity.current) { 56.dp.roundToPx() }
     val clusterBackgroundColor = RodiTheme.colors.primary500.toArgb()
     val clusterTextColor = RodiTheme.colors.white.toArgb()
+    val shouldShowResearchButton = selectedCourse == null &&
+        searchedViewport?.let { searched ->
+            currentViewport?.let { current -> ViewportSearchThreshold.isExceeded(searched, current) }
+        } == true
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -243,6 +253,7 @@ fun HomeScreen(
         }
         map.setOnCameraMoveEndListener { movedMap, _, _ ->
             mapZoomLevel = movedMap.zoomLevel
+            currentViewport = movedMap.viewportOrNull(mapViewSize)
             if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
                 coroutineScope.launch {
                     delay(1_500.milliseconds)
@@ -279,6 +290,17 @@ fun HomeScreen(
             }
             true
         }
+        currentViewport = map.viewportOrNull(mapViewSize)
+    }
+
+    LaunchedEffect(currentViewport, searchedViewport) {
+        if (searchedViewport == null && currentViewport != null) {
+            searchedViewport = currentViewport
+        }
+    }
+
+    LaunchedEffect(kakaoMap, mapViewSize) {
+        currentViewport = kakaoMap?.viewportOrNull(mapViewSize)
     }
 
     CollectEffect(vm.effect) { effect ->
@@ -651,6 +673,24 @@ fun HomeScreen(
                     DistanceFilterBar(
                         selectedKm = state.distanceFilterKm,
                         onSelect = { vm.onIntent(HomeIntent.OnDistanceFilterChange(it)) },
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = shouldShowResearchButton,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = 80.dp),
+                ) {
+                    MapResearchButton(
+                        onClick = {
+                            val viewport = currentViewport ?: return@MapResearchButton
+                            vm.onIntent(HomeIntent.OnMapSearch(viewport))
+                            searchedViewport = viewport
+                        },
                     )
                 }
 

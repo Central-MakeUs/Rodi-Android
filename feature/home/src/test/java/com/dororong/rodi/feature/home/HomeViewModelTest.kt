@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequest
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
+import com.dororong.rodi.feature.home.map.MapViewport
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -153,6 +154,28 @@ class HomeViewModelTest {
 
             assertEquals(HomeEffect.NavigateSettings, awaitItem())
         }
+    }
+
+    @Test
+    fun `map search updates courses to the requested viewport`() {
+        val nearbyCourse = testCourse(id = 1)
+        val distantCourse = testCourse(id = 2).copy(
+            waypoints = testWaypoints().mapIndexed { index, waypoint ->
+                if (index == 0) waypoint.copy(lat = 35.1796, lng = 129.0756) else waypoint
+            },
+        )
+        val viewModel = createViewModel(courses = listOf(nearbyCourse, distantCourse))
+
+        viewModel.onIntent(
+            HomeIntent.OnMapSearch(
+                MapViewport(
+                    northEast = GeoPoint(37.7, 127.1),
+                    southWest = GeoPoint(37.4, 126.8),
+                ),
+            ),
+        )
+
+        assertEquals(listOf(nearbyCourse), viewModel.state.value.courses)
     }
 
     @Test

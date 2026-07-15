@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home
 
 import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.feature.home.map.MapViewport
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 
 sealed interface HomeIntent {
@@ -8,6 +9,7 @@ sealed interface HomeIntent {
     data object OnDismissDetail : HomeIntent
     data class OnDistanceFilterChange(val km: Int?) : HomeIntent
     data class OnLocationUpdate(val lat: Double, val lng: Double) : HomeIntent
+    data class OnMapSearch(val viewport: MapViewport) : HomeIntent
     data object OnSettingsClick : HomeIntent
 
     data class OnNavigateClick(
