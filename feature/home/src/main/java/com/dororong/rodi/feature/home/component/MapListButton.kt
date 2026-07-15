@@ -27,7 +27,7 @@ fun MapListButton(
         modifier = modifier.semantics { contentDescription = "목록 열기" },
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = RodiTheme.colors.gray900,
+        color = RodiTheme.colors.white,
         shadowElevation = 2.dp,
     ) {
         Row(
@@ -38,12 +38,12 @@ fun MapListButton(
             Icon(
                 painter = painterResource(R.drawable.ic_list),
                 contentDescription = null,
-                tint = RodiTheme.colors.white,
+                tint = RodiTheme.colors.gray900,
             )
             Text(
                 text = "목록열기",
                 style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.white,
+                color = RodiTheme.colors.gray900,
             )
         }
     }
