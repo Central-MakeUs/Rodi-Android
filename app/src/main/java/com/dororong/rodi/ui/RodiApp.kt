@@ -32,8 +32,6 @@ import com.dororong.rodi.R
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
-import com.dororong.rodi.feature.home.HomeScreen
-import com.dororong.rodi.feature.settings.SettingsScreen
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -58,7 +56,7 @@ fun RodiApp(
     LaunchedEffect(state.isEntryCompleted, state.hasGuestAccess, state.authSession.isLoggedIn) {
         if (backStack.isEmpty()) {
             val destination = if (state.authSession.isLoggedIn || state.hasGuestAccess) {
-                if (state.isEntryCompleted) HomeRoute else EntryRoute
+                if (state.isEntryCompleted) MainRoute else EntryRoute
             } else {
                 LoginRoute
             }
@@ -84,7 +82,7 @@ fun RodiApp(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         onNavigateNext = {
                             backStack.clear()
-                            backStack.add(if (state.isEntryCompleted) HomeRoute else EntryRoute)
+                            backStack.add(if (state.isEntryCompleted) MainRoute else EntryRoute)
                         },
                     )
                 }
@@ -92,19 +90,12 @@ fun RodiApp(
                     EntryFlow(
                         onComplete = {
                             backStack.clear()
-                            backStack.add(HomeRoute)
+                            backStack.add(MainRoute)
                         },
                     )
                 }
-                HomeRoute -> NavEntry(key) {
-                    HomeScreen(onNavigateSettings = { backStack.add(SettingsRoute) })
-                }
-                SettingsRoute -> NavEntry(key) {
-                    SettingsScreen(
-                        onBack = {
-                            if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
-                        },
-                    )
+                MainRoute -> NavEntry(key) {
+                    MainScreen()
                 }
                 else -> error("Unknown route: $key")
             }

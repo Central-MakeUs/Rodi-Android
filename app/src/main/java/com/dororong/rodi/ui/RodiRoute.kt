@@ -9,7 +9,13 @@ data object LoginRoute
 data object EntryRoute
 
 @Serializable
+data object MainRoute
+
+@Serializable
 data object HomeRoute
+
+@Serializable
+data object MyPageRoute
 
 @Serializable
 data object SettingsRoute
