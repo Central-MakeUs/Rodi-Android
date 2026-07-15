@@ -38,7 +38,7 @@ fun KakaoMap.clearCourse() {
 }
 
 /**
- * 길안내 API 응답 대기 중(직선 좌표조차 아직 확정 전) 출발/도착 마커만 그린다.
+ * 길안내 API 응답 대기 중(직선 좌표조차 아직 확정 전) 출발/경유/도착 마커를 그린다.
  * 도로 경로가 준비되기 전에 직선 미리보기를 그리면 실제 경로로 다시 그려질 때 지도가
  * 두 번 움직이는 것처럼 보이므로, 경로선/카메라 정렬은 [renderCourse]·[fitCourseToScreen]에서
  * 실제 경로가 확보된 뒤에만 수행한다.
@@ -49,14 +49,17 @@ fun KakaoMap.renderCourseMarkers(context: Context, course: Course) {
     points.forEachIndexed { i, p ->
         val isStart = i == 0
         val isEnd = i == points.lastIndex
-        if (!isStart && !isEnd) return@forEachIndexed
-        val icon = if (isStart) R.drawable.ic_pin_start else R.drawable.ic_pin_arrival
+        val icon = when {
+            isStart -> R.drawable.ic_pin_start
+            isEnd -> R.drawable.ic_pin_arrival
+            else -> R.drawable.ic_pin_waypoint
+        }
         addMarkerAt(context, LatLng.from(p.lat, p.lng), icon, i)
     }
 }
 
 /**
- * 코스의 출발/목적 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
+ * 코스의 출발/경유/도착 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
  * 카메라 정렬은 시트 애니메이션이 끝난 실제 패딩 값을 알아야 하므로 [fitCourseToScreen]으로 분리한다.
  *
  * @param routePoints Directions API 로 받은 도로 경로 좌표 (실제 경로 또는 API 레벨 직선 폴백).
@@ -73,8 +76,11 @@ fun KakaoMap.renderCourse(
     points.forEachIndexed { i, p ->
         val isStart = i == 0
         val isEnd = i == points.lastIndex
-        if (!isStart && !isEnd) return@forEachIndexed
-        val icon = if (isStart) R.drawable.ic_pin_start else R.drawable.ic_pin_arrival
+        val icon = when {
+            isStart -> R.drawable.ic_pin_start
+            isEnd -> R.drawable.ic_pin_arrival
+            else -> R.drawable.ic_pin_waypoint
+        }
         val pos = snappedPoints.getOrNull(i) ?: LatLng.from(p.lat, p.lng)
         addMarkerAt(context, pos, icon, i)
     }
@@ -155,7 +161,7 @@ fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
         val bitmap = if (course.isParking) {
             parkingBitmap
         } else {
-            createChipBitmap(course.courseNickname, density)
+            createCourseChipBitmap(course.courseNickname, density)
         }
         addChipAt(
             context = context,
@@ -175,7 +181,7 @@ private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitma
     layer.addLabel(options)
 }
 
-private fun createChipBitmap(text: String, density: Float): Bitmap {
+internal fun createCourseChipBitmap(text: String, density: Float): Bitmap {
     val paddingH = (CHIP_PADDING_H_DP * density)
     val paddingV = (CHIP_PADDING_V_DP * density)
     val textSizePx = CHIP_TEXT_SIZE_SP * density

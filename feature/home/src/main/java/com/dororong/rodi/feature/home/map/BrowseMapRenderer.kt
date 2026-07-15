@@ -38,7 +38,6 @@ fun KakaoMap.renderClusters(
     clearBrowseLabels()
     val manager = labelManager ?: return
     val layer = browseLabelLayer() ?: return
-    val courseStyles by lazy { manager.addLabelStyles(LabelStyles.from(LabelStyle.from(context.drawableToBitmap(R.drawable.ic_pin_start, 34)))) }
     val parkingStyles by lazy { manager.addLabelStyles(LabelStyles.from(LabelStyle.from(context.drawableToBitmap(R.drawable.ic_pin_parking, 34)))) }
 
     clusters.forEach { cluster ->
@@ -58,9 +57,16 @@ fun KakaoMap.renderClusters(
             )
         } else {
             val course = coursesById[cluster.memberIds.single()] ?: return@forEach
+            val styles = if (course.isParking) {
+                parkingStyles
+            } else {
+                manager.addLabelStyles(
+                    LabelStyles.from(LabelStyle.from(createCourseChipBitmap(course.courseNickname, context.resources.displayMetrics.density))),
+                )
+            }
             layer.addLabel(
                 LabelOptions.from(LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng))
-                    .setStyles(if (course.isParking) parkingStyles else courseStyles)
+                    .setStyles(styles)
                     .setClickable(true)
                     .setTag(BrowseLabelTag.Course(course.id)),
             )
