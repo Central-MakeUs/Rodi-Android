@@ -150,7 +150,7 @@ private const val CHIP_PADDING_V_DP = 4f
 fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
     clearCourse()
     val density = context.resources.displayMetrics.density
-    val parkingBitmap by lazy { context.vectorToBitmap(R.drawable.ic_pin_park, sizeDp = 34) }
+    val parkingBitmap by lazy { context.vectorToBitmap(R.drawable.ic_pin_parking, sizeDp = 34) }
     courses.forEach { course ->
         val bitmap = if (course.isParking) {
             parkingBitmap
