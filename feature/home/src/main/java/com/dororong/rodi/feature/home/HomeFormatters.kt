@@ -11,6 +11,13 @@ fun distanceText(route: RouteResult?, isRouting: Boolean): String = when {
     else -> "주행거리 · ${route.totalDistanceMeters}m"
 }
 
+fun routeDistanceValue(route: RouteResult?, isRouting: Boolean): String = when {
+    isRouting || route == null -> "측정 중…"
+    route.totalDistanceMeters >= 1000 ->
+        String.format(Locale.US, "%.1fkm", route.totalDistanceMeters / 1000.0)
+    else -> "${route.totalDistanceMeters}m"
+}
+
 // ── 주소 단축 헬퍼 ────────────────────────────────────────────────────────────
 
 private val CITY_PREFIXES = listOf(
