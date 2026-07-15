@@ -55,18 +55,22 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.graphics.toArgb
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.permission.LocationPermissionAction
@@ -88,10 +92,20 @@ import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.hasLocationPermission
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
+import com.dororong.rodi.feature.home.map.BrowseLabelTag
+import com.dororong.rodi.feature.home.map.ClusterPolicy
+import com.dororong.rodi.feature.home.map.MapClusterer
+import com.dororong.rodi.feature.home.map.MapCoursePoint
+import com.dororong.rodi.feature.home.map.NationalGrid
+import com.dororong.rodi.feature.home.map.ProjectedMapItem
+import com.dororong.rodi.feature.home.map.clearBrowseLabels
+import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderCourse
 import com.dororong.rodi.feature.home.map.renderCourseChips
 import com.dororong.rodi.feature.home.map.renderCourseMarkers
+import com.dororong.rodi.feature.home.map.renderClusters
+import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.SEOUL
@@ -144,6 +158,11 @@ fun HomeScreen(
         mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
     }
     var mapRetryKey by remember { mutableIntStateOf(0) }
+    var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
+    var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
+    val clusterDistancePx = with(LocalDensity.current) { 56.dp.roundToPx() }
+    val clusterBackgroundColor = RodiTheme.colors.primary500.toArgb()
+    val clusterTextColor = RodiTheme.colors.white.toArgb()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -223,6 +242,7 @@ fun HomeScreen(
             }
         }
         map.setOnCameraMoveEndListener { movedMap, _, _ ->
+            mapZoomLevel = movedMap.zoomLevel
             if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
                 coroutineScope.launch {
                     delay(1_500.milliseconds)
@@ -234,11 +254,29 @@ fun HomeScreen(
                 }
             }
         }
-        // 장소 칩 탭 → 코스 상세 진입
+        // 클러스터 탭은 다음 줌 단계로, 개별 핀 탭은 상세로 이동한다.
         map.setOnLabelClickListener { _, _, label ->
-            val courseId = label.tag as? Int ?: return@setOnLabelClickListener true
-            vm.onIntent(HomeIntent.OnCourseClick(courseId))
-            isAtCurrentLocation = false
+            when (val tag = label.tag) {
+                is BrowseLabelTag.Cluster -> {
+                    map.moveCamera(
+                        CameraUpdateFactory.newCenterPosition(
+                            LatLng.from(tag.point.lat, tag.point.lng),
+                            tag.targetZoom,
+                        ),
+                        CameraAnimation.from(350),
+                    )
+                }
+
+                is BrowseLabelTag.Course -> {
+                    vm.onIntent(HomeIntent.OnCourseClick(tag.id))
+                    isAtCurrentLocation = false
+                }
+
+                is Int -> {
+                    vm.onIntent(HomeIntent.OnCourseClick(tag))
+                    isAtCurrentLocation = false
+                }
+            }
             true
         }
     }
@@ -295,14 +333,74 @@ fun HomeScreen(
     // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
     // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
     // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
-    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, filteredCourses) {
+    LaunchedEffect(
+        kakaoMap,
+        state.selectedCourseId,
+        state.selectedRoute,
+        filteredCourses,
+        mapViewSize,
+        mapZoomLevel,
+        clusterBackgroundColor,
+        clusterTextColor,
+    ) {
         val map = kakaoMap ?: return@LaunchedEffect
         val course = selectedCourse
         if (course == null) {
-            map.renderCourseChips(context, filteredCourses)
+            map.clearCourse()
+            when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
+                null -> map.renderIndividualMarkers(context, filteredCourses)
+                else -> {
+                    val clusters = if (policy.grid != null) {
+                        MapClusterer.clusterInFixedGeoGrid(
+                            items = filteredCourses.map { item ->
+                                MapCoursePoint(
+                                    id = item.id,
+                                    point = GeoPoint(
+                                        item.startWaypoint.lat,
+                                        item.startWaypoint.lng,
+                                    ),
+                                )
+                            },
+                            northEast = NationalGrid.northEast,
+                            southWest = NationalGrid.southWest,
+                            policy = policy,
+                        )
+                    } else {
+                        MapClusterer.clusterByScreenDistance(
+                            items = filteredCourses.mapNotNull { item ->
+                                val point = map.toScreenPoint(
+                                    LatLng.from(item.startWaypoint.lat, item.startWaypoint.lng),
+                                ) ?: return@mapNotNull null
+                                ProjectedMapItem(
+                                    id = item.id,
+                                    point = GeoPoint(
+                                        item.startWaypoint.lat,
+                                        item.startWaypoint.lng,
+                                    ),
+                                    x = point.x,
+                                    y = point.y,
+                                )
+                            },
+                            viewportWidth = mapViewSize.width,
+                            viewportHeight = mapViewSize.height,
+                            minimumDistancePx = clusterDistancePx,
+                            targetZoom = policy.targetZoom,
+                        )
+                    }
+                    map.renderClusters(
+                        context = context,
+                        clusters = clusters,
+                        coursesById = filteredCourses.associateBy(Course::id),
+                        backgroundColor = clusterBackgroundColor,
+                        textColor = clusterTextColor,
+                    )
+                }
+            }
         } else if (course.isParking) {
+            map.clearBrowseLabels()
             map.renderCourseChips(context, listOf(course))
         } else {
+            map.clearBrowseLabels()
             val route = state.selectedRoute
             if (route == null) {
                 map.renderCourseMarkers(context, course)
@@ -514,7 +612,9 @@ fun HomeScreen(
                     val mapView = rememberMapViewWithLifecycle()
 
                     AndroidView(
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .onSizeChanged { mapViewSize = it },
                         factory = {
                             mapView.start(
                                 object : MapLifeCycleCallback() {

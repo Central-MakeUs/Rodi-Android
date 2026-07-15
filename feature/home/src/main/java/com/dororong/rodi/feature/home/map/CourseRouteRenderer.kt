@@ -33,7 +33,7 @@ private const val FIT_PADDING_PX = 140
 
 /** 지도에서 코스 관련 레이어(마커·경로선)를 모두 지운다. */
 fun KakaoMap.clearCourse() {
-    labelManager?.layer?.removeAll()
+    detailLabelLayer()?.removeAll()
     routeLineManager?.layer?.removeAll()
 }
 
@@ -88,7 +88,7 @@ fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>) {
 
 private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: Int, index: Int) {
     val manager = labelManager ?: return
-    val layer = manager.layer ?: return
+    val layer = detailLabelLayer() ?: return
     val bitmap = context.vectorToBitmap(iconRes, sizeDp = 34)
     val style = LabelStyle.from(bitmap)
     val styles = manager.addLabelStyles(LabelStyles.from(style))
@@ -168,7 +168,7 @@ fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
 
 private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitmap, tag: Int) {
     val manager = labelManager ?: return
-    val layer = manager.layer ?: return
+    val layer = detailLabelLayer() ?: return
     val style = LabelStyle.from(bitmap)
     val styles = manager.addLabelStyles(LabelStyles.from(style))
     val options = LabelOptions.from(position).setStyles(styles).setTag(tag)
