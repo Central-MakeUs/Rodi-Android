@@ -15,10 +15,14 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
 @Composable
-fun MyLocationButton(isActive: Boolean, onClick: () -> Unit) {
+fun MyLocationButton(
+    isActive: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         onClick = onClick,
-        modifier = Modifier.size(40.dp),
+        modifier = modifier.size(40.dp),
         shape = CircleShape,
         color = RodiTheme.colors.white,
         shadowElevation = 2.dp,

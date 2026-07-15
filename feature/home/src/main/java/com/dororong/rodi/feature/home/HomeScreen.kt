@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -76,14 +77,13 @@ import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.permission.LocationPermissionAction
 import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.component.DistanceFilterBar
+import com.dororong.rodi.feature.home.component.MapListButton
 import com.dororong.rodi.feature.home.component.MapLoadingScreen
 import com.dororong.rodi.feature.home.component.MapNetworkErrorScreen
 import com.dororong.rodi.feature.home.component.MapResearchButton
 import com.dororong.rodi.feature.home.component.MyLocationButton
 import com.dororong.rodi.feature.home.component.NaviPickerMode
 import com.dororong.rodi.feature.home.component.NaviPickerSheet
-import com.dororong.rodi.feature.home.component.SettingsButton
 import com.dororong.rodi.feature.home.component.sheet.CourseDetailContent
 import com.dororong.rodi.feature.home.component.sheet.CourseEmptyContent
 import com.dororong.rodi.feature.home.component.sheet.CourseListContent
@@ -135,7 +135,6 @@ private const val PARKING_FOCUS_ZOOM = 15
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateSettings: () -> Unit,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -146,9 +145,7 @@ fun HomeScreen(
     val activity = remember(context) { context.findActivity() }
 
     val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
-    val filteredCourses = remember(state.courses, state.distanceFilterKm, state.userLat, state.userLng) {
-        state.filteredCourses
-    }
+    val courses = state.courses
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -188,15 +185,9 @@ fun HomeScreen(
         }
     }
 
-    // 위치 정보를 ViewModel에 전달 (거리 필터링용)
-    LaunchedEffect(currentLocation) {
-        val loc = currentLocation ?: return@LaunchedEffect
-        vm.onIntent(HomeIntent.OnLocationUpdate(loc.latitude, loc.longitude))
-    }
-
     val screenHeightDp = LocalConfiguration.current.screenHeightDp
     val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
-    val sheetPeekHeight = if (selectedCourse == null) peekHeight else 1.dp
+    val sheetPeekHeight = peekHeight
     val density = LocalDensity.current
     val peekHeightPx = with(density) { peekHeight.roundToPx() }
     val logoMarginPx = with(density) { 8.dp.toPx() }
@@ -207,8 +198,8 @@ fun HomeScreen(
 
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.PartiallyExpanded,
-            skipHiddenState = true,
+            initialValue = SheetValue.Hidden,
+            skipHiddenState = false,
         ),
     )
 
@@ -242,7 +233,11 @@ fun HomeScreen(
     } else {
         peekHeightPx
     }
-    val mapBottomPaddingPx = if (selectedCourse == null) peekHeightPx else detailSheetHeightPx
+    val mapBottomPaddingPx = when {
+        scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden -> 0
+        selectedCourse == null -> peekHeightPx
+        else -> detailSheetHeightPx
+    }
 
     LaunchedEffect(kakaoMap) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -305,7 +300,6 @@ fun HomeScreen(
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
-            HomeEffect.NavigateSettings -> onNavigateSettings()
             is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
             is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.course)
             is HomeEffect.ShowNaviPicker -> naviCourse = effect.course
@@ -359,7 +353,7 @@ fun HomeScreen(
         kakaoMap,
         state.selectedCourseId,
         state.selectedRoute,
-        filteredCourses,
+        courses,
         mapViewSize,
         mapZoomLevel,
         clusterBackgroundColor,
@@ -370,11 +364,11 @@ fun HomeScreen(
         if (course == null) {
             map.clearCourse()
             when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
-                null -> map.renderIndividualMarkers(context, filteredCourses)
+                null -> map.renderIndividualMarkers(context, courses)
                 else -> {
                     val clusters = if (policy.grid != null) {
                         MapClusterer.clusterInFixedGeoGrid(
-                            items = filteredCourses.map { item ->
+                            items = courses.map { item ->
                                 MapCoursePoint(
                                     id = item.id,
                                     point = GeoPoint(
@@ -389,7 +383,7 @@ fun HomeScreen(
                         )
                     } else {
                         MapClusterer.clusterByScreenDistance(
-                            items = filteredCourses.mapNotNull { item ->
+                            items = courses.mapNotNull { item ->
                                 val point = map.toScreenPoint(
                                     LatLng.from(item.startWaypoint.lat, item.startWaypoint.lng),
                                 ) ?: return@mapNotNull null
@@ -412,7 +406,7 @@ fun HomeScreen(
                     map.renderClusters(
                         context = context,
                         clusters = clusters,
-                        coursesById = filteredCourses.associateBy(Course::id),
+                        coursesById = courses.associateBy(Course::id),
                         backgroundColor = clusterBackgroundColor,
                         textColor = clusterTextColor,
                     )
@@ -565,11 +559,11 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
                         ) {
-                            if (filteredCourses.isEmpty()) {
+                            if (courses.isEmpty()) {
                                 CourseEmptyContent()
                             } else {
                                 CourseListContent(
-                                    courses = filteredCourses,
+                                    courses = courses,
                                     onCourseClick = { id ->
                                         vm.onIntent(HomeIntent.OnCourseClick(id))
                                         isAtCurrentLocation = false
@@ -660,22 +654,6 @@ fun HomeScreen(
                     )
                 }
 
-                // 거리 필터 바 — 코스 리스트 바텀시트 상태에서만 지도 상단 중앙에 부유
-                AnimatedVisibility(
-                    visible = selectedCourse == null,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = 12.dp),
-                ) {
-                    DistanceFilterBar(
-                        selectedKm = state.distanceFilterKm,
-                        onSelect = { vm.onIntent(HomeIntent.OnDistanceFilterChange(it)) },
-                    )
-                }
-
                 AnimatedVisibility(
                     visible = shouldShowResearchButton,
                     enter = fadeIn(),
@@ -683,7 +661,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
-                        .padding(top = 80.dp),
+                        .padding(top = 63.dp),
                 ) {
                     MapResearchButton(
                         onClick = {
@@ -694,8 +672,37 @@ fun HomeScreen(
                     )
                 }
 
-                // 설정/현위치 버튼 — 시트 우상단 위 12dp에 부유
-                if (sheetOffsetPx != Float.MAX_VALUE) {
+                AnimatedVisibility(
+                    visible = selectedCourse == null && scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 78.dp),
+                ) {
+                    MapListButton(
+                        onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
+                    )
+                }
+
+                if (scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden) {
+                    MyLocationButton(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .navigationBarsPadding()
+                            .padding(end = 12.dp, bottom = 78.dp),
+                        isActive = isAtCurrentLocation,
+                        onClick = {
+                            val loc = currentLocation ?: SEOUL
+                            kakaoMap?.moveCamera(
+                                CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
+                                CameraAnimation.from(250),
+                            )
+                            isAtCurrentLocation = true
+                        },
+                    )
+                } else if (sheetOffsetPx != Float.MAX_VALUE) {
                     val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
                     Column(
                         modifier = Modifier
@@ -705,7 +712,6 @@ fun HomeScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SettingsButton(onClick = { vm.onIntent(HomeIntent.OnSettingsClick) })
                         MyLocationButton(
                             isActive = isAtCurrentLocation,
                             onClick = {

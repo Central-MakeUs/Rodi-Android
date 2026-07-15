@@ -145,18 +145,6 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `settings click emits navigation effect`() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-
-        viewModel.effect.test {
-            viewModel.onIntent(HomeIntent.OnSettingsClick)
-            advanceUntilIdle()
-
-            assertEquals(HomeEffect.NavigateSettings, awaitItem())
-        }
-    }
-
-    @Test
     fun `map search updates courses to the requested viewport`() {
         val nearbyCourse = testCourse(id = 1)
         val distantCourse = testCourse(id = 2).copy(
