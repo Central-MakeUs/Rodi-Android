@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.home.component
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -25,7 +26,7 @@ fun MapResearchButton(
     Surface(
         modifier = modifier.semantics { contentDescription = "이 지역 재검색" },
         onClick = onClick,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(20.dp),
         color = RodiTheme.colors.gray900,
         shadowElevation = 2.dp,
     ) {
