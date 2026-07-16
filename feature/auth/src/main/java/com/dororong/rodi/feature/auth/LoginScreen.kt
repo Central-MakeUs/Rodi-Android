@@ -112,7 +112,7 @@ fun LoginContent(
         Column(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = (-55.91f).dp),
+                .offset(y = (-33.85f).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Image(
