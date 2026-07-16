@@ -6,10 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Image
@@ -94,68 +96,90 @@ private fun AnalysisResultContent(
     Column(modifier = Modifier.height(404.dp)) {
         Column(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .padding(top = 30.dp, start = 16.dp, end = 16.dp),
+                .height(258.dp)
+                .padding(top = 32.dp, start = 16.dp, end = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
                 text = "연습 유형 분석 완료!",
-                style = RodiTheme.typography.heading2,
+                style = RodiTheme.typography.headline1,
                 color = RodiTheme.colors.black,
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
             Box(
-                modifier = Modifier.height(100.dp),
+                modifier = Modifier.size(100.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 level.characterImageRes?.let { imageRes ->
                     Image(
                         painter = painterResource(imageRes),
                         contentDescription = null,
-                        modifier = Modifier.height(100.dp),
+                        modifier = Modifier.size(100.dp),
                         contentScale = ContentScale.Fit,
                     )
                 }
             }
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = level.displayName,
-                style = RodiTheme.typography.body1SemiBold,
+                style = RodiTheme.typography.body1Medium,
                 color = RodiTheme.colors.black,
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(16.dp))
             Text(
                 text = level.description,
                 style = RodiTheme.typography.body3Medium,
                 color = RodiTheme.colors.black,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
         HorizontalDivider(color = RodiTheme.colors.gray100)
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        Box(
+            modifier = Modifier
+                .height(145.dp)
+                .fillMaxWidth(),
         ) {
             level.recommendedPracticeTypes?.let { practiceTypes ->
-                Text(
-                    text = "추천 연습 유형",
-                    style = RodiTheme.typography.body3SemiBold,
-                    color = RodiTheme.colors.black,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = practiceTypes,
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.primary800,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(RodiTheme.colors.primary20)
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
-                )
-                Spacer(Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier.padding(start = 16.dp, top = 12.dp, end = 16.dp),
+                ) {
+                    Text(
+                        text = "추천 연습 유형",
+                        style = RodiTheme.typography.body3Medium,
+                        color = RodiTheme.colors.black,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        practiceTypes.forEach { practiceType ->
+                            RecommendedPracticeTypeChip(practiceType)
+                        }
+                    }
+                }
             }
-            RodiButton(text = "확인", onClick = onConfirm)
+            RodiButton(
+                text = "확인",
+                onClick = onConfirm,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+            )
         }
     }
+}
+
+@Composable
+private fun RecommendedPracticeTypeChip(text: String) {
+    Text(
+        text = text,
+        style = RodiTheme.typography.caption1Medium,
+        color = RodiTheme.colors.gray800,
+        modifier = Modifier
+            .clip(RoundedCornerShape(2.dp))
+            .background(RodiTheme.colors.primary20)
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    )
 }
 
 private val OnboardingLevel.displayName: String
@@ -185,12 +209,12 @@ private val OnboardingLevel.characterImageRes: Int?
         OnboardingLevel.NAVIGATOR -> null
     }
 
-private val OnboardingLevel.recommendedPracticeTypes: String?
+private val OnboardingLevel.recommendedPracticeTypes: List<String>?
     get() = when (this) {
-        OnboardingLevel.SEED -> "직선주행  좌·우회전  차선변경"
-        OnboardingLevel.ROOKIE -> "U턴  좌·우회전  직선주행"
-        OnboardingLevel.OWNER -> "고속진입  합류  다차로 주행"
-        OnboardingLevel.EXPLORER -> "비보호 좌회전  회전 교차로  좁은 도로 주행"
+        OnboardingLevel.SEED -> listOf("직선주행", "좌·우회전", "차선변경")
+        OnboardingLevel.ROOKIE -> listOf("U턴", "좌·우회전", "직선주행")
+        OnboardingLevel.OWNER -> listOf("고속진입", "합류", "다차로 주행")
+        OnboardingLevel.EXPLORER -> listOf("비보호 좌회전", "회전 교차로", "좁은 도로 주행")
         OnboardingLevel.NAVIGATOR -> null
     }
 
