@@ -28,11 +28,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -134,16 +134,48 @@ private fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
             .fillMaxWidth()
             .height(227.dp)
             .drawWithCache {
-                val background = Brush.radialGradient(
-                    colors = listOf(colors.white, colors.primary20),
-                    center = Offset(size.width / 2f, size.height * 0.984f),
-                    radius = size.width / 2f,
+                val gradientCenterXRatio = 0f
+                val gradientCenterYRatio = 0f
+                val gradientHorizontalRadiusRatio = 5f
+                val gradientVerticalRadiusRatio = 0.5f
+                val center = Offset(
+                    x = size.width * gradientCenterXRatio,
+                    y = size.height * gradientCenterYRatio,
                 )
+                val horizontalRadius = size.width * gradientHorizontalRadiusRatio
+                val verticalRadius = size.height * gradientVerticalRadiusRatio
+                val shader = android.graphics.RadialGradient(
+                    center.x,
+                    center.y,
+                    horizontalRadius,
+                    intArrayOf(colors.primary20.copy(alpha = 0.5f).toArgb(), colors.white.toArgb()),
+                    floatArrayOf(0f, 1f),
+                    android.graphics.Shader.TileMode.CLAMP,
+                ).apply {
+                    setLocalMatrix(
+                        android.graphics.Matrix().apply {
+                            setScale(
+                                1f,
+                                verticalRadius / horizontalRadius,
+                                center.x,
+                                center.y,
+                            )
+                        },
+                    )
+                }
+                val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                    this.shader = shader
+                }
                 val cornerRadius = 8.dp.toPx()
                 onDrawBehind {
-                    drawRoundRect(
-                        brush = background,
-                        cornerRadius = CornerRadius(cornerRadius, cornerRadius),
+                    drawContext.canvas.nativeCanvas.drawRoundRect(
+                        0f,
+                        0f,
+                        size.width,
+                        size.height,
+                        cornerRadius,
+                        cornerRadius,
+                        paint,
                     )
                 }
             }
