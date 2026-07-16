@@ -430,4 +430,4 @@ private fun EntryStep.toEntryProgressStep(): EntryProgressStep =
 
 private const val MAX_GOAL_LENGTH = 30
 private const val ANALYSIS_DURATION_MILLIS = 3_000L
-private const val DEFAULT_SUBMISSION_ERROR_MESSAGE = "문제가 발생했어요.\n다시 시도해볼까요?"
+private const val DEFAULT_SUBMISSION_ERROR_MESSAGE = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?"

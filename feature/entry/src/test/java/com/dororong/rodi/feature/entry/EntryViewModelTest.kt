@@ -457,7 +457,7 @@ class EntryViewModelTest {
                 assertEquals(null, viewModel.state.value.onboardingAnalysisState)
                 assertEquals(
                     EntryEffect.ShowSubmissionError(
-                        message = "문제가 발생했어요.\n다시 시도해볼까요?",
+                        message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
                         canRetry = true,
                     ),
                     awaitItem(),
