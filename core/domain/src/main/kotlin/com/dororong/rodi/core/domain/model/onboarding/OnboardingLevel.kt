@@ -9,7 +9,7 @@ enum class OnboardingLevel {
 }
 
 fun OnboardingProfile.calculateLevel(): OnboardingLevel {
-    if (drivingPeriod == DrivingPeriod.YEAR_2_TO_10 || drivingPeriod == DrivingPeriod.OVER_YEAR_10) {
+    if (drivingPeriod?.isNavigatorLevel == true) {
         return OnboardingLevel.NAVIGATOR
     }
 
@@ -23,6 +23,9 @@ fun OnboardingProfile.calculateLevel(): OnboardingLevel {
         else -> OnboardingLevel.EXPLORER
     }
 }
+
+val DrivingPeriod.isNavigatorLevel: Boolean
+    get() = this == DrivingPeriod.YEAR_2_TO_10 || this == DrivingPeriod.OVER_YEAR_10
 
 private val DrivingPeriod?.score: Int
     get() = when (this) {

@@ -56,12 +56,12 @@ fun EntryFlow(
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             EntryEffect.CompleteEntry -> onComplete()
-            EntryEffect.ShowSubmissionError -> snackbarHostState.show(
+            is EntryEffect.ShowSubmissionError -> snackbarHostState.show(
                 RodiSnackbarData(
-                    message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                    message = effect.message,
                     icon = networkErrorIcon,
-                    actionLabel = "새로고침",
-                    onAction = viewModel::startOnboardingAnalysis,
+                    actionLabel = "새로고침".takeIf { effect.canRetry },
+                    onAction = viewModel::startOnboardingAnalysis.takeIf { effect.canRetry },
                 ),
             )
         }
@@ -124,10 +124,10 @@ fun EntryFlow(
                     onSoloDrivingRangeSelect = viewModel::selectSoloDrivingRange,
                     onSoloParkingLevelSelect = viewModel::selectSoloParkingLevel,
                     onBack = { viewModel.back() },
-                    onNext = viewModel::next,
+                    onNext = viewModel::continueAfterCareer,
                 )
 
-                EntryStep.PREFERENCE -> Box(Modifier.fillMaxSize()) {
+                EntryStep.PREFERENCE -> {
                     PreferenceContent(
                         practiceSituations = state.practiceSituations,
                         vehicleType = state.vehicleType,
@@ -140,15 +140,6 @@ fun EntryFlow(
                         onSkip = viewModel::startOnboardingAnalysis,
                         onNext = viewModel::startOnboardingAnalysis,
                     )
-                    state.onboardingAnalysisState?.let { analysisState ->
-                        state.onboardingLevel?.let { level ->
-                            OnboardingAnalysisDialog(
-                                state = analysisState,
-                                level = level,
-                                onConfirm = viewModel::continueAfterOnboardingAnalysis,
-                            )
-                        }
-                    }
                 }
 
                 EntryStep.TERMS_WEBVIEW -> {
@@ -157,6 +148,15 @@ fun EntryFlow(
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
+            }
+        }
+        state.onboardingAnalysisState?.let { analysisState ->
+            state.onboardingLevel?.let { level ->
+                OnboardingAnalysisDialog(
+                    state = analysisState,
+                    level = level,
+                    onConfirm = viewModel::continueAfterOnboardingAnalysis,
+                )
             }
         }
         RodiSnackbarHost(snackbarHostState)

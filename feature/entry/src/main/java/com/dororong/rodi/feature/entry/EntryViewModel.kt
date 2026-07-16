@@ -7,6 +7,7 @@ import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
@@ -14,6 +15,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
+import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
 import com.dororong.rodi.core.domain.usecase.entry.SaveEntryProgressUseCase
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import timber.log.Timber
 import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
@@ -99,7 +102,7 @@ class EntryViewModel @Inject constructor(
 
     fun selectDrivingPeriod(value: DrivingPeriod) {
         _state.update {
-            if (value.allowsCareerStepSkip) {
+            if (value.isNavigatorLevel) {
                 it.copy(
                     drivingPeriod = value,
                     recentFrequency = null,
@@ -184,6 +187,14 @@ class EntryViewModel @Inject constructor(
         }
     }
 
+    fun continueAfterCareer() {
+        if (state.value.drivingPeriod?.isNavigatorLevel == true) {
+            startOnboardingAnalysis()
+        } else {
+            next()
+        }
+    }
+
     fun openWebView(url: String) {
         _state.update { it.copy(webViewUrl = url, step = EntryStep.TERMS_WEBVIEW) }
         persistEntryProgress()
@@ -194,7 +205,11 @@ class EntryViewModel @Inject constructor(
             EntryStep.NICKNAME -> EntryStep.TERMS
             EntryStep.CAREER -> EntryStep.NICKNAME
             EntryStep.PREFERENCE -> EntryStep.CAREER
-            EntryStep.PRECAUTIONS -> EntryStep.PREFERENCE
+            EntryStep.PRECAUTIONS -> if (state.value.drivingPeriod?.isNavigatorLevel == true) {
+                EntryStep.CAREER
+            } else {
+                EntryStep.PREFERENCE
+            }
             EntryStep.LOCATION -> EntryStep.PRECAUTIONS
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
@@ -205,16 +220,18 @@ class EntryViewModel @Inject constructor(
     }
 
     fun startOnboardingAnalysis() {
+        if (state.value.onboardingAnalysisState != null) return
+
+        val profile = currentOnboardingProfile()
+        val level = profile.calculateLevel()
+        _state.update {
+            it.copy(
+                onboardingLevel = level,
+                onboardingAnalysisState = OnboardingAnalysisState.ANALYZING,
+            )
+        }
         viewModelScope.launch {
-            val profile = currentOnboardingProfile()
-            val level = profile.calculateLevel()
-            _state.update {
-                it.copy(
-                    onboardingLevel = level,
-                    onboardingAnalysisState = OnboardingAnalysisState.ANALYZING,
-                )
-            }
-            try {
+            val submissionResult = try {
                 supervisorScope {
                     val submission = async {
                         saveOnboardingProfileUseCase(profile)
@@ -225,18 +242,38 @@ class EntryViewModel @Inject constructor(
                 }
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Throwable) {
+                Timber.e(error, "Onboarding submission failed.")
                 _state.update { it.copy(onboardingAnalysisState = null) }
-                _effect.send(EntryEffect.ShowSubmissionError)
+                _effect.send(EntryEffect.ShowSubmissionError(DEFAULT_SUBMISSION_ERROR_MESSAGE, canRetry = true))
                 return@launch
             }
-            _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+            when (submissionResult) {
+                OnboardingSubmissionResult.Submitted,
+                OnboardingSubmissionResult.AlreadyCompleted,
+                -> _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+
+                else -> {
+                    _state.update { it.copy(onboardingAnalysisState = null) }
+                    _effect.send(submissionResult.toSubmissionError())
+                }
+            }
         }
     }
 
     fun continueAfterOnboardingAnalysis() {
-        _state.update { it.copy(onboardingAnalysisState = null) }
-        next()
+        if (state.value.step == EntryStep.CAREER && state.value.drivingPeriod?.isNavigatorLevel == true) {
+            _state.update {
+                it.copy(
+                    step = EntryStep.PRECAUTIONS,
+                    onboardingAnalysisState = null,
+                )
+            }
+            persistEntryProgress()
+        } else {
+            _state.update { it.copy(onboardingAnalysisState = null) }
+            next()
+        }
     }
 
     fun finish() {
@@ -347,8 +384,27 @@ class EntryViewModel @Inject constructor(
         }
 }
 
-private val DrivingPeriod.allowsCareerStepSkip: Boolean
-    get() = this == DrivingPeriod.YEAR_2_TO_10 || this == DrivingPeriod.OVER_YEAR_10
+private fun OnboardingSubmissionResult.toSubmissionError(): EntryEffect.ShowSubmissionError = when (this) {
+    OnboardingSubmissionResult.InvalidProfile ->
+        EntryEffect.ShowSubmissionError("입력 정보를 확인해주세요.", canRetry = false)
+
+    OnboardingSubmissionResult.AuthenticationRequired ->
+        EntryEffect.ShowSubmissionError("로그인 상태가 만료됐어요. 다시 로그인해주세요.", canRetry = false)
+
+    OnboardingSubmissionResult.Forbidden ->
+        EntryEffect.ShowSubmissionError("온보딩을 완료할 권한이 없어요. 로그인 상태를 확인해주세요.", canRetry = false)
+
+    OnboardingSubmissionResult.RateLimited ->
+        EntryEffect.ShowSubmissionError("요청이 많아요. 잠시 후 다시 시도해주세요.", canRetry = false)
+
+    OnboardingSubmissionResult.RetryableFailure,
+    OnboardingSubmissionResult.UnexpectedFailure,
+    -> EntryEffect.ShowSubmissionError(DEFAULT_SUBMISSION_ERROR_MESSAGE, canRetry = true)
+
+    OnboardingSubmissionResult.Submitted,
+    OnboardingSubmissionResult.AlreadyCompleted,
+    -> error("Successful onboarding submission cannot be shown as an error.")
+}
 
 private fun EntryProgressStep.toEntryStep(): EntryStep =
     when (this) {
@@ -374,3 +430,4 @@ private fun EntryStep.toEntryProgressStep(): EntryProgressStep =
 
 private const val MAX_GOAL_LENGTH = 30
 private const val ANALYSIS_DURATION_MILLIS = 3_000L
+private const val DEFAULT_SUBMISSION_ERROR_MESSAGE = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?"

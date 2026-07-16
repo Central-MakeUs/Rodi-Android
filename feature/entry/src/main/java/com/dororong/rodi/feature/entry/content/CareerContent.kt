@@ -23,6 +23,7 @@ import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
 import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
+import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -45,7 +46,7 @@ fun CareerContent(
     modifier: Modifier = Modifier,
 ) {
     EntryScaffold(
-        currentStep = 2,
+        currentStep = if (drivingPeriod?.isNavigatorLevel == true) 3 else 2,
         onBack = onBack,
         buttonText = "다음",
         buttonEnabled = nextEnabled,
@@ -119,7 +120,7 @@ fun CareerContent(
 }
 
 private val DrivingPeriod?.requiresDetailedCareerQuestions: Boolean
-    get() = this != null && this != DrivingPeriod.YEAR_2_TO_10 && this != DrivingPeriod.OVER_YEAR_10
+    get() = this?.isNavigatorLevel == false
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

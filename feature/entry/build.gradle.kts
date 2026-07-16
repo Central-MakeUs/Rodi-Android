@@ -17,6 +17,7 @@ dependencies {
     implementation(libs.bundles.coil)
     implementation(libs.bundles.hilt.compose)
     implementation(libs.bundles.lifecycle.compose)
+    implementation(libs.timber)
     ksp(libs.hilt.compiler)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.bundles.unit.test)

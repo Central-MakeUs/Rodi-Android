@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -20,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,6 +31,7 @@ import coil3.compose.AsyncImage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.ui.components.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.R as CoreUiR
 
 @Composable
 fun OnboardingAnalysisDialog(
@@ -102,7 +105,19 @@ private fun AnalysisResultContent(
                 color = RodiTheme.colors.black,
             )
             Spacer(Modifier.height(16.dp))
-            Box(Modifier.height(100.dp))
+            Box(
+                modifier = Modifier.height(100.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                level.characterImageRes?.let { imageRes ->
+                    Image(
+                        painter = painterResource(imageRes),
+                        contentDescription = null,
+                        modifier = Modifier.height(100.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                }
+            }
             Text(
                 text = level.displayName,
                 style = RodiTheme.typography.body1SemiBold,
@@ -120,22 +135,24 @@ private fun AnalysisResultContent(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            Text(
-                text = "추천 연습 유형",
-                style = RodiTheme.typography.body3SemiBold,
-                color = RodiTheme.colors.black,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = level.recommendedPracticeTypes,
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.primary800,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(RodiTheme.colors.primary20)
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-            )
-            Spacer(Modifier.height(12.dp))
+            level.recommendedPracticeTypes?.let { practiceTypes ->
+                Text(
+                    text = "추천 연습 유형",
+                    style = RodiTheme.typography.body3SemiBold,
+                    color = RodiTheme.colors.black,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = practiceTypes,
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.primary800,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(RodiTheme.colors.primary20)
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+            }
             RodiButton(text = "확인", onClick = onConfirm)
         }
     }
@@ -156,16 +173,25 @@ private val OnboardingLevel.description: String
         OnboardingLevel.ROOKIE -> "아직 브레이크·엑셀 감각이 익숙하지 않아요."
         OnboardingLevel.OWNER -> "고속도로 합류·다차로 주행이 아직 어려워요."
         OnboardingLevel.EXPLORER -> "더 다양한 상황들을 연습하고 싶어요."
-        OnboardingLevel.NAVIGATOR -> "길잡이로 함께해요."
+        OnboardingLevel.NAVIGATOR -> "길잡이로 함께해요.\n지금까지의 경험을 바탕으로 다른 운전자에게 도움이 되는 코스를 남겨보세요."
     }
 
-private val OnboardingLevel.recommendedPracticeTypes: String
+private val OnboardingLevel.characterImageRes: Int?
+    get() = when (this) {
+        OnboardingLevel.SEED -> CoreUiR.drawable.illust_level_seed
+        OnboardingLevel.ROOKIE -> CoreUiR.drawable.illust_level_rookie
+        OnboardingLevel.OWNER -> CoreUiR.drawable.illust_level_owner
+        OnboardingLevel.EXPLORER -> CoreUiR.drawable.illust_level_explorer
+        OnboardingLevel.NAVIGATOR -> null
+    }
+
+private val OnboardingLevel.recommendedPracticeTypes: String?
     get() = when (this) {
         OnboardingLevel.SEED -> "직선주행  좌·우회전  차선변경"
         OnboardingLevel.ROOKIE -> "U턴  좌·우회전  직선주행"
         OnboardingLevel.OWNER -> "고속진입  합류  다차로 주행"
         OnboardingLevel.EXPLORER -> "비보호 좌회전  회전 교차로  좁은 도로 주행"
-        OnboardingLevel.NAVIGATOR -> "코스 등록  리뷰 작성  추천 코스 공유"
+        OnboardingLevel.NAVIGATOR -> null
     }
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
