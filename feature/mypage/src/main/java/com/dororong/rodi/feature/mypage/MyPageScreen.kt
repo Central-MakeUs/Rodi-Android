@@ -23,6 +23,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,15 +40,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R.drawable
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 data class MyPageProfile(
-    val nickname: String = "흐름타는 고슴도치",
-    val level: String = "Rookie",
-    val practiceTypes: List<String> = listOf("차선변경", "교차로", "주차"),
-    val drivingGoal: String = "복잡한 강남 자신있게 운전하기 복잡한 강남 자신있게운전",
-    val savedCourseCount: Int = 5,
+    val nickname: String = "",
+    val level: String = "Seed",
+    val practiceTypes: List<String> = emptyList(),
+    val drivingGoal: String = "",
+    val savedCourseCount: Int = 0,
 )
 
 @Composable
@@ -56,9 +59,11 @@ fun MyPageScreen(
     onGoalClick: () -> Unit,
     onSavedCoursesClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: MyPageViewModel = hiltViewModel(),
 ) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     MyPageContent(
-        profile = MyPageProfile(),
+        profile = uiState.profile,
         onSettingsClick = onSettingsClick,
         onGoalClick = onGoalClick,
         onSavedCoursesClick = onSavedCoursesClick,
@@ -335,7 +340,13 @@ private fun SavedCoursesRow(count: Int, onClick: () -> Unit) {
 private fun MyPageContentPreview() {
     RodiTheme {
         MyPageContent(
-            profile = MyPageProfile(),
+            profile = MyPageProfile(
+                nickname = "흐름타는 고슴도치",
+                level = "Rookie",
+                practiceTypes = listOf("차선변경", "교차로", "주차"),
+                drivingGoal = "복잡한 강남 자신있게 운전하기",
+                savedCourseCount = 5,
+            ),
             onSettingsClick = {},
             onGoalClick = {},
             onSavedCoursesClick = {},
