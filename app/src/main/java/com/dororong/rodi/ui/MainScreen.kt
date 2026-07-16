@@ -15,6 +15,7 @@ import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
+import com.dororong.rodi.feature.mypage.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.MyPageScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 
@@ -65,8 +66,13 @@ fun MainScreen() {
                     MyPageRoute -> NavEntry(key) {
                         MyPageScreen(
                             onSettingsClick = { backStack.add(SettingsRoute) },
-                            onGoalClick = {},
+                            onGoalClick = { backStack.add(DrivingGoalRoute) },
                             onSavedCoursesClick = {},
+                        )
+                    }
+                    DrivingGoalRoute -> NavEntry(key) {
+                        DrivingGoalScreen(
+                            onBack = { backStack.removeAt(backStack.lastIndex) },
                         )
                     }
                     SettingsRoute -> NavEntry(key) {

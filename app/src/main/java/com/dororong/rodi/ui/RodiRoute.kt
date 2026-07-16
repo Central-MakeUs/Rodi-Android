@@ -18,4 +18,7 @@ data object HomeRoute
 data object MyPageRoute
 
 @Serializable
+data object DrivingGoalRoute
+
+@Serializable
 data object SettingsRoute
