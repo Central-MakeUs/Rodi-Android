@@ -71,7 +71,9 @@ fun EntryFlow(
         }
     }
 
-    BackHandler(enabled = state.step != EntryStep.TERMS) { viewModel.back() }
+    BackHandler(
+        enabled = state.step != EntryStep.TERMS && state.onboardingAnalysisState == null,
+    ) { viewModel.back() }
 
     CompositionLocalProvider(LocalStepProgressAnimationState provides stepProgressAnimationState) {
         Box(Modifier.fillMaxSize()) {

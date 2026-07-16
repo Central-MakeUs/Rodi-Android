@@ -395,7 +395,7 @@ private fun OnboardingSubmissionResult.toSubmissionError(): EntryEffect.ShowSubm
         EntryEffect.ShowSubmissionError("온보딩을 완료할 권한이 없어요. 로그인 상태를 확인해주세요.", canRetry = false)
 
     OnboardingSubmissionResult.RateLimited ->
-        EntryEffect.ShowSubmissionError("요청이 많아요. 잠시 후 다시 시도해주세요.", canRetry = false)
+        EntryEffect.ShowSubmissionError("요청이 많아요. 잠시 기다린 뒤 다시 시도해주세요.", canRetry = false)
 
     OnboardingSubmissionResult.RetryableFailure,
     OnboardingSubmissionResult.UnexpectedFailure,
@@ -430,4 +430,4 @@ private fun EntryStep.toEntryProgressStep(): EntryProgressStep =
 
 private const val MAX_GOAL_LENGTH = 30
 private const val ANALYSIS_DURATION_MILLIS = 3_000L
-private const val DEFAULT_SUBMISSION_ERROR_MESSAGE = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?"
+private const val DEFAULT_SUBMISSION_ERROR_MESSAGE = "문제가 발생했어요.\n다시 시도해볼까요?"

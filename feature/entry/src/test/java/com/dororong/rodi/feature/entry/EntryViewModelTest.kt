@@ -303,6 +303,23 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `short driving period continues to preference after career`() = runTest(testDispatcher) {
+        val viewModel = testViewModel()
+        advanceUntilIdle()
+
+        viewModel.next()
+        viewModel.next()
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
+        viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
+
+        viewModel.continueAfterCareer()
+
+        assertEquals(EntryStep.PREFERENCE, viewModel.step)
+        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+    }
+
+    @Test
     fun `solo road experience among multiple selections requires conditional answers and clears them when removed`() {
         val viewModel = testViewModel()
 
@@ -440,7 +457,7 @@ class EntryViewModelTest {
                 assertEquals(null, viewModel.state.value.onboardingAnalysisState)
                 assertEquals(
                     EntryEffect.ShowSubmissionError(
-                        message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                        message = "문제가 발생했어요.\n다시 시도해볼까요?",
                         canRetry = true,
                     ),
                     awaitItem(),
@@ -477,6 +494,29 @@ class EntryViewModelTest {
             assertEquals(null, viewModel.state.value.onboardingAnalysisState)
             assertEquals(
                 EntryEffect.ShowSubmissionError("입력 정보를 확인해주세요.", canRetry = false),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `onboarding analysis asks user to wait after rate limit without retry action`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.RateLimited
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(
+                EntryEffect.ShowSubmissionError(
+                    message = "요청이 많아요. 잠시 기다린 뒤 다시 시도해주세요.",
+                    canRetry = false,
+                ),
                 awaitItem(),
             )
         }

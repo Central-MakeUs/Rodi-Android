@@ -92,6 +92,30 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
+    fun `submit maps unsuccessful response envelope auth forbidden rate limit and unexpected errors`() = runTest {
+        val cases = listOf(
+            "COMMON_401" to OnboardingSubmissionResult.AuthenticationRequired,
+            "COMMON_403" to OnboardingSubmissionResult.Forbidden,
+            "COMMON_429" to OnboardingSubmissionResult.RateLimited,
+            "COMMON_500" to OnboardingSubmissionResult.UnexpectedFailure,
+        )
+
+        cases.forEach { (code, expected) ->
+            val onboardingApi = mockk<OnboardingApi>()
+            val tokenStore = mockk<AuthTokenStore>()
+            coEvery { tokenStore.getTokens() } returns tokens()
+            coEvery { onboardingApi.submit(any(), any()) } returns ApiEnvelope<JsonObject>(
+                isSuccess = false,
+                code = code,
+                message = "실패",
+            )
+            val repository = repository(onboardingApi, tokenStore)
+
+            assertEquals(expected, repository.submit(profile(), OnboardingLevel.ROOKIE))
+        }
+    }
+
+    @Test
     fun `submit refreshes expired access token once and retries`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
