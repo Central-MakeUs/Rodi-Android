@@ -11,7 +11,12 @@ val localProperties = Properties().apply {
     val localProps = rootProject.file("local.properties")
     if (localProps.exists()) localProps.inputStream().use { load(it) }
 }
-val kakaoRestApiKey: String = localProperties.getProperty("KAKAO_REST_API_KEY", "")
+
+fun Properties.requireNotBlank(key: String): String =
+    getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: throw GradleException("local.properties에 '$key'가 설정되지 않았습니다.")
+
+val kakaoRestApiKey: String = localProperties.requireNotBlank("KAKAO_REST_API_KEY")
 
 android {
     namespace = "com.dororong.rodi.core.data"

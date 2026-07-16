@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.entry
 
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
@@ -38,7 +39,7 @@ data class EntryUiState(
     val isCareerStepValid: Boolean
         get() {
             val period = drivingPeriod ?: return false
-            if (period == DrivingPeriod.YEAR_2_TO_10 || period == DrivingPeriod.OVER_YEAR_10) return true
+            if (period.isNavigatorLevel) return true
             if (recentFrequency == null || roadExperiences.isEmpty()) return false
             return !roadExperiences.contains(RoadExperience.SOLO) ||
                 (soloDrivingRange != null && soloParkingLevel != null)
@@ -50,5 +51,8 @@ data class EntryUiState(
 
 sealed interface EntryEffect {
     data object CompleteEntry : EntryEffect
-    data object ShowSubmissionError : EntryEffect
+    data class ShowSubmissionError(
+        val message: String,
+        val canRetry: Boolean,
+    ) : EntryEffect
 }

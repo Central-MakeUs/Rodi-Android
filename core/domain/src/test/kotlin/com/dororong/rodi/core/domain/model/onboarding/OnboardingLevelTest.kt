@@ -7,9 +7,11 @@ class OnboardingLevelTest {
 
     @Test
     fun `two years or more is always navigator`() {
-        val profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10)
+        val periods = listOf(DrivingPeriod.YEAR_2_TO_10, DrivingPeriod.OVER_YEAR_10)
 
-        assertEquals(OnboardingLevel.NAVIGATOR, profile.calculateLevel())
+        periods.forEach { period ->
+            assertEquals(OnboardingLevel.NAVIGATOR, OnboardingProfile(drivingPeriod = period).calculateLevel())
+        }
     }
 
     @Test

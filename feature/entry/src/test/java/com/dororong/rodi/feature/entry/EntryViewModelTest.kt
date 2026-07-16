@@ -5,6 +5,8 @@ import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
@@ -259,6 +261,34 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `long driving period completes navigator analysis from career step`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        advanceUntilIdle()
+
+        viewModel.next()
+        viewModel.next()
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+        viewModel.continueAfterCareer()
+
+        assertEquals(EntryStep.CAREER, viewModel.step)
+        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        assertEquals(OnboardingLevel.NAVIGATOR, viewModel.state.value.onboardingLevel)
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+
+        viewModel.continueAfterOnboardingAnalysis()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        assertTrue(viewModel.back())
+        assertEquals(EntryStep.CAREER, viewModel.step)
+    }
+
+    @Test
     fun `short driving period requires recent frequency and road experience`() {
         val viewModel = testViewModel()
 
@@ -270,6 +300,23 @@ class EntryViewModelTest {
 
         viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
         assertTrue(viewModel.isCareerStepValid)
+    }
+
+    @Test
+    fun `short driving period continues to preference after career`() = runTest(testDispatcher) {
+        val viewModel = testViewModel()
+        advanceUntilIdle()
+
+        viewModel.next()
+        viewModel.next()
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
+        viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
+
+        viewModel.continueAfterCareer()
+
+        assertEquals(EntryStep.PREFERENCE, viewModel.step)
+        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
     }
 
     @Test
@@ -371,7 +418,7 @@ class EntryViewModelTest {
     fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
-        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
         viewModel.startOnboardingAnalysis()
@@ -408,9 +455,87 @@ class EntryViewModelTest {
                 runCurrent()
 
                 assertEquals(null, viewModel.state.value.onboardingAnalysisState)
-                assertEquals(EntryEffect.ShowSubmissionError, awaitItem())
+                assertEquals(
+                    EntryEffect.ShowSubmissionError(
+                        message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                        canRetry = true,
+                    ),
+                    awaitItem(),
+                )
             }
         }
+
+    @Test
+    fun `onboarding analysis treats already completed submission as success`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.AlreadyCompleted
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+    }
+
+    @Test
+    fun `onboarding analysis shows input error without retry action`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.InvalidProfile
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(
+                EntryEffect.ShowSubmissionError("입력 정보를 확인해주세요.", canRetry = false),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `onboarding analysis asks user to wait after rate limit without retry action`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.RateLimited
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(
+                EntryEffect.ShowSubmissionError(
+                    message = "요청이 많아요. 잠시 기다린 뒤 다시 시도해주세요.",
+                    canRetry = false,
+                ),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `onboarding analysis ignores duplicate submit while analyzing`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        viewModel.startOnboardingAnalysis()
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        coVerify(exactly = 1) { saveOnboardingProfileUseCase.submit(any(), any()) }
+    }
 
     @Test
     fun `finish stores entry completion and emits completion effect`() = runTest(testDispatcher) {
@@ -422,6 +547,7 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
         viewModel.effect.test {
             viewModel.finish()
