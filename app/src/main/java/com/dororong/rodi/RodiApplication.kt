@@ -15,6 +15,10 @@ class RodiApplication : Application() {
         }
         runCatching {
             KakaoMapSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
+        }.onFailure { error ->
+            Timber.e(error, "Kakao Map SDK initialization failed.")
+        }
+        runCatching {
             KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
         }.onFailure { error ->
             Timber.e(error, "Kakao SDK initialization failed.")
