@@ -21,4 +21,7 @@ data object MyPageRoute
 data object DrivingGoalRoute
 
 @Serializable
+data object SavedCoursesRoute
+
+@Serializable
 data object SettingsRoute

@@ -17,6 +17,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.mypage.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.MyPageScreen
+import com.dororong.rodi.feature.mypage.SavedCoursesScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 
 @Composable
@@ -67,11 +68,16 @@ fun MainScreen() {
                         MyPageScreen(
                             onSettingsClick = { backStack.add(SettingsRoute) },
                             onGoalClick = { backStack.add(DrivingGoalRoute) },
-                            onSavedCoursesClick = {},
+                            onSavedCoursesClick = { backStack.add(SavedCoursesRoute) },
                         )
                     }
                     DrivingGoalRoute -> NavEntry(key) {
                         DrivingGoalScreen(
+                            onBack = { backStack.removeAt(backStack.lastIndex) },
+                        )
+                    }
+                    SavedCoursesRoute -> NavEntry(key) {
+                        SavedCoursesScreen(
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                         )
                     }

@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import android.content.Context
 import com.dororong.rodi.core.data.source.local.sample.SampleCourses
 import com.dororong.rodi.core.data.source.remote.directions.KakaoDirectionsClient
 import com.kakao.vectormap.LatLng
@@ -22,7 +23,10 @@ class CourseRepositoryImplTest {
             snappedPoints = listOf(LatLng.from(37.2, 127.2)),
         )
 
-        val result = CourseRepositoryImpl(directionsClient).getRoute(course)
+        val result = CourseRepositoryImpl(
+            directionsClient = directionsClient,
+            context = mockk<Context>(relaxed = true),
+        ).getRoute(course)
 
         assertTrue(result.isRealRoute)
         assertEquals(1_200, result.totalDistanceMeters)
