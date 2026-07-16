@@ -12,7 +12,12 @@ val localProperties = Properties().apply {
     val localProps = rootProject.file("local.properties")
     if (localProps.exists()) localProps.inputStream().use { load(it) }
 }
-val kakaoNativeAppKey: String = localProperties.getProperty("KAKAO_NATIVE_APP_KEY", "")
+
+fun Properties.requireNotBlank(key: String): String =
+    getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: throw GradleException("local.properties에 '$key'가 설정되지 않았습니다.")
+
+val kakaoNativeAppKey: String = localProperties.requireNotBlank("KAKAO_NATIVE_APP_KEY")
 
 android {
     namespace = "com.dororong.rodi"

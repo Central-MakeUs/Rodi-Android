@@ -13,7 +13,11 @@ class RodiApplication : Application() {
         if (BuildConfig.DEBUG) {
             Timber.plant(Timber.DebugTree())
         }
-        KakaoMapSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
-        KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
+        runCatching {
+            KakaoMapSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
+            KakaoSdk.init(this, BuildConfig.KAKAO_NATIVE_APP_KEY)
+        }.onFailure { error ->
+            Timber.e(error, "Kakao SDK initialization failed.")
+        }
     }
 }
