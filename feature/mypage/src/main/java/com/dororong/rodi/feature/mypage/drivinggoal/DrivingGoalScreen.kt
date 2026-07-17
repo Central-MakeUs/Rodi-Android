@@ -1,10 +1,8 @@
-package com.dororong.rodi.feature.mypage
+package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,15 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +24,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -51,6 +45,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.mypage.drivinggoal.components.DrivingGoalTopBar
 
 @Composable
 fun DrivingGoalScreen(
@@ -167,59 +162,6 @@ private fun DrivingGoalContent(
     }
 }
 
-@Composable
-private fun DrivingGoalTopBar(
-    canSave: Boolean,
-    onBack: () -> Unit,
-    onSave: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-            contentDescription = "뒤로가기",
-            tint = RodiTheme.colors.black,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(24.dp)
-                .clickable(onClick = onBack),
-        )
-        Text(
-            text = "운전 목표",
-            style = RodiTheme.typography.body1SemiBold,
-            color = RodiTheme.colors.black,
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .size(24.dp)
-                .background(
-                    color = if (canSave) RodiTheme.colors.primary600 else RodiTheme.colors.primary100,
-                    shape = CircleShape,
-                )
-                .clickable(
-                    enabled = canSave,
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onSave,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = "저장",
-                tint = RodiTheme.colors.white,
-                modifier = Modifier.size(16.dp),
-            )
-        }
-    }
-}
-
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun DrivingGoalEmptyPreview() {
@@ -240,6 +182,19 @@ private fun DrivingGoalFilledPreview() {
         DrivingGoalContent(
             initialGoal = "복잡한 강남 자신있게 운전하기",
             isSaving = false,
+            onBack = {},
+            onSave = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun DrivingGoalSavingPreview() {
+    RodiTheme {
+        DrivingGoalContent(
+            initialGoal = "야간 운전도 자신 있게 하기",
+            isSaving = true,
             onBack = {},
             onSave = {},
         )

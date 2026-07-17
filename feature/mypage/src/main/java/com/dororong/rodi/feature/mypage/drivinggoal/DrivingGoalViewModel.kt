@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.mypage
+package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

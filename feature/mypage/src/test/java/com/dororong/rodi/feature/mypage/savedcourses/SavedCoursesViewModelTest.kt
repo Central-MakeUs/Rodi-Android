@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.mypage
+package com.dororong.rodi.feature.mypage.savedcourses
 
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.repository.CourseRepository
