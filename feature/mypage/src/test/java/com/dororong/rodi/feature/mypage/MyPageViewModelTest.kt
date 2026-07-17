@@ -1,0 +1,97 @@
+package com.dororong.rodi.feature.mypage
+
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
+import com.dororong.rodi.core.domain.repository.CourseRepository
+import com.dororong.rodi.core.domain.usecase.course.ObserveSavedCourseIdsUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class MyPageViewModelTest {
+
+    private val testDispatcher = StandardTestDispatcher()
+
+    @BeforeEach
+    fun setUp() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @AfterEach
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
+    @Test
+    fun `onboarding profile is displayed on my page`() = runTest(testDispatcher) {
+        val profile = OnboardingProfile(
+            nickname = "로디",
+            practiceSituations = listOf(PracticeSituation.PARKING, PracticeSituation.LANE_CHANGE),
+            goal = "강남에서 운전하기",
+        )
+        val repository = mockk<OnboardingRepository> {
+            every { this@mockk.profile } returns flowOf(profile)
+        }
+        val courseRepository = mockk<CourseRepository> {
+            every { observeSavedCourseIds() } returns flowOf(setOf(1, 2))
+        }
+
+        val viewModel = MyPageViewModel(
+            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
+            observeSavedCourseIds = ObserveSavedCourseIdsUseCase(courseRepository),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals("로디", viewModel.uiState.value.profile.nickname)
+        assertEquals(OnboardingLevel.SEED, viewModel.uiState.value.profile.level)
+        assertEquals(listOf("차선변경", "교차로", "주차"), viewModel.uiState.value.profile.practiceTypes)
+        assertEquals("강남에서 운전하기", viewModel.uiState.value.profile.drivingGoal)
+        assertEquals(2, viewModel.uiState.value.profile.savedCourseCount)
+    }
+
+    @Test
+    fun `navigator is shown recommended activities instead of practice types`() = runTest(testDispatcher) {
+        val repository = mockk<OnboardingRepository> {
+            every { this@mockk.profile } returns flowOf(
+                OnboardingProfile(
+                    drivingPeriod = DrivingPeriod.YEAR_2_TO_10,
+                    practiceSituations = listOf(PracticeSituation.PARKING),
+                ),
+            )
+        }
+        val courseRepository = mockk<CourseRepository> {
+            every { observeSavedCourseIds() } returns flowOf(emptySet())
+        }
+
+        val viewModel = MyPageViewModel(
+            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
+            observeSavedCourseIds = ObserveSavedCourseIdsUseCase(courseRepository),
+        )
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        assertEquals(OnboardingLevel.NAVIGATOR, viewModel.uiState.value.profile.level)
+        assertEquals(
+            listOf("코스등록", "리뷰 작성", "추천 코스"),
+            viewModel.uiState.value.profile.practiceTypes,
+        )
+    }
+}

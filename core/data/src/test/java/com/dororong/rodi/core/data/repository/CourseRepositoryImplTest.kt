@@ -1,5 +1,10 @@
 package com.dororong.rodi.core.data.repository
 
+import androidx.datastore.preferences.core.mutablePreferencesOf
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.dororong.rodi.core.data.source.local.datastore.SavedCourseLocalDataSource
+import com.dororong.rodi.core.data.source.local.datastore.savedCourseIds
 import com.dororong.rodi.core.data.source.local.sample.SampleCourses
 import com.dororong.rodi.core.data.source.remote.directions.KakaoDirectionsClient
 import com.kakao.vectormap.LatLng
@@ -12,6 +17,25 @@ import org.junit.jupiter.api.Test
 
 class CourseRepositoryImplTest {
     @Test
+    fun `reads legacy string saved course ids without a type cast`() {
+        val preferences = mutablePreferencesOf(
+            stringPreferencesKey("saved_course_ids") to "1, 2, invalid",
+        )
+
+        assertEquals(setOf("1", "2"), preferences.savedCourseIds())
+    }
+
+    @Test
+    fun `prefers saved course id set over legacy value`() {
+        val preferences = mutablePreferencesOf(
+            stringPreferencesKey("saved_course_ids") to "1, 2",
+            stringSetPreferencesKey("saved_course_id_set") to setOf("3", "4"),
+        )
+
+        assertEquals(setOf("3", "4"), preferences.savedCourseIds())
+    }
+
+    @Test
     fun `maps injected directions result to domain route`() = runTest {
         val directionsClient = mockk<KakaoDirectionsClient>()
         val course = SampleCourses.RODI_COURSES.first()
@@ -22,7 +46,10 @@ class CourseRepositoryImplTest {
             snappedPoints = listOf(LatLng.from(37.2, 127.2)),
         )
 
-        val result = CourseRepositoryImpl(directionsClient).getRoute(course)
+        val result = CourseRepositoryImpl(
+            directionsClient = directionsClient,
+            savedCourseLocalDataSource = mockk<SavedCourseLocalDataSource>(),
+        ).getRoute(course)
 
         assertTrue(result.isRealRoute)
         assertEquals(1_200, result.totalDistanceMeters)
