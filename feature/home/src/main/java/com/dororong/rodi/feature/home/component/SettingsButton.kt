@@ -13,8 +13,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.R
 
 @Composable
 fun SettingsButton(onClick: () -> Unit) {
@@ -29,7 +29,7 @@ fun SettingsButton(onClick: () -> Unit) {
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                painter = painterResource(R.drawable.ic_settings),
+                painter = painterResource(CoreUiR.drawable.ic_settings),
                 contentDescription = null,
                 tint = RodiTheme.colors.gray900,
                 modifier = Modifier.size(24.dp),
