@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
-import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveSavedCourseIdsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -21,17 +21,17 @@ data class MyPageUiState(
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
     getOnboardingProfile: GetOnboardingProfileUseCase,
-    getCourses: GetCoursesUseCase,
+    observeSavedCourseIds: ObserveSavedCourseIdsUseCase,
 ) : ViewModel() {
     val uiState: StateFlow<MyPageUiState> = combine(
         getOnboardingProfile(),
-        getCourses.observeSavedCourseIds(),
+        observeSavedCourseIds(),
     ) { profile, savedCourseIds ->
         MyPageUiState(profile = profile.toMyPageProfile(savedCourseIds.size))
     }
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed(5_000),
             initialValue = MyPageUiState(),
         )
 }

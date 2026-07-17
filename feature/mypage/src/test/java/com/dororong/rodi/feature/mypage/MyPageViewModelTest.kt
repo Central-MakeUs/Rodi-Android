@@ -6,13 +6,14 @@ import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
-import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveSavedCourseIdsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -50,13 +51,13 @@ class MyPageViewModelTest {
         }
         val courseRepository = mockk<CourseRepository> {
             every { observeSavedCourseIds() } returns flowOf(setOf(1, 2))
-            every { getCourses() } returns emptyList()
         }
 
         val viewModel = MyPageViewModel(
             getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            getCourses = GetCoursesUseCase(courseRepository),
+            observeSavedCourseIds = ObserveSavedCourseIdsUseCase(courseRepository),
         )
+        backgroundScope.launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
         assertEquals("로디", viewModel.uiState.value.profile.nickname)
@@ -78,13 +79,13 @@ class MyPageViewModelTest {
         }
         val courseRepository = mockk<CourseRepository> {
             every { observeSavedCourseIds() } returns flowOf(emptySet())
-            every { getCourses() } returns emptyList()
         }
 
         val viewModel = MyPageViewModel(
             getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            getCourses = GetCoursesUseCase(courseRepository),
+            observeSavedCourseIds = ObserveSavedCourseIdsUseCase(courseRepository),
         )
+        backgroundScope.launch { viewModel.uiState.collect {} }
         advanceUntilIdle()
 
         assertEquals(OnboardingLevel.NAVIGATOR, viewModel.uiState.value.profile.level)

@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage.savedcourses
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveSavedCourseIdsUseCase
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,10 @@ class SavedCoursesViewModelTest {
             every { getCourses() } returns listOf(savedCourse, unsavedCourse)
         }
 
-        val viewModel = SavedCoursesViewModel(GetCoursesUseCase(repository))
+        val viewModel = SavedCoursesViewModel(
+            getCourses = GetCoursesUseCase(repository),
+            observeSavedCourseIds = ObserveSavedCourseIdsUseCase(repository),
+        )
         advanceUntilIdle()
 
         assertEquals(listOf(savedCourse), viewModel.uiState.value.courses)
