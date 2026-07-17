@@ -1,9 +1,10 @@
 package com.dororong.rodi.core.data.repository
 
-import android.content.Context
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.dororong.rodi.core.data.source.local.datastore.SavedCourseLocalDataSource
+import com.dororong.rodi.core.data.source.local.datastore.savedCourseIds
 import com.dororong.rodi.core.data.source.local.sample.SampleCourses
 import com.dororong.rodi.core.data.source.remote.directions.KakaoDirectionsClient
 import com.kakao.vectormap.LatLng
@@ -47,7 +48,7 @@ class CourseRepositoryImplTest {
 
         val result = CourseRepositoryImpl(
             directionsClient = directionsClient,
-            context = mockk<Context>(relaxed = true),
+            savedCourseLocalDataSource = mockk<SavedCourseLocalDataSource>(),
         ).getRoute(course)
 
         assertTrue(result.isRealRoute)
