@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.TransformOrigin
@@ -38,7 +37,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -52,6 +50,9 @@ private object ProfileCardLayout {
     val profileRowHeight = 90.dp
     val practiceTypeSlotHeight = 21.dp
     val drivingGoalSlotHeight = 19.dp
+    val stampSize = 200.dp
+    val stampRightCrop = stampSize / 6
+    val stampTopOffset = (-16).dp
 }
 
 @Composable
@@ -110,22 +111,20 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clipToBounds(),
+                .clip(RoundedCornerShape(8.dp)),
         ) {
-            Box(
+            Image(
+                painter = painterResource(R.drawable.img_rodi_stamp),
+                contentDescription = null,
+                alpha = 0.2f,
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .offset { IntOffset(x = 550, y = -40) }
-                    .size(200.dp)
-                    .clipToBounds(),
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.img_rodi_stamp),
-                    contentDescription = null,
-                    alpha = 0.2f,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+                    .align(Alignment.TopEnd)
+                    .offset(
+                        x = ProfileCardLayout.stampRightCrop,
+                        y = ProfileCardLayout.stampTopOffset,
+                    )
+                    .size(ProfileCardLayout.stampSize),
+            )
         }
         Column(
             modifier = Modifier
