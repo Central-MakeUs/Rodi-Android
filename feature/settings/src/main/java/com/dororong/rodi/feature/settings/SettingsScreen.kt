@@ -33,6 +33,8 @@ import com.dororong.rodi.core.ui.terms.TermsDocument
 import com.dororong.rodi.core.ui.terms.TermsDocuments
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.settings.account.AccountSettingsScreen
+import com.dororong.rodi.feature.settings.account.InquiryScreen
 import com.dororong.rodi.feature.settings.licenses.OpenSourceLicensesScreen
 import com.dororong.rodi.feature.settings.permission.PermissionSettingsScreen
 import com.dororong.rodi.feature.settings.terms.TermsReviewScreen
@@ -42,12 +44,15 @@ private enum class SettingsDestination {
     Permission,
     Terms,
     Licenses,
+    Account,
+    Inquiry,
 }
 
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
     appVersion: String,
+    onSessionEnded: () -> Unit,
 ) {
     var destinationName by rememberSaveable { mutableStateOf(SettingsDestination.Menu.name) }
     var selectedTermsUrl by rememberSaveable { mutableStateOf<String?>(null) }
@@ -81,12 +86,23 @@ fun SettingsScreen(
             onBack = { destinationName = SettingsDestination.Menu.name },
         )
 
+        destination == SettingsDestination.Account -> AccountSettingsScreen(
+            onBack = { destinationName = SettingsDestination.Menu.name },
+            onInquiryClick = { destinationName = SettingsDestination.Inquiry.name },
+            onSessionEnded = onSessionEnded,
+        )
+
+        destination == SettingsDestination.Inquiry -> InquiryScreen(
+            onBack = { destinationName = SettingsDestination.Account.name },
+        )
+
         else -> SettingsContent(
             appVersion = appVersion,
             onBack = onBack,
             onPermissionClick = { destinationName = SettingsDestination.Permission.name },
             onTermsClick = { destinationName = SettingsDestination.Terms.name },
             onLicensesClick = { destinationName = SettingsDestination.Licenses.name },
+            onAccountClick = { destinationName = SettingsDestination.Account.name },
         )
     }
 }
@@ -98,6 +114,7 @@ private fun SettingsContent(
     onPermissionClick: () -> Unit,
     onTermsClick: () -> Unit,
     onLicensesClick: () -> Unit,
+    onAccountClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -114,6 +131,7 @@ private fun SettingsContent(
             SettingsMenuItem(text = "권한 설정 변경", onClick = onPermissionClick)
             SettingsMenuItem(text = "약관 다시보기", onClick = onTermsClick)
             SettingsMenuItem(text = "오픈소스 라이센스", onClick = onLicensesClick)
+            SettingsMenuItem(text = "계정정보 관리", onClick = onAccountClick)
             SettingsVersionItem(appVersion = appVersion)
         }
     }
@@ -213,6 +231,7 @@ private fun SettingsContentPreview() {
             onPermissionClick = {},
             onTermsClick = {},
             onLicensesClick = {},
+            onAccountClick = {},
         )
     }
 }

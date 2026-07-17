@@ -58,4 +58,14 @@ class RodiAppViewModel @Inject constructor(
             }
         }
     }
+
+    fun onSessionEnded() {
+        _state.value = _state.value.copy(
+            authSession = AuthSession(
+                isLoggedIn = false,
+                hasRecentKakaoLogin = false,
+            ),
+        )
+    }
+
 }
