@@ -62,7 +62,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     val colors = RodiTheme.colors
     val profileImageWidth = 95.dp
     val profileImageHeight = 120.dp
-    val profileImageOffsetX = (-2.5).dp
+    val profileImageOffsetX = (-5).dp
     val profileImageOffsetY = 2.dp
 
     Box(
