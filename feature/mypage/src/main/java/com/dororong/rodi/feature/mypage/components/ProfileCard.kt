@@ -29,8 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
@@ -51,8 +49,8 @@ private object ProfileCardLayout {
     val profileRowHeight = 90.dp
     val practiceTypeSlotHeight = 21.dp
     val drivingGoalSlotHeight = 19.dp
-    val stampSize = 200.dp
-    val stampTransparentRightInset = stampSize * 0.17f
+    val stampSize = 170.dp
+    val stampTransparentRightInset = stampSize * 0.19f
     val stampVisibleRightCrop = stampSize * 0.1f
     val stampRightCrop = stampTransparentRightInset + stampVisibleRightCrop
     val stampTopOffset = (-16).dp
@@ -61,10 +59,6 @@ private object ProfileCardLayout {
 @Composable
 internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     val colors = RodiTheme.colors
-    val profileImageWidth = 95.dp
-    val profileImageHeight = 120.dp
-    val profileImageOffsetX = (-5).dp
-    val profileImageOffsetY = 2.dp
 
     Box(
         modifier = Modifier
@@ -140,27 +134,12 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
         ) {
             Column {
                 Row(modifier = Modifier.height(ProfileCardLayout.profileRowHeight)) {
-                    Box(
-                        modifier = Modifier
-                            .size(90.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(colors.primary100),
-                    ) {
-                        Image(
-                            painter = painterResource(profile.level.characterImageRes),
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(90.dp)
-                                .graphicsLayer {
-                                    scaleX = profileImageWidth.value / 90f
-                                    scaleY = profileImageHeight.value / 90f
-                                    transformOrigin = TransformOrigin(0f, 0f)
-                                    translationX = profileImageOffsetX.toPx()
-                                    translationY = profileImageOffsetY.toPx()
-                                },
-                            contentScale = ContentScale.FillBounds,
-                        )
-                    }
+                    Image(
+                        painter = painterResource(profile.level.characterImageRes),
+                        contentDescription = null,
+                        modifier = Modifier.size(90.dp),
+                        contentScale = ContentScale.FillBounds,
+                    )
                     Column(modifier = Modifier.padding(start = 15.dp, top = 12.dp)) {
                         Text(
                             text = profile.nickname,
@@ -255,14 +234,12 @@ private val OnboardingLevel.characterImageRes: Int
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardFilledPreview() {
+private fun ProfileCardIncompletePreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
-                nickname = "흐름타는 고슴도치",
-                level = OnboardingLevel.ROOKIE,
-                practiceTypes = listOf("차선변경", "교차로", "주차"),
-                drivingGoal = "복잡한 강남 자신있게 운전하기",
+                nickname = "아주 긴 닉네임도 카드 안에서 한 줄로 표시돼야 해요",
+                level = OnboardingLevel.SEED,
             ),
             onGoalClick = {},
         )
@@ -271,12 +248,14 @@ private fun ProfileCardFilledPreview() {
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardIncompletePreview() {
+private fun ProfileCardFilledPreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
-                nickname = "아주 긴 닉네임도 카드 안에서 한 줄로 표시돼야 해요",
-                level = OnboardingLevel.SEED,
+                nickname = "흐름타는 고슴도치",
+                level = OnboardingLevel.ROOKIE,
+                practiceTypes = listOf("차선변경", "교차로", "주차"),
+                drivingGoal = "복잡한 강남 자신있게 운전하기",
             ),
             onGoalClick = {},
         )
