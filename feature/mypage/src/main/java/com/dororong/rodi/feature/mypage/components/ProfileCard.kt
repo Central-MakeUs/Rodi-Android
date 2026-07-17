@@ -238,7 +238,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 259)
+@Preview(showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
 private fun ProfileCardFilledPreview() {
     RodiTheme {
@@ -254,7 +254,7 @@ private fun ProfileCardFilledPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 259)
+@Preview(showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
 private fun ProfileCardIncompletePreview() {
     RodiTheme {
