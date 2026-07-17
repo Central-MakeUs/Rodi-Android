@@ -11,6 +11,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
@@ -85,6 +86,7 @@ fun MainScreen() {
                             onBack = {
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
+                            appVersion = BuildConfig.VERSION_NAME,
                         )
                     }
                     else -> error("Unknown main route: $key")
