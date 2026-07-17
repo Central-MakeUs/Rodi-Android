@@ -6,14 +6,15 @@ import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,11 +35,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -167,39 +171,79 @@ private fun AccountConfirmationDialog(
 ) {
     val isWithdraw = action == AccountAction.Withdraw
     Dialog(onDismissRequest = { if (!isSubmitting) onDismiss() }) {
+        val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
+        SideEffect {
+            dialogWindowProvider?.window?.setDimAmount(DIALOG_DIM_AMOUNT)
+        }
         Surface(
-            modifier = Modifier.width(280.dp),
+            modifier = Modifier
+                .width(280.dp)
+                .height(if (isWithdraw) 226.dp else 189.dp)
+                .offset(y = if (isWithdraw) (-1).dp else (-10).dp),
             shape = RoundedCornerShape(RodiRadius.md),
             color = RodiTheme.colors.white,
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (isWithdraw) 24.dp else 16.dp),
-            ) {
-                Text(
-                    text = if (isWithdraw) "정말 계정을 삭제하시겠습니까?" else "로그아웃 하시겠습니까?",
-                    style = RodiTheme.typography.price1,
-                    color = RodiTheme.colors.black,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (isWithdraw) {
-                    Text(
-                        text = "삭제 후 3일 이내 재로그인 시 복구 가능합니다. 10일 이후 재가입 가능합니다.",
-                        style = RodiTheme.typography.caption1Medium,
-                        color = RodiTheme.colors.black,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .width(240.dp)
+                            .padding(top = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = "정말 계정을 삭제하시겠습니까?",
+                            style = RodiTheme.typography.price1,
+                            color = RodiTheme.colors.black,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(60.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = "삭제 후 3일 이내 재로그인 시 복구 가능합니다. 10일 이후 재가입 가능합니다.",
+                                style = RodiTheme.typography.caption1Medium,
+                                color = RodiTheme.colors.black,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .width(240.dp)
+                            .padding(top = 32.dp)
+                            .height(60.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "로그아웃 하시겠습니까?",
+                            style = RodiTheme.typography.price1,
+                            color = RodiTheme.colors.black,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .width(240.dp)
+                        .padding(top = if (isWithdraw) 153.dp else 116.dp),
+                ) {
                     DialogButton(
                         text = "예",
                         isPrimary = false,
                         enabled = !isSubmitting,
                         onClick = onConfirm,
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     DialogButton(
                         text = "아니오",
                         isPrimary = true,
@@ -211,6 +255,8 @@ private fun AccountConfirmationDialog(
         }
     }
 }
+
+private const val DIALOG_DIM_AMOUNT = 0.43f
 
 @Composable
 private fun DialogButton(
@@ -299,6 +345,24 @@ private fun AccountSettingsContentPreview() {
         AccountSettingsContent(
             isSubmitting = false,
             pendingAction = null,
+            onBack = {},
+            onInquiryClick = {},
+            onLogoutClick = {},
+            onWithdrawClick = {},
+            onDismissDialog = {},
+            onConfirm = {},
+            snackbarHostState = SnackbarHostState(),
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun AccountLogoutDialogPreview() {
+    RodiTheme {
+        AccountSettingsContent(
+            isSubmitting = false,
+            pendingAction = AccountAction.Logout,
             onBack = {},
             onInquiryClick = {},
             onLogoutClick = {},
