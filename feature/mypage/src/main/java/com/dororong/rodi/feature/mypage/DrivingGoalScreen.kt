@@ -34,6 +34,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -93,6 +95,8 @@ private fun DrivingGoalContent(
     var goal by rememberSaveable(initialGoal) { mutableStateOf(initialGoal) }
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val canSave = goal.isNotBlank() && !isSaving
 
     LaunchedEffect(initialGoal) {
@@ -126,7 +130,12 @@ private fun DrivingGoalContent(
                 cursorBrush = SolidColor(RodiTheme.colors.black),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { if (canSave) onSave(goal) }),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    },
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
