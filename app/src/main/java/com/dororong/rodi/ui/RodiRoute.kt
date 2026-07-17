@@ -1,27 +1,28 @@
 package com.dororong.rodi.ui
 
+import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable
 
 @Serializable
-data object LoginRoute
+data object LoginRoute : NavKey
 
 @Serializable
-data object EntryRoute
+data object EntryRoute : NavKey
 
 @Serializable
-data object MainRoute
+data object MainRoute : NavKey
 
 @Serializable
-data object HomeRoute
+data object HomeRoute : NavKey
 
 @Serializable
-data object MyPageRoute
+data object MyPageRoute : NavKey
 
 @Serializable
-data object DrivingGoalRoute
+data object DrivingGoalRoute : NavKey
 
 @Serializable
-data object SavedCoursesRoute
+data object SavedCoursesRoute : NavKey
 
 @Serializable
-data object SettingsRoute
+data object SettingsRoute : NavKey
