@@ -22,7 +22,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -68,13 +67,17 @@ fun DrivingGoalScreen(
             )
         }
     }
-    BackHandler(onBack = onBack)
+    BackHandler {
+        if (!uiState.isSaving) onBack()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         DrivingGoalContent(
             initialGoal = uiState.initialGoal,
+            goal = uiState.goal,
             isSaving = uiState.isSaving,
-            onBack = onBack,
+            onBack = { if (!uiState.isSaving) onBack() },
+            onGoalChange = viewModel::updateGoal,
             onSave = viewModel::save,
         )
         RodiSnackbarHost(snackbarHostState)
@@ -84,12 +87,13 @@ fun DrivingGoalScreen(
 @Composable
 private fun DrivingGoalContent(
     initialGoal: String,
+    goal: String,
     isSaving: Boolean,
     onBack: () -> Unit,
-    onSave: (String) -> Unit,
+    onGoalChange: (String) -> Unit,
+    onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var goal by rememberSaveable(initialGoal) { mutableStateOf(initialGoal) }
     var isFocused by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -109,7 +113,7 @@ private fun DrivingGoalContent(
         DrivingGoalTopBar(
             canSave = canSave,
             onBack = onBack,
-            onSave = { onSave(goal) },
+            onSave = onSave,
         )
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
@@ -122,7 +126,7 @@ private fun DrivingGoalContent(
             Spacer(Modifier.height(16.dp))
             BasicTextField(
                 value = goal,
-                onValueChange = { goal = it.take(DRIVING_GOAL_MAX_LENGTH) },
+                onValueChange = onGoalChange,
                 textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
                 cursorBrush = SolidColor(RodiTheme.colors.black),
                 singleLine = true,
@@ -168,8 +172,10 @@ private fun DrivingGoalEmptyPreview() {
     RodiTheme {
         DrivingGoalContent(
             initialGoal = "",
+            goal = "",
             isSaving = false,
             onBack = {},
+            onGoalChange = {},
             onSave = {},
         )
     }
@@ -181,8 +187,10 @@ private fun DrivingGoalFilledPreview() {
     RodiTheme {
         DrivingGoalContent(
             initialGoal = "복잡한 강남 자신있게 운전하기",
+            goal = "복잡한 강남 자신있게 운전하기",
             isSaving = false,
             onBack = {},
+            onGoalChange = {},
             onSave = {},
         )
     }
@@ -194,8 +202,10 @@ private fun DrivingGoalSavingPreview() {
     RodiTheme {
         DrivingGoalContent(
             initialGoal = "야간 운전도 자신 있게 하기",
+            goal = "야간 운전도 자신 있게 하기",
             isSaving = true,
             onBack = {},
+            onGoalChange = {},
             onSave = {},
         )
     }

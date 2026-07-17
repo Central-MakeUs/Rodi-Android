@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 
 data class DrivingGoalUiState(
     val initialGoal: String = "",
+    val goal: String = "",
     val isSaving: Boolean = false,
 )
 
@@ -36,13 +37,19 @@ class DrivingGoalViewModel @Inject constructor(
 ) : ViewModel() {
     private val _effect = Channel<DrivingGoalEffect>(Channel.BUFFERED)
     private val isSaving = MutableStateFlow(false)
+    private val editedGoal = MutableStateFlow<String?>(null)
     val effect = _effect.receiveAsFlow()
 
     val uiState: StateFlow<DrivingGoalUiState> = combine(
         getOnboardingProfile(),
         isSaving,
-    ) { profile, saving ->
-        DrivingGoalUiState(initialGoal = profile.goal, isSaving = saving)
+        editedGoal,
+    ) { profile, saving, goal ->
+        DrivingGoalUiState(
+            initialGoal = profile.goal,
+            goal = goal ?: profile.goal,
+            isSaving = saving,
+        )
     }
         .stateIn(
             scope = viewModelScope,
@@ -50,7 +57,12 @@ class DrivingGoalViewModel @Inject constructor(
             initialValue = DrivingGoalUiState(),
         )
 
-    fun save(goal: String) {
+    fun updateGoal(goal: String) {
+        editedGoal.value = goal.take(DRIVING_GOAL_MAX_LENGTH)
+    }
+
+    fun save() {
+        val goal = editedGoal.value ?: uiState.value.initialGoal
         if (goal.isBlank() || goal == uiState.value.initialGoal || uiState.value.isSaving) return
 
         viewModelScope.launch {

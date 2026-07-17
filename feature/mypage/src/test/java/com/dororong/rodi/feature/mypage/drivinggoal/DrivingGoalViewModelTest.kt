@@ -11,6 +11,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -52,7 +53,8 @@ class DrivingGoalViewModelTest {
         )
 
         viewModel.effect.test {
-            viewModel.save("강남에서 운전하기")
+            viewModel.updateGoal("강남에서 운전하기")
+            viewModel.save()
             advanceUntilIdle()
 
             assertEquals(DrivingGoalEffect.NavigateBack, awaitItem())
@@ -76,7 +78,8 @@ class DrivingGoalViewModelTest {
         )
 
         viewModel.effect.test {
-            viewModel.save("주차 자신감 갖기")
+            viewModel.updateGoal("주차 자신감 갖기")
+            viewModel.save()
             advanceUntilIdle()
 
             assertEquals(DrivingGoalEffect.ShowSyncError, awaitItem())
@@ -95,10 +98,32 @@ class DrivingGoalViewModelTest {
         )
         advanceUntilIdle()
 
-        viewModel.save("기존 목표")
+        viewModel.updateGoal("기존 목표")
+        viewModel.save()
         advanceUntilIdle()
 
         coVerify(exactly = 0) { repository.saveProfile(any()) }
         coVerify(exactly = 0) { repository.submit(any(), any()) }
+    }
+
+    @Test
+    fun `does not emit an effect when saving is cancelled`() = runTest(testDispatcher) {
+        val repository = mockk<OnboardingRepository> {
+            every { this@mockk.profile } returns flowOf(OnboardingProfile())
+            coEvery { saveProfile(any()) } throws CancellationException()
+        }
+        val viewModel = DrivingGoalViewModel(
+            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
+            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
+        )
+
+        viewModel.effect.test {
+            viewModel.updateGoal("새 목표")
+            viewModel.save()
+            advanceUntilIdle()
+
+            expectNoEvents()
+        }
+        assertEquals(false, viewModel.uiState.value.isSaving)
     }
 }
