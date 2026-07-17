@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
+import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
@@ -63,5 +64,33 @@ class MyPageViewModelTest {
         assertEquals(listOf("주차", "차선변경"), viewModel.uiState.value.profile.practiceTypes)
         assertEquals("강남에서 운전하기", viewModel.uiState.value.profile.drivingGoal)
         assertEquals(2, viewModel.uiState.value.profile.savedCourseCount)
+    }
+
+    @Test
+    fun `navigator is shown recommended activities instead of practice types`() = runTest(testDispatcher) {
+        val repository = mockk<OnboardingRepository> {
+            every { this@mockk.profile } returns flowOf(
+                OnboardingProfile(
+                    drivingPeriod = DrivingPeriod.YEAR_2_TO_10,
+                    practiceSituations = listOf(PracticeSituation.PARKING),
+                ),
+            )
+        }
+        val courseRepository = mockk<CourseRepository> {
+            every { observeSavedCourseIds() } returns flowOf(emptySet())
+            every { getCourses() } returns emptyList()
+        }
+
+        val viewModel = MyPageViewModel(
+            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
+            getCourses = GetCoursesUseCase(courseRepository),
+        )
+        advanceUntilIdle()
+
+        assertEquals(OnboardingLevel.NAVIGATOR, viewModel.uiState.value.profile.level)
+        assertEquals(
+            listOf("코스등록", "리뷰 작성", "추천 코스"),
+            viewModel.uiState.value.profile.practiceTypes,
+        )
     }
 }

@@ -59,6 +59,9 @@ private object ProfileCardLayout {
 @Composable
 internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     val colors = RodiTheme.colors
+    val practiceTitle = if (profile.level == OnboardingLevel.NAVIGATOR) "추천 활동" else "추천 연습 유형"
+    val drivingGoal = profile.drivingGoal.ifBlank { "ex) 나만의 운전 목표를 입력해보세요 !" }
+    val drivingGoalColor = if (profile.drivingGoal.isBlank()) RodiTheme.colors.gray500 else RodiTheme.colors.black
 
     Box(
         modifier = Modifier
@@ -165,7 +168,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                 }
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "추천 연습 유형",
+                    text = practiceTitle,
                     style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.gray700,
                 )
@@ -201,9 +204,9 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = profile.drivingGoal,
+                        text = drivingGoal,
                         style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.black,
+                        color = drivingGoalColor,
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
                         modifier = Modifier.weight(1f),
@@ -302,7 +305,7 @@ private fun ProfileCardNavigatorPreview() {
             profile = MyPageProfile(
                 nickname = "길잡이 로디",
                 level = OnboardingLevel.NAVIGATOR,
-                practiceTypes = listOf("장거리 주행"),
+                practiceTypes = listOf("코스등록", "리뷰 작성", "추천 코스"),
                 drivingGoal = "다른 운전자에게 도움이 되는 코스 남기기",
             ),
             onGoalClick = {},

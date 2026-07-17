@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
@@ -35,10 +36,19 @@ class MyPageViewModel @Inject constructor(
         )
 }
 
-private fun OnboardingProfile.toMyPageProfile(savedCourseCount: Int): MyPageProfile = MyPageProfile(
-    nickname = nickname,
-    level = calculateLevel(),
-    practiceTypes = practiceSituations.map { it.label },
-    drivingGoal = goal,
-    savedCourseCount = savedCourseCount,
-)
+private fun OnboardingProfile.toMyPageProfile(savedCourseCount: Int): MyPageProfile {
+    val level = calculateLevel()
+    return MyPageProfile(
+        nickname = nickname,
+        level = level,
+        practiceTypes = if (level == OnboardingLevel.NAVIGATOR) {
+            NAVIGATOR_RECOMMENDED_ACTIVITIES
+        } else {
+            practiceSituations.map { it.label }
+        },
+        drivingGoal = goal,
+        savedCourseCount = savedCourseCount,
+    )
+}
+
+private val NAVIGATOR_RECOMMENDED_ACTIVITIES = listOf("코스등록", "리뷰 작성", "추천 코스")
