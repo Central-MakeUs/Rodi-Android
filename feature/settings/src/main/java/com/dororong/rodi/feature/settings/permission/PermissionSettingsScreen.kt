@@ -1,11 +1,16 @@
 package com.dororong.rodi.feature.settings.permission
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,16 +36,34 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.app.ActivityCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.permission.LocationPermissionAction
+import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
+import kotlinx.coroutines.launch
 
 @Composable
-fun PermissionSettingsScreen(onBack: () -> Unit) {
+fun PermissionSettingsScreen(
+    onBack: () -> Unit,
+    viewModel: PermissionSettingsViewModel = hiltViewModel(),
+) {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
+    val coroutineScope = rememberCoroutineScope()
+    val hasRequestedLocationPermission by viewModel.hasRequestedLocationPermission
+        .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
+    val requestLocationPermission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+        isLocationGranted = permissions.values.any { it }
+    }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isLocationGranted = context.hasLocationPermission()
@@ -49,12 +73,39 @@ fun PermissionSettingsScreen(onBack: () -> Unit) {
         isLocationGranted = isLocationGranted,
         onBack = onBack,
         onLocationClick = {
-            context.startActivity(
-                Intent(
-                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                    Uri.fromParts("package", context.packageName, null),
-                ),
-            )
+            when (
+                resolveLocationPermissionAction(
+                    isLocationGranted = isLocationGranted,
+                    hasRequestedLocationPermission = hasRequestedLocationPermission,
+                    shouldShowRationale = activity?.let {
+                        ActivityCompat.shouldShowRequestPermissionRationale(
+                            it,
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                        )
+                    } ?: false,
+                )
+            ) {
+                LocationPermissionAction.RequestSystemPermission -> {
+                    coroutineScope.launch {
+                        viewModel.markLocationPermissionRequested()
+                        requestLocationPermission.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                            ),
+                        )
+                    }
+                }
+
+                LocationPermissionAction.OpenAppSettings -> {
+                    context.startActivity(
+                        Intent(
+                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                            Uri.fromParts("package", context.packageName, null),
+                        ),
+                    )
+                }
+            }
         },
     )
 }
@@ -121,12 +172,30 @@ private fun Context.hasLocationPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
         ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @Preview(showBackground = true, showSystemUi = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun PermissionSettingsGrantedPreview() {
     RodiTheme {
         PermissionSettingsContent(
             isLocationGranted = true,
+            onBack = {},
+            onLocationClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, showSystemUi = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun PermissionSettingsDeniedPreview() {
+    RodiTheme {
+        PermissionSettingsContent(
+            isLocationGranted = false,
             onBack = {},
             onLocationClick = {},
         )
