@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dororong.rodi.core.ui.R.drawable
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 data class MyPageProfile(
@@ -112,7 +112,7 @@ private fun MyPageTopBar(onSettingsClick: () -> Unit) {
             color = RodiTheme.colors.black,
         )
         Icon(
-            painter = painterResource(R.drawable.ic_settings),
+            painter = painterResource(CoreUiR.drawable.ic_settings),
             contentDescription = "설정",
             tint = RodiTheme.colors.black,
             modifier = Modifier
@@ -300,7 +300,7 @@ private fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    painter = painterResource(drawable.ic_chevron_right),
+                    painter = painterResource(CoreUiR.drawable.ic_chevron_right),
                     contentDescription = "운전 목표 수정",
                     tint = RodiTheme.colors.gray600,
                     modifier = Modifier.size(12.dp),
@@ -326,7 +326,7 @@ private fun SavedCoursesRow(count: Int, onClick: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         Icon(
-            painter = painterResource(drawable.ic_chevron_right),
+            painter = painterResource(CoreUiR.drawable.ic_chevron_right),
             contentDescription = "저장한 코스 보기",
             tint = RodiTheme.colors.gray600,
             modifier = Modifier.size(20.dp),

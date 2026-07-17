@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -117,7 +119,7 @@ private fun DrivingGoalContent(
         Column(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
         ) {
-            androidx.compose.material3.Text(
+            Text(
                 text = "이루고 싶은 운전 목표를 입력해주세요.",
                 style = RodiTheme.typography.body3SemiBold,
                 color = RodiTheme.colors.black,
@@ -153,7 +155,7 @@ private fun DrivingGoalContent(
             )
             Row(modifier = Modifier.fillMaxWidth()) {
                 Spacer(Modifier.weight(1f))
-                androidx.compose.material3.Text(
+                Text(
                     text = "${goal.length} /30",
                     style = RodiTheme.typography.caption2Medium,
                     color = RodiTheme.colors.gray500,
@@ -178,7 +180,7 @@ private fun DrivingGoalTopBar(
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.material3.Icon(
+        Icon(
             painter = painterResource(CoreUiR.drawable.ic_chevron_left),
             contentDescription = "뒤로가기",
             tint = RodiTheme.colors.black,
@@ -187,7 +189,7 @@ private fun DrivingGoalTopBar(
                 .size(24.dp)
                 .clickable(onClick = onBack),
         )
-        androidx.compose.material3.Text(
+        Text(
             text = "운전 목표",
             style = RodiTheme.typography.body1SemiBold,
             color = RodiTheme.colors.black,
@@ -208,7 +210,7 @@ private fun DrivingGoalTopBar(
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.material3.Icon(
+            Icon(
                 painter = painterResource(R.drawable.ic_check),
                 contentDescription = "저장",
                 tint = RodiTheme.colors.white,
