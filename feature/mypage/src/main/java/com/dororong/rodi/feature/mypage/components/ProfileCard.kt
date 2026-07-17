@@ -175,7 +175,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Box(modifier = Modifier.height(ProfileCardLayout.practiceTypeSlotHeight)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        profile.practiceTypes.take(3).forEach { practiceType ->
+                        profile.practiceTypes.forEach { practiceType ->
                             Text(
                                 text = practiceType,
                                 style = RodiTheme.typography.caption1Medium,
@@ -257,7 +257,7 @@ private fun ProfileCardFilledPreview() {
             profile = MyPageProfile(
                 nickname = "흐름타는 고슴도치",
                 level = OnboardingLevel.ROOKIE,
-                practiceTypes = listOf("차선변경", "교차로", "주차"),
+                practiceTypes = listOf("유턴", "차선변경", "주차", "교차로"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
             ),
             onGoalClick = {},
@@ -273,7 +273,7 @@ private fun ProfileCardOwnerPreview() {
             profile = MyPageProfile(
                 nickname = "운전에 익숙한 로디",
                 level = OnboardingLevel.OWNER,
-                practiceTypes = listOf("합류", "다차로 주행"),
+                practiceTypes = listOf("고속도로", "합류", "다차로주행"),
                 drivingGoal = "고속도로를 편안하게 주행하기",
             ),
             onGoalClick = {},
@@ -289,7 +289,7 @@ private fun ProfileCardExplorerPreview() {
             profile = MyPageProfile(
                 nickname = "새 도전을 즐기는 로디",
                 level = OnboardingLevel.EXPLORER,
-                practiceTypes = listOf("회전 교차로", "좁은 도로"),
+                practiceTypes = listOf("비보호 좌회전", "회전교차로", "코너링"),
                 drivingGoal = "낯선 길도 자신 있게 주행하기",
             ),
             onGoalClick = {},

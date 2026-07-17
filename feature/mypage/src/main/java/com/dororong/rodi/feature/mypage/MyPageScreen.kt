@@ -80,7 +80,7 @@ private fun MyPageContentPreview() {
             profile = MyPageProfile(
                 nickname = "흐름타는 고슴도치",
                 level = OnboardingLevel.ROOKIE,
-                practiceTypes = listOf("차선변경", "교차로", "주차"),
+                practiceTypes = listOf("유턴", "차선변경", "주차", "교차로"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
                 savedCourseCount = 5,
             ),

@@ -2,8 +2,8 @@ package com.dororong.rodi.feature.mypage
 
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
-import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
@@ -61,7 +61,7 @@ class MyPageViewModelTest {
 
         assertEquals("로디", viewModel.uiState.value.profile.nickname)
         assertEquals(OnboardingLevel.SEED, viewModel.uiState.value.profile.level)
-        assertEquals(listOf("주차", "차선변경"), viewModel.uiState.value.profile.practiceTypes)
+        assertEquals(listOf("차선변경", "교차로", "주차"), viewModel.uiState.value.profile.practiceTypes)
         assertEquals("강남에서 운전하기", viewModel.uiState.value.profile.drivingGoal)
         assertEquals(2, viewModel.uiState.value.profile.savedCourseCount)
     }

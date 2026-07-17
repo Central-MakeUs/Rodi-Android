@@ -41,14 +41,17 @@ private fun OnboardingProfile.toMyPageProfile(savedCourseCount: Int): MyPageProf
     return MyPageProfile(
         nickname = nickname,
         level = level,
-        practiceTypes = if (level == OnboardingLevel.NAVIGATOR) {
-            NAVIGATOR_RECOMMENDED_ACTIVITIES
-        } else {
-            practiceSituations.map { it.label }
-        },
+        practiceTypes = level.recommendedProfileActivities,
         drivingGoal = goal,
         savedCourseCount = savedCourseCount,
     )
 }
 
-private val NAVIGATOR_RECOMMENDED_ACTIVITIES = listOf("코스등록", "리뷰 작성", "추천 코스")
+private val OnboardingLevel.recommendedProfileActivities: List<String>
+    get() = when (this) {
+        OnboardingLevel.SEED -> listOf("차선변경", "교차로", "주차")
+        OnboardingLevel.ROOKIE -> listOf("유턴", "차선변경", "주차", "교차로")
+        OnboardingLevel.OWNER -> listOf("고속도로", "합류", "다차로주행")
+        OnboardingLevel.EXPLORER -> listOf("비보호 좌회전", "회전교차로", "코너링")
+        OnboardingLevel.NAVIGATOR -> listOf("코스등록", "리뷰 작성", "추천 코스")
+    }
