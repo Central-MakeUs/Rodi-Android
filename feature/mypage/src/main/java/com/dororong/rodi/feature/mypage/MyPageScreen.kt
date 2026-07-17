@@ -14,6 +14,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.components.MyPageTopBar
 import com.dororong.rodi.feature.mypage.components.ProfileCard
@@ -21,7 +22,7 @@ import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 
 data class MyPageProfile(
     val nickname: String = "",
-    val level: String = "Seed",
+    val level: OnboardingLevel = OnboardingLevel.SEED,
     val practiceTypes: List<String> = emptyList(),
     val drivingGoal: String = "",
     val savedCourseCount: Int = 0,
@@ -78,7 +79,7 @@ private fun MyPageContentPreview() {
         MyPageContent(
             profile = MyPageProfile(
                 nickname = "흐름타는 고슴도치",
-                level = "Rookie",
+                level = OnboardingLevel.ROOKIE,
                 practiceTypes = listOf("차선변경", "교차로", "주차"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
                 savedCourseCount = 5,
@@ -97,7 +98,7 @@ private fun MyPageIncompleteProfilePreview() {
         MyPageContent(
             profile = MyPageProfile(
                 nickname = "운전 초보",
-                level = "Seed",
+                level = OnboardingLevel.SEED,
             ),
             onSettingsClick = {},
             onGoalClick = {},

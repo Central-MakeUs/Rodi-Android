@@ -40,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.feature.mypage.MyPageProfile
 import com.dororong.rodi.feature.mypage.R
 
@@ -146,7 +147,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                             .background(colors.primary100),
                     ) {
                         Image(
-                            painter = painterResource(R.drawable.img_rodi_profile),
+                            painter = painterResource(profile.level.characterImageRes),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(90.dp)
@@ -176,7 +177,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                                 color = RodiTheme.colors.gray700,
                             )
                             Text(
-                                text = profile.level,
+                                text = profile.level.displayName,
                                 style = RodiTheme.typography.body3Medium,
                                 color = RodiTheme.colors.black,
                             )
@@ -240,6 +241,18 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     }
 }
 
+private val OnboardingLevel.displayName: String
+    get() = name.lowercase().replaceFirstChar { it.titlecase() }
+
+private val OnboardingLevel.characterImageRes: Int
+    get() = when (this) {
+        OnboardingLevel.SEED -> CoreUiR.drawable.illust_level_seed
+        OnboardingLevel.ROOKIE -> CoreUiR.drawable.illust_level_rookie
+        OnboardingLevel.OWNER -> CoreUiR.drawable.illust_level_owner
+        OnboardingLevel.EXPLORER -> CoreUiR.drawable.illust_level_explorer
+        OnboardingLevel.NAVIGATOR -> R.drawable.img_rodi_profile
+    }
+
 @Preview(showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
 private fun ProfileCardFilledPreview() {
@@ -247,7 +260,7 @@ private fun ProfileCardFilledPreview() {
         ProfileCard(
             profile = MyPageProfile(
                 nickname = "흐름타는 고슴도치",
-                level = "Rookie",
+                level = OnboardingLevel.ROOKIE,
                 practiceTypes = listOf("차선변경", "교차로", "주차"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
             ),
@@ -263,7 +276,55 @@ private fun ProfileCardIncompletePreview() {
         ProfileCard(
             profile = MyPageProfile(
                 nickname = "아주 긴 닉네임도 카드 안에서 한 줄로 표시돼야 해요",
-                level = "Seed",
+                level = OnboardingLevel.SEED,
+            ),
+            onGoalClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Composable
+private fun ProfileCardOwnerPreview() {
+    RodiTheme {
+        ProfileCard(
+            profile = MyPageProfile(
+                nickname = "운전에 익숙한 로디",
+                level = OnboardingLevel.OWNER,
+                practiceTypes = listOf("합류", "다차로 주행"),
+                drivingGoal = "고속도로를 편안하게 주행하기",
+            ),
+            onGoalClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Composable
+private fun ProfileCardExplorerPreview() {
+    RodiTheme {
+        ProfileCard(
+            profile = MyPageProfile(
+                nickname = "새 도전을 즐기는 로디",
+                level = OnboardingLevel.EXPLORER,
+                practiceTypes = listOf("회전 교차로", "좁은 도로"),
+                drivingGoal = "낯선 길도 자신 있게 주행하기",
+            ),
+            onGoalClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Composable
+private fun ProfileCardNavigatorPreview() {
+    RodiTheme {
+        ProfileCard(
+            profile = MyPageProfile(
+                nickname = "길잡이 로디",
+                level = OnboardingLevel.NAVIGATOR,
+                practiceTypes = listOf("장거리 주행"),
+                drivingGoal = "다른 운전자에게 도움이 되는 코스 남기기",
             ),
             onGoalClick = {},
         )

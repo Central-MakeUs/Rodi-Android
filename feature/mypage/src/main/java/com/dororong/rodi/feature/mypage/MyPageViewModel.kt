@@ -37,7 +37,7 @@ class MyPageViewModel @Inject constructor(
 
 private fun OnboardingProfile.toMyPageProfile(savedCourseCount: Int): MyPageProfile = MyPageProfile(
     nickname = nickname,
-    level = calculateLevel().name.lowercase().replaceFirstChar { it.titlecase() },
+    level = calculateLevel(),
     practiceTypes = practiceSituations.map { it.label },
     drivingGoal = goal,
     savedCourseCount = savedCourseCount,
