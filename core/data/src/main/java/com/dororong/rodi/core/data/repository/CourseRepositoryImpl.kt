@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.repository
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 
 private val Context.savedCourseDataStore by preferencesDataStore(name = "saved_courses")
+private val savedCourseIdSetKey = stringSetPreferencesKey("saved_course_id_set")
+private const val legacySavedCourseIdsKey = "saved_course_ids"
 
 class CourseRepositoryImpl @Inject constructor(
     private val directionsClient: KakaoDirectionsClient,
@@ -35,21 +38,32 @@ class CourseRepositoryImpl @Inject constructor(
             if (exception is IOException) emit(emptyPreferences()) else throw exception
         }
         .map { preferences ->
-            preferences[KEY_SAVED_COURSE_IDS]
-                .orEmpty()
+            preferences.savedCourseIds()
                 .mapNotNull(String::toIntOrNull)
                 .toSet()
         }
 
     override suspend fun toggleSavedCourse(courseId: Int) {
         context.savedCourseDataStore.edit { preferences ->
-            val ids = preferences[KEY_SAVED_COURSE_IDS].orEmpty().toMutableSet()
+            val ids = preferences.savedCourseIds().toMutableSet()
             if (!ids.add(courseId.toString())) ids.remove(courseId.toString())
-            preferences[KEY_SAVED_COURSE_IDS] = ids
+            preferences[savedCourseIdSetKey] = ids
         }
     }
+}
 
-    private companion object {
-        val KEY_SAVED_COURSE_IDS = stringSetPreferencesKey("saved_course_ids")
+internal fun Preferences.savedCourseIds(): Set<String> {
+    val values = asMap()
+    val savedIds = values.entries
+        .firstOrNull { it.key == savedCourseIdSetKey }
+        ?.value as? Set<*>
+    if (savedIds != null) return savedIds.filterIsInstance<String>().toSet()
+
+    return when (val legacyValue = values.entries.firstOrNull { it.key.name == legacySavedCourseIdsKey }?.value) {
+        is Set<*> -> legacyValue.filterIsInstance<String>().toSet()
+        is String -> legacyValue.split(Regex("[^0-9]+"))
+            .filter(String::isNotBlank)
+            .toSet()
+        else -> emptySet()
     }
 }
