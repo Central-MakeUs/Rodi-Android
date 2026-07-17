@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
+import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -69,4 +70,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOnboardingApi(retrofit: Retrofit): OnboardingApi = retrofit.create(OnboardingApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePlaceApi(retrofit: Retrofit): PlaceApi = retrofit.create(PlaceApi::class.java)
 }
