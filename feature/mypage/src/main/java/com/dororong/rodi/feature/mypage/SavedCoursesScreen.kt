@@ -35,6 +35,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.course.CourseFeatures
+import com.dororong.rodi.core.domain.model.course.Waypoint
+import com.dororong.rodi.core.domain.model.course.WaypointType
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import kotlin.math.asin
@@ -77,14 +80,13 @@ private fun SavedCoursesContent(
         } else {
             Text(
                 text = "${courses.size}개",
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.black,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                style = RodiTheme.typography.caption2Medium,
+                color = RodiTheme.colors.gray700,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(courses, key = Course::id) { course ->
                     SavedCourseRow(course = course)
-                    HorizontalDivider(color = RodiTheme.colors.gray100)
                 }
             }
         }
@@ -111,7 +113,7 @@ private fun SavedCoursesTopBar(onBack: () -> Unit) {
         )
         Text(
             text = "저장한 코스",
-            style = RodiTheme.typography.body1SemiBold,
+            style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,
         )
     }
@@ -152,7 +154,7 @@ private fun SavedCourseRow(course: Course) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp),
+            .padding(horizontal = 16.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -163,20 +165,20 @@ private fun SavedCourseRow(course: Course) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
             Text(
                 text = course.formattedDrivingDistance(),
                 style = RodiTheme.typography.caption1SemiBold,
                 color = RodiTheme.colors.primary600,
             )
-            Spacer(Modifier.width(2.dp))
+            Spacer(Modifier.width(4.dp))
             Text(
                 text = "주행거리",
                 style = RodiTheme.typography.caption1Medium,
                 color = RodiTheme.colors.gray600,
             )
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             course.tags.take(2).forEach { tag ->
                 Text(
@@ -184,12 +186,12 @@ private fun SavedCourseRow(course: Course) {
                     style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.black,
                     modifier = Modifier
-                        .background(RodiTheme.colors.gray100, RoundedCornerShape(2.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                        .background(RodiTheme.colors.gray200, RoundedCornerShape(2.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
                 )
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         Text(
             text = course.summary,
             style = RodiTheme.typography.caption1Medium,
@@ -199,8 +201,11 @@ private fun SavedCourseRow(course: Course) {
             modifier = Modifier
                 .fillMaxWidth()
                 .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
-                .padding(12.dp),
+                .padding(10.dp),
         )
+        Spacer(Modifier.height(16.dp))
+        HorizontalDivider(color = RodiTheme.colors.primary100)
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -225,3 +230,52 @@ private fun SavedCoursesEmptyPreview() {
         SavedCoursesContent(courses = emptyList(), onBack = {})
     }
 }
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SavedCoursesFilledPreview() {
+    RodiTheme {
+        SavedCoursesContent(
+            courses = List(100) { index -> savedCoursePreview(id = index) },
+            onBack = {},
+        )
+    }
+}
+
+private fun savedCoursePreview(id: Int): Course = Course(
+    id = id,
+    courseName = "망원한강공원",
+    courseNickname = "망원한강공원",
+    areaName = "마포구",
+    region = "seoul",
+    difficulty = 2,
+    trafficDensity = null,
+    source = "preview",
+    sourceUrl = "",
+    crawledAt = "",
+    waypoints = listOf(
+        Waypoint(
+            order = 0,
+            type = WaypointType.START,
+            name = "망원한강공원",
+            lat = 37.551,
+            lng = 126.902,
+            address = "서울특별시 마포구 망원동",
+            category = "도로",
+        ),
+        Waypoint(
+            order = 1,
+            type = WaypointType.END,
+            name = "망원한강공원",
+            lat = 37.641,
+            lng = 126.902,
+            address = "서울특별시 마포구 망원동",
+            category = "도로",
+        ),
+    ),
+    features = CourseFeatures(intersection = true, highway = true),
+    recommendation = 1,
+    caution = "",
+    bestTime = "",
+    enrichedDescription = "한강 뷰 보면서 드라이브 연습! 주말 오후엔 차량 적어요.",
+)
