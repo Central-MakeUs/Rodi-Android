@@ -15,9 +15,9 @@ import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
-import com.dororong.rodi.feature.mypage.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.MyPageScreen
-import com.dororong.rodi.feature.mypage.SavedCoursesScreen
+import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
+import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 
 @Composable
