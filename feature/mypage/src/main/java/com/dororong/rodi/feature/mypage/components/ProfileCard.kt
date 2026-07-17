@@ -51,7 +51,9 @@ private object ProfileCardLayout {
     val practiceTypeSlotHeight = 21.dp
     val drivingGoalSlotHeight = 19.dp
     val stampSize = 200.dp
-    val stampRightCrop = stampSize / 6
+    val stampTransparentRightInset = stampSize * 0.17f
+    val stampVisibleRightCrop = stampSize * 0.1f
+    val stampRightCrop = stampTransparentRightInset + stampVisibleRightCrop
     val stampTopOffset = (-16).dp
 }
 
