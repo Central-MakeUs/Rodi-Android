@@ -51,7 +51,7 @@ class DrivingGoalViewModel @Inject constructor(
         )
 
     fun save(goal: String) {
-        if (goal.isBlank() || uiState.value.isSaving) return
+        if (goal.isBlank() || goal == uiState.value.initialGoal || uiState.value.isSaving) return
 
         viewModelScope.launch {
             isSaving.value = true

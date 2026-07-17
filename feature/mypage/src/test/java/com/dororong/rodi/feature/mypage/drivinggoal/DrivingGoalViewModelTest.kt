@@ -83,4 +83,22 @@ class DrivingGoalViewModelTest {
         }
         coVerify { repository.saveProfile(match { it.goal == "주차 자신감 갖기" }) }
     }
+
+    @Test
+    fun `does not save when goal is unchanged`() = runTest(testDispatcher) {
+        val repository = mockk<OnboardingRepository> {
+            every { this@mockk.profile } returns flowOf(OnboardingProfile(goal = "기존 목표"))
+        }
+        val viewModel = DrivingGoalViewModel(
+            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
+            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
+        )
+        advanceUntilIdle()
+
+        viewModel.save("기존 목표")
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { repository.saveProfile(any()) }
+        coVerify(exactly = 0) { repository.submit(any(), any()) }
+    }
 }

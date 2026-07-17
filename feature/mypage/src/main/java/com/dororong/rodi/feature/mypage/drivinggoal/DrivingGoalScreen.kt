@@ -62,7 +62,7 @@ fun DrivingGoalScreen(
             DrivingGoalEffect.NavigateBack -> onBack()
             DrivingGoalEffect.ShowSyncError -> snackbarHostState.show(
                 RodiSnackbarData(
-                    message = "정보를 불러오지 못했어요. 다시 시도해주세요.",
+                    message = "작성해주신 목표가 정상적으로 처리되지 못했어요.\n다시 한번 시도해주세요.",
                     icon = errorIcon,
                 ),
             )
@@ -94,7 +94,7 @@ private fun DrivingGoalContent(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val canSave = goal.isNotBlank() && !isSaving
+    val canSave = goal.isNotBlank() && goal != initialGoal && !isSaving
 
     LaunchedEffect(initialGoal) {
         if (initialGoal.isBlank()) focusRequester.requestFocus()
