@@ -85,7 +85,6 @@ private fun MyPageContent(
             .background(RodiTheme.colors.white)
             .statusBarsPadding(),
     ) {
-        Spacer(Modifier.height(20.dp))
         MyPageTopBar(onSettingsClick = onSettingsClick)
         ProfileCard(profile = profile, onGoalClick = onGoalClick)
         Spacer(Modifier.height(20.dp))
