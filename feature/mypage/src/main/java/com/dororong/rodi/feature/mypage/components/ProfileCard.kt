@@ -228,10 +228,10 @@ private val OnboardingLevel.displayName: String
 
 private val OnboardingLevel.characterImageRes: Int
     get() = when (this) {
-        OnboardingLevel.SEED -> CoreUiR.drawable.illust_level_seed
-        OnboardingLevel.ROOKIE -> CoreUiR.drawable.illust_level_rookie
-        OnboardingLevel.OWNER -> CoreUiR.drawable.illust_level_owner
-        OnboardingLevel.EXPLORER -> CoreUiR.drawable.illust_level_explorer
+        OnboardingLevel.SEED -> R.drawable.illust_profile_seed
+        OnboardingLevel.ROOKIE -> R.drawable.illust_profile_rookie
+        OnboardingLevel.OWNER -> R.drawable.illust_profile_owner
+        OnboardingLevel.EXPLORER -> R.drawable.illust_profile_explorer
         OnboardingLevel.NAVIGATOR -> R.drawable.img_rodi_profile
     }
 
