@@ -124,7 +124,7 @@ fun DrivingPrecautionsContent(
 @Composable
 private fun warningText() = buildAnnotatedString {
     withStyle(SpanStyle(color = RodiTheme.colors.primary600)) {
-        append("루티는 사고가 나지 않는 장소를 보장하지 않습니다.\n")
+        append("로디는 사고가 나지 않는 장소를 보장하지 않습니다.\n")
     }
     append(" 연습에 적합한 장소를 추천 드리더라도, 도로 위에서 발생하는")
     withStyle(SpanStyle(color = RodiTheme.colors.primary600)) {
