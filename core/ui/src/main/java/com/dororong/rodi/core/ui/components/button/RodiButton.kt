@@ -1,4 +1,4 @@
-package com.dororong.rodi.core.ui.components
+package com.dororong.rodi.core.ui.components.button
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
