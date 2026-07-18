@@ -11,6 +11,7 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
@@ -20,7 +21,9 @@ import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    onSessionEnded: () -> Unit,
+) {
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
     val bottomNavigationDestination = when (currentRoute) {
@@ -85,6 +88,8 @@ fun MainScreen() {
                             onBack = {
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
+                            appVersion = BuildConfig.VERSION_NAME,
+                            onSessionEnded = onSessionEnded,
                         )
                     }
                     else -> error("Unknown main route: $key")

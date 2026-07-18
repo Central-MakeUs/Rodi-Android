@@ -1,6 +1,12 @@
 package com.dororong.rodi.feature.home
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -58,10 +64,13 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.ui.effect.CollectEffect
+import com.dororong.rodi.core.ui.permission.LocationPermissionAction
+import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.component.DistanceFilterBar
 import com.dororong.rodi.feature.home.component.MapLoadingScreen
@@ -113,7 +122,10 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val state by vm.state.collectAsStateWithLifecycle()
+    val hasRequestedLocationPermission by vm.hasRequestedLocationPermission
+        .collectAsStateWithLifecycle(initialValue = false)
     val coroutineScope = rememberCoroutineScope()
+    val activity = remember(context) { context.findActivity() }
 
     val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
     val filteredCourses = remember(state.courses, state.distanceFilterKm, state.userLat, state.userLng) {
@@ -122,7 +134,6 @@ fun HomeScreen(
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
-    var permissionGranted by remember { mutableStateOf(false) }
     var naviCourse by remember { mutableStateOf<Course?>(null) }
     var installNaviCourse by remember { mutableStateOf<Course?>(null) }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
@@ -136,19 +147,16 @@ fun HomeScreen(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result -> permissionGranted = result.values.any { it } }
+    ) { result ->
+        if (result.values.any { it }) {
+            coroutineScope.launch { currentLocation = context.awaitCurrentLocation() }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (context.hasLocationPermission()) {
             currentLocation = context.awaitCurrentLocation()
-        } else {
-            permissionLauncher.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
-            )
         }
-    }
-    LaunchedEffect(permissionGranted) {
-        if (permissionGranted) currentLocation = context.awaitCurrentLocation()
     }
 
     // 위치 정보를 ViewModel에 전달 (거리 필터링용)
@@ -561,12 +569,35 @@ fun HomeScreen(
                         MyLocationButton(
                             isActive = isAtCurrentLocation,
                             onClick = {
-                                val loc = currentLocation ?: SEOUL
-                                kakaoMap?.moveCamera(
-                                    CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
-                                    CameraAnimation.from(250),
-                                )
-                                isAtCurrentLocation = true
+                                if (context.hasLocationPermission()) {
+                                    val loc = currentLocation ?: SEOUL
+                                    kakaoMap?.moveCamera(
+                                        CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
+                                        CameraAnimation.from(250),
+                                    )
+                                    isAtCurrentLocation = true
+                                } else {
+                                    when (
+                                        resolveLocationPermissionAction(
+                                            isLocationGranted = false,
+                                            hasRequestedLocationPermission = hasRequestedLocationPermission,
+                                            shouldShowRationale = activity?.shouldShowLocationPermissionRationale()
+                                                ?: false,
+                                        )
+                                    ) {
+                                        LocationPermissionAction.RequestSystemPermission -> {
+                                            vm.markLocationPermissionRequested()
+                                            permissionLauncher.launch(
+                                                arrayOf(
+                                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                                                ),
+                                            )
+                                        }
+
+                                        LocationPermissionAction.OpenAppSettings -> context.openAppSettings()
+                                    }
+                                }
                             },
                         )
                     }
@@ -608,4 +639,23 @@ fun HomeScreen(
             },
         )
     }
+}
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun Activity.shouldShowLocationPermissionRationale(): Boolean =
+    ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION) ||
+        ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+
+private fun Context.openAppSettings() {
+    startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", packageName, null),
+        ),
+    )
 }

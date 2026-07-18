@@ -10,6 +10,8 @@ import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.course.Waypoint
 import com.dororong.rodi.core.domain.model.course.WaypointType
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.entry.GetLocationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequestedUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
@@ -19,6 +21,7 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -39,6 +42,19 @@ class HomeViewModelTest {
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+    }
+
+    @Test
+    fun `marks location permission request`() = runTest(testDispatcher) {
+        val markLocationPermissionRequested = mockk<MarkLocationPermissionRequestedUseCase>(relaxed = true)
+        val viewModel = createViewModel(
+            markLocationPermissionRequested = markLocationPermissionRequested,
+        )
+
+        viewModel.markLocationPermissionRequested()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { markLocationPermissionRequested() }
     }
 
     @AfterEach
@@ -233,14 +249,19 @@ class HomeViewModelTest {
         getRouteUseCase: GetRouteUseCase = mockk(),
         getNaviAlwaysUseCase: GetNaviAlwaysUseCase = mockk(),
         setNaviAlwaysUseCase: SetNaviAlwaysUseCase = mockk(),
+        getLocationPermissionRequested: GetLocationPermissionRequestedUseCase = mockk(),
+        markLocationPermissionRequested: MarkLocationPermissionRequestedUseCase = mockk(relaxed = true),
     ): HomeViewModel {
         val getCoursesUseCase = mockk<GetCoursesUseCase>()
         every { getCoursesUseCase() } returns courses
+        every { getLocationPermissionRequested() } returns flowOf(false)
         return HomeViewModel(
             getCoursesUseCase = getCoursesUseCase,
             getRouteUseCase = getRouteUseCase,
             getNaviAlwaysUseCase = getNaviAlwaysUseCase,
             setNaviAlwaysUseCase = setNaviAlwaysUseCase,
+            getLocationPermissionRequested = getLocationPermissionRequested,
+            markLocationPermissionRequestedUseCase = markLocationPermissionRequested,
         )
     }
 }

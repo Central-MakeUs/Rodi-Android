@@ -10,6 +10,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -73,5 +74,29 @@ class RodiAppViewModelTest {
         assertFalse(viewModel.state.value.isEntryCompleted)
         assertFalse(viewModel.state.value.hasGuestAccess)
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
+    }
+
+    @Test
+    fun `keeps the logged out session when guest access changes after session ends`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val guestAccess = MutableStateFlow(false)
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns guestAccess
+        coEvery { getAuthSession() } returns AuthSession(
+            isLoggedIn = true,
+            hasRecentKakaoLogin = true,
+        )
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession)
+        advanceUntilIdle()
+
+        viewModel.onSessionEnded()
+        guestAccess.value = true
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertFalse(viewModel.state.value.authSession.hasRecentKakaoLogin)
     }
 }

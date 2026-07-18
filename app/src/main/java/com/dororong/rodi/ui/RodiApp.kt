@@ -95,7 +95,13 @@ fun RodiApp(
                     )
                 }
                 MainRoute -> NavEntry(key) {
-                    MainScreen()
+                    MainScreen(
+                        onSessionEnded = {
+                            viewModel.onSessionEnded()
+                            backStack.clear()
+                            backStack.add(LoginRoute)
+                        },
+                    )
                 }
                 else -> error("Unknown route: $key")
             }

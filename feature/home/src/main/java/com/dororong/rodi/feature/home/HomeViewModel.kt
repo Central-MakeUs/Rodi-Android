@@ -6,6 +6,8 @@ import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
+import com.dororong.rodi.core.domain.usecase.entry.GetLocationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequestedUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
@@ -31,6 +33,8 @@ class HomeViewModel @Inject constructor(
     private val getRouteUseCase: GetRouteUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
+    getLocationPermissionRequested: GetLocationPermissionRequestedUseCase,
+    private val markLocationPermissionRequestedUseCase: MarkLocationPermissionRequestedUseCase,
 ) : ViewModel() {
 
     data class UiState(
@@ -63,6 +67,11 @@ class HomeViewModel @Inject constructor(
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
+    val hasRequestedLocationPermission: Flow<Boolean> = getLocationPermissionRequested()
+
+    fun markLocationPermissionRequested() {
+        viewModelScope.launch { markLocationPermissionRequestedUseCase() }
+    }
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {

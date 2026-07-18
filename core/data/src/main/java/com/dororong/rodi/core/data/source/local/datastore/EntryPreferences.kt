@@ -49,6 +49,19 @@ class EntryPreferences @Inject constructor(
             }
             .map { it[KEY_GUEST_ACCESS] ?: false }
 
+    val hasRequestedLocationPermission: Flow<Boolean> =
+        context.entryDataStore.data
+            .catch { exception ->
+                if (exception is IOException) {
+                    emit(emptyPreferences())
+                } else {
+                    throw exception
+                }
+            }
+            .map { prefs ->
+                prefs[KEY_LOCATION_PERMISSION_REQUESTED] ?: (prefs[KEY_COMPLETED] ?: false)
+            }
+
     val progress: Flow<EntryProgress> =
         context.entryDataStore.data
             .catch { exception ->
@@ -74,8 +87,13 @@ class EntryPreferences @Inject constructor(
     suspend fun setCompleted() {
         context.entryDataStore.edit { prefs ->
             prefs[KEY_COMPLETED] = true
+            prefs[KEY_LOCATION_PERMISSION_REQUESTED] = true
             ENTRY_PROGRESS_KEYS.forEach { prefs.remove(it) }
         }
+    }
+
+    suspend fun markLocationPermissionRequested() {
+        context.entryDataStore.edit { it[KEY_LOCATION_PERMISSION_REQUESTED] = true }
     }
 
     suspend fun grantGuestAccess() {
@@ -98,6 +116,7 @@ class EntryPreferences @Inject constructor(
     private companion object {
         val KEY_COMPLETED = booleanPreferencesKey("entry_completed")
         val KEY_GUEST_ACCESS = booleanPreferencesKey("guest_access")
+        val KEY_LOCATION_PERMISSION_REQUESTED = booleanPreferencesKey("location_permission_requested")
         val KEY_STEP = stringPreferencesKey("entry_step")
         val KEY_WEB_VIEW_URL = stringPreferencesKey("entry_web_view_url")
         val KEY_SERVICE_TERMS_CHECKED = booleanPreferencesKey("service_terms_checked")

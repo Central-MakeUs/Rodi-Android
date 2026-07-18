@@ -34,6 +34,7 @@ class RodiAppViewModel @Inject constructor(
     getAuthSessionUseCase: GetAuthSessionUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RodiAppUiState())
+    private val sessionEnded = MutableStateFlow(false)
     val state: StateFlow<RodiAppUiState> = _state.asStateFlow()
 
     init {
@@ -43,12 +44,13 @@ class RodiAppViewModel @Inject constructor(
                     getEntryCompletedUseCase().filterNotNull(),
                     getGuestAccessUseCase(),
                     flow { emit(getAuthSessionUseCase()) },
-                ) { isEntryCompleted, hasGuestAccess, authSession ->
+                    sessionEnded,
+                ) { isEntryCompleted, hasGuestAccess, authSession, hasSessionEnded ->
                     RodiAppUiState(
                         isReady = true,
                         isEntryCompleted = isEntryCompleted,
                         hasGuestAccess = hasGuestAccess,
-                        authSession = authSession,
+                        authSession = if (hasSessionEnded) LoggedOutSession else authSession,
                     )
                 }.collect(_state)
             } catch (error: CancellationException) {
@@ -58,4 +60,13 @@ class RodiAppViewModel @Inject constructor(
             }
         }
     }
+
+    fun onSessionEnded() {
+        sessionEnded.value = true
+    }
 }
+
+private val LoggedOutSession = AuthSession(
+    isLoggedIn = false,
+    hasRecentKakaoLogin = false,
+)
