@@ -1,178 +1,128 @@
 package com.dororong.rodi.feature.home
 
-import com.dororong.rodi.core.domain.model.course.Course
-import com.dororong.rodi.core.domain.model.course.CourseFeatures
-import com.dororong.rodi.core.domain.model.course.OperatingHours
-import com.dororong.rodi.core.domain.model.course.ParkingDetail
-import com.dororong.rodi.core.domain.model.course.RodiItemType
-import com.dororong.rodi.core.domain.model.course.Waypoint
-import com.dororong.rodi.core.domain.model.course.WaypointType
+import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.CoursePlaceDetail
+import com.dororong.rodi.core.domain.model.place.ParkingFeeInfo
+import com.dororong.rodi.core.domain.model.place.ParkingOperatingHours
+import com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceWaypoint
+import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
+import com.dororong.rodi.core.domain.model.place.PracticeType
 
 internal object HomePreviewData {
-    val courses = listOf(
-        course(
-            id = 1,
-            name = "한강공원 순환 코스",
-            nickname = "한강 순환",
-            difficulty = 2,
-            features = CourseFeatures(straightDriving = true, laneChange = true),
-        ),
-        course(
-            id = 2,
-            name = "성수 골목길 적응 코스",
-            nickname = "성수 골목",
-            areaName = "성수동",
-            difficulty = 4,
-            features = CourseFeatures(alley = true, rightTurn = true, parking = true),
-        ),
-        course(
-            id = 3,
-            name = "도심 교차로 연습 코스",
-            nickname = "도심 교차로",
-            areaName = "을지로",
-            difficulty = 3,
-            features = CourseFeatures(intersection = true, leftTurn = true, laneChange = true),
-        ),
+    val courseSummary = PlaceSummary(
+        id = 9_223_372_036L,
+        type = PlaceType.COURSE,
+        name = "한강공원 순환 코스",
+        address = "서울특별시 마포구",
+        point = GeoPoint(37.5563, 126.9220),
+        distanceFromMeMeters = 1_240,
+        practiceTypes = listOf(PracticeType.LANE_CHANGE, PracticeType.LEFT_RIGHT_TURN),
+        description = "초보 운전자가 도심 주행과 차선 변경을 함께 연습하기 좋은 코스입니다.",
+        distanceMeters = 12_400,
+        capacity = null,
+        openTime = null,
     )
 
-    val freeParking = parking(
-        id = 101,
+    val longCourseSummary = courseSummary.copy(
+        id = 9_223_372_037L,
+        name = "성수동에서 한강을 지나 도심 교차로까지 이어지는 아주 긴 연습 코스 이름",
+        practiceTypes = PracticeType.entries.toList(),
+    )
+
+    val parkingSummary = PlaceSummary(
+        id = 9_223_372_038L,
+        type = PlaceType.PARKING,
         name = "망원 한강공원 공영주차장",
-        isFree = true,
-        feeInfo = null,
-        note = "주말 혼잡 시간대에는 진입 대기가 발생할 수 있습니다.",
+        address = "서울특별시 마포구",
+        point = GeoPoint(37.5568, 126.9190),
+        distanceFromMeMeters = 850,
+        practiceTypes = listOf(PracticeType.PARKING),
+        description = null,
+        distanceMeters = null,
+        capacity = 128,
+        openTime = "06:00",
     )
 
-    val paidParking = parking(
-        id = 102,
-        name = "합정역 공영주차장",
-        isFree = false,
-        feeInfo = """{"baseMinutes":30,"baseFee":1200,"addUnitMinutes":10,"addUnitFee":500}""",
-        note = "최초 30분 이후 10분 단위 추가요금",
-    )
+    val summaries = listOf(courseSummary, parkingSummary, longCourseSummary)
 
-    val all = courses + freeParking + paidParking
-
-    private fun course(
-        id: Int,
-        name: String,
-        nickname: String,
-        areaName: String = "망원동",
-        difficulty: Int,
-        features: CourseFeatures,
-    ) = Course(
-        id = id,
-        courseName = name,
-        courseNickname = nickname,
-        areaName = areaName,
-        region = "seoul",
-        difficulty = difficulty,
-        trafficDensity = "보통",
-        source = "preview",
-        sourceUrl = "",
-        crawledAt = "",
-        waypoints = waypoints(),
-        features = features,
-        recommendation = 4,
-        caution = "초행길에서는 차선 변경 구간을 천천히 확인하세요.",
-        bestTime = "평일 오전",
-        enrichedDescription = "초보 운전자가 도심 주행과 차선 변경을 함께 연습하기 좋은 코스입니다.",
-    )
-
-    private fun parking(
-        id: Int,
-        name: String,
-        isFree: Boolean,
-        feeInfo: String?,
-        note: String,
-    ) = Course(
-        id = id,
-        courseName = name,
-        courseNickname = name,
-        areaName = "망원동",
-        region = "seoul",
-        difficulty = 1,
-        trafficDensity = null,
-        source = "preview",
-        sourceUrl = "",
-        crawledAt = "",
-        waypoints = listOf(
-            Waypoint(
-                order = 0,
-                type = WaypointType.START,
-                name = name,
-                lat = 37.5563,
-                lng = 126.9220,
-                address = "서울특별시 마포구 마포나루길 467",
-                jibunAddress = "서울특별시 마포구 망원동 205-4",
-                category = "parking",
-            ),
-            Waypoint(
-                order = 1,
-                type = WaypointType.END,
-                name = name,
-                lat = 37.5563,
-                lng = 126.9220,
-                address = "서울특별시 마포구 마포나루길 467",
-                jibunAddress = "서울특별시 마포구 망원동 205-4",
-                category = "parking",
+    val courseDetail = PlaceDetail(
+        id = courseSummary.id,
+        type = PlaceType.COURSE,
+        name = courseSummary.name,
+        address = courseSummary.address,
+        point = courseSummary.point,
+        practiceTypes = courseSummary.practiceTypes,
+        bookmarkCount = 248,
+        isBookmarked = false,
+        course = CoursePlaceDetail(
+            description = courseSummary.description.orEmpty(),
+            cautions = listOf("차선 변경 구간 주의", "출퇴근 시간 혼잡"),
+            distanceMeters = courseSummary.distanceMeters ?: 0,
+            waypoints = listOf(
+                waypoint(PlaceWaypointType.START, 0, "망원한강공원", 37.5563, 126.9220),
+                waypoint(PlaceWaypointType.VIA, 1, "합정역", 37.5497, 126.9140),
+                waypoint(PlaceWaypointType.VIA, 2, "상수역", 37.5477, 126.9229),
+                waypoint(PlaceWaypointType.DESTINATION, 3, "홍대입구", 37.5572, 126.9254),
             ),
         ),
-        features = CourseFeatures(parking = true),
-        recommendation = 4,
-        caution = "",
-        bestTime = "",
-        enrichedDescription = "주차 연습과 목적지 설정 흐름을 확인하는 Preview 데이터입니다.",
-        parkingDetail = ParkingDetail(
-            managementNo = "preview-$id",
-            parkingType = if (isFree) "무료 주차장" else "공영주차장",
+        parking = null,
+    )
+
+    val parkingDetail = PlaceDetail(
+        id = parkingSummary.id,
+        type = PlaceType.PARKING,
+        name = parkingSummary.name,
+        address = parkingSummary.address,
+        point = parkingSummary.point,
+        practiceTypes = listOf(PracticeType.PARKING),
+        bookmarkCount = 31,
+        isBookmarked = true,
+        course = null,
+        parking = ParkingPlaceDetail(
+            roadAddress = "서울특별시 마포구 마포나루길 467",
+            lotAddress = "서울특별시 마포구 망원동 205-4",
+            managementNo = "MAPO-2026-001",
+            parkingType = "노외",
             capacity = 128,
-            isFree = isFree,
-            feeInfo = feeInfo,
-            operatingHours = OperatingHours(
-                weekday = "00:00-24:00",
+            isFree = false,
+            feeInfo = ParkingFeeInfo(
+                baseMinutes = 30,
+                baseFee = 1_200,
+                addUnitMinutes = 10,
+                addUnitFee = 500,
+                dayTicketHours = 12,
+                dayTicketFee = 10_000,
+                monthlyFee = null,
+            ),
+            operatingHours = ParkingOperatingHours(
+                weekday = "06:00-22:00",
                 saturday = "00:00-24:00",
                 holiday = "00:00-24:00",
             ),
-            paymentMethods = listOf("카드"),
-            hasAccessibleSpace = true,
-            phone = "02-000-0000",
-            operator = "마포구",
-            note = note,
         ),
-        itemType = RodiItemType.PARKING,
     )
 
-    private fun waypoints() = listOf(
-        Waypoint(
-            order = 0,
-            type = WaypointType.START,
-            name = "망원한강공원",
-            lat = 37.5563,
-            lng = 126.9220,
-            address = "서울특별시 마포구 마포나루길 467",
-            jibunAddress = "서울특별시 마포구 망원동 205-4",
-            category = "park",
-        ),
-        Waypoint(
-            order = 1,
-            type = WaypointType.WAYPOINT,
-            name = "합정역",
-            lat = 37.5497,
-            lng = 126.9140,
-            address = "서울특별시 마포구 양화로 55",
-            jibunAddress = "서울특별시 마포구 서교동 393",
-            category = "station",
-        ),
-        Waypoint(
-            order = 2,
-            type = WaypointType.END,
-            name = "상수역",
-            lat = 37.5477,
-            lng = 126.9229,
-            address = "서울특별시 마포구 독막로 85",
-            jibunAddress = "서울특별시 마포구 상수동 309",
-            category = "station",
+    val parkingMissingFields = parkingDetail.copy(
+        id = 9_223_372_039L,
+        name = "정보가 적은 주차장",
+        parking = parkingDetail.parking?.copy(
+            roadAddress = null,
+            lotAddress = null,
+            capacity = null,
+            feeInfo = null,
+            operatingHours = null,
         ),
     )
+
+    private fun waypoint(
+        type: PlaceWaypointType,
+        sequence: Int,
+        name: String,
+        lat: Double,
+        lng: Double,
+    ) = PlaceWaypoint(type, sequence, GeoPoint(lat, lng), name)
 }

@@ -6,15 +6,25 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.SystemClock
+import android.os.Looper
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.kakao.vectormap.LatLng
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 
 private const val MAX_CACHED_LOCATION_AGE_MILLIS = 2 * 60 * 1000L
+private const val LOCATION_UPDATE_INTERVAL_MILLIS = 3_000L
+private const val LOCATION_UPDATE_MIN_INTERVAL_MILLIS = 1_000L
+private const val LOCATION_UPDATE_MIN_DISTANCE_METERS = 1f
 
 /** 위치 권한(FINE 또는 COARSE)이 하나라도 허용돼 있는지. */
 fun Context.hasLocationPermission(): Boolean {
@@ -46,6 +56,33 @@ suspend fun Context.awaitCurrentLocation(): LatLng? {
             .addOnFailureListener { cont.resume(null) }
         cont.invokeOnCancellation { cts.cancel() }
     }
+}
+
+@SuppressLint("MissingPermission")
+fun Context.currentLocationUpdates(): Flow<LatLng> = callbackFlow {
+    if (!hasLocationPermission()) {
+        close()
+        return@callbackFlow
+    }
+
+    val client = LocationServices.getFusedLocationProviderClient(this@currentLocationUpdates)
+    val callback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            result.lastLocation?.let { location ->
+                trySend(LatLng.from(location.latitude, location.longitude))
+            }
+        }
+    }
+    val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, LOCATION_UPDATE_INTERVAL_MILLIS)
+        .setMinUpdateIntervalMillis(LOCATION_UPDATE_MIN_INTERVAL_MILLIS)
+        .setMinUpdateDistanceMeters(LOCATION_UPDATE_MIN_DISTANCE_METERS)
+        .build()
+
+    client.lastLocation.addOnSuccessListener { location ->
+        location?.let { trySend(LatLng.from(it.latitude, it.longitude)) }
+    }
+    client.requestLocationUpdates(request, callback, Looper.getMainLooper())
+    awaitClose { client.removeLocationUpdates(callback) }
 }
 
 private fun Location.isFreshEnough(): Boolean {

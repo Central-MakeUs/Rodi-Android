@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.component
+package com.dororong.rodi.feature.home.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

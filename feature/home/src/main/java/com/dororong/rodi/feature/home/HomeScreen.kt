@@ -1,121 +1,119 @@
 package com.dororong.rodi.feature.home
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.graphics.toArgb
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.core.app.ActivityCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dororong.rodi.core.domain.model.course.Course
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.ui.components.RodiBottomNavigation
+import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.effect.CollectEffect
-import com.dororong.rodi.core.ui.permission.LocationPermissionAction
-import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.component.MapListButton
-import com.dororong.rodi.feature.home.component.MapLoadingScreen
-import com.dororong.rodi.feature.home.component.MapNetworkErrorScreen
-import com.dororong.rodi.feature.home.component.MapResearchButton
-import com.dororong.rodi.feature.home.component.MyLocationButton
-import com.dororong.rodi.feature.home.component.NaviPickerMode
-import com.dororong.rodi.feature.home.component.NaviPickerSheet
-import com.dororong.rodi.feature.home.component.sheet.CourseDetailContent
-import com.dororong.rodi.feature.home.component.sheet.CourseEmptyContent
-import com.dororong.rodi.feature.home.component.sheet.CourseListContent
-import com.dororong.rodi.feature.home.component.sheet.ParkingDetailContent
-import com.dororong.rodi.feature.home.component.sheet.StableMeasuredDetailSheet
-import com.dororong.rodi.feature.home.location.awaitCurrentLocation
+import com.dororong.rodi.feature.home.components.LoginRequiredDialog
+import com.dororong.rodi.feature.home.components.MapListButton
+import com.dororong.rodi.feature.home.components.MapLoadingScreen
+import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
+import com.dororong.rodi.feature.home.components.MapResearchButton
+import com.dororong.rodi.feature.home.components.MyLocationButton
+import com.dororong.rodi.feature.home.components.NaviPickerMode
+import com.dororong.rodi.feature.home.components.NaviPickerSheet
+import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
+import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
+import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
+import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
+import com.dororong.rodi.feature.home.list.components.PlaceListContent
+import com.dororong.rodi.feature.home.location.currentLocationUpdates
 import com.dororong.rodi.feature.home.location.hasLocationPermission
-import com.dororong.rodi.feature.home.map.fitCourseToScreen
-import com.dororong.rodi.feature.home.map.focusOn
+import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
+import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapCoursePoint
+import com.dororong.rodi.feature.home.map.MapScreenState
+import com.dororong.rodi.feature.home.map.MapViewport
 import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
-import com.dororong.rodi.feature.home.map.MapViewport
+import com.dororong.rodi.feature.home.map.SEOUL
 import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
+import com.dororong.rodi.feature.home.map.animateParkingMarkerSelection
+import com.dororong.rodi.feature.home.map.animateParkingMarkerDeselection
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
-import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
-import com.dororong.rodi.feature.home.map.renderCourse
-import com.dororong.rodi.feature.home.map.renderCourseChips
-import com.dororong.rodi.feature.home.map.renderCourseMarkers
-import com.dororong.rodi.feature.home.map.renderClusters
-import com.dororong.rodi.feature.home.map.renderIndividualMarkers
-import com.dororong.rodi.feature.home.map.viewportOrNull
-import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
-import com.dororong.rodi.feature.home.map.MapScreenState
-import com.dororong.rodi.feature.home.map.SEOUL
+import com.dororong.rodi.feature.home.map.fitCourseToScreen
+import com.dororong.rodi.feature.home.map.clearCurrentLocationMarker
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.markMapLoaded
+import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
+import com.dororong.rodi.feature.home.map.renderClusters
+import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
+import com.dororong.rodi.feature.home.map.renderIndividualMarkers
+import com.dororong.rodi.feature.home.map.renderPlaceCourse
+import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
+import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
+import com.dororong.rodi.feature.home.map.focusOn
+import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -127,681 +125,661 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 
-private const val PARKING_FOCUS_ZOOM = 15
+private const val CLUSTER_DISTANCE_DP = 56
+private const val SURFACE_ANIMATION_MILLIS = 300
+
+typealias KakaoLoginRequest = (
+    onSuccess: (String) -> Unit,
+    onFailure: (String) -> Unit,
+) -> Unit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
+    onMyPageClick: () -> Unit,
+    onRequestKakaoLogin: KakaoLoginRequest,
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val state by vm.state.collectAsStateWithLifecycle()
-    val hasRequestedLocationPermission by vm.hasRequestedLocationPermission
-        .collectAsStateWithLifecycle(initialValue = false)
-    val coroutineScope = rememberCoroutineScope()
-    val activity = remember(context) { context.findActivity() }
-
-    val selectedCourse = remember(state.courses, state.selectedCourseId) { state.selectedCourse }
-    val courses = state.courses
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val density = LocalDensity.current
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
-    var currentLocation by remember { mutableStateOf<LatLng?>(null) }
-    var naviCourse by remember { mutableStateOf<Course?>(null) }
-    var installNaviCourse by remember { mutableStateOf<Course?>(null) }
-    var isAtCurrentLocation by remember { mutableStateOf(false) }
-    var initialCameraMap by remember { mutableStateOf<KakaoMap?>(null) }
-    var hasMovedToCurrentLocation by remember { mutableStateOf(false) }
-    val hasLoadedMapBefore = remember { hasLoadedMapInSession || context.hasLoadedMapBefore() }
-    var mapScreenState by remember {
-        mutableStateOf(if (hasLoadedMapBefore) MapScreenState.Ready else MapScreenState.Loading)
-    }
-    var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
     var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
-    var searchedViewport by remember { mutableStateOf<MapViewport?>(null) }
-    val clusterDistancePx = with(LocalDensity.current) { 56.dp.roundToPx() }
-    val clusterBackgroundColor = RodiTheme.colors.primary500.toArgb()
-    val clusterTextColor = RodiTheme.colors.white.toArgb()
-    val shouldShowResearchButton = selectedCourse == null &&
-        searchedViewport?.let { searched ->
-            currentViewport?.let { current -> ViewportSearchThreshold.isExceeded(searched, current) }
-        } == true
+    var currentLocation by remember { mutableStateOf<LatLng?>(null) }
+    var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
+    var mapRetryKey by remember { mutableIntStateOf(0) }
+    var mapScreenState by remember {
+        mutableStateOf(
+            if (hasLoadedMapInSession || context.hasLoadedMapBefore()) MapScreenState.Ready
+            else MapScreenState.Loading,
+        )
+    }
+    var isAtCurrentLocation by remember { mutableStateOf(false) }
+    var hasUserMovedMap by remember { mutableStateOf(false) }
+    var hasCenteredInitialLocation by remember { mutableStateOf(false) }
+    var naviPlaceId by remember { mutableStateOf<Long?>(null) }
+    var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
+    val deviceHeading = rememberDeviceHeading()
+    val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
+    val clusterBackground = RodiTheme.colors.primary500.toArgb()
+    val clusterText = RodiTheme.colors.white.toArgb()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        if (result.values.any { it }) {
-            coroutineScope.launch { currentLocation = context.awaitCurrentLocation() }
+    ) { result -> permissionGranted = result.values.any { it } }
+
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionGranted = context.hasLocationPermission()
+            }
         }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     LaunchedEffect(Unit) {
-        if (context.hasLocationPermission()) {
-            currentLocation = context.awaitCurrentLocation()
+        if (!permissionGranted) {
+            permissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
         }
     }
+    LaunchedEffect(permissionGranted) {
+        if (!permissionGranted) {
+            currentLocation = null
+            kakaoMap?.clearCurrentLocationMarker()
+            return@LaunchedEffect
+        }
+        context.currentLocationUpdates().collect { currentLocation = it }
+    }
 
-    val screenHeightDp = LocalConfiguration.current.screenHeightDp
-    val peekHeight = maxOf(380.dp, screenHeightDp.dp * 0.468f)
-    val sheetPeekHeight = peekHeight
-    val density = LocalDensity.current
-    val peekHeightPx = with(density) { peekHeight.roundToPx() }
-    val logoMarginPx = with(density) { 8.dp.toPx() }
-    val handleHeightDp = 24.dp
-    val handleHeightPx = with(density) { handleHeightDp.toPx() }
-
-    var scaffoldHeightPx by remember { mutableIntStateOf(0) }
-
-    val scaffoldState = rememberBottomSheetScaffoldState(
-        bottomSheetState = rememberStandardBottomSheetState(
-            initialValue = SheetValue.Hidden,
-            skipHiddenState = false,
-        ),
+    val sheetState = rememberStandardBottomSheetState(
+        initialValue = SheetValue.Hidden,
+        skipHiddenState = false,
     )
+    val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
+    var scaffoldSize by remember { mutableStateOf(IntSize.Zero) }
 
-    // 코스 선택 시 시트 펼침
-    LaunchedEffect(state.selectedCourseId) {
-        if (state.selectedCourseId != null) {
-            scaffoldState.bottomSheetState.expand()
+    LaunchedEffect(state.surfaceState) {
+        when (state.surfaceState) {
+            HomeSurfaceState.Navigation, HomeSurfaceState.Detail -> sheetState.hide()
+            HomeSurfaceState.PartialList -> sheetState.partialExpand()
+            HomeSurfaceState.FullList -> sheetState.expand()
         }
     }
-
-    // 바텀시트 펼쳐진 상태에서 뒤로가기 → 기본 형태(PartiallyExpanded)로 복귀
-    BackHandler(enabled = scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded) {
-        if (state.selectedCourseId != null) vm.onIntent(HomeIntent.OnDismissDetail)
-        coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
+    LaunchedEffect(sheetState, state.showEmpty, state.showInitialError) {
+        snapshotFlow { sheetState.currentValue }.drop(1).collect { value ->
+            when (value) {
+                SheetValue.Hidden -> if (state.surfaceState != HomeSurfaceState.Detail) {
+                    vm.onIntent(HomeIntent.OnListCollapse)
+                }
+                SheetValue.PartiallyExpanded -> if (state.surfaceState == HomeSurfaceState.FullList) {
+                    vm.onIntent(HomeIntent.OnListCollapse)
+                }
+                SheetValue.Expanded -> if (state.showEmpty || state.showInitialError) {
+                    sheetState.partialExpand()
+                } else {
+                    vm.onIntent(HomeIntent.OnListExpand)
+                }
+            }
+        }
     }
 
     val sheetOffsetPx by remember {
-        derivedStateOf {
-            try {
-                scaffoldState.bottomSheetState.requireOffset()
-            } catch (_: IllegalStateException) {
-                Float.MAX_VALUE
-            }
+        derivedStateOf { runCatching { sheetState.requireOffset() }.getOrDefault(scaffoldSize.height.toFloat()) }
+    }
+    val navigationInsetPx = WindowInsets.navigationBars.getBottom(density)
+    val navigationInset = with(density) { navigationInsetPx.toDp() }
+    val bottomControlOffset = with(density) {
+        val visibleSheetHeight = (scaffoldSize.height - sheetOffsetPx)
+            .coerceAtLeast(0f)
+            .toDp()
+        if (visibleSheetHeight > 0.dp) {
+            maxOf(70.dp, visibleSheetHeight + 12.dp - navigationInset)
+        } else {
+            70.dp
         }
     }
+    val mapBrandOffset = maxOf(0.dp, bottomControlOffset + navigationInset - 8.dp)
 
-    // 시트가 실제로 화면에서 차지하는 높이. 지도 카메라 정렬이 이 값을 기준으로 삼아야
-    // 코스/주차장 상세가 펼쳐졌을 때 보이는 지도 영역(상단) 중앙에 맞춰진다.
-    val detailSheetHeightPx = if (scaffoldHeightPx > 0 && sheetOffsetPx != Float.MAX_VALUE) {
-        (scaffoldHeightPx - sheetOffsetPx).toInt().coerceIn(0, scaffoldHeightPx)
-    } else {
-        peekHeightPx
+    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.searchedQuery?.let { searched ->
+        currentViewport?.let { current ->
+            ViewportSearchThreshold.isExceeded(
+                MapViewport(searched.northEast, searched.southWest),
+                current,
+            )
+        }
+    } == true
+
+    val dismissDetail: () -> Unit = {
+        val place = state.selectedPlace
+        val shouldReverseParking = place?.type == PlaceType.PARKING
+        val dismissed = if (shouldReverseParking) {
+            kakaoMap?.animateParkingMarkerDeselection(context, place.id) {
+                vm.onIntent(HomeIntent.OnDismissDetail)
+            } == true
+        } else {
+            false
+        }
+        if (!dismissed) vm.onIntent(HomeIntent.OnDismissDetail)
     }
-    val mapBottomPaddingPx = when {
-        scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden -> 0
-        selectedCourse == null -> peekHeightPx
-        else -> detailSheetHeightPx
-    }
-
-    LaunchedEffect(kakaoMap) {
-        val map = kakaoMap ?: return@LaunchedEffect
-        map.setOnCameraMoveStartListener { _, gestureType ->
-            if (gestureType != GestureType.Unknown) {
-                isAtCurrentLocation = false
-            }
+    val dismissLogin: () -> Unit = {
+        val pendingPlaceId = (state.pendingAction as? PendingHomeAction.OpenDetail)?.placeId
+        val isPendingParking = state.coordinates.firstOrNull { it.id == pendingPlaceId }?.type == PlaceType.PARKING
+        val reversed = if (pendingPlaceId != null && isPendingParking) {
+            kakaoMap?.animateParkingMarkerDeselection(context, pendingPlaceId) {
+                vm.onIntent(HomeIntent.OnDismissLogin)
+            } == true
+        } else {
+            false
         }
-        map.setOnCameraMoveEndListener { movedMap, _, _ ->
-            mapZoomLevel = movedMap.zoomLevel
-            currentViewport = movedMap.viewportOrNull(mapViewSize)
-            if (movedMap === kakaoMap && mapScreenState == MapScreenState.Loading) {
-                coroutineScope.launch {
-                    delay(1_500.milliseconds)
-                    if (kakaoMap === movedMap && mapScreenState == MapScreenState.Loading) {
-                        hasLoadedMapInSession = true
-                        context.markMapLoaded()
-                        mapScreenState = MapScreenState.Ready
-                    }
-                }
-            }
-        }
-        // 클러스터 탭은 다음 줌 단계로, 개별 핀 탭은 상세로 이동한다.
-        map.setOnLabelClickListener { _, _, label ->
-            when (val tag = label.tag) {
-                is BrowseLabelTag.Cluster -> {
-                    map.moveCamera(
-                        CameraUpdateFactory.newCenterPosition(
-                            LatLng.from(tag.point.lat, tag.point.lng),
-                            tag.targetZoom,
-                        ),
-                        CameraAnimation.from(350),
-                    )
-                }
-
-                is BrowseLabelTag.Course -> {
-                    vm.onIntent(HomeIntent.OnCourseClick(tag.id))
-                    isAtCurrentLocation = false
-                }
-
-                is Int -> {
-                    vm.onIntent(HomeIntent.OnCourseClick(tag))
-                    isAtCurrentLocation = false
-                }
-            }
-            true
-        }
-        currentViewport = map.viewportOrNull(mapViewSize)
+        if (!reversed) vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    LaunchedEffect(currentViewport, searchedViewport) {
-        if (searchedViewport == null && currentViewport != null) {
-            searchedViewport = currentViewport
+    BackHandler(enabled = state.surfaceState != HomeSurfaceState.Navigation) {
+        when (state.surfaceState) {
+            HomeSurfaceState.Detail -> dismissDetail()
+            else -> vm.onIntent(HomeIntent.OnListCollapse)
         }
-    }
-
-    LaunchedEffect(kakaoMap, mapViewSize) {
-        currentViewport = kakaoMap?.viewportOrNull(mapViewSize)
     }
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
-            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.course)
-            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.course)
-            is HomeEffect.ShowNaviPicker -> naviCourse = effect.course
-            is HomeEffect.ShowInstallNaviPicker -> installNaviCourse = effect.course
+            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.place)
+            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.place)
+            is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
+            is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
             }
+            is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            HomeEffect.NavigateMyPage -> onMyPageClick()
         }
     }
 
-    LaunchedEffect(kakaoMap, mapBottomPaddingPx) {
+    LaunchedEffect(kakaoMap, mapViewSize, currentLocation) {
         val map = kakaoMap ?: return@LaunchedEffect
-        map.setPadding(0, 0, 0, mapBottomPaddingPx)
-        map.logo?.setPosition(
-            MapGravity.BOTTOM or MapGravity.LEFT,
-            logoMarginPx,
-            logoMarginPx,
-        )
+        val viewport = map.viewportOrNull(mapViewSize) ?: return@LaunchedEffect
+        currentViewport = viewport
+        vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
-    LaunchedEffect(kakaoMap, currentLocation) {
+    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap) {
         val map = kakaoMap ?: return@LaunchedEffect
-        if (initialCameraMap !== map) {
-            initialCameraMap = map
-            hasMovedToCurrentLocation = currentLocation != null
-            map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation ?: SEOUL, DEFAULT_ZOOM))
-            return@LaunchedEffect
-        }
-        if (!hasMovedToCurrentLocation && currentLocation != null) {
-            hasMovedToCurrentLocation = true
-            map.moveCamera(CameraUpdateFactory.newCenterPosition(currentLocation, DEFAULT_ZOOM))
+        val location = currentLocation ?: return@LaunchedEffect
+        if (!hasCenteredInitialLocation && !hasUserMovedMap) {
+            hasCenteredInitialLocation = true
+            map.moveCamera(
+                CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
+                CameraAnimation.from(300),
+            )
         }
     }
 
-    LaunchedEffect(kakaoMap, mapScreenState) {
+    LaunchedEffect(kakaoMap, permissionGranted, currentLocation, deviceHeading.value) {
         val map = kakaoMap ?: return@LaunchedEffect
-        if (mapScreenState != MapScreenState.Loading) return@LaunchedEffect
-        delay(5_000.milliseconds)
-        if (kakaoMap === map && mapScreenState == MapScreenState.Loading) {
-            hasLoadedMapInSession = true
-            context.markMapLoaded()
-            mapScreenState = MapScreenState.Ready
+        val location = currentLocation
+        if (!permissionGranted || location == null) {
+            map.clearCurrentLocationMarker()
+        } else {
+            map.renderCurrentLocationMarker(context, location, deviceHeading.value)
         }
     }
 
-    // 코스 선택 여부 + 필터된 코스 목록에 따라 지도 마커/경로선을 그린다 (카메라 정렬은 별도).
-    // 길안내 API 응답 전(route == null)에는 직선 미리보기 없이 마커만 그려서, 실제 경로로
-    // 바뀔 때 지도가 두 번 움직이는 것처럼 보이지 않게 한다.
     LaunchedEffect(
         kakaoMap,
-        state.selectedCourseId,
-        state.selectedRoute,
-        courses,
-        mapViewSize,
+        state.coordinates,
+        state.surfaceState,
         mapZoomLevel,
-        clusterBackgroundColor,
-        clusterTextColor,
+        mapViewSize,
+        clusterBackground,
+        clusterText,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val course = selectedCourse
-        if (course == null) {
-            map.clearCourse()
-            when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
-                null -> map.renderIndividualMarkers(context, courses)
-                else -> {
-                    val clusters = if (policy.grid != null) {
-                        MapClusterer.clusterInFixedGeoGrid(
-                            items = courses.map { item ->
-                                MapCoursePoint(
-                                    id = item.id,
-                                    point = GeoPoint(
-                                        item.startWaypoint.lat,
-                                        item.startWaypoint.lng,
-                                    ),
-                                )
-                            },
-                            northEast = NationalGrid.northEast,
-                            southWest = NationalGrid.southWest,
-                            policy = policy,
-                        )
-                    } else {
-                        MapClusterer.clusterByScreenDistance(
-                            items = courses.mapNotNull { item ->
-                                val point = map.toScreenPoint(
-                                    LatLng.from(item.startWaypoint.lat, item.startWaypoint.lng),
-                                ) ?: return@mapNotNull null
-                                ProjectedMapItem(
-                                    id = item.id,
-                                    point = GeoPoint(
-                                        item.startWaypoint.lat,
-                                        item.startWaypoint.lng,
-                                    ),
-                                    x = point.x,
-                                    y = point.y,
-                                )
-                            },
-                            viewportWidth = mapViewSize.width,
-                            viewportHeight = mapViewSize.height,
-                            minimumDistancePx = clusterDistancePx,
-                            targetZoom = policy.targetZoom,
-                        )
-                    }
-                    map.renderClusters(
-                        context = context,
-                        clusters = clusters,
-                        coursesById = courses.associateBy(Course::id),
-                        backgroundColor = clusterBackgroundColor,
-                        textColor = clusterTextColor,
+        if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
+        map.clearCourse()
+        if (state.coordinates.isEmpty()) return@LaunchedEffect
+        when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
+            null -> map.renderIndividualMarkers(context, state.coordinates)
+            else -> {
+                val clusters = if (policy.grid != null) {
+                    MapClusterer.clusterInFixedGeoGrid(
+                        items = state.coordinates.map { MapCoursePoint(it.id, it.point) },
+                        northEast = NationalGrid.northEast,
+                        southWest = NationalGrid.southWest,
+                        policy = policy,
+                    )
+                } else {
+                    MapClusterer.clusterByScreenDistance(
+                        items = state.coordinates.mapNotNull { place ->
+                            val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
+                                ?: return@mapNotNull null
+                            ProjectedMapItem(place.id, place.point, point.x, point.y)
+                        },
+                        viewportWidth = mapViewSize.width,
+                        viewportHeight = mapViewSize.height,
+                        minimumDistancePx = clusterDistancePx,
+                        targetZoom = policy.targetZoom,
                     )
                 }
-            }
-        } else if (course.isParking) {
-            map.clearBrowseLabels()
-            map.renderCourseChips(context, listOf(course))
-        } else {
-            map.clearBrowseLabels()
-            val route = state.selectedRoute
-            if (route == null) {
-                map.renderCourseMarkers(context, course)
-            } else {
-                map.renderCourse(
-                    context,
-                    course,
-                    route.points.map { LatLng.from(it.lat, it.lng) },
-                    route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                map.renderClusters(
+                    context = context,
+                    clusters = clusters,
+                    placesById = state.coordinates.associateBy { it.id },
+                    backgroundColor = clusterBackground,
+                    textColor = clusterText,
                 )
             }
         }
     }
 
-    val sheetSettled by remember {
-        derivedStateOf {
-            state.selectedCourseId == null ||
-                    scaffoldState.bottomSheetState.currentValue == SheetValue.Expanded
-        }
-    }
-
-    // 카메라 정렬. 시트 확장 애니메이션이 끝나고(sheetSettled) + 실제 경로가 준비된 뒤에만
-    // 한 번에 정렬한다. 직선 미리보기 단계에서는 절대 카메라를 움직이지 않는다.
-    LaunchedEffect(kakaoMap, state.selectedCourseId, state.selectedRoute, sheetSettled) {
+    LaunchedEffect(kakaoMap, state.selectedPlace, state.selectedRoute) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val course = selectedCourse
-        val paddingPx = if (course == null || scaffoldHeightPx == 0 || sheetOffsetPx == Float.MAX_VALUE) {
-            peekHeightPx
-        } else {
-            (scaffoldHeightPx - sheetOffsetPx).toInt().coerceIn(0, scaffoldHeightPx)
-        }
-        map.setPadding(0, 0, 0, paddingPx)
-        if (course == null || !sheetSettled) return@LaunchedEffect
-        if (course.isParking) {
-            map.focusOn(LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng), PARKING_FOCUS_ZOOM)
-        } else {
-            val route = state.selectedRoute ?: return@LaunchedEffect
-            map.fitCourseToScreen(route.points.map { LatLng.from(it.lat, it.lng) })
-        }
-    }
-
-    val expandFraction by remember {
-        derivedStateOf {
-            if (sheetOffsetPx == Float.MAX_VALUE || scaffoldHeightPx == 0) return@derivedStateOf 0f
-            val partialOffsetPx = (scaffoldHeightPx - peekHeightPx).toFloat()
-            if (partialOffsetPx <= 0f) return@derivedStateOf 0f
-            1f - (sheetOffsetPx / partialOffsetPx).coerceIn(0f, 1f)
-        }
-    }
-
-    val sheetShape = remember(density) {
-        object : Shape {
-            override fun createOutline(
-                size: Size,
-                layoutDirection: LayoutDirection,
-                density: Density,
-            ): Outline {
-                val offset = sheetOffsetPx
-                val radiusPx = if (
-                    selectedCourse == null &&
-                    offset != Float.MAX_VALUE &&
-                    scaffoldHeightPx > 0
-                ) {
-                    val fraction = (offset / 150f).coerceIn(0f, 1f)
-                    with(density) { (20f * fraction).dp.toPx() }
-                } else {
-                    with(density) { 20.dp.toPx() }
+        val place = state.selectedPlace ?: return@LaunchedEffect
+        when (place.type) {
+            PlaceType.PARKING -> {
+                val coordinate = state.coordinates.firstOrNull { it.id == place.id }
+                if (coordinate != null) {
+                    if (!map.animateParkingMarkerSelection(context, coordinate.id)) {
+                        map.renderSelectedParkingMarker(context, coordinate)
+                    }
+                    map.focusOn(LatLng.from(coordinate.point.lat, coordinate.point.lng), 15)
                 }
-                return Outline.Rounded(
-                    RoundRect(
-                        rect = Rect(0f, 0f, size.width, size.height),
-                        topLeft = CornerRadius(radiusPx, radiusPx),
-                        topRight = CornerRadius(radiusPx, radiusPx),
-                    ),
-                )
+            }
+            PlaceType.COURSE -> {
+                map.clearBrowseLabels()
+                val route = state.selectedRoute
+                if (route == null) {
+                    map.renderPlaceCourseMarkers(context, place)
+                } else {
+                    val routePoints = route.points.map { LatLng.from(it.lat, it.lng) }
+                    map.renderPlaceCourse(
+                        context = context,
+                        place = place,
+                        routePoints = routePoints,
+                        snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                    )
+                    map.fitCourseToScreen(routePoints)
+                }
             }
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
-        BottomSheetScaffold(
-            modifier = Modifier.onGloballyPositioned { scaffoldHeightPx = it.size.height },
-            scaffoldState = scaffoldState,
-            sheetPeekHeight = sheetPeekHeight,
-            sheetContainerColor = RodiTheme.colors.white,
-            sheetShadowElevation = 8.dp,
-            sheetShape = sheetShape,
-            sheetSwipeEnabled = false,
-            sheetDragHandle = null,
-            sheetContent = {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // 커스텀 드래그 핸들
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 12.dp)
-                            .draggable(
-                                state = rememberDraggableState { },
-                                orientation = Orientation.Vertical,
-                                // 코스/주차장 상세가 열려 있을 때는 올리기·내리기 모두 막는다.
-                                enabled = selectedCourse == null,
-                                onDragStopped = { velocity ->
-                                    if (velocity < -200f) scaffoldState.bottomSheetState.expand()
-                                    else if (velocity > 200f) scaffoldState.bottomSheetState.partialExpand()
-                                },
-                            )
-                            .graphicsLayer {
-                                val offset = sheetOffsetPx
-                                alpha = if (offset != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                                    (offset / 150f).coerceIn(0f, 1f)
-                                } else {
-                                    1f
-                                }
-                            },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(60.dp)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(RodiTheme.colors.handleBar),
-                        )
-                    }
-                    val scaffoldHeightDp = with(density) { scaffoldHeightPx.toDp() }
-                    val boxHeightDp = if (scaffoldHeightDp > 0.dp) scaffoldHeightDp - handleHeightDp else Dp.Unspecified
+    LaunchedEffect(kakaoMap, mapBrandOffset) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        val bottomPx = with(density) { mapBrandOffset.toPx() }
+        map.logo?.setPosition(MapGravity.BOTTOM or MapGravity.LEFT, with(density) { 8.dp.toPx() }, bottomPx)
+        map.scaleBar?.apply {
+            setAutoHide(false)
+            setPosition(
+                MapGravity.BOTTOM or MapGravity.LEFT,
+                with(density) { 80.dp.toPx() },
+                (bottomPx - with(density) { 8.dp.toPx() }).coerceAtLeast(0f),
+            )
+            show()
+        }
+    }
 
-                    val visibleHeightDp = with(density) {
-                        if (sheetOffsetPx != Float.MAX_VALUE && scaffoldHeightPx > 0) {
-                            maxOf(0f, scaffoldHeightPx - sheetOffsetPx - handleHeightPx).toDp()
-                        } else {
-                            Dp.Unspecified
-                        }
-                    }
-
-                    val listState = rememberLazyListState()
-                    if (selectedCourse == null) {
-                        Box(
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        content = { contentPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+            ) {
+                BottomSheetScaffold(
+                    modifier = Modifier.onSizeChanged { scaffoldSize = it },
+                    scaffoldState = scaffoldState,
+                    sheetPeekHeight = 380.dp,
+                    sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    sheetContainerColor = RodiTheme.colors.white,
+                    sheetShadowElevation = 8.dp,
+                    sheetSwipeEnabled = state.surfaceState != HomeSurfaceState.Detail,
+                    sheetDragHandle = null,
+                    sheetContent = {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(if (boxHeightDp != Dp.Unspecified) boxHeightDp else Dp.Unspecified),
+                                .fillMaxHeight(),
                         ) {
-                            if (courses.isEmpty()) {
-                                CourseEmptyContent()
-                            } else {
-                                CourseListContent(
-                                    courses = courses,
-                                    onCourseClick = { id ->
-                                        vm.onIntent(HomeIntent.OnCourseClick(id))
-                                        isAtCurrentLocation = false
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(24.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Box(
+                                    Modifier
+                                        .size(width = 60.dp, height = 4.dp)
+                                        .background(RodiTheme.colors.handleBar, RoundedCornerShape(2.dp)),
+                                )
+                            }
+                            if (!state.showEmpty && !state.showInitialError && state.surfaceState != HomeSurfaceState.FullList) {
+                                Text(
+                                    text = "추천 목록",
+                                    style = RodiTheme.typography.headline1,
+                                    color = RodiTheme.colors.black,
+                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+                                )
+                            }
+                            when {
+                                state.listState == HomeListState.Loading -> Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(color = RodiTheme.colors.primary600)
+                                }
+                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(state.showInitialError)
+                                else -> PlaceListContent(
+                                    places = state.places,
+                                    onPlaceClick = {
+                                        vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
                                     },
-                                    expandFraction = expandFraction,
-                                    onCollapse = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
-                                    listState = listState,
-                                    modifier = if (visibleHeightDp != Dp.Unspecified) Modifier.height(
-                                        visibleHeightDp,
-                                    ) else Modifier,
+                                    onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
+                                    isNextPageLoading = state.isNextPageLoading,
+                                    showTopBar = state.surfaceState == HomeSurfaceState.FullList,
                                 )
                             }
                         }
-                    } else {
-                        val dismissDetail: () -> Unit = {
-                            vm.onIntent(HomeIntent.OnDismissDetail)
-                            coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() }
-                        }
-                        val navigate: () -> Unit = {
-                            val kakaoMapInstalled = runCatching {
-                                context.packageManager.getPackageInfo("net.daum.android.map", 0); true
-                            }.getOrDefault(false)
-                            val kakaoNaviInstalled = runCatching {
-                                context.packageManager.getPackageInfo("com.locnall.KimGiSa", 0); true
-                            }.getOrDefault(false)
-                            vm.onIntent(
-                                HomeIntent.OnNavigateClick(
-                                    course = selectedCourse,
-                                    kakaoMapInstalled = kakaoMapInstalled,
-                                    kakaoNaviInstalled = kakaoNaviInstalled,
-                                ),
-                            )
-                        }
-                        StableMeasuredDetailSheet(
-                            itemKey = selectedCourse.id,
-                            maxHeight = boxHeightDp,
-                        ) { detailModifier ->
-                            if (selectedCourse.isParking) {
-                                ParkingDetailContent(
-                                    course = selectedCourse,
-                                    onDismiss = dismissDetail,
-                                    onNavigate = navigate,
-                                    modifier = detailModifier,
-                                )
-                            } else {
-                                CourseDetailContent(
-                                    course = selectedCourse,
-                                    route = state.selectedRoute,
-                                    isRouting = state.isRouting,
-                                    onDismiss = dismissDetail,
-                                    onNavigate = navigate,
-                                    modifier = detailModifier,
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-        ) {
-            Box(Modifier.fillMaxSize()) {
-                key(mapRetryKey) {
-                    val mapView = rememberMapViewWithLifecycle()
-
-                    AndroidView(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onSizeChanged { mapViewSize = it },
-                        factory = {
-                            mapView.start(
-                                object : MapLifeCycleCallback() {
-                                    override fun onMapDestroy() {}
-                                    override fun onMapError(error: Exception?) {
-                                        kakaoMap = null
-                                        mapScreenState = MapScreenState.NetworkError
-                                    }
-                                },
-                                object : KakaoMapReadyCallback() {
-                                    override fun onMapReady(map: KakaoMap) {
-                                        kakaoMap = map
-                                    }
-
-                                    override fun getPosition(): LatLng = SEOUL
-                                    override fun getZoomLevel(): Int = DEFAULT_ZOOM
-                                },
-                            )
-                            mapView
-                        },
-                    )
-                }
-
-                AnimatedVisibility(
-                    visible = shouldShowResearchButton,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = 63.dp),
+                    },
                 ) {
-                    MapResearchButton(
-                        onClick = {
-                            val viewport = currentViewport ?: return@MapResearchButton
-                            vm.onIntent(HomeIntent.OnMapSearch(viewport))
-                            searchedViewport = viewport
-                        },
-                    )
-                }
+                    Box(Modifier.fillMaxSize()) {
+                        key(mapRetryKey) {
+                            val mapView = rememberMapViewWithLifecycle()
+                            AndroidView(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .onSizeChanged { mapViewSize = it },
+                                factory = {
+                                    mapView.start(
+                                        object : MapLifeCycleCallback() {
+                                            override fun onMapDestroy() = Unit
+                                            override fun onMapError(error: Exception?) {
+                                                kakaoMap = null
+                                                mapScreenState = MapScreenState.NetworkError
+                                            }
+                                        },
+                                        object : KakaoMapReadyCallback() {
+                                            override fun onMapReady(map: KakaoMap) {
+                                                kakaoMap = map
+                                                map.setPadding(0, 0, 0, 0)
+                                                map.setOnCameraMoveStartListener { _, gesture ->
+                                                    if (gesture != GestureType.Unknown) {
+                                                        isAtCurrentLocation = false
+                                                        hasUserMovedMap = true
+                                                    }
+                                                }
+                                                map.setOnCameraMoveEndListener { movedMap, _, _ ->
+                                                    mapZoomLevel = movedMap.zoomLevel
+                                                    movedMap.viewportOrNull(mapViewSize)?.let { viewport ->
+                                                        currentViewport = viewport
+                                                        vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
+                                                    }
+                                                    hasLoadedMapInSession = true
+                                                    context.markMapLoaded()
+                                                    mapScreenState = MapScreenState.Ready
+                                                }
+                                                map.setOnLabelClickListener { _, _, label ->
+                                                    when (val tag = label.tag) {
+                                                        is BrowseLabelTag.Cluster -> map.moveCamera(
+                                                            CameraUpdateFactory.newCenterPosition(
+                                                                LatLng.from(tag.point.lat, tag.point.lng),
+                                                                tag.targetZoom,
+                                                            ),
+                                                            CameraAnimation.from(350),
+                                                        )
+                                                        is BrowseLabelTag.Place -> {
+                                                            if (state.coordinates.firstOrNull { it.id == tag.id }?.type == PlaceType.PARKING) {
+                                                                map.animateParkingMarkerSelection(context, tag.id)
+                                                            }
+                                                            vm.onIntent(HomeIntent.OnPlaceClick(tag.id, HomeDetailOrigin.Map))
+                                                        }
+                                                    }
+                                                    true
+                                                }
+                                            }
 
-                AnimatedVisibility(
-                    visible = selectedCourse == null && scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 78.dp),
-                ) {
-                    MapListButton(
-                        onClick = { coroutineScope.launch { scaffoldState.bottomSheetState.partialExpand() } },
-                    )
-                }
-
-                if (scaffoldState.bottomSheetState.currentValue == SheetValue.Hidden) {
-                    MyLocationButton(
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .navigationBarsPadding()
-                            .padding(end = 12.dp, bottom = 78.dp),
-                        isActive = isAtCurrentLocation,
-                        onClick = {
-                            val loc = currentLocation ?: SEOUL
-                            kakaoMap?.moveCamera(
-                                CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
-                                CameraAnimation.from(250),
-                            )
-                            isAtCurrentLocation = true
-                        },
-                    )
-                } else if (sheetOffsetPx != Float.MAX_VALUE) {
-                    val buttonTopDp = with(density) { sheetOffsetPx.toDp() } - 40.dp - 12.dp
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(end = 12.dp)
-                            .absoluteOffset(y = buttonTopDp - 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        MyLocationButton(
-                            isActive = isAtCurrentLocation,
-                            onClick = {
-                                if (context.hasLocationPermission()) {
-                                    val loc = currentLocation ?: SEOUL
-                                    kakaoMap?.moveCamera(
-                                        CameraUpdateFactory.newCenterPosition(loc, DEFAULT_ZOOM),
-                                        CameraAnimation.from(250),
+                                            override fun getPosition(): LatLng = currentLocation ?: SEOUL
+                                            override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                        },
                                     )
-                                    isAtCurrentLocation = true
-                                } else {
-                                    when (
-                                        resolveLocationPermissionAction(
-                                            isLocationGranted = false,
-                                            hasRequestedLocationPermission = hasRequestedLocationPermission,
-                                            shouldShowRationale = activity?.shouldShowLocationPermissionRationale()
-                                                ?: false,
+                                    mapView
+                                },
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = shouldShowResearch,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 63.dp),
+                        ) {
+                            MapResearchButton(onClick = {
+                                val viewport = currentViewport ?: return@MapResearchButton
+                                vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
+                            })
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.surfaceState == HomeSurfaceState.Navigation,
+                            enter = fadeIn(tween(SURFACE_ANIMATION_MILLIS)),
+                            exit = fadeOut(tween(SURFACE_ANIMATION_MILLIS)),
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        ) {
+                            RodiBottomNavigation(
+                                selectedDestination = RodiBottomNavigationDestination.Home,
+                                onHomeClick = { vm.onIntent(HomeIntent.OnListOpen) },
+                                onMyClick = { vm.onIntent(HomeIntent.OnMyClick) },
+                            )
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.surfaceState == HomeSurfaceState.Navigation,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
+                                .padding(bottom = bottomControlOffset),
+                        ) {
+                            MapListButton(onClick = { vm.onIntent(HomeIntent.OnListOpen) })
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.surfaceState != HomeSurfaceState.FullList &&
+                                state.surfaceState != HomeSurfaceState.Detail,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .navigationBarsPadding()
+                                .padding(end = 12.dp, bottom = bottomControlOffset),
+                        ) {
+                            MyLocationButton(
+                                isActive = isAtCurrentLocation,
+                                onClick = {
+                                    val location = currentLocation
+                                    if (location == null) {
+                                        permissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                                            ),
                                         )
-                                    ) {
-                                        LocationPermissionAction.RequestSystemPermission -> {
-                                            vm.markLocationPermissionRequested()
-                                            permissionLauncher.launch(
-                                                arrayOf(
-                                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                                                ),
+                                    } else {
+                                        kakaoMap?.apply {
+                                            setPadding(0, 0, 0, 0)
+                                            moveCamera(
+                                                CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
+                                                CameraAnimation.from(250),
                                             )
                                         }
-
-                                        LocationPermissionAction.OpenAppSettings -> context.openAppSettings()
+                                        isAtCurrentLocation = true
                                     }
-                                }
-                            },
-                        )
+                                },
+                            )
+                        }
                     }
                 }
+
+                if (state.surfaceState == HomeSurfaceState.Detail) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .then(
+                                if (state.selectedPlace?.type == PlaceType.PARKING) Modifier.height(400.dp)
+                                else Modifier,
+                            ),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        color = RodiTheme.colors.white,
+                        shadowElevation = 8.dp,
+                    ) {
+                        val selectedPlace = state.selectedPlace
+                        when {
+                            state.isDetailLoading -> PlaceDetailLoading()
+                            selectedPlace?.type == PlaceType.COURSE -> CourseDetailContent(
+                                place = selectedPlace,
+                                isBookmarkUpdating = state.isBookmarkUpdating,
+                                onDismiss = dismissDetail,
+                                onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
+                                onNavigate = {
+                                    vm.onIntent(
+                                        HomeIntent.OnNavigateClick(
+                                            kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
+                                            kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                        ),
+                                    )
+                                },
+                            )
+                            selectedPlace?.type == PlaceType.PARKING -> ParkingDetailContent(
+                                place = selectedPlace,
+                                isBookmarkUpdating = state.isBookmarkUpdating,
+                                onDismiss = dismissDetail,
+                                onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
+                                onNavigate = {
+                                    vm.onIntent(
+                                        HomeIntent.OnNavigateClick(
+                                            kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
+                                            kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+
+                when (mapScreenState) {
+                    MapScreenState.Loading -> MapLoadingScreen()
+                    MapScreenState.NetworkError -> MapNetworkErrorScreen(onRetry = {
+                        mapScreenState = MapScreenState.Loading
+                        kakaoMap = null
+                        mapRetryKey += 1
+                    })
+                    MapScreenState.Ready -> Unit
+                }
             }
-        }
+        },
+    )
 
-        when (mapScreenState) {
-            MapScreenState.Loading -> MapLoadingScreen()
-            MapScreenState.NetworkError -> MapNetworkErrorScreen(
-                onRetry = {
-                    mapScreenState = MapScreenState.Loading
-                    kakaoMap = null
-                    mapRetryKey += 1
-                },
-            )
-
-            MapScreenState.Ready -> Unit
-        }
-    }
-
-    naviCourse?.let { course ->
-        NaviPickerSheet(
-            onDismiss = { naviCourse = null },
-            onSelect = { app, always ->
-                vm.onIntent(HomeIntent.OnNaviAppSelected(app, course, always))
-                naviCourse = null
+    if (state.pendingAction != null) {
+        LoginRequiredDialog(
+            isLoggingIn = state.isLoginInProgress,
+            onDismiss = dismissLogin,
+            onKakaoLoginClick = {
+                onRequestKakaoLogin(
+                    { token -> vm.onIntent(HomeIntent.OnKakaoLoginCredential(token)) },
+                    { message ->
+                        if (message.contains("취소")) dismissLogin()
+                        else vm.onIntent(HomeIntent.OnKakaoLoginFailed(message))
+                    },
+                )
             },
         )
     }
 
-    installNaviCourse?.let {
+    naviPlaceId?.let {
+        NaviPickerSheet(
+            onDismiss = { naviPlaceId = null },
+            onSelect = { app, always ->
+                vm.onIntent(HomeIntent.OnNaviAppSelected(app, always))
+                naviPlaceId = null
+            },
+        )
+    }
+    installNaviPlaceId?.let {
         NaviPickerSheet(
             mode = NaviPickerMode.INSTALL,
-            onDismiss = { installNaviCourse = null },
+            onDismiss = { installNaviPlaceId = null },
             onSelect = { app, _ ->
                 vm.onIntent(HomeIntent.OnInstallNaviAppSelected(app))
-                installNaviCourse = null
+                installNaviPlaceId = null
             },
         )
     }
 }
 
-private fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
+private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
+    val center = GeoPoint(
+        lat = (northEast.lat + southWest.lat) / 2.0,
+        lng = (northEast.lng + southWest.lng) / 2.0,
+    )
+    return PlaceViewportQuery(
+        southWest = southWest,
+        northEast = northEast,
+        origin = currentLocation?.let { GeoPoint(it.latitude, it.longitude) } ?: center,
+    )
 }
 
-private fun Activity.shouldShowLocationPermissionRationale(): Boolean =
-    ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_FINE_LOCATION) ||
-        ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.ACCESS_COARSE_LOCATION)
+private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
+    packageManager.getPackageInfo(packageName, 0)
+}.isSuccess
 
-private fun Context.openAppSettings() {
-    startActivity(
-        Intent(
-            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-            Uri.fromParts("package", packageName, null),
-        ),
-    )
+@Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun HomeChromePreview() {
+    RodiTheme {
+        Box(Modifier.fillMaxSize().background(RodiTheme.colors.gray100)) {
+            RodiBottomNavigation(
+                selectedDestination = RodiBottomNavigationDestination.Home,
+                onHomeClick = {},
+                onMyClick = {},
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+            MapListButton(
+                onClick = {},
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 78.dp),
+            )
+            MyLocationButton(
+                isActive = false,
+                onClick = {},
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp, bottom = 78.dp),
+            )
+        }
+    }
+}
+
+@Preview(name = "Home chrome - small large font", showBackground = true, widthDp = 320, heightDp = 640, fontScale = 1.3f)
+@Composable
+private fun HomeChromeSmallPreview() {
+    HomeChromePreview()
 }

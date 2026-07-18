@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.component
+package com.dororong.rodi.feature.home.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat

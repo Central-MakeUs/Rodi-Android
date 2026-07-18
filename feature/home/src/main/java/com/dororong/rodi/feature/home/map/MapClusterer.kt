@@ -20,19 +20,19 @@ data class MapClusterPolicy(
 )
 
 data class ProjectedMapItem(
-    val id: Int,
+    val id: Long,
     val point: GeoPoint,
     val x: Int,
     val y: Int,
 )
 
 data class MapCoursePoint(
-    val id: Int,
+    val id: Long,
     val point: GeoPoint,
 )
 
 data class MapCluster(
-    val memberIds: List<Int>,
+    val memberIds: List<Long>,
     val representativePoint: GeoPoint,
     val targetZoom: Int,
 ) {

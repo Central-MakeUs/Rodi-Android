@@ -1,28 +1,29 @@
 package com.dororong.rodi.feature.home
 
 import app.cash.turbine.test
-import com.dororong.rodi.core.domain.model.course.Course
-import com.dororong.rodi.core.domain.model.course.CourseFeatures
+import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.course.GeoPoint
-import com.dororong.rodi.core.domain.model.navi.NaviApp
-import com.dororong.rodi.core.domain.model.course.RodiItemType
-import com.dororong.rodi.core.domain.model.course.RouteResult
-import com.dororong.rodi.core.domain.model.course.Waypoint
-import com.dororong.rodi.core.domain.model.course.WaypointType
-import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
-import com.dororong.rodi.core.domain.usecase.entry.GetLocationPermissionRequestedUseCase
-import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequestedUseCase
-import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.model.place.CursorPage
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
-import com.dororong.rodi.feature.home.map.MapViewport
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
+import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -31,294 +32,235 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
-
-    private val testDispatcher = StandardTestDispatcher()
+    private val dispatcher = StandardTestDispatcher()
 
     @BeforeEach
-    fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-    }
-
-    @Test
-    fun `marks location permission request`() = runTest(testDispatcher) {
-        val markLocationPermissionRequested = mockk<MarkLocationPermissionRequestedUseCase>(relaxed = true)
-        val viewModel = createViewModel(
-            markLocationPermissionRequested = markLocationPermissionRequested,
-        )
-
-        viewModel.markLocationPermissionRequested()
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { markLocationPermissionRequested() }
-    }
+    fun setUp() = Dispatchers.setMain(dispatcher)
 
     @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `initial state contains courses from use case`() {
-        val courses = listOf(testCourse())
-        val viewModel = createViewModel(courses = courses)
+    fun `first viewport loads a page and duplicate viewport is ignored`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), hasNext = false, nextCursor = null, totalCount = 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        val vm = deps.viewModel()
 
-        assertEquals(courses, viewModel.state.value.courses)
-    }
-
-    @Test
-    fun `onCourseClick selects course and stores route on success`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val routeResult = testRouteResult()
-        val getRouteUseCase = mockk<GetRouteUseCase>()
-        coEvery { getRouteUseCase(course) } returns Result.success(routeResult)
-        val viewModel = createViewModel(courses = listOf(course), getRouteUseCase = getRouteUseCase)
-
-        viewModel.state.test {
-            assertEquals(null, awaitItem().selectedCourseId)
-
-            viewModel.onIntent(HomeIntent.OnCourseClick(course.id))
-
-            assertEquals(course.id, awaitItem().selectedCourseId)
-            assertTrue(awaitItem().isRouting)
-            advanceUntilIdle()
-            val routedState = awaitItem()
-            assertEquals(routeResult, routedState.routeByCourse[course.id])
-            assertFalse(routedState.isRouting)
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `onCourseClick ignores already selected course`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val getRouteUseCase = mockk<GetRouteUseCase>()
-        coEvery { getRouteUseCase(course) } returns Result.success(testRouteResult())
-        val viewModel = createViewModel(courses = listOf(course), getRouteUseCase = getRouteUseCase)
-
-        viewModel.onIntent(HomeIntent.OnCourseClick(course.id))
-        advanceUntilIdle()
-        viewModel.onIntent(HomeIntent.OnCourseClick(course.id))
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { getRouteUseCase(course) }
+        assertEquals(page.items, vm.state.value.places)
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+        coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
     }
 
     @Test
-    fun `onCourseClick skips route request for parking item`() = runTest(testDispatcher) {
-        val course = testCourse(itemType = RodiItemType.PARKING)
-        val getRouteUseCase = mockk<GetRouteUseCase>()
-        val viewModel = createViewModel(courses = listOf(course), getRouteUseCase = getRouteUseCase)
+    fun `next page removes duplicate ids`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(
+            CursorPage(listOf(summary(1), summary(2)), true, "next", 3),
+        )
+        coEvery { deps.getPlaces(query(), "next", 20) } returns Result.success(
+            CursorPage(listOf(summary(2), summary(3)), false, null, null),
+        )
+        val vm = deps.viewModel()
 
-        viewModel.onIntent(HomeIntent.OnCourseClick(course.id))
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnLoadNextPage)
         advanceUntilIdle()
 
-        assertEquals(course.id, viewModel.state.value.selectedCourseId)
-        coVerify(exactly = 0) { getRouteUseCase(any()) }
+        assertEquals(listOf(1L, 2L, 3L), vm.state.value.places.map { it.id })
+        assertFalse(vm.state.value.hasNextPage)
     }
 
     @Test
-    fun `onCourseClick removes routing state when route request fails`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val getRouteUseCase = mockk<GetRouteUseCase>()
-        coEvery { getRouteUseCase(course) } returns Result.failure(RuntimeException("boom"))
-        val viewModel = createViewModel(courses = listOf(course), getRouteUseCase = getRouteUseCase)
-
-        viewModel.state.test {
-            awaitItem()
-
-            viewModel.onIntent(HomeIntent.OnCourseClick(course.id))
-
-            awaitItem()
-            assertTrue(awaitItem().isRouting)
-            advanceUntilIdle()
-            val failedState = awaitItem()
-            assertFalse(failedState.isRouting)
-            assertTrue(failedState.routeByCourse.isEmpty())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `map search updates courses to the requested viewport`() {
-        val nearbyCourse = testCourse(id = 1)
-        val distantCourse = testCourse(id = 2).copy(
-            waypoints = testWaypoints().mapIndexed { index, waypoint ->
-                if (index == 0) waypoint.copy(lat = 35.1796, lng = 129.0756) else waypoint
-            },
+    fun `new viewport result wins over an older in flight request`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val older = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        coEvery { deps.getPlaces(query(), null, 20) } coAnswers { older.await() }
+        coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.success(
+            CursorPage(listOf(summary(2)), false, null, 1),
         )
-        val viewModel = createViewModel(courses = listOf(nearbyCourse, distantCourse))
+        val vm = deps.viewModel()
 
-        viewModel.onIntent(
-            HomeIntent.OnMapSearch(
-                MapViewport(
-                    northEast = GeoPoint(37.7, 127.1),
-                    southWest = GeoPoint(37.4, 126.8),
-                ),
-            ),
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        advanceUntilIdle()
+        older.complete(Result.success(CursorPage(listOf(summary(1)), false, null, 1)))
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
+        assertEquals(query(2.0), vm.state.value.searchedQuery)
+    }
+
+    @Test
+    fun `successful empty page is distinct from initial failure`() = runTest(dispatcher) {
+        val emptyDeps = Dependencies()
+        coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(
+            CursorPage(emptyList(), false, null, 0),
         )
+        val emptyVm = emptyDeps.viewModel()
+        emptyVm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        assertEquals(HomeListState.Empty, emptyVm.state.value.listState)
 
-        assertEquals(listOf(nearbyCourse), viewModel.state.value.courses)
+        val failedDeps = Dependencies()
+        coEvery { failedDeps.getPlaces(query(), null, 20) } returns Result.failure(IllegalStateException("failure"))
+        val failedVm = failedDeps.viewModel()
+        failedVm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        assertEquals(HomeListState.InitialError, failedVm.state.value.listState)
     }
 
     @Test
-    fun `onNavigateClick launches saved KakaoMap when installed`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
-        coEvery { getNaviAlwaysUseCase() } returns NaviApp.KAKAOMAP
-        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
-
-        viewModel.effect.test {
-            viewModel.onIntent(
-                HomeIntent.OnNavigateClick(
-                    course = course,
-                    kakaoMapInstalled = true,
-                    kakaoNaviInstalled = true,
-                ),
-            )
-            advanceUntilIdle()
-
-            assertEquals(HomeEffect.LaunchKakaoMap(course), awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `onNavigateClick shows picker when both apps installed and no preference exists`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
-        coEvery { getNaviAlwaysUseCase() } returns null
-        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
-
-        viewModel.effect.test {
-            viewModel.onIntent(
-                HomeIntent.OnNavigateClick(
-                    course = course,
-                    kakaoMapInstalled = true,
-                    kakaoNaviInstalled = true,
-                ),
-            )
-            advanceUntilIdle()
-
-            assertEquals(HomeEffect.ShowNaviPicker(course), awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `onNavigateClick shows install picker when no app is installed`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val getNaviAlwaysUseCase = mockk<GetNaviAlwaysUseCase>()
-        coEvery { getNaviAlwaysUseCase() } returns null
-        val viewModel = createViewModel(courses = listOf(course), getNaviAlwaysUseCase = getNaviAlwaysUseCase)
-
-        viewModel.effect.test {
-            viewModel.onIntent(
-                HomeIntent.OnNavigateClick(
-                    course = course,
-                    kakaoMapInstalled = false,
-                    kakaoNaviInstalled = false,
-                ),
-            )
-            advanceUntilIdle()
-
-            assertEquals(HomeEffect.ShowInstallNaviPicker(course), awaitItem())
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    @Test
-    fun `onNaviAppSelected stores always preference and launches selected app`() = runTest(testDispatcher) {
-        val course = testCourse()
-        val setNaviAlwaysUseCase = mockk<SetNaviAlwaysUseCase>()
-        coEvery { setNaviAlwaysUseCase(NaviApp.KAKAONAVI) } returns Unit
-        val viewModel = createViewModel(courses = listOf(course), setNaviAlwaysUseCase = setNaviAlwaysUseCase)
-
-        viewModel.effect.test {
-            viewModel.onIntent(
-                HomeIntent.OnNaviAppSelected(
-                    app = NaviApp.KAKAONAVI,
-                    course = course,
-                    always = true,
-                ),
-            )
-            advanceUntilIdle()
-
-            assertEquals(HomeEffect.LaunchKakaoNavi(course), awaitItem())
-            coVerify(exactly = 1) { setNaviAlwaysUseCase(NaviApp.KAKAONAVI) }
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
-
-    private fun createViewModel(
-        courses: List<Course> = listOf(testCourse()),
-        getRouteUseCase: GetRouteUseCase = mockk(),
-        getNaviAlwaysUseCase: GetNaviAlwaysUseCase = mockk(),
-        setNaviAlwaysUseCase: SetNaviAlwaysUseCase = mockk(),
-        getLocationPermissionRequested: GetLocationPermissionRequestedUseCase = mockk(),
-        markLocationPermissionRequested: MarkLocationPermissionRequestedUseCase = mockk(relaxed = true),
-    ): HomeViewModel {
-        val getCoursesUseCase = mockk<GetCoursesUseCase>()
-        every { getCoursesUseCase() } returns courses
-        every { getLocationPermissionRequested() } returns flowOf(false)
-        return HomeViewModel(
-            getCoursesUseCase = getCoursesUseCase,
-            getRouteUseCase = getRouteUseCase,
-            getNaviAlwaysUseCase = getNaviAlwaysUseCase,
-            setNaviAlwaysUseCase = setNaviAlwaysUseCase,
-            getLocationPermissionRequested = getLocationPermissionRequested,
-            markLocationPermissionRequestedUseCase = markLocationPermissionRequested,
+    fun `failed refresh keeps previous success data`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(
+            CursorPage(listOf(summary(1)), false, null, 1),
         )
+        coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.failure(IllegalStateException("failure"))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), vm.state.value.places.map { it.id })
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+    }
+
+    @Test
+    fun `surface transitions navigation partial full partial navigation`() {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnListOpen)
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        vm.onIntent(HomeIntent.OnListExpand)
+        assertEquals(HomeSurfaceState.FullList, vm.state.value.surfaceState)
+        vm.onIntent(HomeIntent.OnListCollapse)
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        vm.onIntent(HomeIntent.OnListCollapse)
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+    }
+
+    @Test
+    fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(true)
+        coEvery { deps.authSession() } returnsMany listOf(
+            AuthSession(false, false),
+            AuthSession(true, true),
+        )
+        coEvery { deps.getDetail(10L) } returns Result.success(HomePreviewData.courseDetail.copy(id = 10L))
+        coEvery { deps.getRoute(any<PlaceDetail>()) } returns
+            Result.failure(IllegalStateException("route unavailable"))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(10L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+        assertEquals(PendingHomeAction.OpenDetail(10L, HomeDetailOrigin.Map), vm.state.value.pendingAction)
+
+        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.pendingAction)
+        assertEquals(10L, vm.state.value.selectedPlaceId)
+        coVerify(exactly = 1) { deps.getDetail(10L) }
+    }
+
+    @Test
+    fun `bookmark state changes only after server success`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 20L, isBookmarked = false, bookmarkCount = 4)
+        coEvery { deps.getDetail(20L) } returns Result.success(place)
+        coEvery { deps.setBookmark(place, true) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnBookmarkClick)
+        advanceUntilIdle()
+
+        assertTrue(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
+        assertEquals(5, vm.state.value.selectedPlace?.bookmarkCount)
+    }
+
+    @Test
+    fun `bookmark failure preserves ui state`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 20L, isBookmarked = false, bookmarkCount = 4)
+        coEvery { deps.getDetail(20L) } returns Result.success(place)
+        coEvery { deps.setBookmark(place, true) } returns Result.failure(IllegalStateException("failure"))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnBookmarkClick)
+        advanceUntilIdle()
+
+        assertFalse(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
+        assertEquals(4, vm.state.value.selectedPlace?.bookmarkCount)
     }
 }
 
-private fun testCourse(id: Int = 1, itemType: RodiItemType = RodiItemType.COURSE) = Course(
+private class Dependencies(loggedIn: Boolean = true) {
+    val coordinates = mockk<GetPlaceCoordinatesUseCase>()
+    val getPlaces = mockk<GetPlacesUseCase>()
+    val getDetail = mockk<GetPlaceDetailUseCase>()
+    val setBookmark = mockk<SetPlaceBookmarkUseCase>()
+    val getRoute = mockk<GetRouteUseCase>()
+    val authSession = mockk<GetAuthSessionUseCase>()
+    val loginWithKakao = mockk<LoginWithKakaoUseCase>()
+    val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
+    val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
+
+    init {
+        coEvery { coordinates() } returns Result.success(emptyList())
+        coEvery { authSession() } returns AuthSession(loggedIn, false)
+        coEvery { getNaviAlways() } returns null
+        coEvery { setNaviAlways(any()) } returns Unit
+    }
+
+    fun viewModel() = HomeViewModel(
+        getPlaceCoordinatesUseCase = coordinates,
+        getPlacesUseCase = getPlaces,
+        getPlaceDetailUseCase = getDetail,
+        getRouteUseCase = getRoute,
+        setPlaceBookmarkUseCase = setBookmark,
+        getAuthSessionUseCase = authSession,
+        loginWithKakaoUseCase = loginWithKakao,
+        getNaviAlwaysUseCase = getNaviAlways,
+        setNaviAlwaysUseCase = setNaviAlways,
+    )
+}
+
+private fun query(offset: Double = 0.0) = PlaceViewportQuery(
+    southWest = GeoPoint(37.0 + offset, 126.0 + offset),
+    northEast = GeoPoint(38.0 + offset, 127.0 + offset),
+    origin = GeoPoint(37.5 + offset, 126.5 + offset),
+)
+
+private fun summary(id: Long) = PlaceSummary(
     id = id,
-    courseName = "테스트 코스",
-    courseNickname = "테스트",
-    areaName = "테스트동",
-    region = "seoul",
-    difficulty = 1,
-    trafficDensity = null,
-    source = "test",
-    sourceUrl = "",
-    crawledAt = "",
-    waypoints = testWaypoints(),
-    features = CourseFeatures(),
-    recommendation = 1,
-    caution = "",
-    bestTime = "",
-    enrichedDescription = "",
-    itemType = itemType,
-)
-
-private fun testWaypoints() = listOf(
-    Waypoint(
-        order = 0,
-        type = WaypointType.START,
-        name = "출발",
-        lat = 37.5665,
-        lng = 126.9780,
-        address = "서울",
-        category = "test",
-    ),
-    Waypoint(
-        order = 1,
-        type = WaypointType.END,
-        name = "도착",
-        lat = 37.5651,
-        lng = 126.9895,
-        address = "서울",
-        category = "test",
-    ),
-)
-
-private fun testRouteResult() = RouteResult(
-    points = listOf(GeoPoint(37.5665, 126.9780), GeoPoint(37.5651, 126.9895)),
-    isRealRoute = true,
+    type = PlaceType.COURSE,
+    name = "place-$id",
+    address = "서울",
+    point = GeoPoint(37.5, 126.5),
+    distanceFromMeMeters = 100,
+    practiceTypes = listOf(PracticeType.STRAIGHT),
+    description = "description",
+    distanceMeters = 1_000,
+    capacity = null,
+    openTime = null,
 )

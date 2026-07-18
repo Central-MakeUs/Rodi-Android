@@ -51,9 +51,9 @@ class MapClustererTest {
         )
 
         assertEquals(2, clusters.size)
-        assertEquals(listOf(1, 2, 3), clusters.first().memberIds)
+        assertEquals(listOf(1L, 2L, 3L), clusters.first().memberIds)
         assertTrue(clusters.first().isClusterMarker)
-        assertEquals(listOf(4), clusters.last().memberIds)
+        assertEquals(listOf(4L), clusters.last().memberIds)
     }
 
     @Test
@@ -69,10 +69,10 @@ class MapClustererTest {
             policy = NationalGrid.policy,
         )
 
-        assertEquals(listOf(1, 2), clusters.first().memberIds)
-        assertEquals(listOf(3), clusters.last().memberIds)
+        assertEquals(listOf(1L, 2L), clusters.first().memberIds)
+        assertEquals(listOf(3L), clusters.last().memberIds)
     }
 
-    private fun item(id: Int, lat: Double, lng: Double, x: Int, y: Int) =
+    private fun item(id: Long, lat: Double, lng: Double, x: Int, y: Int) =
         ProjectedMapItem(id, GeoPoint(lat, lng), x, y)
 }

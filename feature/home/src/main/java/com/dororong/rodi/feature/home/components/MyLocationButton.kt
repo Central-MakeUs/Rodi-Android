@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.component
+package com.dororong.rodi.feature.home.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size

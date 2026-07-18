@@ -6,6 +6,7 @@ import com.kakao.vectormap.label.LabelLayerOptions
 
 private const val BROWSE_LAYER_ID = "rodi-browse-layer"
 private const val DETAIL_LAYER_ID = "rodi-detail-layer"
+private const val CURRENT_LOCATION_LAYER_ID = "rodi-current-location-layer"
 
 internal fun KakaoMap.browseLabelLayer(): LabelLayer? = labelManager?.let { manager ->
     manager.getLayer(BROWSE_LAYER_ID) ?: manager.addLayer(
@@ -23,6 +24,18 @@ internal fun KakaoMap.detailLabelLayer(): LabelLayer? = labelManager?.let { mana
     )
 }
 
+internal fun KakaoMap.currentLocationLabelLayer(): LabelLayer? = labelManager?.let { manager ->
+    manager.getLayer(CURRENT_LOCATION_LAYER_ID) ?: manager.addLayer(
+        LabelLayerOptions.from(CURRENT_LOCATION_LAYER_ID)
+            .setZOrder(5_300)
+            .setClickable(false),
+    )
+}
+
 fun KakaoMap.clearBrowseLabels() {
     labelManager?.getLayer(BROWSE_LAYER_ID)?.removeAll()
+}
+
+fun KakaoMap.clearCurrentLocationMarker() {
+    labelManager?.getLayer(CURRENT_LOCATION_LAYER_ID)?.removeAll()
 }

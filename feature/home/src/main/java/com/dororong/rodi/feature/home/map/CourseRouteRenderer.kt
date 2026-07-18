@@ -11,7 +11,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
 import com.dororong.rodi.feature.home.R
-import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.camera.CameraAnimation
@@ -37,52 +38,43 @@ fun KakaoMap.clearCourse() {
     routeLineManager?.layer?.removeAll()
 }
 
-/**
- * 길안내 API 응답 대기 중(직선 좌표조차 아직 확정 전) 출발/경유/도착 마커를 그린다.
- * 도로 경로가 준비되기 전에 직선 미리보기를 그리면 실제 경로로 다시 그려질 때 지도가
- * 두 번 움직이는 것처럼 보이므로, 경로선/카메라 정렬은 [renderCourse]·[fitCourseToScreen]에서
- * 실제 경로가 확보된 뒤에만 수행한다.
- */
-fun KakaoMap.renderCourseMarkers(context: Context, course: Course) {
+fun KakaoMap.renderPlaceCourseMarkers(context: Context, place: PlaceDetail) {
     clearCourse()
-    val points = course.allPoints
-    points.forEachIndexed { i, p ->
-        val isStart = i == 0
-        val isEnd = i == points.lastIndex
-        val icon = when {
-            isStart -> R.drawable.ic_pin_start
-            isEnd -> R.drawable.ic_pin_arrival
-            else -> R.drawable.ic_pin_waypoint
+    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEach { waypoint ->
+        val icon = when (waypoint.type) {
+            PlaceWaypointType.START -> R.drawable.ic_pin_start
+            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
+            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
         }
-        addMarkerAt(context, LatLng.from(p.lat, p.lng), icon, i)
+        addMarkerAt(
+            context = context,
+            position = LatLng.from(waypoint.point.lat, waypoint.point.lng),
+            iconRes = icon,
+            index = waypoint.sequence,
+        )
     }
 }
 
-/**
- * 코스의 출발/경유/도착 마커 + 도로 경로선을 그린다. 실제 경로가 확보된 뒤에만 호출한다.
- * 카메라 정렬은 시트 애니메이션이 끝난 실제 패딩 값을 알아야 하므로 [fitCourseToScreen]으로 분리한다.
- *
- * @param routePoints Directions API 로 받은 도로 경로 좌표 (실제 경로 또는 API 레벨 직선 폴백).
- * @param snappedPoints 각 지점의 도로 스냅 좌표. 있으면 마커를 그 위치에 표시.
- */
-fun KakaoMap.renderCourse(
+fun KakaoMap.renderPlaceCourse(
     context: Context,
-    course: Course,
+    place: PlaceDetail,
     routePoints: List<LatLng>,
     snappedPoints: List<LatLng> = emptyList(),
 ) {
     clearCourse()
-    val points = course.allPoints
-    points.forEachIndexed { i, p ->
-        val isStart = i == 0
-        val isEnd = i == points.lastIndex
-        val icon = when {
-            isStart -> R.drawable.ic_pin_start
-            isEnd -> R.drawable.ic_pin_arrival
-            else -> R.drawable.ic_pin_waypoint
+    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEachIndexed { index, waypoint ->
+        val icon = when (waypoint.type) {
+            PlaceWaypointType.START -> R.drawable.ic_pin_start
+            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
+            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
         }
-        val pos = snappedPoints.getOrNull(i) ?: LatLng.from(p.lat, p.lng)
-        addMarkerAt(context, pos, icon, i)
+        addMarkerAt(
+            context = context,
+            position = snappedPoints.getOrNull(index)
+                ?: LatLng.from(waypoint.point.lat, waypoint.point.lng),
+            iconRes = icon,
+            index = waypoint.sequence,
+        )
     }
     if (routePoints.size >= 2) drawRouteLine(routePoints)
 }
@@ -141,45 +133,10 @@ fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int) {
     moveCamera(CameraUpdateFactory.newCenterPosition(position, zoomLevel), CameraAnimation.from(400))
 }
 
-// primary500 = #6C5CFF
-private const val CHIP_BG_COLOR = 0xFF6C5CFF.toInt()
+private const val CHIP_BG_COLOR = 0xFF7062FF.toInt()
 private const val CHIP_TEXT_SIZE_SP = 12f
 private const val CHIP_PADDING_H_DP = 10f
 private const val CHIP_PADDING_V_DP = 4f
-
-/**
- * 필터링된 코스 목록의 출발지에 장소 칩(이름 라벨)을 지도에 표시한다.
- * 이전 레이블은 모두 제거된 뒤 다시 그린다.
- * 칩 탭 이벤트는 [KakaoMap.setOnLabelClickListener]로 처리하고,
- * 각 라벨의 tag 에 course.id 를 저장한다.
- */
-fun KakaoMap.renderCourseChips(context: Context, courses: List<Course>) {
-    clearCourse()
-    val density = context.resources.displayMetrics.density
-    val parkingBitmap by lazy { context.vectorToBitmap(R.drawable.ic_pin_parking, sizeDp = 34) }
-    courses.forEach { course ->
-        val bitmap = if (course.isParking) {
-            parkingBitmap
-        } else {
-            createCourseChipBitmap(course.courseNickname, density)
-        }
-        addChipAt(
-            context = context,
-            position = LatLng.from(course.startWaypoint.lat, course.startWaypoint.lng),
-            bitmap = bitmap,
-            tag = course.id,
-        )
-    }
-}
-
-private fun KakaoMap.addChipAt(context: Context, position: LatLng, bitmap: Bitmap, tag: Int) {
-    val manager = labelManager ?: return
-    val layer = detailLabelLayer() ?: return
-    val style = LabelStyle.from(bitmap)
-    val styles = manager.addLabelStyles(LabelStyles.from(style))
-    val options = LabelOptions.from(position).setStyles(styles).setTag(tag)
-    layer.addLabel(options)
-}
 
 internal fun createCourseChipBitmap(text: String, density: Float): Bitmap {
     val paddingH = (CHIP_PADDING_H_DP * density)

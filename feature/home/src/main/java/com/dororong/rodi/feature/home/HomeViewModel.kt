@@ -2,17 +2,24 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.course.Course
-import com.dororong.rodi.core.domain.model.navi.NaviApp
-import com.dororong.rodi.core.domain.model.course.RouteResult
-import com.dororong.rodi.core.domain.usecase.course.GetCoursesUseCase
-import com.dororong.rodi.core.domain.usecase.entry.GetLocationPermissionRequestedUseCase
-import com.dororong.rodi.core.domain.usecase.entry.MarkLocationPermissionRequestedUseCase
-import com.dororong.rodi.feature.home.map.MapViewport
-import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.place.CursorPage
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
+import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,126 +28,370 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
+
+private const val PLACE_PAGE_SIZE = 20
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    getCoursesUseCase: GetCoursesUseCase,
+    private val getPlaceCoordinatesUseCase: GetPlaceCoordinatesUseCase,
+    private val getPlacesUseCase: GetPlacesUseCase,
+    private val getPlaceDetailUseCase: GetPlaceDetailUseCase,
     private val getRouteUseCase: GetRouteUseCase,
+    private val setPlaceBookmarkUseCase: SetPlaceBookmarkUseCase,
+    private val getAuthSessionUseCase: GetAuthSessionUseCase,
+    private val loginWithKakaoUseCase: LoginWithKakaoUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
-    getLocationPermissionRequested: GetLocationPermissionRequestedUseCase,
-    private val markLocationPermissionRequestedUseCase: MarkLocationPermissionRequestedUseCase,
 ) : ViewModel() {
 
-    private val allCourses = getCoursesUseCase()
-
-    data class UiState(
-        val courses: List<Course> = emptyList(),
-        val selectedCourseId: Int? = null,
-        val routeByCourse: Map<Int, RouteResult> = emptyMap(),
-        val routingCourseIds: Set<Int> = emptySet(),
-    ) {
-        val selectedCourse: Course? get() = courses.firstOrNull { it.id == selectedCourseId }
-        val selectedRoute: RouteResult? get() = selectedCourseId?.let { routeByCourse[it] }
-        val isRouting: Boolean get() = selectedCourseId in routingCourseIds
-    }
-
-    private val _state = MutableStateFlow(UiState(courses = allCourses))
-    val state: StateFlow<UiState> = _state.asStateFlow()
+    private val _state = MutableStateFlow(HomeUiState())
+    val state: StateFlow<HomeUiState> = _state.asStateFlow()
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
-    val hasRequestedLocationPermission: Flow<Boolean> = getLocationPermissionRequested()
 
-    fun markLocationPermissionRequested() {
-        viewModelScope.launch { markLocationPermissionRequestedUseCase() }
+    private var firstPageJob: Job? = null
+    private var nextPageJob: Job? = null
+    private var detailJob: Job? = null
+    private var routeJob: Job? = null
+    private var requestGeneration = 0L
+    private var lastFirstPageKey: PlaceRequestKey? = null
+
+    init {
+        loadCoordinates()
     }
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
-            is HomeIntent.OnCourseClick -> onCourseClick(intent.id)
-            HomeIntent.OnDismissDetail -> onDismissDetail()
-            is HomeIntent.OnMapSearch -> onMapSearch(intent.viewport)
+            is HomeIntent.OnViewportSettled -> loadInitialViewport(intent.query)
+            is HomeIntent.OnResearch -> loadFirstPage(intent.query, force = true)
+            HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
+            HomeIntent.OnListExpand -> _state.update { it.copy(surfaceState = HomeSurfaceState.FullList) }
+            HomeIntent.OnListCollapse -> collapseList()
+            HomeIntent.OnLoadNextPage -> loadNextPage()
+            is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
+            HomeIntent.OnDismissDetail -> dismissDetail()
+            HomeIntent.OnBookmarkClick -> toggleBookmark()
+            HomeIntent.OnMyClick -> openMyPage()
+            HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+            is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
+            is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
         }
     }
 
-    private fun onDismissDetail() {
-        _state.update { it.copy(selectedCourseId = null) }
+    private fun loadCoordinates() {
+        viewModelScope.launch {
+            getPlaceCoordinatesUseCase()
+                .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
+                .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
+        }
     }
 
-    private fun onCourseClick(id: Int) {
-        val current = _state.value
-        if (current.selectedCourseId == id) return
-        _state.update { it.copy(selectedCourseId = id) }
+    private fun loadInitialViewport(query: PlaceViewportQuery) {
+        if (_state.value.searchedQuery == null) loadFirstPage(query, force = false)
+    }
 
-        if (current.routeByCourse.containsKey(id) || id in current.routingCourseIds) return
-        val course = current.courses.firstOrNull { it.id == id } ?: return
-        if (course.isParking) return
-        _state.update { it.copy(routingCourseIds = it.routingCourseIds + id) }
-        viewModelScope.launch {
-            getRouteUseCase(course)
-                .onSuccess { result ->
-                    _state.update {
-                        it.copy(
-                            routeByCourse = it.routeByCourse + (id to result),
-                            routingCourseIds = it.routingCourseIds - id,
+    private fun loadFirstPage(query: PlaceViewportQuery, force: Boolean) {
+        val key = PlaceRequestKey(query, cursor = null)
+        if (!force && key == lastFirstPageKey) return
+        if (key == lastFirstPageKey && firstPageJob?.isActive == true) return
+        lastFirstPageKey = key
+        requestGeneration += 1
+        val generation = requestGeneration
+        firstPageJob?.cancel()
+        nextPageJob?.cancel()
+        firstPageJob = viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    listState = if (it.places.isEmpty()) HomeListState.Loading else it.listState,
+                    isNextPageLoading = false,
+                )
+            }
+            getPlacesUseCase(query, cursor = null, size = PLACE_PAGE_SIZE)
+                .onSuccess { page ->
+                    if (generation != requestGeneration) return@onSuccess
+                    applyFirstPage(query, page)
+                }
+                .onFailure { error ->
+                    if (generation != requestGeneration) return@onFailure
+                    _state.update { current ->
+                        current.copy(
+                            listState = if (current.places.isEmpty()) HomeListState.InitialError else current.listState,
                         )
                     }
-                }
-                .onFailure {
-                    _state.update { it.copy(routingCourseIds = it.routingCourseIds - id) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
     }
 
-    private fun onMapSearch(viewport: MapViewport) {
+    private fun applyFirstPage(query: PlaceViewportQuery, page: CursorPage<PlaceSummary>) {
+        val uniqueItems = page.items.distinctBy(PlaceSummary::id)
         _state.update {
             it.copy(
-                courses = allCourses.filter { course ->
-                    course.startWaypoint.lat in viewport.southWest.lat..viewport.northEast.lat &&
-                        course.startWaypoint.lng in viewport.southWest.lng..viewport.northEast.lng
+                places = uniqueItems,
+                listState = if (uniqueItems.isEmpty()) HomeListState.Empty else HomeListState.Content,
+                hasNextPage = page.hasNext,
+                nextCursor = page.nextCursor,
+                totalCount = page.totalCount,
+                searchedQuery = query,
+                isNextPageLoading = false,
+            )
+        }
+    }
+
+    private fun loadNextPage() {
+        val current = _state.value
+        val query = current.searchedQuery ?: return
+        val cursor = current.nextCursor ?: return
+        if (!current.hasNextPage || current.isNextPageLoading || nextPageJob?.isActive == true) return
+        val generation = requestGeneration
+        nextPageJob = viewModelScope.launch {
+            _state.update { it.copy(isNextPageLoading = true) }
+            getPlacesUseCase(query, cursor = cursor, size = PLACE_PAGE_SIZE)
+                .onSuccess { page ->
+                    if (generation != requestGeneration) return@onSuccess
+                    _state.update { latest ->
+                        val merged = (latest.places + page.items).distinctBy(PlaceSummary::id)
+                        latest.copy(
+                            places = merged,
+                            listState = if (merged.isEmpty()) HomeListState.Empty else HomeListState.Content,
+                            hasNextPage = page.hasNext,
+                            nextCursor = page.nextCursor,
+                            isNextPageLoading = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    if (generation != requestGeneration) return@onFailure
+                    _state.update { it.copy(isNextPageLoading = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun openPlace(placeId: Long, origin: HomeDetailOrigin) {
+        detailJob?.cancel()
+        detailJob = viewModelScope.launch {
+            if (!isLoggedIn()) {
+                requireLogin(PendingHomeAction.OpenDetail(placeId, origin))
+                return@launch
+            }
+            _state.update {
+                it.copy(
+                    selectedPlaceId = placeId,
+                    selectedPlace = null,
+                    selectedRoute = null,
+                    detailOrigin = origin,
+                    isDetailLoading = true,
+                    surfaceState = HomeSurfaceState.Detail,
+                )
+            }
+            getPlaceDetailUseCase(placeId)
+                .onSuccess { detail ->
+                    if (_state.value.selectedPlaceId == placeId) {
+                        _state.update { it.copy(selectedPlace = detail, isDetailLoading = false) }
+                        loadRoute(detail)
+                    }
+                }
+                .onFailure { error ->
+                    if (_state.value.selectedPlaceId == placeId) {
+                        _state.update { current ->
+                            current.copy(
+                                selectedPlaceId = null,
+                                selectedPlace = null,
+                                selectedRoute = null,
+                                detailOrigin = null,
+                                isDetailLoading = false,
+                                surfaceState = if (origin == HomeDetailOrigin.List) {
+                                    HomeSurfaceState.PartialList
+                                } else {
+                                    HomeSurfaceState.Navigation
+                                },
+                            )
+                        }
+                    }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun resumePendingAction(action: PendingHomeAction) {
+        when (action) {
+            is PendingHomeAction.OpenDetail -> openPlace(action.placeId, action.origin)
+            PendingHomeAction.ToggleBookmark -> toggleBookmark()
+            PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
+        }
+    }
+
+    private fun dismissDetail() {
+        val destination = if (_state.value.detailOrigin == HomeDetailOrigin.List) {
+            HomeSurfaceState.PartialList
+        } else {
+            HomeSurfaceState.Navigation
+        }
+        detailJob?.cancel()
+        routeJob?.cancel()
+        _state.update {
+            it.copy(
+                selectedPlaceId = null,
+                selectedPlace = null,
+                selectedRoute = null,
+                isRouting = false,
+                detailOrigin = null,
+                isDetailLoading = false,
+                surfaceState = destination,
+            )
+        }
+    }
+
+    private fun loadRoute(place: PlaceDetail) {
+        if (place.course == null) return
+        routeJob?.cancel()
+        routeJob = viewModelScope.launch {
+            _state.update { it.copy(isRouting = true) }
+            getRouteUseCase(place)
+                .onSuccess { route ->
+                    if (_state.value.selectedPlaceId == place.id) {
+                        _state.update { it.copy(selectedRoute = route, isRouting = false) }
+                    }
+                }
+                .onFailure {
+                    if (_state.value.selectedPlaceId == place.id) {
+                        _state.update { it.copy(isRouting = false) }
+                    }
+                }
+        }
+    }
+
+    private fun toggleBookmark() {
+        val place = _state.value.selectedPlace ?: return
+        if (_state.value.isBookmarkUpdating) return
+        viewModelScope.launch {
+            if (!isLoggedIn()) {
+                requireLogin(PendingHomeAction.ToggleBookmark)
+                return@launch
+            }
+            val target = !place.isBookmarked
+            _state.update { it.copy(isBookmarkUpdating = true) }
+            setPlaceBookmarkUseCase(place, target)
+                .onSuccess {
+                    _state.update { current ->
+                        current.copy(
+                            selectedPlace = current.selectedPlace?.copy(
+                                isBookmarked = target,
+                                bookmarkCount = (current.selectedPlace.bookmarkCount + if (target) 1 else -1)
+                                    .coerceAtLeast(0),
+                            ),
+                            isBookmarkUpdating = false,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isBookmarkUpdating = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun openMyPage() {
+        viewModelScope.launch {
+            if (isLoggedIn()) {
+                _effect.send(HomeEffect.NavigateMyPage)
+            } else {
+                requireLogin(PendingHomeAction.OpenMyPage)
+            }
+        }
+    }
+
+    private fun requireLogin(action: PendingHomeAction) {
+        _state.update { it.copy(pendingAction = action, isLoginInProgress = false) }
+    }
+
+    private fun loginWithKakao(accessToken: String) {
+        val action = _state.value.pendingAction ?: return
+        if (_state.value.isLoginInProgress) return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoginInProgress = true) }
+            loginWithKakaoUseCase(accessToken)
+                .onSuccess {
+                    if (_state.value.pendingAction == action) {
+                        _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+                        resumePendingAction(action)
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isLoginInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun onKakaoLoginFailed(message: String) {
+        if (message.contains("취소")) {
+            _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+        } else {
+            _state.update { it.copy(isLoginInProgress = false) }
+            viewModelScope.launch { _effect.send(HomeEffect.ShowSnackbar(message)) }
+        }
+    }
+
+    private fun collapseList() {
+        _state.update {
+            it.copy(
+                surfaceState = when (it.surfaceState) {
+                    HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
+                    HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
+                    else -> it.surfaceState
                 },
             )
         }
     }
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
+        val place = _state.value.selectedPlace ?: return
         viewModelScope.launch {
             val savedApp = getNaviAlwaysUseCase()
             when {
                 savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
-                    _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
-
+                    _effect.send(HomeEffect.LaunchKakaoMap(place))
                 savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
-                    _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
-
+                    _effect.send(HomeEffect.LaunchKakaoNavi(place))
                 intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
-                    _effect.send(HomeEffect.ShowNaviPicker(intent.course))
-
-                intent.kakaoMapInstalled -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
-                intent.kakaoNaviInstalled -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
-                else -> _effect.send(HomeEffect.ShowInstallNaviPicker(intent.course))
+                    _effect.send(HomeEffect.ShowNaviPicker(place))
+                intent.kakaoMapInstalled -> _effect.send(HomeEffect.LaunchKakaoMap(place))
+                intent.kakaoNaviInstalled -> _effect.send(HomeEffect.LaunchKakaoNavi(place))
+                else -> _effect.send(HomeEffect.ShowInstallNaviPicker(place))
             }
         }
     }
 
     private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
+        val place = _state.value.selectedPlace ?: return
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
             when (intent.app) {
-                NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(intent.course))
-                NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(intent.course))
+                NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(place))
+                NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(place))
             }
         }
     }
 
     private fun onInstallNaviAppSelected(intent: HomeIntent.OnInstallNaviAppSelected) {
-        viewModelScope.launch {
-            _effect.send(HomeEffect.OpenNaviInstallPage(intent.app))
-        }
+        viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
+
+    private suspend fun isLoggedIn(): Boolean = runCatching { getAuthSessionUseCase() }
+        .getOrDefault(AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false))
+        .isLoggedIn
 }
+
+internal data class PlaceRequestKey(
+    val query: PlaceViewportQuery,
+    val cursor: String?,
+)
+
+private fun Throwable.userMessage(): String = message?.takeIf(String::isNotBlank)
+    ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."

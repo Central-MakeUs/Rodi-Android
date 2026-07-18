@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.component.sheet
+package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -19,28 +19,35 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
 @Composable
-fun CourseEmptyContent() {
+fun PlaceEmptyContent(
+    isInitialError: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(330.dp),
+            .height(332.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(
             painter = painterResource(R.drawable.illust_course_empty),
             contentDescription = null,
-            modifier = Modifier.size(60.dp),
+            modifier = Modifier.size(80.dp),
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
-            text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
+            text = if (isInitialError) "장소를 불러오지 못했어요." else "추천할 수 있는 장소를 찾지 못했어요.",
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.gray800,
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
-            text = "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요.",
+            text = if (isInitialError) {
+                "네트워크 연결을 확인하고\n잠시 후 다시 시도해주세요."
+            } else {
+                "지도를 축소시켜, 전체 지역의\n추천 장소를 둘러보세요."
+            },
             style = RodiTheme.typography.body3Medium,
             color = RodiTheme.colors.gray800,
             textAlign = TextAlign.Center,
@@ -48,8 +55,14 @@ fun CourseEmptyContent() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 380)
+@Preview(name = "Place empty", showBackground = true, widthDp = 375, heightDp = 380)
 @Composable
-private fun CourseEmptyContentPreview() {
-    RodiTheme { CourseEmptyContent() }
+private fun PlaceEmptyPreview() {
+    RodiTheme { PlaceEmptyContent(false) }
+}
+
+@Preview(name = "Place initial error", showBackground = true, widthDp = 375, heightDp = 380)
+@Composable
+private fun PlaceErrorPreview() {
+    RodiTheme { PlaceEmptyContent(true) }
 }

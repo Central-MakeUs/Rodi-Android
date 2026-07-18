@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.component
+package com.dororong.rodi.feature.home.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,15 +19,15 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
 @Composable
-fun MapResearchButton(
+fun MapListButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.semantics { contentDescription = "이 지역 재검색" },
+        modifier = modifier.semantics { contentDescription = "목록 열기" },
         onClick = onClick,
         shape = RoundedCornerShape(20.dp),
-        color = RodiTheme.colors.gray900,
+        color = RodiTheme.colors.white,
         shadowElevation = 2.dp,
     ) {
         Row(
@@ -36,14 +36,14 @@ fun MapResearchButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_rotate_cw),
+                painter = painterResource(R.drawable.ic_list),
                 contentDescription = null,
-                tint = RodiTheme.colors.white,
+                tint = RodiTheme.colors.gray900,
             )
             Text(
-                text = "재검색",
+                text = "목록열기",
                 style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.white,
+                color = RodiTheme.colors.gray900,
             )
         }
     }
@@ -51,8 +51,6 @@ fun MapResearchButton(
 
 @Preview(showBackground = true, widthDp = 360)
 @Composable
-private fun MapResearchButtonPreview() {
-    RodiTheme {
-        MapResearchButton(onClick = {})
-    }
+private fun MapListButtonPreview() {
+    RodiTheme { MapListButton(onClick = {}) }
 }
