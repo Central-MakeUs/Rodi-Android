@@ -96,8 +96,7 @@ import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
 import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
-import com.dororong.rodi.feature.home.map.animateParkingMarkerSelection
-import com.dororong.rodi.feature.home.map.animateParkingMarkerDeselection
+import com.dororong.rodi.feature.home.map.deselectParkingMarker
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
@@ -112,6 +111,7 @@ import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
+import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
@@ -263,27 +263,18 @@ fun HomeScreen(
 
     val dismissDetail: () -> Unit = {
         val place = state.selectedPlace
-        val shouldReverseParking = place?.type == PlaceType.PARKING
-        val dismissed = if (shouldReverseParking) {
-            kakaoMap?.animateParkingMarkerDeselection(context, place.id) {
-                vm.onIntent(HomeIntent.OnDismissDetail)
-            } == true
-        } else {
-            false
+        if (place?.type == PlaceType.PARKING) {
+            kakaoMap?.deselectParkingMarker(context, place.id)
         }
-        if (!dismissed) vm.onIntent(HomeIntent.OnDismissDetail)
+        vm.onIntent(HomeIntent.OnDismissDetail)
     }
     val dismissLogin: () -> Unit = {
         val pendingPlaceId = (state.pendingAction as? PendingHomeAction.OpenDetail)?.placeId
         val isPendingParking = state.coordinates.firstOrNull { it.id == pendingPlaceId }?.type == PlaceType.PARKING
-        val reversed = if (pendingPlaceId != null && isPendingParking) {
-            kakaoMap?.animateParkingMarkerDeselection(context, pendingPlaceId) {
-                vm.onIntent(HomeIntent.OnDismissLogin)
-            } == true
-        } else {
-            false
+        if (pendingPlaceId != null && isPendingParking) {
+            kakaoMap?.deselectParkingMarker(context, pendingPlaceId)
         }
-        if (!reversed) vm.onIntent(HomeIntent.OnDismissLogin)
+        vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
     BackHandler(enabled = state.surfaceState != HomeSurfaceState.Navigation) {
@@ -391,7 +382,7 @@ fun HomeScreen(
             PlaceType.PARKING -> {
                 val coordinate = state.coordinates.firstOrNull { it.id == place.id }
                 if (coordinate != null) {
-                    if (!map.animateParkingMarkerSelection(context, coordinate.id)) {
+                    if (!map.selectParkingMarker(context, coordinate.id)) {
                         map.renderSelectedParkingMarker(context, coordinate)
                     }
                     map.focusOn(LatLng.from(coordinate.point.lat, coordinate.point.lng), 15)
@@ -543,7 +534,7 @@ fun HomeScreen(
                                                         )
                                                         is BrowseLabelTag.Place -> {
                                                             if (state.coordinates.firstOrNull { it.id == tag.id }?.type == PlaceType.PARKING) {
-                                                                map.animateParkingMarkerSelection(context, tag.id)
+                                                                map.selectParkingMarker(context, tag.id)
                                                             }
                                                             vm.onIntent(HomeIntent.OnPlaceClick(tag.id, HomeDetailOrigin.Map))
                                                         }
