@@ -91,7 +91,7 @@ class PlaceRepositoryImpl @Inject constructor(
         } catch (error: CancellationException) {
             throw error
         } catch (error: AuthException) {
-            throw PlaceException.AuthenticationRequired(error.message ?: "로그인이 필요합니다.")
+            throw PlaceException.AuthenticationRequired(error.message ?: "로그인이 필요합니다.", error)
         }
         return authenticatedRequest(canRefresh = false, block = block)
     }
@@ -123,10 +123,10 @@ private fun ApiEnvelope<*>.toPlaceException(): PlaceException = when {
 private fun Throwable.toPlaceException(): PlaceException = when (this) {
     is PlaceException -> this
     is HttpException -> when (code()) {
-        401 -> PlaceException.AuthenticationRequired(message())
-        404 -> PlaceException.NotFound(message())
-        else -> PlaceException.Unexpected(message())
+        401 -> PlaceException.AuthenticationRequired(message(), this)
+        404 -> PlaceException.NotFound(message(), this)
+        else -> PlaceException.Unexpected(message(), this)
     }
-    is IOException -> PlaceException.Network("네트워크 연결을 확인해주세요.")
-    else -> PlaceException.Unexpected(message ?: "장소 요청에 실패했습니다.")
+    is IOException -> PlaceException.Network("네트워크 연결을 확인해주세요.", this)
+    else -> PlaceException.Unexpected(message ?: "장소 요청에 실패했습니다.", this)
 }

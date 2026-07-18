@@ -40,8 +40,10 @@ class PlaceCacheLocalDataSource @Inject constructor(
     }
 
     suspend fun upsertSummaries(items: List<PlaceSummary>) {
-        dao.upsertSummaries(items.map(PlaceSummary::toEntity))
-        dao.upsertCoordinates(items.map(PlaceSummary::toCoordinateEntity))
+        dao.upsertSummariesWithCoordinates(
+            summaries = items.map(PlaceSummary::toEntity),
+            coordinates = items.map(PlaceSummary::toCoordinateEntity),
+        )
     }
 }
 
@@ -90,5 +92,7 @@ private fun GeoPoint.distanceToMeters(other: GeoPoint): Long {
     val longitudeDelta = Math.toRadians(other.lng - lng)
     val a = sin(latitudeDelta / 2).pow(2) +
         cos(Math.toRadians(lat)) * cos(Math.toRadians(other.lat)) * sin(longitudeDelta / 2).pow(2)
-    return (6_371_000 * 2 * asin(sqrt(a))).toLong()
+    return (EARTH_RADIUS_METERS * 2 * asin(sqrt(a))).toLong()
 }
+
+private const val EARTH_RADIUS_METERS = 6_371_000

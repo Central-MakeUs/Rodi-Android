@@ -14,6 +14,7 @@ import com.dororong.rodi.core.domain.repository.AuthRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -73,6 +74,22 @@ class PlaceRepositoryImplTest {
 
         assertThrowsSuspend<RuntimeException> { repository.setBookmarked(place, true) }
 
+        coVerify(exactly = 0) { local.setBookmarked(any(), any()) }
+    }
+
+    @Test
+    fun `bookmark cancellation is rethrown without side effects`() = runTest {
+        val api = mockk<PlaceApi>()
+        val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
+        val tokenStore = mockk<AuthTokenStore>()
+        val authRepository = mockk<AuthRepository>(relaxed = true)
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery { api.bookmark("Bearer access", 9) } throws CancellationException()
+        val repository = PlaceRepositoryImpl(api, local, tokenStore, authRepository)
+
+        assertThrowsSuspend<CancellationException> { repository.setBookmarked(place(9), true) }
+
+        coVerify(exactly = 0) { authRepository.reissueToken() }
         coVerify(exactly = 0) { local.setBookmarked(any(), any()) }
     }
 

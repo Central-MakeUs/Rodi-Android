@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import com.dororong.rodi.core.data.source.local.database.entity.PlaceCoordinateEntity
 import com.dororong.rodi.core.data.source.local.database.entity.PlaceSummaryEntity
 
@@ -25,6 +26,15 @@ interface PlaceCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSummaries(items: List<PlaceSummaryEntity>)
+
+    @Transaction
+    suspend fun upsertSummariesWithCoordinates(
+        summaries: List<PlaceSummaryEntity>,
+        coordinates: List<PlaceCoordinateEntity>,
+    ) {
+        upsertSummaries(summaries)
+        upsertCoordinates(coordinates)
+    }
 
     @Query("SELECT COUNT(*) FROM place_coordinates")
     suspend fun coordinateCount(): Int
