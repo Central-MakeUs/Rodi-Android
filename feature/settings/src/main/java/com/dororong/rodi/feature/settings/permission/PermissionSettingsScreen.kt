@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +45,6 @@ import com.dororong.rodi.core.ui.permission.LocationPermissionAction
 import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
-import kotlinx.coroutines.launch
 
 @Composable
 fun PermissionSettingsScreen(
@@ -55,7 +53,6 @@ fun PermissionSettingsScreen(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    val coroutineScope = rememberCoroutineScope()
     val hasRequestedLocationPermission by viewModel.hasRequestedLocationPermission
         .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
@@ -86,15 +83,13 @@ fun PermissionSettingsScreen(
                 )
             ) {
                 LocationPermissionAction.RequestSystemPermission -> {
-                    coroutineScope.launch {
-                        viewModel.markLocationPermissionRequested()
-                        requestLocationPermission.launch(
-                            arrayOf(
-                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                Manifest.permission.ACCESS_COARSE_LOCATION,
-                            ),
-                        )
-                    }
+                    viewModel.markLocationPermissionRequested()
+                    requestLocationPermission.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION,
+                        ),
+                    )
                 }
 
                 LocationPermissionAction.OpenAppSettings -> {
