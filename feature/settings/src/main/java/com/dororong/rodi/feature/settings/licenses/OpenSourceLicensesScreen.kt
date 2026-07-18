@@ -6,36 +6,35 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.mikepenz.aboutlibraries.Libs
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
-import com.mikepenz.aboutlibraries.ui.compose.produceLibraries
+import com.mikepenz.aboutlibraries.util.withContext as withLibraryContext
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun OpenSourceLicensesScreen(onBack: () -> Unit) {
-    val context = LocalContext.current
-    val librariesResourceId = context.resources.getIdentifier("aboutlibraries", "raw", context.packageName)
-    val librariesMetadata = remember(librariesResourceId) {
-        librariesResourceId.takeIf { it != 0 }?.let { resourceId ->
-            context.resources.openRawResource(resourceId).use { input -> input.readBytes() }
-        }
-    }
-
     OpenSourceLicensesContent(
         onBack = onBack,
-        librariesMetadata = librariesMetadata,
     )
 }
 
 @Composable
 private fun OpenSourceLicensesContent(
     onBack: () -> Unit,
-    librariesMetadata: ByteArray? = null,
 ) {
+    val context = LocalContext.current
+    val libraries by produceState<Libs?>(initialValue = null, context) {
+        value = withContext(Dispatchers.IO) {
+            Libs.Builder().withLibraryContext(context).build()
+        }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -43,10 +42,9 @@ private fun OpenSourceLicensesContent(
             .navigationBarsPadding(),
     ) {
         SettingsTopBar(title = "오픈소스 라이센스", onBack = onBack)
-        librariesMetadata?.let { metadata ->
-            val libraries by produceLibraries(metadata)
+        libraries?.let {
             LibrariesContainer(
-                libraries = libraries,
+                libraries = it,
                 modifier = Modifier.fillMaxSize(),
             )
         }
