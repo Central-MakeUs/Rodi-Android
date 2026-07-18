@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.mypage.drivinggoal.DRIVING_GOAL_MAX_LENGTH
 
 @Composable
 internal fun DrivingGoalInput(
@@ -46,7 +47,9 @@ internal fun DrivingGoalInput(
     Column(modifier = modifier.fillMaxWidth()) {
         BasicTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = { updatedValue ->
+                if (updatedValue.length <= DRIVING_GOAL_MAX_LENGTH) onValueChange(updatedValue)
+            },
             textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
             cursorBrush = SolidColor(RodiTheme.colors.black),
             singleLine = true,
@@ -89,10 +92,11 @@ internal fun DrivingGoalInput(
 @Composable
 private fun DrivingGoalInputEmptyPreview() {
     RodiTheme {
+        val focusRequester = remember { FocusRequester() }
         DrivingGoalInput(
             value = "",
             onValueChange = {},
-            focusRequester = FocusRequester(),
+            focusRequester = focusRequester,
         )
     }
 }
@@ -101,10 +105,11 @@ private fun DrivingGoalInputEmptyPreview() {
 @Composable
 private fun DrivingGoalInputFilledPreview() {
     RodiTheme {
+        val focusRequester = remember { FocusRequester() }
         DrivingGoalInput(
             value = "복잡한 강남 자신있게 운전하기",
             onValueChange = {},
-            focusRequester = FocusRequester(),
+            focusRequester = focusRequester,
         )
     }
 }
