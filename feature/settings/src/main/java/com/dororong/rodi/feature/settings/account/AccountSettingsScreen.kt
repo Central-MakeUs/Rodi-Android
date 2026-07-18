@@ -31,6 +31,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
+import kotlinx.coroutines.launch
 
 @Composable
 fun AccountSettingsScreen(
@@ -287,14 +289,20 @@ private fun DialogButton(
 @Composable
 fun InquiryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
     InquiryContent(
         onBack = onBack,
+        snackbarHostState = snackbarHostState,
         onEmailClick = {
             try {
                 context.startActivity(
                     Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:yangyunseo71@gmail.com")),
                 )
             } catch (_: ActivityNotFoundException) {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("메일 앱을 열 수 없습니다. yangyunseo71@gmail.com으로 문의해주세요.")
+                }
             }
         },
     )
@@ -304,36 +312,45 @@ fun InquiryScreen(onBack: () -> Unit) {
 private fun InquiryContent(
     onBack: () -> Unit,
     onEmailClick: () -> Unit,
+    snackbarHostState: SnackbarHostState,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = RodiTheme.colors.white,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding(),
-        ) {
-            SettingsTopBar(title = "문의하기", onBack = onBack)
+        Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onEmailClick)
-                    .padding(horizontal = 16.dp, vertical = 24.dp),
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
             ) {
-                Text(
-                    text = "문의 이메일",
-                    style = RodiTheme.typography.body1Medium,
-                    color = RodiTheme.colors.black,
-                )
-                Text(
-                    text = "yangyunseo71@gmail.com로 연락바랍니다.",
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.gray800,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                SettingsTopBar(title = "문의하기", onBack = onBack)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onEmailClick)
+                        .padding(horizontal = 16.dp, vertical = 24.dp),
+                ) {
+                    Text(
+                        text = "문의 이메일",
+                        style = RodiTheme.typography.body1Medium,
+                        color = RodiTheme.colors.black,
+                    )
+                    Text(
+                        text = "yangyunseo71@gmail.com로 연락바랍니다.",
+                        style = RodiTheme.typography.body3Medium,
+                        color = RodiTheme.colors.gray800,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+            )
         }
     }
 }
