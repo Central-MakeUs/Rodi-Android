@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.source.local.database.PlaceCacheLocalDataSource
 import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
 import com.dororong.rodi.core.data.source.local.sample.SamplePlaces
 import com.dororong.rodi.core.domain.model.place.CursorPage
@@ -11,29 +12,46 @@ import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-/** 개발 중 기존 목업 장소를 서버 응답에 추가하는 PlaceRepository decorator. */
-class SamplePlaceRepository @Inject constructor(
+/** Room 캐시를 먼저 읽고 서버 응답으로 갱신하는 PlaceRepository decorator. */
+class CachedPlaceRepository @Inject constructor(
     private val delegate: PlaceRepositoryImpl,
+    private val placeCache: PlaceCacheLocalDataSource,
     private val savedPlaceLocalDataSource: SavedPlaceLocalDataSource,
 ) : PlaceRepository {
-    override suspend fun getCoordinates(): List<PlaceCoordinate> =
-        (runCatching { delegate.getCoordinates() }.getOrDefault(emptyList()) + SamplePlaces.coordinates())
-            .distinctBy(PlaceCoordinate::id)
+    override suspend fun getCoordinates(): List<PlaceCoordinate> {
+        placeCache.seedSamplesIfEmpty()
+        return placeCache.coordinates()
+    }
+
+    override suspend fun refreshCoordinates(): List<PlaceCoordinate> {
+        val coordinates = delegate.getCoordinates()
+        placeCache.upsertCoordinates(coordinates)
+        return getCoordinates()
+    }
 
     override suspend fun getPlaces(
         query: PlaceViewportQuery,
         cursor: String?,
         size: Int,
     ): CursorPage<PlaceSummary> {
-        val page = runCatching { delegate.getPlaces(query, cursor, size) }.getOrElse {
-            CursorPage(emptyList(), hasNext = false, nextCursor = null, totalCount = 0)
-        }
-        if (cursor != null) return page
+        placeCache.seedSamplesIfEmpty()
+        return CursorPage(
+            items = placeCache.summaries(query),
+            hasNext = false,
+            nextCursor = null,
+            totalCount = null,
+        )
+    }
 
-        val samples = SamplePlaces.summaries(query)
+    override suspend fun refreshPlaces(
+        query: PlaceViewportQuery,
+        cursor: String?,
+        size: Int,
+    ): CursorPage<PlaceSummary> {
+        val page = delegate.getPlaces(query, cursor, size)
+        placeCache.upsertSummaries(page.items)
         return page.copy(
-            items = (page.items + samples).distinctBy(PlaceSummary::id),
-            totalCount = page.totalCount?.plus(samples.size),
+            items = placeCache.summaries(query),
         )
     }
 

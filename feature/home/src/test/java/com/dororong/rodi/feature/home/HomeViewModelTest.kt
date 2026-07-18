@@ -17,6 +17,8 @@ import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -52,6 +54,7 @@ class HomeViewModelTest {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), hasNext = false, nextCursor = null, totalCount = 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
@@ -66,12 +69,11 @@ class HomeViewModelTest {
     @Test
     fun `next page removes duplicate ids`() = runTest(dispatcher) {
         val deps = Dependencies()
-        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(
-            CursorPage(listOf(summary(1), summary(2)), true, "next", 3),
-        )
-        coEvery { deps.getPlaces(query(), "next", 20) } returns Result.success(
-            CursorPage(listOf(summary(2), summary(3)), false, null, null),
-        )
+        val firstPage = CursorPage(listOf(summary(1), summary(2)), true, "next", 3)
+        val nextPage = CursorPage(listOf(summary(2), summary(3)), false, null, null)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(firstPage)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(firstPage)
+        coEvery { deps.refreshPlaces(query(), "next", 20) } returns Result.success(nextPage)
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
@@ -106,9 +108,9 @@ class HomeViewModelTest {
     @Test
     fun `successful empty page is distinct from initial failure`() = runTest(dispatcher) {
         val emptyDeps = Dependencies()
-        coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(
-            CursorPage(emptyList(), false, null, 0),
-        )
+        val emptyPage = CursorPage<PlaceSummary>(emptyList(), false, null, 0)
+        coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(emptyPage)
+        coEvery { emptyDeps.refreshPlaces(query(), null, 20) } returns Result.success(emptyPage)
         val emptyVm = emptyDeps.viewModel()
         emptyVm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
@@ -216,7 +218,9 @@ class HomeViewModelTest {
 
 private class Dependencies(loggedIn: Boolean = true) {
     val coordinates = mockk<GetPlaceCoordinatesUseCase>()
+    val refreshCoordinates = mockk<RefreshPlaceCoordinatesUseCase>()
     val getPlaces = mockk<GetPlacesUseCase>()
+    val refreshPlaces = mockk<RefreshPlacesUseCase>()
     val getDetail = mockk<GetPlaceDetailUseCase>()
     val setBookmark = mockk<SetPlaceBookmarkUseCase>()
     val getRoute = mockk<GetRouteUseCase>()
@@ -227,6 +231,8 @@ private class Dependencies(loggedIn: Boolean = true) {
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
+        coEvery { refreshCoordinates() } returns Result.failure(IllegalStateException("offline"))
+        coEvery { refreshPlaces(any(), any(), any()) } returns Result.failure(IllegalStateException("offline"))
         coEvery { authSession() } returns AuthSession(loggedIn, false)
         coEvery { getNaviAlways() } returns null
         coEvery { setNaviAlways(any()) } returns Unit
@@ -234,7 +240,9 @@ private class Dependencies(loggedIn: Boolean = true) {
 
     fun viewModel() = HomeViewModel(
         getPlaceCoordinatesUseCase = coordinates,
+        refreshPlaceCoordinatesUseCase = refreshCoordinates,
         getPlacesUseCase = getPlaces,
+        refreshPlacesUseCase = refreshPlaces,
         getPlaceDetailUseCase = getDetail,
         getRouteUseCase = getRoute,
         setPlaceBookmarkUseCase = setBookmark,

@@ -36,6 +36,8 @@ object SamplePlaces {
         .sortedBy(PlaceSummary::distanceFromMeMeters)
         .toList()
 
+    fun allSummaries(): List<PlaceSummary> = places.map { it.toSummary(it.point) }
+
     fun detail(placeId: Long): PlaceDetail? = places.firstOrNull { it.id == placeId }
 
     fun isSamplePlace(placeId: Long): Boolean = placeId < 0L

@@ -9,7 +9,13 @@ import kotlinx.coroutines.flow.Flow
 
 interface PlaceRepository {
     suspend fun getCoordinates(): List<PlaceCoordinate>
+    suspend fun refreshCoordinates(): List<PlaceCoordinate> = getCoordinates()
     suspend fun getPlaces(query: PlaceViewportQuery, cursor: String?, size: Int): CursorPage<PlaceSummary>
+    suspend fun refreshPlaces(
+        query: PlaceViewportQuery,
+        cursor: String?,
+        size: Int,
+    ): CursorPage<PlaceSummary> = getPlaces(query, cursor, size)
     suspend fun getPlaceDetail(placeId: Long): PlaceDetail
     suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean)
     fun observeSavedPlaces(): Flow<List<PlaceSummary>>

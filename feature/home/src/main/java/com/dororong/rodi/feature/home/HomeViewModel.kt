@@ -16,6 +16,8 @@ import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -34,7 +36,9 @@ private const val PLACE_PAGE_SIZE = 20
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getPlaceCoordinatesUseCase: GetPlaceCoordinatesUseCase,
+    private val refreshPlaceCoordinatesUseCase: RefreshPlaceCoordinatesUseCase,
     private val getPlacesUseCase: GetPlacesUseCase,
+    private val refreshPlacesUseCase: RefreshPlacesUseCase,
     private val getPlaceDetailUseCase: GetPlaceDetailUseCase,
     private val getRouteUseCase: GetRouteUseCase,
     private val setPlaceBookmarkUseCase: SetPlaceBookmarkUseCase,
@@ -87,6 +91,8 @@ class HomeViewModel @Inject constructor(
             getPlaceCoordinatesUseCase()
                 .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
                 .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
+            refreshPlaceCoordinatesUseCase()
+                .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
         }
     }
 
@@ -114,6 +120,7 @@ class HomeViewModel @Inject constructor(
                 .onSuccess { page ->
                     if (generation != requestGeneration) return@onSuccess
                     applyFirstPage(query, page)
+                    refreshFirstPage(query, generation)
                 }
                 .onFailure { error ->
                     if (generation != requestGeneration) return@onFailure
@@ -125,6 +132,19 @@ class HomeViewModel @Inject constructor(
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
+    }
+
+    private suspend fun refreshFirstPage(query: PlaceViewportQuery, generation: Long) {
+        refreshPlacesUseCase(query, cursor = null, size = PLACE_PAGE_SIZE)
+            .onSuccess { page ->
+                if (generation == requestGeneration) applyFirstPage(query, page)
+            }
+            .onFailure { error ->
+                if (generation == requestGeneration && _state.value.places.isEmpty()) {
+                    _state.update { it.copy(listState = HomeListState.InitialError) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+            }
     }
 
     private fun applyFirstPage(query: PlaceViewportQuery, page: CursorPage<PlaceSummary>) {
@@ -150,7 +170,7 @@ class HomeViewModel @Inject constructor(
         val generation = requestGeneration
         nextPageJob = viewModelScope.launch {
             _state.update { it.copy(isNextPageLoading = true) }
-            getPlacesUseCase(query, cursor = cursor, size = PLACE_PAGE_SIZE)
+            refreshPlacesUseCase(query, cursor = cursor, size = PLACE_PAGE_SIZE)
                 .onSuccess { page ->
                     if (generation != requestGeneration) return@onSuccess
                     _state.update { latest ->

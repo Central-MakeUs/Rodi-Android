@@ -4,7 +4,7 @@ import com.dororong.rodi.core.data.repository.AuthRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRepositoryImpl
 import com.dororong.rodi.core.data.repository.EntryRepositoryImpl
 import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
-import com.dororong.rodi.core.data.repository.SamplePlaceRepository
+import com.dororong.rodi.core.data.repository.CachedPlaceRepository
 import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.data.repository.MemberRepositoryImpl
 import com.dororong.rodi.core.domain.repository.AuthRepository
@@ -41,6 +41,6 @@ abstract class DataModule {
     abstract fun bindMemberRepository(impl: MemberRepositoryImpl): MemberRepository
 
     @Binds
-    abstract fun bindPlaceRepository(impl: SamplePlaceRepository): PlaceRepository
+    abstract fun bindPlaceRepository(impl: CachedPlaceRepository): PlaceRepository
 
 }
