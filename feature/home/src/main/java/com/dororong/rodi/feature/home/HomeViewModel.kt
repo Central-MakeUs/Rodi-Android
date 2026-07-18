@@ -2,7 +2,6 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
@@ -21,6 +20,7 @@ import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -194,6 +194,7 @@ class HomeViewModel @Inject constructor(
 
     private fun openPlace(placeId: Long, origin: HomeDetailOrigin) {
         detailJob?.cancel()
+        routeJob?.cancel()
         detailJob = viewModelScope.launch {
             if (!isLoggedIn()) {
                 requireLogin(PendingHomeAction.OpenDetail(placeId, origin))
@@ -204,6 +205,8 @@ class HomeViewModel @Inject constructor(
                     selectedPlaceId = placeId,
                     selectedPlace = null,
                     selectedRoute = null,
+                    isRouting = false,
+                    isBookmarkUpdating = false,
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
@@ -268,7 +271,12 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadRoute(place: PlaceDetail) {
-        if (place.course == null) return
+        if (place.course == null) {
+            _state.update { state ->
+                if (state.selectedPlaceId == place.id) state.copy(isRouting = false) else state
+            }
+            return
+        }
         routeJob?.cancel()
         routeJob = viewModelScope.launch {
             _state.update { it.copy(isRouting = true) }
@@ -299,10 +307,11 @@ class HomeViewModel @Inject constructor(
             setPlaceBookmarkUseCase(place, target)
                 .onSuccess {
                     _state.update { current ->
-                        current.copy(
-                            selectedPlace = current.selectedPlace?.copy(
+                        val selectedPlace = current.selectedPlace
+                        if (selectedPlace?.id != place.id) current else current.copy(
+                            selectedPlace = selectedPlace.copy(
                                 isBookmarked = target,
-                                bookmarkCount = (current.selectedPlace.bookmarkCount + if (target) 1 else -1)
+                                bookmarkCount = (selectedPlace.bookmarkCount + if (target) 1 else -1)
                                     .coerceAtLeast(0),
                             ),
                             isBookmarkUpdating = false,
@@ -310,7 +319,9 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isBookmarkUpdating = false) }
+                    _state.update { current ->
+                        if (current.selectedPlace?.id == place.id) current.copy(isBookmarkUpdating = false) else current
+                    }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -403,9 +414,13 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 
-    private suspend fun isLoggedIn(): Boolean = runCatching { getAuthSessionUseCase() }
-        .getOrDefault(AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false))
-        .isLoggedIn
+    private suspend fun isLoggedIn(): Boolean = try {
+        getAuthSessionUseCase().isLoggedIn
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Throwable) {
+        false
+    }
 }
 
 internal data class PlaceRequestKey(

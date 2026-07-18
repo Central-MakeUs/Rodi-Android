@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
+import android.graphics.Typeface
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -89,6 +91,8 @@ import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.MapClusterer
+import com.dororong.rodi.feature.home.map.MapBitmapStyle
+import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
 import com.dororong.rodi.feature.home.map.MapCoursePoint
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.MapViewport
@@ -131,6 +135,9 @@ import kotlinx.coroutines.launch
 private const val CLUSTER_DISTANCE_DP = 56
 private const val SURFACE_ANIMATION_MILLIS = 300
 
+private fun FontWeight?.toTypefaceStyle(): Int =
+    if (this != null && weight >= FontWeight.SemiBold.weight) Typeface.BOLD else Typeface.NORMAL
+
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit,
@@ -170,8 +177,25 @@ fun HomeScreen(
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
-    val clusterBackground = RodiTheme.colors.primary500.toArgb()
-    val clusterText = RodiTheme.colors.white.toArgb()
+    val colors = RodiTheme.colors
+    val typography = RodiTheme.typography
+    val mapBitmapStyle = with(density) {
+        MapBitmapStyle(
+            courseChipBackgroundColor = colors.primary500.toArgb(),
+            courseChipText = MapBitmapTextStyle(
+                color = colors.white.toArgb(),
+                textSizePx = typography.caption2SemiBold.fontSize.toPx(),
+                typefaceStyle = typography.caption2SemiBold.fontWeight.toTypefaceStyle(),
+            ),
+            clusterBackgroundColor = colors.primary500.toArgb(),
+            clusterText = MapBitmapTextStyle(
+                color = colors.white.toArgb(),
+                textSizePx = typography.body3SemiBold.fontSize.toPx(),
+                typefaceStyle = typography.body3SemiBold.fontWeight.toTypefaceStyle(),
+            ),
+            clusterShadowColor = colors.black.copy(alpha = 0.3f).toArgb(),
+        )
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -334,15 +358,17 @@ fun HomeScreen(
         state.surfaceState,
         mapZoomLevel,
         mapViewSize,
-        clusterBackground,
-        clusterText,
+        mapBitmapStyle,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        if (state.coordinates.isEmpty()) return@LaunchedEffect
+        if (state.coordinates.isEmpty()) {
+            map.clearBrowseLabels()
+            return@LaunchedEffect
+        }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
-            null -> map.renderIndividualMarkers(context, state.coordinates)
+            null -> map.renderIndividualMarkers(context, state.coordinates, mapBitmapStyle)
             else -> {
                 val clusters = if (policy.grid != null) {
                     MapClusterer.clusterInFixedGeoGrid(
@@ -368,8 +394,7 @@ fun HomeScreen(
                     context = context,
                     clusters = clusters,
                     placesById = state.coordinates.associateBy { it.id },
-                    backgroundColor = clusterBackground,
-                    textColor = clusterText,
+                    style = mapBitmapStyle,
                 )
             }
         }

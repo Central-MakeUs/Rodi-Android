@@ -79,7 +79,9 @@ fun Context.currentLocationUpdates(): Flow<LatLng> = callbackFlow {
         .build()
 
     client.lastLocation.addOnSuccessListener { location ->
-        location?.let { trySend(LatLng.from(it.latitude, it.longitude)) }
+        location
+            ?.takeIf(Location::isFreshEnough)
+            ?.let { trySend(LatLng.from(it.latitude, it.longitude)) }
     }
     client.requestLocationUpdates(request, callback, Looper.getMainLooper())
     awaitClose { client.removeLocationUpdates(callback) }

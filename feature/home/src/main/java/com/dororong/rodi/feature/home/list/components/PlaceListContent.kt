@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,14 +39,15 @@ fun PlaceListContent(
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
-    val shouldLoadNext by remember(places.size, listState) {
+    val currentPlaces by rememberUpdatedState(places)
+    val shouldLoadNext by remember(listState) {
         derivedStateOf {
             val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-            places.isNotEmpty() && lastVisible >= places.lastIndex - 5
+            currentPlaces.isNotEmpty() && lastVisible >= currentPlaces.lastIndex - 5
         }
     }
     LaunchedEffect(shouldLoadNext) {
-        if (shouldLoadNext) onLoadNextPage()
+        if (shouldLoadNext && !isNextPageLoading) onLoadNextPage()
     }
 
     LazyColumn(

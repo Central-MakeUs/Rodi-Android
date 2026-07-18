@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import java.util.LinkedList
 
 enum class MapMarkerMode {
     NationalCluster,
@@ -79,7 +80,7 @@ object MapClusterer {
         val unassigned = items
             .filter { it.x in 0..viewportWidth && it.y in 0..viewportHeight }
             .sortedBy(ProjectedMapItem::id)
-            .toMutableList()
+            .let(::LinkedList)
         val minimumDistanceSquared = minimumDistancePx.toLong() * minimumDistancePx
 
         return buildList {

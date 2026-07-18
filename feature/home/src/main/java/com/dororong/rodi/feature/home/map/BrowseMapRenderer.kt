@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
-import androidx.annotation.ColorInt
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import com.dororong.rodi.core.domain.model.course.GeoPoint
@@ -29,12 +28,11 @@ sealed interface BrowseLabelTag {
     data class Place(val id: Long) : BrowseLabelTag
 }
 
-fun KakaoMap.renderClusters(
+internal fun KakaoMap.renderClusters(
     context: Context,
     clusters: List<MapCluster>,
     placesById: Map<Long, PlaceCoordinate>,
-    @ColorInt backgroundColor: Int,
-    @ColorInt textColor: Int,
+    style: MapBitmapStyle,
 ) {
     clearBrowseLabels()
     val manager = labelManager ?: return
@@ -46,8 +44,7 @@ fun KakaoMap.renderClusters(
             val bitmap = createClusterTooltipBitmap(
                 count = cluster.count,
                 density = context.resources.displayMetrics.density,
-                backgroundColor = backgroundColor,
-                textColor = textColor,
+                style = style,
             )
             val styles = manager.addLabelStyles(LabelStyles.from(LabelStyle.from(bitmap)))
             layer.addLabel(
@@ -62,7 +59,15 @@ fun KakaoMap.renderClusters(
                 parkingStyles
             } else {
                 manager.addLabelStyles(
-                    LabelStyles.from(LabelStyle.from(createCourseChipBitmap(place.name, context.resources.displayMetrics.density))),
+                    LabelStyles.from(
+                        LabelStyle.from(
+                            createCourseChipBitmap(
+                                text = place.name,
+                                density = context.resources.displayMetrics.density,
+                                style = style,
+                            ),
+                        ),
+                    ),
                 )
             }
             layer.addLabel(
@@ -110,7 +115,11 @@ fun KakaoMap.renderSelectedParkingMarker(context: Context, parking: PlaceCoordin
     )
 }
 
-fun KakaoMap.renderIndividualMarkers(context: Context, places: List<PlaceCoordinate>) {
+internal fun KakaoMap.renderIndividualMarkers(
+    context: Context,
+    places: List<PlaceCoordinate>,
+    style: MapBitmapStyle,
+) {
     val clusters = places.map { place ->
         MapCluster(
             memberIds = listOf(place.id),
@@ -122,16 +131,14 @@ fun KakaoMap.renderIndividualMarkers(context: Context, places: List<PlaceCoordin
         context = context,
         clusters = clusters,
         placesById = places.associateBy(PlaceCoordinate::id),
-        backgroundColor = 0,
-        textColor = 0,
+        style = style,
     )
 }
 
 private fun createClusterTooltipBitmap(
     count: Int,
     density: Float,
-    @ColorInt backgroundColor: Int,
-    @ColorInt textColor: Int,
+    style: MapBitmapStyle,
 ): Bitmap {
     val horizontalPadding = 10 * density
     val verticalPadding = 4 * density
@@ -140,10 +147,10 @@ private fun createClusterTooltipBitmap(
     val cornerRadius = 8 * density
     val shadowPadding = 3 * density
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = textColor
-        textSize = 14 * density
+        color = style.clusterText.color
+        textSize = style.clusterText.textSizePx
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        typeface = Typeface.create(Typeface.DEFAULT, style.clusterText.typefaceStyle)
     }
     val fontMetrics = textPaint.fontMetrics
     val bubbleHeight = ((fontMetrics.descent - fontMetrics.ascent) + verticalPadding * 2).toInt()
@@ -166,8 +173,8 @@ private fun createClusterTooltipBitmap(
         tailHeight = tailHeight,
     )
     val shadowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = backgroundColor
-        setShadowLayer(1.5f * density, 0f, 0f, 0x4D000000)
+        color = style.clusterBackgroundColor
+        setShadowLayer(1.5f * density, 0f, 0f, style.clusterShadowColor)
     }
     canvas.drawPath(silhouette, shadowPaint)
     shadowPaint.clearShadowLayer()

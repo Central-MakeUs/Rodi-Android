@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Typeface
+import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
@@ -25,7 +26,6 @@ import com.kakao.vectormap.route.RouteLineSegment
 import com.kakao.vectormap.route.RouteLineStyle
 import com.kakao.vectormap.route.RouteLineStyles
 import com.kakao.vectormap.route.RouteLineStylesSet
-import android.graphics.Color as AndroidColor
 
 private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
 private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
@@ -133,20 +133,35 @@ fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int) {
     moveCamera(CameraUpdateFactory.newCenterPosition(position, zoomLevel), CameraAnimation.from(400))
 }
 
-private const val CHIP_BG_COLOR = 0xFF7062FF.toInt()
-private const val CHIP_TEXT_SIZE_SP = 12f
 private const val CHIP_PADDING_H_DP = 10f
 private const val CHIP_PADDING_V_DP = 4f
 
-internal fun createCourseChipBitmap(text: String, density: Float): Bitmap {
+internal data class MapBitmapTextStyle(
+    @param:ColorInt val color: Int,
+    val textSizePx: Float,
+    val typefaceStyle: Int,
+)
+
+internal data class MapBitmapStyle(
+    @param:ColorInt val courseChipBackgroundColor: Int,
+    val courseChipText: MapBitmapTextStyle,
+    @param:ColorInt val clusterBackgroundColor: Int,
+    val clusterText: MapBitmapTextStyle,
+    @param:ColorInt val clusterShadowColor: Int,
+)
+
+internal fun createCourseChipBitmap(
+    text: String,
+    density: Float,
+    style: MapBitmapStyle,
+): Bitmap {
     val paddingH = (CHIP_PADDING_H_DP * density)
     val paddingV = (CHIP_PADDING_V_DP * density)
-    val textSizePx = CHIP_TEXT_SIZE_SP * density
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.textSize = textSizePx
-        typeface = Typeface.DEFAULT
-        color = AndroidColor.WHITE
+        textSize = style.courseChipText.textSizePx
+        typeface = Typeface.create(Typeface.DEFAULT, style.courseChipText.typefaceStyle)
+        color = style.courseChipText.color
         textAlign = Paint.Align.LEFT
     }
 
@@ -161,8 +176,8 @@ internal fun createCourseChipBitmap(text: String, density: Float): Bitmap {
     val canvas = Canvas(bitmap)
 
     val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = CHIP_BG_COLOR
-        style = Paint.Style.FILL
+        color = style.courseChipBackgroundColor
+        this.style = Paint.Style.FILL
     }
     val radius = height / 2f
     canvas.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), radius, radius, bgPaint)
