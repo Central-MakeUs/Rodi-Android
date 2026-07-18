@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,8 +58,9 @@ fun KakaoLoginButton(
                 contentDescription = null,
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(22.dp),
-                tint = if (enabled) Color.Unspecified else Color.Unspecified.copy(alpha = 0.4f),
+                    .size(22.dp)
+                    .alpha(if (enabled) 1f else 0.4f),
+                tint = Color.Unspecified,
             )
             Text(
                 text = "카카오로 시작하기",
