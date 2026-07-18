@@ -17,14 +17,17 @@ class SamplePlaceRepository @Inject constructor(
     private val savedPlaceLocalDataSource: SavedPlaceLocalDataSource,
 ) : PlaceRepository {
     override suspend fun getCoordinates(): List<PlaceCoordinate> =
-        (delegate.getCoordinates() + SamplePlaces.coordinates()).distinctBy(PlaceCoordinate::id)
+        (runCatching { delegate.getCoordinates() }.getOrDefault(emptyList()) + SamplePlaces.coordinates())
+            .distinctBy(PlaceCoordinate::id)
 
     override suspend fun getPlaces(
         query: PlaceViewportQuery,
         cursor: String?,
         size: Int,
     ): CursorPage<PlaceSummary> {
-        val page = delegate.getPlaces(query, cursor, size)
+        val page = runCatching { delegate.getPlaces(query, cursor, size) }.getOrElse {
+            CursorPage(emptyList(), hasNext = false, nextCursor = null, totalCount = 0)
+        }
         if (cursor != null) return page
 
         val samples = SamplePlaces.summaries(query)
