@@ -8,13 +8,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,6 +41,7 @@ import com.dororong.rodi.core.domain.model.place.ParkingFeeInfo
 import com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
@@ -64,7 +63,7 @@ fun ParkingDetailContent(
     var addressExpanded by rememberSaveable(place.id) { mutableStateOf(initialAddressExpanded) }
     var hoursExpanded by rememberSaveable(place.id) { mutableStateOf(initialHoursExpanded) }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         StaticParkingSheetHandle()
 
         Row(
@@ -101,26 +100,22 @@ fun ParkingDetailContent(
                 )
             }
             Spacer(Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .requiredSizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_x),
-                    contentDescription = "닫기",
-                    tint = RodiTheme.colors.black,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
+            RodiIconButton(
+                painter = painterResource(R.drawable.ic_x),
+                onClick = onDismiss,
+                iconSize = 20.dp,
+                touchSize = 48.dp,
+                layoutSize = 23.dp,
+                contentDescription = "닫기",
+                tint = RodiTheme.colors.black,
+            )
         }
 
         Column(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, top = 7.dp, end = 16.dp),
+                .padding(start = 16.dp, top = 7.dp, end = 16.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -311,16 +306,16 @@ private fun ParkingHoursDetails(parking: ParkingPlaceDetail) {
 
 @Composable
 private fun ParkingFeeRows(fee: ParkingFeeInfo?) {
-    fee?.baseMinutes?.let { baseMinutes ->
-        fee.baseFee?.let { baseFee ->
-            ParkingFeeRow("기본요금", "${baseMinutes}분 ${baseFee.won()}")
-        }
-    }
-    fee?.addUnitMinutes?.let { addUnitMinutes ->
-        fee.addUnitFee?.let { addUnitFee ->
-            ParkingFeeRow("추가요금", "${addUnitMinutes}분당 ${addUnitFee.won()}")
-        }
-    }
+    ParkingFeeRow("초기무료", "해당항목없음")
+    ParkingFeeRow(
+        "기본요금",
+        formatParkingRate(fee?.baseMinutes, fee?.baseFee),
+    )
+    ParkingFeeRow(
+        "추가요금",
+        formatParkingRate(fee?.addUnitMinutes, fee?.addUnitFee),
+    )
+    ParkingFeeRow("할증기준시간", "해당항목없음")
 }
 
 @Composable
@@ -375,6 +370,13 @@ private fun DottedDivider(modifier: Modifier = Modifier) {
 
 private fun String?.orMissing(): String = this?.takeIf(String::isNotBlank) ?: "해당항목없음"
 private fun Int.won(): String = "${NumberFormat.getNumberInstance(Locale.KOREA).format(this)}원"
+
+private fun formatParkingRate(minutes: Int?, fee: Int?): String =
+    if (minutes != null && fee != null) {
+        "${minutes}분 ･ ${fee.won()}"
+    } else {
+        "해당항목없음"
+    }
 
 private fun ParkingPlaceDetail.operatingSummary(): String {
     val weekday = operatingHours?.weekday?.replace(" ", "").orEmpty()

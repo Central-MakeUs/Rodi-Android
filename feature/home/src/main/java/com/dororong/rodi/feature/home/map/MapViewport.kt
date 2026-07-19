@@ -8,9 +8,26 @@ import kotlin.math.hypot
 data class MapViewport(
     val northEast: GeoPoint,
     val southWest: GeoPoint,
-)
+) {
+    fun contains(point: GeoPoint): Boolean =
+        point.lat in southWest.lat..northEast.lat && point.lng in southWest.lng..northEast.lng
+}
+
+object InitialViewportSearchPolicy {
+    fun canDispatch(
+        isLocationResolved: Boolean,
+        hasCurrentLocation: Boolean,
+        hasCenteredInitialLocation: Boolean,
+        hasUserMovedMap: Boolean,
+        isInitialLocationCameraMovePending: Boolean,
+    ): Boolean = isLocationResolved &&
+        !isInitialLocationCameraMovePending &&
+        (!hasCurrentLocation || hasCenteredInitialLocation || hasUserMovedMap)
+}
 
 object ViewportSearchThreshold {
+    private const val SEARCH_DISTANCE_RATIO = 0.3
+
     fun isExceeded(
         searchedViewport: MapViewport,
         currentViewport: MapViewport,
@@ -23,9 +40,9 @@ object ViewportSearchThreshold {
         val searchedCenterLongitude = (searchedViewport.northEast.lng + searchedViewport.southWest.lng) / 2
         val currentCenterLatitude = (currentViewport.northEast.lat + currentViewport.southWest.lat) / 2
         val currentCenterLongitude = (currentViewport.northEast.lng + currentViewport.southWest.lng) / 2
-        val horizontalDistance = (currentCenterLongitude - searchedCenterLongitude) / (longitudeSpan / 2)
-        val verticalDistance = (currentCenterLatitude - searchedCenterLatitude) / (latitudeSpan / 2)
-        return hypot(horizontalDistance, verticalDistance) >= 1.0
+        val horizontalDistance = (currentCenterLongitude - searchedCenterLongitude) / longitudeSpan
+        val verticalDistance = (currentCenterLatitude - searchedCenterLatitude) / latitudeSpan
+        return hypot(horizontalDistance, verticalDistance) >= SEARCH_DISTANCE_RATIO
     }
 }
 

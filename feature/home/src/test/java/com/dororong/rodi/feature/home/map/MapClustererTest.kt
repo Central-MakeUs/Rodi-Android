@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class MapClustererTest {
     @Test
     fun `uses a 3 by 5 national grid until zoom 10`() {
-        (7..10).forEach { zoomLevel ->
+        (6..10).forEach { zoomLevel ->
             assertEquals(
                 MapClusterPolicy(
                     mode = MapMarkerMode.NationalCluster,

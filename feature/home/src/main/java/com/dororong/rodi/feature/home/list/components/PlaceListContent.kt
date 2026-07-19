@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -51,9 +52,12 @@ fun PlaceListContent(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(top = topContentPadding, bottom = 8.dp),
+        contentPadding = PaddingValues(bottom = 8.dp),
     ) {
         itemsIndexed(places, key = { _, item -> item.id }) { index, place ->
+            if (index == 0) {
+                Spacer(Modifier.height(topContentPadding))
+            }
             PlaceCard(place = place, onClick = { onPlaceClick(place.id) })
             if (index != places.lastIndex) {
                 HorizontalDivider(

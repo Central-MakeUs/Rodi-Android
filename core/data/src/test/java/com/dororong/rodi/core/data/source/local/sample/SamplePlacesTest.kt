@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.source.local.sample
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -33,5 +34,16 @@ class SamplePlacesTest {
         assertNotNull(detail)
         assertTrue(detail?.course?.waypoints.orEmpty().size >= 2)
         assertFalse(SamplePlaces.isSamplePlace(1L))
+    }
+
+    @Test
+    fun `parking detail keeps fee data from the existing sample`() {
+        val detail = SamplePlaces.detail(-100_002L)
+
+        assertEquals(5, detail?.parking?.feeInfo?.baseMinutes)
+        assertEquals(360, detail?.parking?.feeInfo?.baseFee)
+        assertEquals(5, detail?.parking?.feeInfo?.addUnitMinutes)
+        assertEquals(360, detail?.parking?.feeInfo?.addUnitFee)
+        assertEquals(168_000, detail?.parking?.feeInfo?.monthlyFee)
     }
 }
