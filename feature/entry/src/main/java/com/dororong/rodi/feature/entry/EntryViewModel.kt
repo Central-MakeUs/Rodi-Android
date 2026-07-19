@@ -205,11 +205,7 @@ class EntryViewModel @Inject constructor(
             EntryStep.NICKNAME -> EntryStep.TERMS
             EntryStep.CAREER -> EntryStep.NICKNAME
             EntryStep.PREFERENCE -> EntryStep.CAREER
-            EntryStep.PRECAUTIONS -> if (state.value.drivingPeriod?.isNavigatorLevel == true) {
-                EntryStep.CAREER
-            } else {
-                EntryStep.PREFERENCE
-            }
+            EntryStep.PRECAUTIONS -> return false
             EntryStep.LOCATION -> EntryStep.PRECAUTIONS
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
@@ -251,7 +247,11 @@ class EntryViewModel @Inject constructor(
             when (submissionResult) {
                 OnboardingSubmissionResult.Submitted,
                 OnboardingSubmissionResult.AlreadyCompleted,
-                -> _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+                -> {
+                    _state.update { it.copy(step = EntryStep.PRECAUTIONS) }
+                    persistEntryProgressNow()
+                    _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+                }
 
                 else -> {
                     _state.update { it.copy(onboardingAnalysisState = null) }
@@ -262,18 +262,7 @@ class EntryViewModel @Inject constructor(
     }
 
     fun continueAfterOnboardingAnalysis() {
-        if (state.value.step == EntryStep.CAREER && state.value.drivingPeriod?.isNavigatorLevel == true) {
-            _state.update {
-                it.copy(
-                    step = EntryStep.PRECAUTIONS,
-                    onboardingAnalysisState = null,
-                )
-            }
-            persistEntryProgress()
-        } else {
-            _state.update { it.copy(onboardingAnalysisState = null) }
-            next()
-        }
+        _state.update { it.copy(onboardingAnalysisState = null) }
     }
 
     fun finish() {
@@ -339,6 +328,16 @@ class EntryViewModel @Inject constructor(
                 throw error
             } catch (_: Throwable) {
             }
+        }
+    }
+
+    private suspend fun persistEntryProgressNow() {
+        val progress = currentEntryProgress()
+        try {
+            saveEntryProgressUseCase(progress)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
         }
     }
 
