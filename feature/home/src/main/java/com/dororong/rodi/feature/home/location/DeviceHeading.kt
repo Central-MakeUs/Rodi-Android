@@ -5,6 +5,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.SystemClock
 import android.view.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -12,6 +13,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -29,6 +31,8 @@ fun rememberDeviceHeading(): State<Float?> {
                 private val rotationMatrix = FloatArray(9)
                 private val remappedMatrix = FloatArray(9)
                 private val orientation = FloatArray(3)
+                private var lastPublishedHeading: Float? = null
+                private var lastPublishedAtMillis = 0L
 
                 override fun onSensorChanged(event: SensorEvent) {
                     SensorManager.getRotationMatrixFromVector(rotationMatrix, event.values)
@@ -40,9 +44,22 @@ fun rememberDeviceHeading(): State<Float?> {
                     }
                     SensorManager.remapCoordinateSystem(rotationMatrix, axisX, axisY, remappedMatrix)
                     SensorManager.getOrientation(remappedMatrix, orientation)
-                    heading.value = ((Math.toDegrees(orientation[0].toDouble()) + 360) % 360)
+                    val measuredHeading = ((Math.toDegrees(orientation[0].toDouble()) + 360) % 360)
                         .roundToInt()
                         .toFloat()
+                    val now = SystemClock.elapsedRealtime()
+                    val previousHeading = lastPublishedHeading
+                    if (
+                        previousHeading == null ||
+                        (
+                            angularDistance(measuredHeading, previousHeading) >= HEADING_CHANGE_THRESHOLD_DEGREES &&
+                                now - lastPublishedAtMillis >= HEADING_UPDATE_DEBOUNCE_MILLIS
+                            )
+                    ) {
+                        heading.value = measuredHeading
+                        lastPublishedHeading = measuredHeading
+                        lastPublishedAtMillis = now
+                    }
                 }
 
                 override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
@@ -54,3 +71,9 @@ fun rememberDeviceHeading(): State<Float?> {
 
     return heading
 }
+
+private fun angularDistance(first: Float, second: Float): Float =
+    abs((first - second + 540f) % 360f - 180f)
+
+private const val HEADING_CHANGE_THRESHOLD_DEGREES = 6f
+private const val HEADING_UPDATE_DEBOUNCE_MILLIS = 250L
