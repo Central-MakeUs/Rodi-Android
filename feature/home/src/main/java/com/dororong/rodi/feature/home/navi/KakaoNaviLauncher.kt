@@ -4,7 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import androidx.core.net.toUri
-import com.dororong.rodi.core.domain.model.course.Course
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 import com.kakao.sdk.navi.NaviClient
 import com.kakao.sdk.navi.model.CoordType
 import com.kakao.sdk.navi.model.Location
@@ -25,23 +27,32 @@ object KakaoNaviLauncher {
     private const val MARKET_URL = "market://details?id=$KAKAONAVI_PACKAGE"
     private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAONAVI_PACKAGE"
 
-    fun launch(context: Context, course: Course) {
+    fun launch(context: Context, place: PlaceDetail) {
         if (!NaviClient.instance.isKakaoNaviInstalled(context)) {
             openInstallPage(context)
             return
         }
 
+        val courseWaypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+        val destinationPoint = courseWaypoints
+            .firstOrNull { it.type == PlaceWaypointType.DESTINATION }
         val destination = Location(
-            name = course.destination.name,
-            x = course.destination.lng.toNaviCoordinate(),
-            y = course.destination.lat.toNaviCoordinate(),
+            name = destinationPoint?.name ?: place.name,
+            x = (destinationPoint?.point?.lng ?: place.point.lng).toNaviCoordinate(),
+            y = (destinationPoint?.point?.lat ?: place.point.lat).toNaviCoordinate(),
         )
 
-        val viaList = if (course.isParking) {
+        val viaList = if (place.type == PlaceType.PARKING) {
             emptyList()
         } else {
-            (listOf(course.origin) + course.waypointPoints).map { p ->
-                Location(name = p.name, x = p.lng.toNaviCoordinate(), y = p.lat.toNaviCoordinate())
+            courseWaypoints
+                .filter { it.type == PlaceWaypointType.START || it.type == PlaceWaypointType.VIA }
+                .map { point ->
+                Location(
+                    name = point.name.orEmpty(),
+                    x = point.point.lng.toNaviCoordinate(),
+                    y = point.point.lat.toNaviCoordinate(),
+                )
             }
         }
 

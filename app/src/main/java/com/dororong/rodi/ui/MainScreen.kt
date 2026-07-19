@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.LocalActivity
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -15,10 +17,12 @@ import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeScreen
+import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
 import com.dororong.rodi.feature.mypage.MyPageScreen
 import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
+import dagger.hilt.android.EntryPointAccessors
 
 @Composable
 fun MainScreen(
@@ -26,18 +30,20 @@ fun MainScreen(
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
-    val bottomNavigationDestination = when (currentRoute) {
-        HomeRoute -> RodiBottomNavigationDestination.Home
-        MyPageRoute -> RodiBottomNavigationDestination.My
-        else -> null
+    val activity = LocalActivity.current
+    val kakaoLoginManager = remember(activity) {
+        activity?.let {
+            EntryPointAccessors.fromActivity(it, KakaoLoginManagerEntryPoint::class.java)
+                .kakaoLoginManager()
+        }
     }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         bottomBar = {
-            bottomNavigationDestination?.let { destination ->
+            if (currentRoute == MyPageRoute) {
                 RodiBottomNavigation(
-                    selectedDestination = destination,
+                    selectedDestination = RodiBottomNavigationDestination.My,
                     onHomeClick = {
                         if (currentRoute != HomeRoute) {
                             backStack[backStack.lastIndex] = HomeRoute
@@ -64,7 +70,15 @@ fun MainScreen(
             entryProvider = { key ->
                 when (key) {
                     HomeRoute -> NavEntry(key) {
-                        HomeScreen(onNavigateSettings = { backStack.add(SettingsRoute) })
+                        HomeScreen(
+                            onMyPageClick = {
+                                backStack[backStack.lastIndex] = MyPageRoute
+                            },
+                            onRequestKakaoLogin = { onSuccess, onFailure ->
+                                kakaoLoginManager?.login(onSuccess, onFailure)
+                                    ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
+                            },
+                        )
                     }
                     MyPageRoute -> NavEntry(key) {
                         MyPageScreen(

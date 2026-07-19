@@ -6,8 +6,10 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.core.net.toUri
-import com.dororong.rodi.core.domain.model.course.Course
-import com.dororong.rodi.core.domain.model.course.CoursePoint
+import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 
 /**
  * 코스(출발→경유→목적)를 **카카오맵 앱**으로 보내 지도 위에 경로선을 표시한다.
@@ -25,8 +27,8 @@ object KakaoMapLauncher {
     private const val MARKET_URL = "market://details?id=$KAKAO_MAP_PACKAGE"
     private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAO_MAP_PACKAGE"
 
-    fun launch(context: Context, course: Course) {
-        val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(course).toUri())
+    fun launch(context: Context, place: PlaceDetail) {
+        val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(place).toUri())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
@@ -46,21 +48,29 @@ object KakaoMapLauncher {
     }
 
     /** 출발지(vp) → 경유지(vp2..) → 목적지(ep). 주차장은 목적지만 전달한다. */
-    internal fun buildRouteUri(course: Course): String {
+    internal fun buildRouteUri(place: PlaceDetail): String {
         val params = buildList {
-            if (!course.isParking) {
-                val viaPoints = (listOf(course.origin) + course.waypointPoints).take(MAX_VIA_COUNT)
+            if (place.type == PlaceType.COURSE) {
+                val ordered = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+                val viaPoints = ordered
+                    .filter { it.type == PlaceWaypointType.START || it.type == PlaceWaypointType.VIA }
+                    .map { it.point }
+                    .take(MAX_VIA_COUNT)
                 viaPoints.forEachIndexed { i, point ->
                     val key = if (i == 0) "vp" else "vp${i + 1}" // vp, vp2, vp3, vp4, vp5
                     add("$key=${point.toMapParam()}")
                 }
             }
-            add("ep=${course.destination.toMapParam()}")
+            val destination = place.course?.waypoints.orEmpty()
+                .firstOrNull { it.type == PlaceWaypointType.DESTINATION }
+                ?.point
+                ?: place.point
+            add("ep=${destination.toMapParam()}")
             add("by=car")
         }
         return "kakaomap://route?${params.joinToString("&")}"
     }
 
     /** 카카오맵 좌표 파라미터는 **위도,경도** 순서. */
-    private fun CoursePoint.toMapParam(): String = "$lat,$lng"
+    private fun GeoPoint.toMapParam(): String = "$lat,$lng"
 }

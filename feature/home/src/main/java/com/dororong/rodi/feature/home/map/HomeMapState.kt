@@ -7,7 +7,7 @@ import com.kakao.vectormap.LatLng
 internal const val DEFAULT_ZOOM = 13
 private const val HOME_PREFS = "rodi_home_prefs"
 private const val KEY_HAS_LOADED_MAP = "has_loaded_map"
-internal val SEOUL = LatLng.from(37.5663, 126.9779)
+internal val SEOUL = LatLng.from(37.5665, 126.9780)
 internal var hasLoadedMapInSession = false
 
 internal enum class MapScreenState {
