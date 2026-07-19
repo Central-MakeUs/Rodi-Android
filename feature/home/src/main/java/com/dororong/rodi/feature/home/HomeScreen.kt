@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -51,7 +52,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -143,7 +143,6 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
@@ -160,12 +159,7 @@ private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
-private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
-
-private data class ParkingMapPadding(
-    val placeId: Long,
-    val bottomPx: Int,
-)
+private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
 
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
@@ -212,8 +206,7 @@ fun HomeScreen(
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
-    var parkingDetailSheetHeightPx by remember { mutableIntStateOf(0) }
-    var parkingMapPadding by remember { mutableStateOf<ParkingMapPadding?>(null) }
+    var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -331,9 +324,14 @@ fun HomeScreen(
     }
     val navigationInsetPx = WindowInsets.navigationBars.getBottom(density)
     val navigationInset = with(density) { navigationInsetPx.toDp() }
+    val selectedDetailPlaceId = state.selectedPlace?.id
     val bottomControlOffset = with(density) {
         if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
-            maxOf(68.dp, parkingDetailSheetHeightPx.toDp() + 12.dp - navigationInset)
+            val parkingHeightPx = parkingSheetLayout
+                .takeIf { it.placeId == selectedDetailPlaceId }
+                ?.currentHeightPx
+                ?: 0
+            maxOf(68.dp, parkingHeightPx.toDp() + 12.dp - navigationInset)
         } else if (visibleSheetHeight > 0.dp) {
             maxOf(68.dp, visibleSheetHeight + 12.dp - navigationInset)
         } else {
@@ -343,14 +341,13 @@ fun HomeScreen(
     val listViewportHeight = (
         visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
         ).coerceAtLeast(0.dp)
-    val selectedDetailPlaceId = state.selectedPlace?.id
     val mapContentBottomPaddingPx = when {
         state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
-        state.selectedPlace?.type == PlaceType.PARKING -> parkingMapPadding
-            ?.takeIf { it.placeId == selectedDetailPlaceId }
-            ?.bottomPx
+        state.selectedPlace?.type == PlaceType.PARKING -> parkingSheetLayout
+            .takeIf { it.placeId == selectedDetailPlaceId }
+            ?.initialMapPaddingPx
             ?: 0
         else -> 0
     }
@@ -363,19 +360,16 @@ fun HomeScreen(
         state.selectedPlace?.type,
         state.isDetailLoading,
     ) {
-        parkingMapPadding = null
-        val placeId = selectedDetailPlaceId ?: return@LaunchedEffect
-        if (
-            state.surfaceState != HomeSurfaceState.Detail ||
-            state.selectedPlace?.type != PlaceType.PARKING ||
-            state.isDetailLoading
+        val activeParkingPlaceId = if (
+            state.surfaceState == HomeSurfaceState.Detail &&
+            state.selectedPlace?.type == PlaceType.PARKING &&
+            !state.isDetailLoading
         ) {
-            return@LaunchedEffect
+            selectedDetailPlaceId
+        } else {
+            null
         }
-
-        withFrameNanos { }
-        val initialSheetHeightPx = snapshotFlow { parkingDetailSheetHeightPx }.first { it > 0 }
-        parkingMapPadding = ParkingMapPadding(placeId, initialSheetHeightPx)
+        parkingSheetLayout = parkingSheetLayout.forPlace(activeParkingPlaceId)
     }
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && searchedViewport?.let { searched ->
@@ -890,8 +884,14 @@ fun HomeScreen(
                                         courseDetailSheetHeightPx = it.height
                                     }
                                     PlaceType.PARKING -> Modifier
-                                        .height(PARKING_DETAIL_SHEET_HEIGHT)
-                                        .onSizeChanged { parkingDetailSheetHeightPx = it.height }
+                                        .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                        .onSizeChanged { size ->
+                                            selectedDetailPlaceId?.let { placeId ->
+                                                parkingSheetLayout = parkingSheetLayout
+                                                    .forPlace(placeId)
+                                                    .onMeasured(placeId, size.height)
+                                            }
+                                        }
                                     null -> Modifier
                                 },
                             ),

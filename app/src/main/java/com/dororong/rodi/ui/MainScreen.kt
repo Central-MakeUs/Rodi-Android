@@ -3,6 +3,7 @@ package com.dororong.rodi.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -42,6 +43,28 @@ fun MainScreen(
                 .kakaoLoginManager()
         }
     }
+    val bottomNavigation = remember {
+        movableContentOf {
+            val route = currentRouteState.value
+            RodiBottomNavigation(
+                selectedDestination = if (route == MyPageRoute) {
+                    RodiBottomNavigationDestination.My
+                } else {
+                    RodiBottomNavigationDestination.Home
+                },
+                onHomeClick = {
+                    if (route == HomeRoute) {
+                        homeViewModel.onIntent(HomeIntent.OnListOpen)
+                    } else {
+                        backStack[backStack.lastIndex] = HomeRoute
+                    }
+                },
+                onMyClick = {
+                    if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.OnMyClick)
+                },
+            )
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         NavDisplay(
@@ -63,17 +86,7 @@ fun MainScreen(
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
                             },
                             bottomNavigation = {
-                                if (currentRouteState.value == HomeRoute) {
-                                    RodiBottomNavigation(
-                                        selectedDestination = RodiBottomNavigationDestination.Home,
-                                        onHomeClick = {
-                                            homeViewModel.onIntent(HomeIntent.OnListOpen)
-                                        },
-                                        onMyClick = {
-                                            homeViewModel.onIntent(HomeIntent.OnMyClick)
-                                        },
-                                    )
-                                }
+                                if (currentRouteState.value == HomeRoute) bottomNavigation()
                             },
                             vm = homeViewModel,
                         )
@@ -109,14 +122,7 @@ fun MainScreen(
             },
         )
         if (currentRoute == MyPageRoute) {
-            RodiBottomNavigation(
-                selectedDestination = RodiBottomNavigationDestination.My,
-                onHomeClick = {
-                    backStack[backStack.lastIndex] = HomeRoute
-                },
-                onMyClick = {},
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+            Box(Modifier.align(Alignment.BottomCenter)) { bottomNavigation() }
         }
     }
 }
