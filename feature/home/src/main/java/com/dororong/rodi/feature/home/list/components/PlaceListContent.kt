@@ -46,7 +46,7 @@ fun PlaceListContent(
             currentPlaces.isNotEmpty() && lastVisible >= currentPlaces.lastIndex - 5
         }
     }
-    LaunchedEffect(shouldLoadNext) {
+    LaunchedEffect(shouldLoadNext, isNextPageLoading) {
         if (shouldLoadNext && !isNextPageLoading) onLoadNextPage()
     }
 
