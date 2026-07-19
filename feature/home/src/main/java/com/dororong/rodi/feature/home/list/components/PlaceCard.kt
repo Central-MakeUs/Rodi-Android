@@ -104,7 +104,7 @@ private fun ParkingPlaceCard(place: PlaceSummary) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = place.address,
+            text = place.address.toDistrictAddress(),
             style = RodiTheme.typography.body3Medium,
             color = RodiTheme.colors.gray800,
             maxLines = 1,
@@ -163,6 +163,24 @@ private fun Int.toDistanceText(): String = if (this >= 1_000) {
 }
 
 private fun String.toOpeningTime(): String = substringBefore("-").trim()
+
+private fun String.toDistrictAddress(): String {
+    val tokens = trim().split(Regex("\\s+")).filter(String::isNotBlank)
+    val districtIndex = tokens.indexOfFirst { it.endsWith("군") || it.endsWith("구") }
+    val cityIndex = tokens.indexOfFirst { it.endsWith("시") }
+    val lastAdministrativeIndex = when {
+        districtIndex >= 0 -> districtIndex
+        cityIndex >= 0 -> cityIndex
+        else -> return this
+    }
+    return tokens.take(lastAdministrativeIndex + 1).joinToString(" ") { token ->
+        token
+            .removeSuffix("특별자치시")
+            .removeSuffix("특별시")
+            .removeSuffix("광역시")
+            .ifBlank { token }
+    }
+}
 
 @Preview(name = "Place card - course", showBackground = true, widthDp = 375)
 @Composable

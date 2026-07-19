@@ -81,8 +81,7 @@ private fun AnalysisLoadingContent() {
             model = R.drawable.illust_practice_type_analysis,
             contentDescription = null,
             modifier = Modifier
-                .width(150.dp)
-                .height(80.dp),
+                .width(180.dp),
             contentScale = ContentScale.Fit,
         )
     }

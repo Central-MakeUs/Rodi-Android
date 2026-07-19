@@ -40,7 +40,7 @@ fun DrivingPrecautionsContent(
     onLicenseToggle: () -> Unit,
     onCompanionToggle: () -> Unit,
     onAgreeToggle: () -> Unit,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -144,7 +144,7 @@ private fun DrivingPrecautionsPreview() {
             onLicenseToggle = {},
             onCompanionToggle = {},
             onAgreeToggle = {},
-            onBack = {},
+            onBack = null,
             onComplete = {},
         )
     }

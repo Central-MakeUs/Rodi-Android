@@ -103,6 +103,20 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `restores completed profile at precautions without another submission`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            savedProgress = EntryProgress(step = EntryProgressStep.PRECAUTIONS),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        coVerify(exactly = 0) { saveOnboardingProfileUseCase.submit(any(), any()) }
+    }
+
+    @Test
     fun `next moves through onboarding, precautions, location and stays at location`() {
         val viewModel = testViewModel()
 
@@ -126,7 +140,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `back moves through previous steps and returns false at terms`() {
+    fun `back moves through previous steps and stops at precautions`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.back())
@@ -146,18 +160,8 @@ class EntryViewModelTest {
         assertTrue(viewModel.back())
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
 
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.PREFERENCE, viewModel.step)
-
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.CAREER, viewModel.step)
-
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.NICKNAME, viewModel.step)
-
-        viewModel.openWebView("https://example.com")
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.TERMS, viewModel.step)
+        assertFalse(viewModel.back())
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
     }
 
     @Test
@@ -284,8 +288,8 @@ class EntryViewModelTest {
         viewModel.continueAfterOnboardingAnalysis()
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.CAREER, viewModel.step)
+        assertFalse(viewModel.back())
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
     }
 
     @Test
@@ -417,7 +421,11 @@ class EntryViewModelTest {
     @Test
     fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
-        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        val saveEntryProgressUseCase = testSaveEntryProgressUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            saveEntryProgressUseCase = saveEntryProgressUseCase,
+        )
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
@@ -431,7 +439,14 @@ class EntryViewModelTest {
         advanceTimeBy(1)
         runCurrent()
 
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
         assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        coVerify(exactly = 1) { saveEntryProgressUseCase(any()) }
+
+        viewModel.continueAfterOnboardingAnalysis()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
     }
 
     @Test
@@ -476,6 +491,7 @@ class EntryViewModelTest {
         advanceTimeBy(3_000)
         runCurrent()
 
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
         assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
     }
 
