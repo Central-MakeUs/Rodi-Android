@@ -13,18 +13,18 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
 import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val MAX_CACHED_LOCATION_AGE_MILLIS = 2 * 60 * 1000L
 private const val LOCATION_UPDATE_INTERVAL_MILLIS = 3_000L
 private const val LOCATION_UPDATE_MIN_INTERVAL_MILLIS = 1_000L
 private const val LOCATION_UPDATE_MIN_DISTANCE_METERS = 1f
+const val INITIAL_LOCATION_TIMEOUT_MILLIS = 5_000L
 
 /** 위치 권한(FINE 또는 COARSE)이 하나라도 허용돼 있는지. */
 fun Context.hasLocationPermission(): Boolean {
@@ -34,27 +34,15 @@ fun Context.hasLocationPermission(): Boolean {
 }
 
 /**
- * 현재 위치를 1회 취득한다. 권한이 없거나 위치를 못 받으면 null.
- * 마지막 위치가 있으면 우선 사용하고, 없으면 즉시 측위(getCurrentLocation)를 시도한다.
+ * 유효한 현재 위치를 제한 시간 동안 기다린다. 권한이 없거나 제한 시간을 넘기면 null.
  */
 @SuppressLint("MissingPermission")
-suspend fun Context.awaitCurrentLocation(): LatLng? {
+suspend fun Context.awaitCurrentLocation(
+    timeoutMillis: Long = INITIAL_LOCATION_TIMEOUT_MILLIS,
+): LatLng? {
     if (!hasLocationPermission()) return null
-    val client = LocationServices.getFusedLocationProviderClient(this)
-
-    val last = suspendCancellableCoroutine<Location?> { cont ->
-        client.lastLocation
-            .addOnSuccessListener { loc -> cont.resume(loc) }
-            .addOnFailureListener { cont.resume(null) }
-    }
-    if (last != null && last.isFreshEnough()) return LatLng.from(last.latitude, last.longitude)
-
-    val cts = CancellationTokenSource()
-    return suspendCancellableCoroutine { cont ->
-        client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
-            .addOnSuccessListener { loc -> cont.resume(loc?.let { LatLng.from(it.latitude, it.longitude) }) }
-            .addOnFailureListener { cont.resume(null) }
-        cont.invokeOnCancellation { cts.cancel() }
+    return withTimeoutOrNull(timeoutMillis) {
+        currentLocationUpdates().first()
     }
 }
 
