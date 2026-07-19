@@ -5,6 +5,7 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.PracticeTag
 import com.dororong.rodi.core.domain.model.course.WaypointType
 import com.dororong.rodi.core.domain.model.place.CoursePlaceDetail
+import com.dororong.rodi.core.domain.model.place.ParkingFeeInfo
 import com.dororong.rodi.core.domain.model.place.ParkingOperatingHours
 import com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
@@ -75,7 +76,7 @@ private fun Course.toPlaceDetail(): PlaceDetail {
                 parkingType = parking.parkingType,
                 capacity = parking.capacity,
                 isFree = parking.isFree,
-                feeInfo = null,
+                feeInfo = parking.feeInfo.toParkingFeeInfo(),
                 operatingHours = parking.operatingHours?.let { hours ->
                     ParkingOperatingHours(hours.weekday, hours.saturday, hours.holiday)
                 },
@@ -83,6 +84,26 @@ private fun Course.toPlaceDetail(): PlaceDetail {
         },
     )
 }
+
+private fun String?.toParkingFeeInfo(): ParkingFeeInfo? {
+    val values = this
+        ?.let(SAMPLE_FEE_FIELD_PATTERN::findAll)
+        ?.associate { match -> match.groupValues[1] to match.groupValues[2].toIntOrNull() }
+        .orEmpty()
+    if (values.isEmpty()) return null
+
+    return ParkingFeeInfo(
+        baseMinutes = values["baseMinutes"],
+        baseFee = values["baseFee"],
+        addUnitMinutes = values["addUnitMinutes"],
+        addUnitFee = values["addUnitFee"],
+        dayTicketHours = values["dayTicketHours"],
+        dayTicketFee = values["dayTicketFee"],
+        monthlyFee = values["monthlyFee"],
+    )
+}
+
+private val SAMPLE_FEE_FIELD_PATTERN = Regex("'([A-Za-z]+)':\\s*(None|-?\\d+)")
 
 private fun PlaceDetail.toSummary(origin: GeoPoint) = PlaceSummary(
     id = id,
