@@ -162,7 +162,7 @@ private fun Int.toDistanceText(): String = if (this >= 1_000) {
     "${this}m"
 }
 
-private fun String.toOpeningTime(): String = substringBefore("-")
+private fun String.toOpeningTime(): String = substringBefore("-").trim()
 
 @Preview(name = "Place card - course", showBackground = true, widthDp = 375)
 @Composable

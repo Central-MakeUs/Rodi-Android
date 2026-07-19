@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -82,15 +83,21 @@ fun CourseDetailContent(
                 )
             }
             Spacer(Modifier.width(12.dp))
-            Icon(
-                painter = painterResource(R.drawable.ic_x),
-                contentDescription = "닫기",
-                tint = RodiTheme.colors.black,
+            Box(
                 modifier = Modifier
-                    .size(23.dp)
-                    .clickable(onClick = onDismiss)
-                    .padding(3.5.dp),
-            )
+                    .requiredSizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_x),
+                    contentDescription = "닫기",
+                    tint = RodiTheme.colors.black,
+                    modifier = Modifier
+                        .size(23.dp)
+                        .padding(3.5.dp),
+                )
+            }
         }
 
         Column(
@@ -189,7 +196,7 @@ private fun StaticSheetHandle() {
 
 private fun Int.toDistanceText(): String = if (this >= 1_000) {
     if (this % 1_000 == 0) "${this / 1_000}km" else String.format(Locale.KOREA, "%.1fkm", this / 1_000.0)
-} else "$this m"
+} else "${this}m"
 
 @Preview(name = "Course detail - unsaved", showBackground = true, widthDp = 375, heightDp = 297)
 @Composable

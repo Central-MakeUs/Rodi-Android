@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.ParkingFeeInfo
+import com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -99,14 +101,19 @@ fun ParkingDetailContent(
                 )
             }
             Spacer(Modifier.width(12.dp))
-            Icon(
-                painter = painterResource(R.drawable.ic_x),
-                contentDescription = "닫기",
-                tint = RodiTheme.colors.black,
+            Box(
                 modifier = Modifier
-                    .size(20.dp)
+                    .requiredSizeIn(minWidth = 48.dp, minHeight = 48.dp)
                     .clickable(onClick = onDismiss),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_x),
+                    contentDescription = "닫기",
+                    tint = RodiTheme.colors.black,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
 
         Column(
@@ -293,7 +300,7 @@ private fun AddressDetailRow(label: String, value: String) {
 }
 
 @Composable
-private fun ParkingHoursDetails(parking: com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail) {
+private fun ParkingHoursDetails(parking: ParkingPlaceDetail) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ParkingDetailRow("평일", parking.operatingHours?.weekday.toDisplayHours())
         ParkingDetailRow("토요일", parking.operatingHours?.saturday.toDisplayHours())
@@ -304,24 +311,16 @@ private fun ParkingHoursDetails(parking: com.dororong.rodi.core.domain.model.pla
 
 @Composable
 private fun ParkingFeeRows(fee: ParkingFeeInfo?) {
-    val baseMinutes = fee?.baseMinutes
-    val baseFee = fee?.baseFee
-    val addUnitMinutes = fee?.addUnitMinutes
-    val addUnitFee = fee?.addUnitFee
-    ParkingFeeRow("초기무료", "해당항목없음")
-    ParkingFeeRow(
-        "기본요금",
-        if (baseMinutes != null && baseFee != null) {
-            "${baseMinutes}분 ${baseFee.won()}"
-        } else "해당항목없음",
-    )
-    ParkingFeeRow(
-        "추가요금",
-        if (addUnitMinutes != null && addUnitFee != null) {
-            "${addUnitMinutes}분당 ${addUnitFee.won()}"
-        } else "해당항목없음",
-    )
-    ParkingFeeRow("할증기준시간", "해당항목없음")
+    fee?.baseMinutes?.let { baseMinutes ->
+        fee.baseFee?.let { baseFee ->
+            ParkingFeeRow("기본요금", "${baseMinutes}분 ${baseFee.won()}")
+        }
+    }
+    fee?.addUnitMinutes?.let { addUnitMinutes ->
+        fee.addUnitFee?.let { addUnitFee ->
+            ParkingFeeRow("추가요금", "${addUnitMinutes}분당 ${addUnitFee.won()}")
+        }
+    }
 }
 
 @Composable
@@ -377,7 +376,7 @@ private fun DottedDivider(modifier: Modifier = Modifier) {
 private fun String?.orMissing(): String = this?.takeIf(String::isNotBlank) ?: "해당항목없음"
 private fun Int.won(): String = "${NumberFormat.getNumberInstance(Locale.KOREA).format(this)}원"
 
-private fun com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail.operatingSummary(): String {
+private fun ParkingPlaceDetail.operatingSummary(): String {
     val weekday = operatingHours?.weekday?.replace(" ", "").orEmpty()
     if (weekday.isBlank()) return "영업시간 정보 없음"
     if (weekday.startsWith("00:00") && (weekday.endsWith("23:59") || weekday.endsWith("24:00"))) {
