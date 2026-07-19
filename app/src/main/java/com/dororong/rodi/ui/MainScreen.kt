@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.LocalActivity
@@ -32,6 +33,7 @@ fun MainScreen(
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
+    val currentRouteState = rememberUpdatedState(currentRoute)
     val homeViewModel: HomeViewModel = hiltViewModel()
     val activity = LocalActivity.current
     val kakaoLoginManager = remember(activity) {
@@ -61,7 +63,7 @@ fun MainScreen(
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
                             },
                             bottomNavigation = {
-                                if (currentRoute == HomeRoute) {
+                                if (currentRouteState.value == HomeRoute) {
                                     RodiBottomNavigation(
                                         selectedDestination = RodiBottomNavigationDestination.Home,
                                         onHomeClick = {

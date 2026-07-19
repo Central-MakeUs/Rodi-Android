@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -339,6 +338,7 @@ fun HomeScreen(
         ).coerceAtLeast(0.dp)
     val selectedDetailPlaceId = state.selectedPlace?.id
     val mapContentBottomPaddingPx = when {
+        state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
         state.selectedPlace?.type == PlaceType.PARKING -> parkingMapPadding
@@ -846,7 +846,7 @@ fun HomeScreen(
                                         courseDetailSheetHeightPx = it.height
                                     }
                                     PlaceType.PARKING -> Modifier
-                                        .heightIn(max = PARKING_DETAIL_SHEET_HEIGHT)
+                                        .height(PARKING_DETAIL_SHEET_HEIGHT)
                                         .onSizeChanged { parkingDetailSheetHeightPx = it.height }
                                     null -> Modifier
                                 },
