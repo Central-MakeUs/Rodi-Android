@@ -19,15 +19,15 @@ fun PracticeTagRow(
     modifier: Modifier = Modifier,
     maxTags: Int = 3,
 ) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         types.distinct().take(maxTags).forEach { type ->
             Text(
                 text = type.label,
                 style = RodiTheme.typography.caption1Medium,
-                color = RodiTheme.colors.primary600,
+                color = RodiTheme.colors.gray600,
                 modifier = Modifier
-                    .background(RodiTheme.colors.primary50, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .background(RodiTheme.colors.gray200, RoundedCornerShape(2.dp))
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
             )
         }
     }

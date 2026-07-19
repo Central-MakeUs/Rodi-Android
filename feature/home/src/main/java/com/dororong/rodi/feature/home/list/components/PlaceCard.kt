@@ -1,12 +1,15 @@
 package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,31 +35,74 @@ fun PlaceCard(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = place.name,
-                style = RodiTheme.typography.body1SemiBold,
-                color = RodiTheme.colors.black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
-            )
-            val distanceMeters = place.distanceMeters
-            if (place.type == PlaceType.COURSE && distanceMeters != null) {
+        when (place.type) {
+            PlaceType.COURSE -> CoursePlaceCard(place)
+            PlaceType.PARKING -> ParkingPlaceCard(place)
+        }
+    }
+}
+
+@Composable
+private fun CoursePlaceCard(place: PlaceSummary) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = distanceMeters.toDistanceText(),
-                    style = RodiTheme.typography.body3SemiBold,
-                    color = RodiTheme.colors.primary600,
+                    text = place.name,
+                    style = RodiTheme.typography.body1SemiBold,
+                    color = RodiTheme.colors.black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+                place.distanceMeters?.let { distanceMeters ->
+                    Text(
+                        text = distanceMeters.toDistanceText(),
+                        style = RodiTheme.typography.body3SemiBold,
+                        color = RodiTheme.colors.primary600,
+                    )
+                    Text(
+                        text = "주행거리",
+                        style = RodiTheme.typography.body3Medium,
+                        color = RodiTheme.colors.gray800,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+            PracticeTagRow(place.practiceTypes)
+        }
+        place.description?.takeIf(String::isNotBlank)?.let { description ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(37.dp)
+                    .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
                 Text(
-                    text = " 주행거리",
-                    style = RodiTheme.typography.body3Medium,
+                    text = description,
+                    style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.gray800,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ParkingPlaceCard(place: PlaceSummary) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = place.name,
+            style = RodiTheme.typography.body1SemiBold,
+            color = RodiTheme.colors.black,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
         Text(
             text = place.address,
             style = RodiTheme.typography.body3Medium,
@@ -64,40 +110,46 @@ fun PlaceCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        PracticeTagRow(place.practiceTypes)
-        if (place.type == PlaceType.COURSE) {
-            place.description?.takeIf(String::isNotBlank)?.let { description ->
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PracticeTagRow(types = place.practiceTypes, maxTags = 1)
+            place.openTime?.let { openTime ->
                 Text(
-                    text = description,
-                    style = RodiTheme.typography.caption1Regular,
-                    color = RodiTheme.colors.gray700,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 2.dp),
+                    text = "･",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
+                )
+                Text(
+                    text = openTime.toOpeningTime(),
+                    style = RodiTheme.typography.body3SemiBold,
+                    color = RodiTheme.colors.primary600,
+                )
+                Text(
+                    text = "에 영업 시작",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
                 )
             }
-        } else {
+        }
+        place.capacity?.let { capacity ->
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                place.openTime?.let { openTime ->
-                    Text(
-                        text = "$openTime 영업 시작",
-                        style = RodiTheme.typography.body3SemiBold,
-                        color = RodiTheme.colors.primary600,
-                    )
-                }
-                if (place.openTime != null && place.capacity != null) {
-                    Text("·", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
-                }
-                place.capacity?.let { capacity ->
-                    Text(
-                        text = "총 ${NumberFormat.getNumberInstance(Locale.KOREA).format(capacity)}면",
-                        style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.gray800,
-                    )
-                }
-                Spacer(Modifier.weight(1f))
+                Text(
+                    text = "총 주차 면수",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
+                )
+                Text(
+                    text = "･",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
+                )
+                Text(
+                    text = "${NumberFormat.getNumberInstance(Locale.KOREA).format(capacity)}대",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray800,
+                )
             }
         }
     }
@@ -109,6 +161,8 @@ private fun Int.toDistanceText(): String = if (this >= 1_000) {
 } else {
     "${this}m"
 }
+
+private fun String.toOpeningTime(): String = substringBefore("-")
 
 @Preview(name = "Place card - course", showBackground = true, widthDp = 375)
 @Composable

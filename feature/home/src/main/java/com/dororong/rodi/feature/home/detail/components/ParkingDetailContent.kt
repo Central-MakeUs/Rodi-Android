@@ -1,21 +1,25 @@
 package com.dororong.rodi.feature.home.detail.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,7 +28,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,78 +63,109 @@ fun ParkingDetailContent(
     var hoursExpanded by rememberSaveable(place.id) { mutableStateOf(initialHoursExpanded) }
 
     Column(modifier = modifier.fillMaxSize()) {
+        StaticParkingSheetHandle()
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 8.dp),
+                .height(24.dp)
+                .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = place.name,
-                style = RodiTheme.typography.headline1,
-                color = RodiTheme.colors.black,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+            Row(
                 modifier = Modifier.weight(1f),
-            )
-            IconButton(onClick = onDismiss) {
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = place.name,
+                    style = RodiTheme.typography.headline1,
+                    color = RodiTheme.colors.black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Spacer(Modifier.width(4.dp))
                 Icon(
-                    painter = painterResource(R.drawable.ic_x),
-                    contentDescription = "닫기",
-                    tint = RodiTheme.colors.black,
-                    modifier = Modifier.size(20.dp),
+                    painter = painterResource(R.drawable.ic_bookmark_detail),
+                    contentDescription = null,
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(Modifier.width(2.dp))
+                Text(
+                    text = place.bookmarkCount.toString(),
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray700,
                 )
             }
+            Spacer(Modifier.width(12.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_x),
+                contentDescription = "닫기",
+                tint = RodiTheme.colors.black,
+                modifier = Modifier
+                    .size(20.dp)
+                    .clickable(onClick = onDismiss),
+            )
         }
 
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(start = 16.dp, top = 7.dp, end = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ExpandableRow(
-                title = place.address,
-                expanded = addressExpanded,
-                onClick = {
-                    addressExpanded = !addressExpanded
-                    if (addressExpanded) hoursExpanded = false
-                },
-            )
-            if (addressExpanded) {
-                InfoRow("도로명", parking.roadAddress.orMissing())
-                InfoRow("지번", parking.lotAddress.orMissing())
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ExpandableTextRow(
+                    title = place.address.toDistrictAddress(),
+                    expanded = addressExpanded,
+                    onClick = {
+                        addressExpanded = !addressExpanded
+                        if (addressExpanded) hoursExpanded = false
+                    },
+                )
+                if (addressExpanded) {
+                    AddressDetails(
+                        roadAddress = parking.roadAddress?.withoutDistrictPrefix().orMissing(),
+                        lotAddress = parking.lotAddress?.withoutDistrictPrefix().orMissing(),
+                    )
+                } else {
+                    ParkingHoursRow(
+                        openingSummary = parking.operatingSummary(),
+                        expanded = hoursExpanded,
+                        onClick = {
+                            hoursExpanded = !hoursExpanded
+                            if (hoursExpanded) addressExpanded = false
+                        },
+                    )
+                    if (hoursExpanded) {
+                        ParkingHoursDetails(parking)
+                    }
+                    InlineInfoRow("총 주차 면수", parking.capacity?.let { "${it}대" }.orMissing())
+                }
             }
-            ExpandableRow(
-                title = parking.parkingType.orMissing(),
-                expanded = hoursExpanded,
-                onClick = {
-                    hoursExpanded = !hoursExpanded
-                    if (hoursExpanded) addressExpanded = false
-                },
-            )
-            if (hoursExpanded) {
-                InfoRow("평일", parking.operatingHours?.weekday.orMissing())
-                InfoRow("토요일", parking.operatingHours?.saturday.orMissing())
-                InfoRow("일요일·공휴일", parking.operatingHours?.holiday.orMissing())
-            }
-            InfoRow("총 주차 면수", parking.capacity?.let { "${it}대" }.orMissing())
-            HorizontalDivider(color = RodiTheme.colors.primary100)
-            Text("요금 안내", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
-            if (parking.isFree) {
-                InfoRow("주차 요금", "무료")
-            } else {
-                ParkingFeeRows(parking.feeInfo)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                HorizontalDivider(color = RodiTheme.colors.gray100)
+                Text("요금 안내", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (parking.isFree) {
+                        ParkingFeeRow("주차 요금", "무료")
+                    } else {
+                        ParkingFeeRows(parking.feeInfo)
+                    }
+                }
             }
         }
 
+        HorizontalDivider(color = RodiTheme.colors.gray200)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             BookmarkButton(place.isBookmarked, onBookmarkClick, !isBookmarkUpdating)
@@ -135,11 +175,26 @@ fun ParkingDetailContent(
 }
 
 @Composable
-private fun ExpandableRow(title: String, expanded: Boolean, onClick: () -> Unit) {
-    Row(
+private fun StaticParkingSheetHandle() {
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .height(24.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 60.dp, height = 4.dp)
+                .clip(RoundedCornerShape(100.dp))
+                .background(RodiTheme.colors.handleBar),
+        )
+    }
+}
+
+@Composable
+private fun ExpandableTextRow(title: String, expanded: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -148,17 +203,102 @@ private fun ExpandableRow(title: String, expanded: Boolean, onClick: () -> Unit)
             color = RodiTheme.colors.gray800,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
         )
         Spacer(Modifier.width(4.dp))
-        Icon(
-            painter = painterResource(R.drawable.ic_chevron_down),
-            contentDescription = if (expanded) "접기" else "펼치기",
-            tint = RodiTheme.colors.gray800,
+        ChevronIcon(expanded)
+    }
+}
+
+@Composable
+private fun ParkingHoursRow(
+    openingSummary: String,
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = "주차",
+            style = RodiTheme.typography.caption1Medium,
+            color = RodiTheme.colors.gray600,
             modifier = Modifier
-                .size(16.dp)
-                .graphicsLayer { rotationZ = if (expanded) 180f else 0f },
+                .background(RodiTheme.colors.gray200, RoundedCornerShape(2.dp))
+                .padding(horizontal = 6.dp, vertical = 2.dp),
         )
+        Spacer(Modifier.width(4.dp))
+        Text("･", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = openingSummary,
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray800,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.width(4.dp))
+        ChevronIcon(expanded)
+    }
+}
+
+@Composable
+private fun ChevronIcon(expanded: Boolean) {
+    Icon(
+        painter = painterResource(R.drawable.ic_chevron_down),
+        contentDescription = if (expanded) "접기" else "펼치기",
+        tint = RodiTheme.colors.gray800,
+        modifier = Modifier
+            .size(14.dp)
+            .graphicsLayer { rotationZ = if (expanded) 180f else 0f },
+    )
+}
+
+@Composable
+private fun InlineInfoRow(label: String, value: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.width(4.dp))
+        Text("･", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.width(4.dp))
+        Text(value, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+    }
+}
+
+@Composable
+private fun AddressDetails(
+    roadAddress: String,
+    lotAddress: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(RodiTheme.colors.primary50, RoundedCornerShape(8.dp))
+            .border(1.dp, RodiTheme.colors.primary200, RoundedCornerShape(8.dp))
+            .padding(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 11.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        AddressDetailRow("도로명", roadAddress)
+        AddressDetailRow("지번", lotAddress)
+    }
+}
+
+@Composable
+private fun AddressDetailRow(label: String, value: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(label, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
+        Text(value, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
+    }
+}
+
+@Composable
+private fun ParkingHoursDetails(parking: com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ParkingDetailRow("평일", parking.operatingHours?.weekday.toDisplayHours())
+        ParkingDetailRow("토요일", parking.operatingHours?.saturday.toDisplayHours())
+        ParkingDetailRow("일요일", parking.operatingHours?.holiday.toDisplayHours())
+        ParkingDetailRow("공휴일", parking.operatingHours?.holiday.toDisplayHours())
     }
 }
 
@@ -168,35 +308,109 @@ private fun ParkingFeeRows(fee: ParkingFeeInfo?) {
     val baseFee = fee?.baseFee
     val addUnitMinutes = fee?.addUnitMinutes
     val addUnitFee = fee?.addUnitFee
-    InfoRow("초기무료", "해당항목없음")
-    InfoRow(
+    ParkingFeeRow("초기무료", "해당항목없음")
+    ParkingFeeRow(
         "기본요금",
         if (baseMinutes != null && baseFee != null) {
             "${baseMinutes}분 ${baseFee.won()}"
         } else "해당항목없음",
     )
-    InfoRow(
+    ParkingFeeRow(
         "추가요금",
         if (addUnitMinutes != null && addUnitFee != null) {
             "${addUnitMinutes}분당 ${addUnitFee.won()}"
         } else "해당항목없음",
     )
-    InfoRow("할증기준시간", "해당항목없음")
-    InfoRow("일일권", fee?.dayTicketFee?.won().orMissing())
-    InfoRow("월정기", fee?.monthlyFee?.won().orMissing())
+    ParkingFeeRow("할증기준시간", "해당항목없음")
 }
 
 @Composable
-private fun InfoRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Text(label, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray700)
-        Spacer(Modifier.weight(1f))
+private fun ParkingFeeRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.width(8.dp))
+        DottedDivider(Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
         Text(value, style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.gray800)
     }
 }
 
+@Composable
+private fun ParkingDetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray800)
+        Spacer(Modifier.width(8.dp))
+        DottedDivider(Modifier.weight(1f))
+        if (value.isNotBlank()) {
+            Spacer(Modifier.width(8.dp))
+            Text(value, style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.gray800)
+        }
+    }
+}
+
+@Composable
+private fun DottedDivider(modifier: Modifier = Modifier) {
+    val color = RodiTheme.colors.gray400.copy(alpha = 0.35f)
+    Box(
+        modifier = modifier
+            .height(1.dp)
+            .drawBehind {
+                drawLine(
+                    color = color,
+                    start = Offset(0f, size.height / 2f),
+                    end = Offset(size.width, size.height / 2f),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(
+                        intervals = floatArrayOf(6.dp.toPx(), 6.dp.toPx()),
+                    ),
+                )
+            },
+    )
+}
+
 private fun String?.orMissing(): String = this?.takeIf(String::isNotBlank) ?: "해당항목없음"
 private fun Int.won(): String = "${NumberFormat.getNumberInstance(Locale.KOREA).format(this)}원"
+
+private fun com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail.operatingSummary(): String {
+    val weekday = operatingHours?.weekday?.replace(" ", "").orEmpty()
+    if (weekday.isBlank()) return "영업시간 정보 없음"
+    if (weekday.startsWith("00:00") && (weekday.endsWith("23:59") || weekday.endsWith("24:00"))) {
+        return "24시간 영업"
+    }
+    return "${weekday.substringBefore("-")}에 영업 시작"
+}
+
+private fun String?.toDisplayHours(): String {
+    val value = this?.trim().orEmpty()
+    return if (value.isBlank()) "해당항목없음" else value.replace("-", " - ")
+}
+
+private fun String.toDistrictAddress(): String {
+    val districtTokens = trim().split(Regex("\\s+")).takeWhile {
+        it.endsWith("시") || it.endsWith("도") || it.endsWith("군") || it.endsWith("구")
+    }
+    return districtTokens.joinToString(" ") { token ->
+        token
+            .removeSuffix("특별자치시")
+            .removeSuffix("특별시")
+            .removeSuffix("광역시")
+            .ifBlank { token }
+    }.ifBlank { this }
+}
+
+private fun String.withoutDistrictPrefix(): String {
+    val tokens = trim().split(Regex("\\s+"))
+    val localStart = tokens.indexOfFirst { token ->
+        !(token.endsWith("시") || token.endsWith("도") || token.endsWith("군") || token.endsWith("구"))
+    }
+    return if (localStart < 0) this else tokens.drop(localStart).joinToString(" ")
+}
 
 @Preview(name = "Parking detail - paid", showBackground = true, widthDp = 375, heightDp = 400)
 @Composable

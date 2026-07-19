@@ -80,7 +80,8 @@ fun KakaoMap.renderPlaceCourse(
 }
 
 /** [renderCourse]가 그린 경로에 카메라를 맞춘다. */
-fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>) {
+fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, bottomPaddingPx: Int) {
+    setPadding(0, 0, 0, bottomPaddingPx)
     if (routePoints.size >= 2) fitTo(routePoints)
 }
 
@@ -128,8 +129,9 @@ private fun KakaoMap.fitTo(points: List<LatLng>) {
     }
 }
 
-/** 단일 지점(주차장 등)을 지정한 줌 레벨로 확대하며 중앙 정렬한다. */
-fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int) {
+/** 단일 지점(주차장 등)을 시트가 제외된 지도 가시 영역의 중앙에 맞춘다. */
+fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int, bottomPaddingPx: Int) {
+    setPadding(0, 0, 0, bottomPaddingPx)
     moveCamera(CameraUpdateFactory.newCenterPosition(position, zoomLevel), CameraAnimation.from(400))
 }
 

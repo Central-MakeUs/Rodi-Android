@@ -11,15 +11,19 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -27,6 +31,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SnackbarHost
@@ -38,8 +43,8 @@ import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,20 +54,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
@@ -100,11 +109,12 @@ import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
 import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
-import com.dororong.rodi.feature.home.map.deselectParkingMarker
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
-import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.clearCurrentLocationMarker
+import com.dororong.rodi.feature.home.map.deselectParkingMarker
+import com.dororong.rodi.feature.home.map.fitCourseToScreen
+import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.markMapLoaded
@@ -116,7 +126,6 @@ import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
-import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
@@ -128,12 +137,21 @@ import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.launch
+import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
 private const val SURFACE_ANIMATION_MILLIS = 300
+private const val LIST_BUTTON_FADE_OUT_MILLIS = 100
+private const val LIST_BUTTON_FADE_IN_DELAY_MILLIS = 100
+private const val LIST_BUTTON_FADE_IN_MILLIS = 180
+private val LIST_BUTTON_VISUAL_OFFSET = 7.dp
+private val PARTIAL_LIST_HEADER_HEIGHT = 64.dp
+private val FULL_LIST_HEADER_HEIGHT = 80.dp
+private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
+private const val LIST_TITLE_CENTERING_START = 0.5f
+private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
+private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
 
 private fun FontWeight?.toTypefaceStyle(): Int =
     if (this != null && weight >= FontWeight.SemiBold.weight) Typeface.BOLD else Typeface.NORMAL
@@ -175,6 +193,7 @@ fun HomeScreen(
     var hasCenteredInitialLocation by remember { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
+    var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -196,6 +215,7 @@ fun HomeScreen(
             clusterShadowColor = colors.black.copy(alpha = 0.3f).toArgb(),
         )
     }
+    val currentLocationMarkerColor = RodiTheme.colors.primary600.toArgb()
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -247,9 +267,11 @@ fun HomeScreen(
                 SheetValue.Hidden -> if (state.surfaceState != HomeSurfaceState.Detail) {
                     vm.onIntent(HomeIntent.OnListCollapse)
                 }
+
                 SheetValue.PartiallyExpanded -> if (state.surfaceState == HomeSurfaceState.FullList) {
                     vm.onIntent(HomeIntent.OnListCollapse)
                 }
+
                 SheetValue.Expanded -> if (state.showEmpty || state.showInitialError) {
                     sheetState.partialExpand()
                 } else {
@@ -262,19 +284,44 @@ fun HomeScreen(
     val sheetOffsetPx by remember {
         derivedStateOf { runCatching { sheetState.requireOffset() }.getOrDefault(scaffoldSize.height.toFloat()) }
     }
+    val visibleSheetHeight = with(density) {
+        (scaffoldSize.height - sheetOffsetPx)
+            .coerceAtLeast(0f)
+            .toDp()
+    }
+    val sheetExpansionProgress = with(density) {
+        val partialSheetOffsetPx = (scaffoldSize.height - 380.dp.toPx()).coerceAtLeast(0f)
+        if (partialSheetOffsetPx == 0f) {
+            1f
+        } else {
+            ((partialSheetOffsetPx - sheetOffsetPx) / partialSheetOffsetPx).coerceIn(0f, 1f)
+        }
+    }
     val navigationInsetPx = WindowInsets.navigationBars.getBottom(density)
     val navigationInset = with(density) { navigationInsetPx.toDp() }
     val bottomControlOffset = with(density) {
-        val visibleSheetHeight = (scaffoldSize.height - sheetOffsetPx)
-            .coerceAtLeast(0f)
-            .toDp()
-        if (visibleSheetHeight > 0.dp) {
-            maxOf(70.dp, visibleSheetHeight + 12.dp - navigationInset)
+        if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
+            maxOf(68.dp, PARKING_DETAIL_SHEET_HEIGHT + 12.dp - navigationInset)
+        } else if (visibleSheetHeight > 0.dp) {
+            maxOf(68.dp, visibleSheetHeight + 12.dp - navigationInset)
         } else {
-            70.dp
+            68.dp
         }
     }
-    val mapBrandOffset = maxOf(0.dp, bottomControlOffset + navigationInset - 8.dp)
+    val listViewportHeight = (
+        visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
+        ).coerceAtLeast(0.dp)
+    val isCourseDetail = state.surfaceState == HomeSurfaceState.Detail &&
+        state.selectedPlace?.type == PlaceType.COURSE
+    val isParkingDetail = state.surfaceState == HomeSurfaceState.Detail &&
+        state.selectedPlace?.type == PlaceType.PARKING
+    val mapContentBottomPaddingPx = when {
+        isCourseDetail -> courseDetailSheetHeightPx
+        isParkingDetail -> with(density) { PARKING_DETAIL_SHEET_HEIGHT.roundToPx() }
+        else -> 0
+    }
+    val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
+    val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.searchedQuery?.let { searched ->
         currentViewport?.let { current ->
@@ -318,6 +365,7 @@ fun HomeScreen(
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
             }
+
             is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
             HomeEffect.NavigateMyPage -> onMyPageClick()
         }
@@ -342,13 +390,13 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, permissionGranted, currentLocation, deviceHeading.value) {
+    LaunchedEffect(kakaoMap, permissionGranted, currentLocation, deviceHeading.value, currentLocationMarkerColor) {
         val map = kakaoMap ?: return@LaunchedEffect
         val location = currentLocation
         if (!permissionGranted || location == null) {
             map.clearCurrentLocationMarker()
         } else {
-            map.renderCurrentLocationMarker(context, location, deviceHeading.value)
+            map.renderCurrentLocationMarker(context, location, deviceHeading.value, currentLocationMarkerColor)
         }
     }
 
@@ -400,7 +448,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, state.selectedPlace, state.selectedRoute) {
+    LaunchedEffect(kakaoMap, state.selectedPlace, state.selectedRoute, mapContentBottomPaddingPx) {
         val map = kakaoMap ?: return@LaunchedEffect
         val place = state.selectedPlace ?: return@LaunchedEffect
         when (place.type) {
@@ -410,9 +458,14 @@ fun HomeScreen(
                     if (!map.selectParkingMarker(context, coordinate.id)) {
                         map.renderSelectedParkingMarker(context, coordinate)
                     }
-                    map.focusOn(LatLng.from(coordinate.point.lat, coordinate.point.lng), 15)
+                    map.focusOn(
+                        position = LatLng.from(coordinate.point.lat, coordinate.point.lng),
+                        zoomLevel = 15,
+                        bottomPaddingPx = mapContentBottomPaddingPx,
+                    )
                 }
             }
+
             PlaceType.COURSE -> {
                 map.clearBrowseLabels()
                 val route = state.selectedRoute
@@ -426,22 +479,31 @@ fun HomeScreen(
                         routePoints = routePoints,
                         snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
                     )
-                    map.fitCourseToScreen(routePoints)
+                    if (mapContentBottomPaddingPx > 0) {
+                        map.fitCourseToScreen(routePoints, mapContentBottomPaddingPx)
+                    }
                 }
             }
         }
     }
 
-    LaunchedEffect(kakaoMap, mapBrandOffset) {
+    LaunchedEffect(kakaoMap, mapBrandOffset, mapScaleBarOffset, mapContentBottomPaddingPx) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val bottomPx = with(density) { mapBrandOffset.toPx() }
-        map.logo?.setPosition(MapGravity.BOTTOM or MapGravity.LEFT, with(density) { 8.dp.toPx() }, bottomPx)
+        map.setPadding(0, 0, 0, mapContentBottomPaddingPx)
+        val mapPaddingCompensationPx = -mapContentBottomPaddingPx.toFloat()
+        val brandBottomPx = with(density) { mapBrandOffset.toPx() } + mapPaddingCompensationPx
+        val scaleBarBottomPx = with(density) { mapScaleBarOffset.toPx() } + mapPaddingCompensationPx
+        map.logo?.setPosition(
+            MapGravity.BOTTOM or MapGravity.LEFT,
+            with(density) { 16.dp.toPx() },
+            brandBottomPx,
+        )
         map.scaleBar?.apply {
             setAutoHide(false)
             setPosition(
                 MapGravity.BOTTOM or MapGravity.LEFT,
-                with(density) { 80.dp.toPx() },
-                (bottomPx - with(density) { 8.dp.toPx() }).coerceAtLeast(0f),
+                with(density) { 40.dp.toPx() },
+                scaleBarBottomPx,
             )
             show()
         }
@@ -460,10 +522,13 @@ fun HomeScreen(
                     modifier = Modifier.onSizeChanged { scaffoldSize = it },
                     scaffoldState = scaffoldState,
                     sheetPeekHeight = 380.dp,
-                    sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    sheetShape = RoundedCornerShape(
+                        topStart = 20.dp * (1f - sheetExpansionProgress),
+                        topEnd = 20.dp * (1f - sheetExpansionProgress),
+                    ),
                     sheetContainerColor = RodiTheme.colors.white,
                     sheetShadowElevation = 8.dp,
-                    sheetSwipeEnabled = state.surfaceState != HomeSurfaceState.Detail,
+                    sheetSwipeEnabled = false,
                     sheetDragHandle = null,
                     sheetContent = {
                         Column(
@@ -471,33 +536,23 @@ fun HomeScreen(
                                 .fillMaxWidth()
                                 .fillMaxHeight(),
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(24.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Box(
-                                    Modifier
-                                        .size(width = 60.dp, height = 4.dp)
-                                        .background(RodiTheme.colors.handleBar, RoundedCornerShape(2.dp)),
-                                )
-                            }
-                            if (!state.showEmpty && !state.showInitialError && state.surfaceState != HomeSurfaceState.FullList) {
-                                Text(
-                                    text = "추천 목록",
-                                    style = RodiTheme.typography.headline1,
-                                    color = RodiTheme.colors.black,
-                                    modifier = Modifier.padding(start = 16.dp, bottom = 12.dp),
+                            if (!state.showEmpty && !state.showInitialError) {
+                                ListSheetHeader(
+                                    expansionProgress = sheetExpansionProgress,
+                                    onExpand = { vm.onIntent(HomeIntent.OnListExpand) },
+                                    onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
                                 )
                             }
                             when {
                                 state.listState == HomeListState.Loading -> Box(
-                                    modifier = Modifier.fillMaxSize(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(listViewportHeight),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     CircularProgressIndicator(color = RodiTheme.colors.primary600)
                                 }
+
                                 state.showEmpty || state.showInitialError -> PlaceEmptyContent(state.showInitialError)
                                 else -> PlaceListContent(
                                     places = state.places,
@@ -506,7 +561,12 @@ fun HomeScreen(
                                     },
                                     onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
                                     isNextPageLoading = state.isNextPageLoading,
-                                    showTopBar = state.surfaceState == HomeSurfaceState.FullList,
+                                    topContentPadding = lerp(
+                                        0.dp,
+                                        FULL_LIST_CONTENT_TOP_PADDING,
+                                        sheetExpansionProgress,
+                                    ),
+                                    modifier = Modifier.height(listViewportHeight),
                                 )
                             }
                         }
@@ -542,7 +602,13 @@ fun HomeScreen(
                                                     mapZoomLevel = movedMap.zoomLevel
                                                     movedMap.viewportOrNull(mapViewSize)?.let { viewport ->
                                                         currentViewport = viewport
-                                                        vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
+                                                        vm.onIntent(
+                                                            HomeIntent.OnViewportSettled(
+                                                                viewport.toQuery(
+                                                                    currentLocation,
+                                                                ),
+                                                            ),
+                                                        )
                                                     }
                                                     hasLoadedMapInSession = true
                                                     context.markMapLoaded()
@@ -557,11 +623,17 @@ fun HomeScreen(
                                                             ),
                                                             CameraAnimation.from(350),
                                                         )
+
                                                         is BrowseLabelTag.Place -> {
                                                             if (state.coordinates.firstOrNull { it.id == tag.id }?.type == PlaceType.PARKING) {
                                                                 map.selectParkingMarker(context, tag.id)
                                                             }
-                                                            vm.onIntent(HomeIntent.OnPlaceClick(tag.id, HomeDetailOrigin.Map))
+                                                            vm.onIntent(
+                                                                HomeIntent.OnPlaceClick(
+                                                                    tag.id,
+                                                                    HomeDetailOrigin.Map,
+                                                                ),
+                                                            )
                                                         }
                                                     }
                                                     true
@@ -586,40 +658,45 @@ fun HomeScreen(
                                 .statusBarsPadding()
                                 .padding(top = 63.dp),
                         ) {
-                            MapResearchButton(onClick = {
-                                val viewport = currentViewport ?: return@MapResearchButton
-                                vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
-                            })
-                        }
-
-                        AnimatedVisibility(
-                            visible = state.surfaceState == HomeSurfaceState.Navigation,
-                            enter = fadeIn(tween(SURFACE_ANIMATION_MILLIS)),
-                            exit = fadeOut(tween(SURFACE_ANIMATION_MILLIS)),
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        ) {
-                            RodiBottomNavigation(
-                                selectedDestination = RodiBottomNavigationDestination.Home,
-                                onHomeClick = { vm.onIntent(HomeIntent.OnListOpen) },
-                                onMyClick = { vm.onIntent(HomeIntent.OnMyClick) },
+                            MapResearchButton(
+                                onClick = {
+                                    val viewport = currentViewport ?: return@MapResearchButton
+                                    vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
+                                },
                             )
                         }
 
+                        RodiBottomNavigation(
+                            selectedDestination = RodiBottomNavigationDestination.Home,
+                            onHomeClick = { vm.onIntent(HomeIntent.OnListOpen) },
+                            onMyClick = { vm.onIntent(HomeIntent.OnMyClick) },
+                            modifier = Modifier.align(Alignment.BottomCenter),
+                        )
+
                         AnimatedVisibility(
                             visible = state.surfaceState == HomeSurfaceState.Navigation,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
+                            enter = fadeIn(
+                                animationSpec = tween(
+                                    durationMillis = LIST_BUTTON_FADE_IN_MILLIS,
+                                    delayMillis = LIST_BUTTON_FADE_IN_DELAY_MILLIS,
+                                ),
+                            ),
+                            exit = fadeOut(tween(durationMillis = LIST_BUTTON_FADE_OUT_MILLIS)),
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .navigationBarsPadding()
                                 .padding(bottom = bottomControlOffset),
                         ) {
-                            MapListButton(onClick = { vm.onIntent(HomeIntent.OnListOpen) })
+                            MapListButton(
+                                onClick = { vm.onIntent(HomeIntent.OnListOpen) },
+                                modifier = Modifier.offset(y = LIST_BUTTON_VISUAL_OFFSET),
+                            )
                         }
 
                         AnimatedVisibility(
                             visible = state.surfaceState != HomeSurfaceState.FullList &&
-                                state.surfaceState != HomeSurfaceState.Detail,
+                                    (state.surfaceState != HomeSurfaceState.Detail ||
+                                            state.selectedPlace?.type == PlaceType.PARKING),
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .navigationBarsPadding()
@@ -638,7 +715,6 @@ fun HomeScreen(
                                         )
                                     } else {
                                         kakaoMap?.apply {
-                                            setPadding(0, 0, 0, 0)
                                             moveCamera(
                                                 CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
                                                 CameraAnimation.from(250),
@@ -658,8 +734,13 @@ fun HomeScreen(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .then(
-                                if (state.selectedPlace?.type == PlaceType.PARKING) Modifier.height(400.dp)
-                                else Modifier,
+                                when (state.selectedPlace?.type) {
+                                    PlaceType.COURSE -> Modifier.onSizeChanged {
+                                        courseDetailSheetHeightPx = it.height
+                                    }
+                                    PlaceType.PARKING -> Modifier.height(PARKING_DETAIL_SHEET_HEIGHT)
+                                    null -> Modifier
+                                },
                             ),
                         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                         color = RodiTheme.colors.white,
@@ -682,6 +763,7 @@ fun HomeScreen(
                                     )
                                 },
                             )
+
                             selectedPlace?.type == PlaceType.PARKING -> ParkingDetailContent(
                                 place = selectedPlace,
                                 isBookmarkUpdating = state.isBookmarkUpdating,
@@ -702,11 +784,14 @@ fun HomeScreen(
 
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
-                    MapScreenState.NetworkError -> MapNetworkErrorScreen(onRetry = {
-                        mapScreenState = MapScreenState.Loading
-                        kakaoMap = null
-                        mapRetryKey += 1
-                    })
+                    MapScreenState.NetworkError -> MapNetworkErrorScreen(
+                        onRetry = {
+                            mapScreenState = MapScreenState.Loading
+                            kakaoMap = null
+                            mapRetryKey += 1
+                        },
+                    )
+
                     MapScreenState.Ready -> Unit
                 }
             }
@@ -750,6 +835,89 @@ fun HomeScreen(
     }
 }
 
+@Composable
+private fun ListSheetHeader(
+    expansionProgress: Float,
+    onExpand: () -> Unit,
+    onBack: () -> Unit,
+) {
+    val density = LocalDensity.current
+    var titleWidthPx by remember { mutableIntStateOf(0) }
+    val dragThresholdPx = with(density) { LIST_HEADER_DRAG_THRESHOLD.toPx() }
+    val titleCenteringProgress = (
+            (expansionProgress - LIST_TITLE_CENTERING_START) / (1f - LIST_TITLE_CENTERING_START)
+            ).coerceIn(0f, 1f)
+    val titleTopPadding = lerp(24.dp, 40.dp, expansionProgress)
+    val handleAlpha = (1f - expansionProgress / LIST_TITLE_CENTERING_START).coerceIn(0f, 1f)
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, expansionProgress))
+            .pointerInput(expansionProgress, dragThresholdPx) {
+                var totalDrag = 0f
+                var actionTriggered = false
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        totalDrag = 0f
+                        actionTriggered = false
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        if (actionTriggered) return@detectVerticalDragGestures
+                        totalDrag += dragAmount
+                        when {
+                            totalDrag <= -dragThresholdPx && expansionProgress < 1f -> {
+                                actionTriggered = true
+                                change.consume()
+                                onExpand()
+                            }
+
+                            totalDrag >= dragThresholdPx -> {
+                                actionTriggered = true
+                                change.consume()
+                                onBack()
+                            }
+                        }
+                    },
+                )
+            },
+    ) {
+        val titleWidth = with(density) { titleWidthPx.toDp() }
+        val centeredTitleStart = (maxWidth - titleWidth) / 2
+        val titleTranslation = with(density) { (centeredTitleStart - 16.dp).toPx() }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 10.dp)
+                .size(width = 60.dp, height = 4.dp)
+                .graphicsLayer { alpha = handleAlpha }
+                .background(RodiTheme.colors.handleBar, RoundedCornerShape(2.dp)),
+        )
+        Icon(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            contentDescription = "뒤로가기",
+            tint = RodiTheme.colors.black,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = 40.dp)
+                .size(24.dp)
+                .graphicsLayer { alpha = titleCenteringProgress }
+                .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
+        )
+        Text(
+            text = "추천 목록",
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.black,
+            onTextLayout = { titleWidthPx = it.size.width },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 16.dp, top = titleTopPadding)
+                .graphicsLayer { translationX = titleTranslation * titleCenteringProgress },
+        )
+    }
+}
+
 private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
     val center = GeoPoint(
         lat = (northEast.lat + southWest.lat) / 2.0,
@@ -770,7 +938,9 @@ private fun Context.isPackageInstalled(packageName: String): Boolean = runCatchi
 @Composable
 private fun HomeChromePreview() {
     RodiTheme {
-        Box(Modifier.fillMaxSize().background(RodiTheme.colors.gray100)) {
+        Box(Modifier
+            .fillMaxSize()
+            .background(RodiTheme.colors.gray100)) {
             RodiBottomNavigation(
                 selectedDestination = RodiBottomNavigationDestination.Home,
                 onHomeClick = {},
@@ -794,7 +964,13 @@ private fun HomeChromePreview() {
     }
 }
 
-@Preview(name = "Home chrome - small large font", showBackground = true, widthDp = 320, heightDp = 640, fontScale = 1.3f)
+@Preview(
+    name = "Home chrome - small large font",
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 640,
+    fontScale = 1.3f,
+)
 @Composable
 private fun HomeChromeSmallPreview() {
     HomeChromePreview()

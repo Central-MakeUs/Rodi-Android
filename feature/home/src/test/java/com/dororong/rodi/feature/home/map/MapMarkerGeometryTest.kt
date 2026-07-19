@@ -10,4 +10,9 @@ class MapMarkerGeometryTest {
 
         assertEquals(geometry.bodyBottom, geometry.tailTop)
     }
+
+    @Test
+    fun `current location marker anchors map coordinates at the circle center`() {
+        assertEquals(18f / 28f, currentLocationMarkerAnchorY())
+    }
 }

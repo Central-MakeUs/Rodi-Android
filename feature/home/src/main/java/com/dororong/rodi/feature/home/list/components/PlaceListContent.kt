@@ -2,19 +2,16 @@ package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -24,6 +21,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -35,7 +33,7 @@ fun PlaceListContent(
     onPlaceClick: (Long) -> Unit,
     onLoadNextPage: () -> Unit,
     isNextPageLoading: Boolean,
-    showTopBar: Boolean,
+    topContentPadding: Dp,
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState(),
 ) {
@@ -52,26 +50,9 @@ fun PlaceListContent(
 
     LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 8.dp),
+        modifier = modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(top = topContentPadding, bottom = 8.dp),
     ) {
-        if (showTopBar) {
-            item(key = "top-bar") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .height(56.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "추천 목록",
-                        style = RodiTheme.typography.headline1,
-                        color = RodiTheme.colors.black,
-                    )
-                }
-            }
-        }
         itemsIndexed(places, key = { _, item -> item.id }) { index, place ->
             PlaceCard(place = place, onClick = { onPlaceClick(place.id) })
             if (index != places.lastIndex) {
@@ -106,7 +87,7 @@ fun PlaceListContent(
 @Composable
 private fun PlaceListPartialPreview() {
     RodiTheme {
-        PlaceListContent(HomePreviewData.summaries, {}, {}, false, showTopBar = false)
+        PlaceListContent(HomePreviewData.summaries, {}, {}, false, topContentPadding = 0.dp)
     }
 }
 
@@ -119,7 +100,7 @@ private fun PlaceListFullPreview() {
             onPlaceClick = {},
             onLoadNextPage = {},
             isNextPageLoading = true,
-            showTopBar = true,
+            topContentPadding = 20.dp,
         )
     }
 }
