@@ -52,6 +52,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -140,6 +141,7 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
@@ -156,6 +158,11 @@ private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
+
+private data class ParkingMapPadding(
+    val placeId: Long,
+    val bottomPx: Int,
+)
 
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
@@ -201,6 +208,7 @@ fun HomeScreen(
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingDetailSheetHeightPx by remember { mutableIntStateOf(0) }
+    var parkingMapPadding by remember { mutableStateOf<ParkingMapPadding?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -329,17 +337,39 @@ fun HomeScreen(
     val listViewportHeight = (
         visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
         ).coerceAtLeast(0.dp)
-    val isCourseDetail = state.surfaceState == HomeSurfaceState.Detail &&
-        state.selectedPlace?.type == PlaceType.COURSE
-    val isParkingDetail = state.surfaceState == HomeSurfaceState.Detail &&
-        state.selectedPlace?.type == PlaceType.PARKING
+    val selectedDetailPlaceId = state.selectedPlace?.id
     val mapContentBottomPaddingPx = when {
-        isCourseDetail -> courseDetailSheetHeightPx
-        isParkingDetail -> parkingDetailSheetHeightPx
+        state.surfaceState != HomeSurfaceState.Detail -> 0
+        state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
+        state.selectedPlace?.type == PlaceType.PARKING -> parkingMapPadding
+            ?.takeIf { it.placeId == selectedDetailPlaceId }
+            ?.bottomPx
+            ?: 0
         else -> 0
     }
     val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
+
+    LaunchedEffect(
+        state.surfaceState,
+        selectedDetailPlaceId,
+        state.selectedPlace?.type,
+        state.isDetailLoading,
+    ) {
+        parkingMapPadding = null
+        val placeId = selectedDetailPlaceId ?: return@LaunchedEffect
+        if (
+            state.surfaceState != HomeSurfaceState.Detail ||
+            state.selectedPlace?.type != PlaceType.PARKING ||
+            state.isDetailLoading
+        ) {
+            return@LaunchedEffect
+        }
+
+        withFrameNanos { }
+        val initialSheetHeightPx = snapshotFlow { parkingDetailSheetHeightPx }.first { it > 0 }
+        parkingMapPadding = ParkingMapPadding(placeId, initialSheetHeightPx)
+    }
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && searchedViewport?.let { searched ->
         currentViewport?.let { current ->
@@ -498,8 +528,17 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, state.selectedPlace, state.selectedRoute, mapContentBottomPaddingPx) {
+    LaunchedEffect(
+        kakaoMap,
+        state.surfaceState,
+        selectedDetailPlaceId,
+        state.selectedRoute,
+        mapContentBottomPaddingPx,
+    ) {
         val map = kakaoMap ?: return@LaunchedEffect
+        if (state.surfaceState != HomeSurfaceState.Detail || mapContentBottomPaddingPx <= 0) {
+            return@LaunchedEffect
+        }
         val place = state.selectedPlace ?: return@LaunchedEffect
         when (place.type) {
             PlaceType.PARKING -> {
