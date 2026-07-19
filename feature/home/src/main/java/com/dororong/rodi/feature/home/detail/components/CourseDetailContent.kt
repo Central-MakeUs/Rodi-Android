@@ -1,7 +1,6 @@
 package com.dororong.rodi.feature.home.detail.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.requiredSizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
@@ -83,21 +82,15 @@ fun CourseDetailContent(
                 )
             }
             Spacer(Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .requiredSizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                    .clickable(onClick = onDismiss),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_x),
-                    contentDescription = "닫기",
-                    tint = RodiTheme.colors.black,
-                    modifier = Modifier
-                        .size(23.dp)
-                        .padding(3.5.dp),
-                )
-            }
+            RodiIconButton(
+                painter = painterResource(R.drawable.ic_x),
+                onClick = onDismiss,
+                iconSize = 20.dp,
+                touchSize = 48.dp,
+                layoutSize = 23.dp,
+                contentDescription = "닫기",
+                tint = RodiTheme.colors.black,
+            )
         }
 
         Column(
