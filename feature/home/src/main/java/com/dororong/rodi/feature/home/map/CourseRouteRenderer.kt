@@ -141,7 +141,7 @@ private const val CHIP_PADDING_V_DP = 4f
 internal data class MapBitmapTextStyle(
     @param:ColorInt val color: Int,
     val textSizePx: Float,
-    val typefaceStyle: Int,
+    val typeface: Typeface,
 )
 
 internal data class MapBitmapStyle(
@@ -162,7 +162,7 @@ internal fun createCourseChipBitmap(
 
     val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textSize = style.courseChipText.textSizePx
-        typeface = Typeface.create(Typeface.DEFAULT, style.courseChipText.typefaceStyle)
+        typeface = style.courseChipText.typeface
         color = style.courseChipText.color
         textAlign = Paint.Align.LEFT
     }

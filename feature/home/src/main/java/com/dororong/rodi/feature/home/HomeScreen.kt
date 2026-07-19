@@ -60,13 +60,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -153,9 +153,6 @@ private const val LIST_TITLE_CENTERING_START = 0.5f
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
 
-private fun FontWeight?.toTypefaceStyle(): Int =
-    if (this != null && weight >= FontWeight.SemiBold.weight) Typeface.BOLD else Typeface.NORMAL
-
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit,
@@ -198,19 +195,25 @@ fun HomeScreen(
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
     val typography = RodiTheme.typography
+    val courseChipTypeface = remember(context) {
+        ResourcesCompat.getFont(context, CoreUiR.font.pretendard_regular) ?: Typeface.DEFAULT
+    }
+    val clusterTypeface = remember(context) {
+        ResourcesCompat.getFont(context, CoreUiR.font.pretendard_medium) ?: Typeface.DEFAULT
+    }
     val mapBitmapStyle = with(density) {
         MapBitmapStyle(
             courseChipBackgroundColor = colors.primary500.toArgb(),
             courseChipText = MapBitmapTextStyle(
                 color = colors.white.toArgb(),
-                textSizePx = typography.caption2SemiBold.fontSize.toPx(),
-                typefaceStyle = typography.caption2SemiBold.fontWeight.toTypefaceStyle(),
+                textSizePx = typography.caption1Regular.fontSize.toPx(),
+                typeface = courseChipTypeface,
             ),
             clusterBackgroundColor = colors.primary500.toArgb(),
             clusterText = MapBitmapTextStyle(
                 color = colors.white.toArgb(),
-                textSizePx = typography.body3SemiBold.fontSize.toPx(),
-                typefaceStyle = typography.body3SemiBold.fontWeight.toTypefaceStyle(),
+                textSizePx = typography.body3Medium.fontSize.toPx(),
+                typeface = clusterTypeface,
             ),
             clusterShadowColor = colors.black.copy(alpha = 0.3f).toArgb(),
         )
@@ -665,13 +668,6 @@ fun HomeScreen(
                                 },
                             )
                         }
-
-                        RodiBottomNavigation(
-                            selectedDestination = RodiBottomNavigationDestination.Home,
-                            onHomeClick = { vm.onIntent(HomeIntent.OnListOpen) },
-                            onMyClick = { vm.onIntent(HomeIntent.OnMyClick) },
-                            modifier = Modifier.align(Alignment.BottomCenter),
-                        )
 
                         AnimatedVisibility(
                             visible = state.surfaceState == HomeSurfaceState.Navigation,

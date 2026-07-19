@@ -150,7 +150,7 @@ private fun createClusterTooltipBitmap(
         color = style.clusterText.color
         textSize = style.clusterText.textSizePx
         textAlign = Paint.Align.CENTER
-        typeface = Typeface.create(Typeface.DEFAULT, style.clusterText.typefaceStyle)
+        typeface = style.clusterText.typeface
     }
     val fontMetrics = textPaint.fontMetrics
     val bubbleHeight = ((fontMetrics.descent - fontMetrics.ascent) + verticalPadding * 2).toInt()
