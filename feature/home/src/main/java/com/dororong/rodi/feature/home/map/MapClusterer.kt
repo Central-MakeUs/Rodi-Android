@@ -43,7 +43,7 @@ data class MapCluster(
 
 object ClusterPolicy {
     fun forZoom(zoomLevel: Int): MapClusterPolicy? = when (zoomLevel) {
-        in 7..10 -> MapClusterPolicy(
+        in 6..10 -> MapClusterPolicy(
             mode = MapMarkerMode.NationalCluster,
             targetZoom = 11,
             grid = MapClusterGrid(columns = 3, rows = 5),

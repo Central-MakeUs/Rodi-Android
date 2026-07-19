@@ -2,7 +2,6 @@ package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
-import android.graphics.Typeface
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -93,12 +92,14 @@ import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
 import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
+import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.currentLocationUpdates
 import com.dororong.rodi.feature.home.location.hasLocationPermission
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
+import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
 import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapBitmapStyle
 import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
@@ -142,6 +143,8 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
 private const val SURFACE_ANIMATION_MILLIS = 300
+private const val RESEARCH_BUTTON_FADE_IN_MILLIS = 150
+private const val RESEARCH_BUTTON_FADE_OUT_MILLIS = 100
 private const val LIST_BUTTON_FADE_OUT_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_DELAY_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_MILLIS = 180
@@ -163,6 +166,7 @@ typealias KakaoLoginRequest = (
 fun HomeScreen(
     onMyPageClick: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
+    bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val context = LocalContext.current
@@ -176,8 +180,12 @@ fun HomeScreen(
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
     var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
+    var searchedViewport by remember { mutableStateOf<MapViewport?>(null) }
+    var shouldResearchOnCameraMoveEnd by remember { mutableStateOf(false) }
+    var isInitialLocationCameraMovePending by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
+    var isInitialLocationResolved by remember { mutableStateOf(false) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapScreenState by remember {
         mutableStateOf(
@@ -196,10 +204,10 @@ fun HomeScreen(
     val colors = RodiTheme.colors
     val typography = RodiTheme.typography
     val courseChipTypeface = remember(context) {
-        ResourcesCompat.getFont(context, CoreUiR.font.pretendard_regular) ?: Typeface.DEFAULT
+        requireNotNull(ResourcesCompat.getFont(context, CoreUiR.font.pretendard_regular))
     }
     val clusterTypeface = remember(context) {
-        ResourcesCompat.getFont(context, CoreUiR.font.pretendard_medium) ?: Typeface.DEFAULT
+        requireNotNull(ResourcesCompat.getFont(context, CoreUiR.font.pretendard_medium))
     }
     val mapBitmapStyle = with(density) {
         MapBitmapStyle(
@@ -222,7 +230,10 @@ fun HomeScreen(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result -> permissionGranted = result.values.any { it } }
+    ) { result ->
+        permissionGranted = result.values.any { it }
+        if (!permissionGranted) isInitialLocationResolved = true
+    }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
@@ -247,6 +258,8 @@ fun HomeScreen(
             kakaoMap?.clearCurrentLocationMarker()
             return@LaunchedEffect
         }
+        currentLocation = context.awaitCurrentLocation()
+        isInitialLocationResolved = true
         context.currentLocationUpdates().collect { currentLocation = it }
     }
 
@@ -326,10 +339,10 @@ fun HomeScreen(
     val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
 
-    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.searchedQuery?.let { searched ->
+    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && searchedViewport?.let { searched ->
         currentViewport?.let { current ->
             ViewportSearchThreshold.isExceeded(
-                MapViewport(searched.northEast, searched.southWest),
+                searched,
                 current,
             )
         }
@@ -374,11 +387,27 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, mapViewSize, currentLocation) {
+    LaunchedEffect(kakaoMap, mapViewSize, currentLocation, isInitialLocationResolved) {
         val map = kakaoMap ?: return@LaunchedEffect
+        if (!InitialViewportSearchPolicy.canDispatch(
+                isLocationResolved = isInitialLocationResolved,
+                hasCurrentLocation = currentLocation != null,
+                hasCenteredInitialLocation = hasCenteredInitialLocation,
+                hasUserMovedMap = hasUserMovedMap,
+                isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
+            )
+        ) {
+            return@LaunchedEffect
+        }
         val viewport = map.viewportOrNull(mapViewSize) ?: return@LaunchedEffect
         currentViewport = viewport
+        if (searchedViewport == null) searchedViewport = viewport
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
+    }
+
+    LaunchedEffect(state.searchedQuery) {
+        val query = state.searchedQuery ?: return@LaunchedEffect
+        searchedViewport = MapViewport(query.northEast, query.southWest)
     }
 
     LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap) {
@@ -386,6 +415,8 @@ fun HomeScreen(
         val location = currentLocation ?: return@LaunchedEffect
         if (!hasCenteredInitialLocation && !hasUserMovedMap) {
             hasCenteredInitialLocation = true
+            isInitialLocationCameraMovePending = true
+            shouldResearchOnCameraMoveEnd = true
             map.moveCamera(
                 CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
                 CameraAnimation.from(300),
@@ -410,6 +441,7 @@ fun HomeScreen(
         mapZoomLevel,
         mapViewSize,
         mapBitmapStyle,
+        searchedViewport,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
@@ -419,18 +451,31 @@ fun HomeScreen(
             return@LaunchedEffect
         }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
-            null -> map.renderIndividualMarkers(context, state.coordinates, mapBitmapStyle)
+            null -> {
+                val coordinates = searchedViewport?.let { viewport ->
+                    state.coordinates.filter { viewport.contains(it.point) }
+                }.orEmpty()
+                map.renderIndividualMarkers(context, coordinates, mapBitmapStyle)
+            }
+
             else -> {
+                val coordinates = if (policy.grid != null) {
+                    state.coordinates
+                } else {
+                    searchedViewport?.let { viewport ->
+                        state.coordinates.filter { viewport.contains(it.point) }
+                    }.orEmpty()
+                }
                 val clusters = if (policy.grid != null) {
                     MapClusterer.clusterInFixedGeoGrid(
-                        items = state.coordinates.map { MapCoursePoint(it.id, it.point) },
+                        items = coordinates.map { MapCoursePoint(it.id, it.point) },
                         northEast = NationalGrid.northEast,
                         southWest = NationalGrid.southWest,
                         policy = policy,
                     )
                 } else {
                     MapClusterer.clusterByScreenDistance(
-                        items = state.coordinates.mapNotNull { place ->
+                        items = coordinates.mapNotNull { place ->
                             val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
                                 ?: return@mapNotNull null
                             ProjectedMapItem(place.id, place.point, point.x, point.y)
@@ -444,7 +489,7 @@ fun HomeScreen(
                 map.renderClusters(
                     context = context,
                     clusters = clusters,
-                    placesById = state.coordinates.associateBy { it.id },
+                    placesById = coordinates.associateBy { it.id },
                     style = mapBitmapStyle,
                 )
             }
@@ -605,13 +650,29 @@ fun HomeScreen(
                                                     mapZoomLevel = movedMap.zoomLevel
                                                     movedMap.viewportOrNull(mapViewSize)?.let { viewport ->
                                                         currentViewport = viewport
-                                                        vm.onIntent(
-                                                            HomeIntent.OnViewportSettled(
-                                                                viewport.toQuery(
-                                                                    currentLocation,
+                                                        if (shouldResearchOnCameraMoveEnd) {
+                                                            searchedViewport = viewport
+                                                            shouldResearchOnCameraMoveEnd = false
+                                                            isInitialLocationCameraMovePending = false
+                                                            vm.onIntent(
+                                                                HomeIntent.OnResearch(
+                                                                    viewport.toQuery(currentLocation),
                                                                 ),
-                                                            ),
-                                                        )
+                                                            )
+                                                        } else if (InitialViewportSearchPolicy.canDispatch(
+                                                                isLocationResolved = isInitialLocationResolved,
+                                                                hasCurrentLocation = currentLocation != null,
+                                                                hasCenteredInitialLocation = hasCenteredInitialLocation,
+                                                                hasUserMovedMap = hasUserMovedMap,
+                                                                isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
+                                                            )
+                                                        ) {
+                                                            vm.onIntent(
+                                                                HomeIntent.OnViewportSettled(
+                                                                    viewport.toQuery(currentLocation),
+                                                                ),
+                                                            )
+                                                        }
                                                     }
                                                     hasLoadedMapInSession = true
                                                     context.markMapLoaded()
@@ -619,13 +680,16 @@ fun HomeScreen(
                                                 }
                                                 map.setOnLabelClickListener { _, _, label ->
                                                     when (val tag = label.tag) {
-                                                        is BrowseLabelTag.Cluster -> map.moveCamera(
-                                                            CameraUpdateFactory.newCenterPosition(
-                                                                LatLng.from(tag.point.lat, tag.point.lng),
-                                                                tag.targetZoom,
-                                                            ),
-                                                            CameraAnimation.from(350),
-                                                        )
+                                                        is BrowseLabelTag.Cluster -> {
+                                                            shouldResearchOnCameraMoveEnd = true
+                                                            map.moveCamera(
+                                                                CameraUpdateFactory.newCenterPosition(
+                                                                    LatLng.from(tag.point.lat, tag.point.lng),
+                                                                    tag.targetZoom,
+                                                                ),
+                                                                CameraAnimation.from(350),
+                                                            )
+                                                        }
 
                                                         is BrowseLabelTag.Place -> {
                                                             if (state.coordinates.firstOrNull { it.id == tag.id }?.type == PlaceType.PARKING) {
@@ -654,8 +718,8 @@ fun HomeScreen(
 
                         AnimatedVisibility(
                             visible = shouldShowResearch,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
+                            enter = fadeIn(tween(durationMillis = RESEARCH_BUTTON_FADE_IN_MILLIS)),
+                            exit = fadeOut(tween(durationMillis = RESEARCH_BUTTON_FADE_OUT_MILLIS)),
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .statusBarsPadding()
@@ -664,6 +728,7 @@ fun HomeScreen(
                             MapResearchButton(
                                 onClick = {
                                     val viewport = currentViewport ?: return@MapResearchButton
+                                    searchedViewport = viewport
                                     vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
                                 },
                             )
@@ -710,6 +775,7 @@ fun HomeScreen(
                                             ),
                                         )
                                     } else {
+                                        shouldResearchOnCameraMoveEnd = true
                                         kakaoMap?.apply {
                                             moveCamera(
                                                 CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
@@ -720,6 +786,10 @@ fun HomeScreen(
                                     }
                                 },
                             )
+                        }
+
+                        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                            bottomNavigation()
                         }
                     }
                 }

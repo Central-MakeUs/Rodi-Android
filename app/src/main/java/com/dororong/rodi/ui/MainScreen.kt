@@ -60,6 +60,19 @@ fun MainScreen(
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
                             },
+                            bottomNavigation = {
+                                if (currentRoute == HomeRoute) {
+                                    RodiBottomNavigation(
+                                        selectedDestination = RodiBottomNavigationDestination.Home,
+                                        onHomeClick = {
+                                            homeViewModel.onIntent(HomeIntent.OnListOpen)
+                                        },
+                                        onMyClick = {
+                                            homeViewModel.onIntent(HomeIntent.OnMyClick)
+                                        },
+                                    )
+                                }
+                            },
                             vm = homeViewModel,
                         )
                     }
@@ -93,28 +106,15 @@ fun MainScreen(
                 }
             },
         )
-        if (currentRoute == HomeRoute || currentRoute == MyPageRoute) {
-            val selectedDestination = if (currentRoute == HomeRoute) {
-                RodiBottomNavigationDestination.Home
-            } else {
-                RodiBottomNavigationDestination.My
-            }
-                RodiBottomNavigation(
-                    selectedDestination = selectedDestination,
-                    onHomeClick = {
-                        if (currentRoute == HomeRoute) {
-                            homeViewModel.onIntent(HomeIntent.OnListOpen)
-                        } else {
-                            backStack[backStack.lastIndex] = HomeRoute
-                        }
-                    },
-                    onMyClick = {
-                        if (currentRoute == HomeRoute) {
-                            homeViewModel.onIntent(HomeIntent.OnMyClick)
-                        }
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
+        if (currentRoute == MyPageRoute) {
+            RodiBottomNavigation(
+                selectedDestination = RodiBottomNavigationDestination.My,
+                onHomeClick = {
+                    backStack[backStack.lastIndex] = HomeRoute
+                },
+                onMyClick = {},
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }
