@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -64,7 +63,7 @@ fun ParkingDetailContent(
     var addressExpanded by rememberSaveable(place.id) { mutableStateOf(initialAddressExpanded) }
     var hoursExpanded by rememberSaveable(place.id) { mutableStateOf(initialHoursExpanded) }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(modifier = modifier.fillMaxWidth()) {
         StaticParkingSheetHandle()
 
         Row(
@@ -118,7 +117,7 @@ fun ParkingDetailContent(
 
         Column(
             modifier = Modifier
-                .weight(1f)
+                .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, top = 7.dp, end = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -149,8 +150,8 @@ private const val LIST_BUTTON_FADE_OUT_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_DELAY_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_MILLIS = 180
 private val LIST_BUTTON_VISUAL_OFFSET = 7.dp
-private val PARTIAL_LIST_HEADER_HEIGHT = 64.dp
-private val FULL_LIST_HEADER_HEIGHT = 80.dp
+private val PARTIAL_LIST_HEADER_HEIGHT = 48.dp
+private val FULL_LIST_HEADER_HEIGHT = 64.dp
 private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
@@ -199,6 +200,7 @@ fun HomeScreen(
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
+    var parkingDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -317,7 +319,7 @@ fun HomeScreen(
     val navigationInset = with(density) { navigationInsetPx.toDp() }
     val bottomControlOffset = with(density) {
         if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
-            maxOf(68.dp, PARKING_DETAIL_SHEET_HEIGHT + 12.dp - navigationInset)
+            maxOf(68.dp, parkingDetailSheetHeightPx.toDp() + 12.dp - navigationInset)
         } else if (visibleSheetHeight > 0.dp) {
             maxOf(68.dp, visibleSheetHeight + 12.dp - navigationInset)
         } else {
@@ -333,7 +335,7 @@ fun HomeScreen(
         state.selectedPlace?.type == PlaceType.PARKING
     val mapContentBottomPaddingPx = when {
         isCourseDetail -> courseDetailSheetHeightPx
-        isParkingDetail -> with(density) { PARKING_DETAIL_SHEET_HEIGHT.roundToPx() }
+        isParkingDetail -> parkingDetailSheetHeightPx
         else -> 0
     }
     val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
@@ -804,7 +806,9 @@ fun HomeScreen(
                                     PlaceType.COURSE -> Modifier.onSizeChanged {
                                         courseDetailSheetHeightPx = it.height
                                     }
-                                    PlaceType.PARKING -> Modifier.height(PARKING_DETAIL_SHEET_HEIGHT)
+                                    PlaceType.PARKING -> Modifier
+                                        .heightIn(max = PARKING_DETAIL_SHEET_HEIGHT)
+                                        .onSizeChanged { parkingDetailSheetHeightPx = it.height }
                                     null -> Modifier
                                 },
                             ),
