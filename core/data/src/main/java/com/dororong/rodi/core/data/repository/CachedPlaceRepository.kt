@@ -20,7 +20,7 @@ class CachedPlaceRepository @Inject constructor(
 ) : PlaceRepository {
     override suspend fun getCoordinates(): List<PlaceCoordinate> {
         placeCache.seedSamplesIfEmpty()
-        return placeCache.coordinates()
+        return placeCache.coordinates().preferServerCoordinates()
     }
 
     override suspend fun refreshCoordinates(): List<PlaceCoordinate> {
@@ -36,7 +36,7 @@ class CachedPlaceRepository @Inject constructor(
     ): CursorPage<PlaceSummary> {
         placeCache.seedSamplesIfEmpty()
         return CursorPage(
-            items = placeCache.summaries(query),
+            items = placeCache.summaries(query).preferServerSummaries(),
             hasNext = false,
             nextCursor = null,
             totalCount = null,
@@ -51,7 +51,7 @@ class CachedPlaceRepository @Inject constructor(
         val page = delegate.getPlaces(query, cursor, size)
         placeCache.upsertSummaries(page.items)
         return page.copy(
-            items = placeCache.summaries(query),
+            items = placeCache.summaries(query).preferServerSummaries(),
         )
     }
 

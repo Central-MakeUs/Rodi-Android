@@ -120,7 +120,7 @@ internal fun KakaoMap.renderIndividualMarkers(
     places: List<PlaceCoordinate>,
     style: MapBitmapStyle,
 ) {
-    val clusters = places.distinctMarkerPlaces().map { place ->
+    val clusters = places.map { place ->
         MapCluster(
             memberIds = listOf(place.id),
             representativePoint = place.point,
@@ -134,9 +134,6 @@ internal fun KakaoMap.renderIndividualMarkers(
         style = style,
     )
 }
-
-internal fun List<PlaceCoordinate>.distinctMarkerPlaces(): List<PlaceCoordinate> =
-    distinctBy { place -> Triple(place.type, place.point.lat, place.point.lng) }
 
 private fun createClusterTooltipBitmap(
     count: Int,
