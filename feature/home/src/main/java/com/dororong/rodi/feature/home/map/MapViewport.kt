@@ -12,6 +12,23 @@ data class MapViewport(
         point.lat in southWest.lat..northEast.lat && point.lng in southWest.lng..northEast.lng
 }
 
+data class MapScreenRect(
+    val left: Int,
+    val top: Int,
+    val right: Int,
+    val bottom: Int,
+) {
+    val isValid: Boolean get() = right > left && bottom > top
+
+    fun contains(x: Int, y: Int): Boolean =
+        x >= left && x < right && y >= top && y < bottom
+}
+
+data class VisibleMapViewport(
+    val geo: MapViewport,
+    val screen: MapScreenRect,
+)
+
 fun List<GeoPoint>.boundsOrNull(): MapViewport? {
     if (isEmpty()) return null
     return MapViewport(
@@ -35,11 +52,30 @@ object InitialViewportSearchPolicy {
 enum class InitialLocationState { Pending, Ready, Unavailable }
 
 fun KakaoMap.viewportOrNull(size: IntSize): MapViewport? {
-    if (size == IntSize.Zero) return null
-    val northEast = fromScreenPoint(size.width, 0) ?: return null
-    val southWest = fromScreenPoint(0, size.height) ?: return null
-    return MapViewport(
-        northEast = GeoPoint(northEast.latitude, northEast.longitude),
-        southWest = GeoPoint(southWest.latitude, southWest.longitude),
+    return visibleViewportOrNull(size)?.geo
+}
+
+fun KakaoMap.visibleViewportOrNull(size: IntSize): VisibleMapViewport? {
+    val sdkViewport = viewport
+    val mapPadding = padding
+    val screen = MapScreenRect(
+        left = sdkViewport.left + mapPadding.left,
+        top = sdkViewport.top + mapPadding.top,
+        right = sdkViewport.right - mapPadding.right,
+        bottom = sdkViewport.bottom - mapPadding.bottom,
+    ).takeIf(MapScreenRect::isValid) ?: MapScreenRect(
+        left = 0,
+        top = 0,
+        right = size.width,
+        bottom = size.height,
+    ).takeIf(MapScreenRect::isValid) ?: return null
+    val northEast = fromScreenPoint(screen.right - 1, screen.top) ?: return null
+    val southWest = fromScreenPoint(screen.left, screen.bottom - 1) ?: return null
+    return VisibleMapViewport(
+        geo = MapViewport(
+            northEast = GeoPoint(northEast.latitude, northEast.longitude),
+            southWest = GeoPoint(southWest.latitude, southWest.longitude),
+        ),
+        screen = screen,
     )
 }

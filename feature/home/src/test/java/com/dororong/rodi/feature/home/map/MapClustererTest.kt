@@ -8,13 +8,12 @@ import org.junit.jupiter.api.Test
 
 class MapClustererTest {
     @Test
-    fun `uses a 3 by 5 national grid until zoom 10`() {
+    fun `uses screen clustering until zoom 10`() {
         (6..10).forEach { zoomLevel ->
             assertEquals(
                 MapClusterPolicy(
                     mode = MapMarkerMode.NationalCluster,
                     targetZoom = 11,
-                    grid = MapClusterGrid(columns = 3, rows = 5),
                 ),
                 ClusterPolicy.forZoom(zoomLevel),
             )
@@ -36,16 +35,15 @@ class MapClustererTest {
     }
 
     @Test
-    fun `merges nearby points including chained neighbours`() {
+    fun `does not grow a cluster beyond one radius from its screen center`() {
         val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
                 item(1, 37.50, 126.90, 0, 100),
                 item(2, 37.51, 126.91, 56, 100),
                 item(3, 37.52, 126.92, 112, 100),
-                item(4, 37.60, 127.00, 300, 300),
+                item(4, 37.53, 126.93, 168, 100),
             ),
-            viewportWidth = 360,
-            viewportHeight = 720,
+            viewport = fullViewport,
             minimumDistancePx = 56,
             targetZoom = 14,
         )
@@ -57,22 +55,43 @@ class MapClustererTest {
     }
 
     @Test
-    fun `keeps the national cluster cells fixed to Korean bounds`() {
-        val clusters = MapClusterer.clusterInFixedGeoGrid(
+    fun `every visible unique place belongs to exactly one cluster`() {
+        val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
-                MapCoursePoint(1, GeoPoint(38.5, 125.0)),
-                MapCoursePoint(2, GeoPoint(38.1, 126.0)),
-                MapCoursePoint(3, GeoPoint(32.7, 131.8)),
+                item(1, 37.50, 126.90, 10, 10),
+                item(2, 37.51, 126.91, 40, 40),
+                item(2, 37.51, 126.91, 40, 40),
+                item(3, 37.80, 127.20, 300, 600),
+                item(4, 38.00, 128.00, 500, 900),
             ),
-            northEast = NationalGrid.northEast,
-            southWest = NationalGrid.southWest,
-            policy = NationalGrid.policy,
+            viewport = fullViewport,
+            minimumDistancePx = 56,
+            targetZoom = 11,
         )
 
-        assertEquals(listOf(1L, 2L), clusters.first().memberIds)
-        assertEquals(listOf(3L), clusters.last().memberIds)
+        assertEquals(setOf(1L, 2L, 3L), clusters.flatMap { it.memberIds }.toSet())
+        assertEquals(3, clusters.sumOf { it.count })
+    }
+
+    @Test
+    fun `uses the padded SDK viewport instead of the full map view`() {
+        val clusters = MapClusterer.clusterByScreenDistance(
+            items = listOf(
+                item(1, 37.50, 126.90, 15, 100),
+                item(2, 37.51, 126.91, 16, 40),
+                item(3, 37.52, 126.92, 343, 599),
+                item(4, 37.53, 126.93, 344, 600),
+            ),
+            viewport = MapScreenRect(left = 16, top = 40, right = 344, bottom = 600),
+            minimumDistancePx = 56,
+            targetZoom = 11,
+        )
+
+        assertEquals(setOf(2L, 3L), clusters.flatMap { it.memberIds }.toSet())
     }
 
     private fun item(id: Long, lat: Double, lng: Double, x: Int, y: Int) =
         ProjectedMapItem(id, GeoPoint(lat, lng), x, y)
+
+    private val fullViewport = MapScreenRect(left = 0, top = 0, right = 360, bottom = 720)
 }

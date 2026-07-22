@@ -23,6 +23,8 @@ sealed interface BrowseLabelTag {
     data class Cluster(
         val point: GeoPoint,
         val targetZoom: Int,
+        val memberIds: Set<Long>,
+        val memberPoints: List<GeoPoint>,
     ) : BrowseLabelTag
 
     data class Place(val id: Long) : BrowseLabelTag
@@ -51,7 +53,14 @@ internal fun KakaoMap.renderClusters(
                 LabelOptions.from(LatLng.from(cluster.representativePoint.lat, cluster.representativePoint.lng))
                     .setStyles(styles)
                     .setClickable(true)
-                    .setTag(BrowseLabelTag.Cluster(cluster.representativePoint, cluster.targetZoom)),
+                    .setTag(
+                        BrowseLabelTag.Cluster(
+                            point = cluster.representativePoint,
+                            targetZoom = cluster.targetZoom,
+                            memberIds = cluster.memberIds.toSet(),
+                            memberPoints = cluster.memberIds.mapNotNull(placesById::get).map { it.point },
+                        ),
+                    ),
             )
         } else {
             val place = placesById[cluster.memberIds.single()] ?: return@forEach

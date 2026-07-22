@@ -107,11 +107,9 @@ import com.dororong.rodi.feature.home.map.InitialLocationState
 import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapBitmapStyle
 import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
-import com.dororong.rodi.feature.home.map.MapCoursePoint
 import com.dororong.rodi.feature.home.map.MapSearchMoveReason
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.MapViewport
-import com.dororong.rodi.feature.home.map.NationalGrid
 import com.dororong.rodi.feature.home.map.PendingMapSearch
 import com.dororong.rodi.feature.home.map.PendingMapSearchMatcher
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
@@ -134,6 +132,8 @@ import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
+import com.dororong.rodi.feature.home.map.boundsOrNull
+import com.dororong.rodi.feature.home.map.visibleViewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -189,8 +189,8 @@ fun HomeScreen(
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
     var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
-    var searchedViewport by remember { mutableStateOf<MapViewport?>(null) }
     var pendingMapSearch by remember { mutableStateOf<PendingMapSearch?>(null) }
+    var activeClusterMemberIds by remember { mutableStateOf<Set<Long>?>(null) }
     var mapSearchGeneration by remember { mutableStateOf(0L) }
     var isInitialLocationCameraMovePending by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
@@ -443,19 +443,14 @@ fun HomeScreen(
         }
         val viewport = map.viewportOrNull(mapViewSize) ?: return@LaunchedEffect
         currentViewport = viewport
-        if (searchedViewport == null) searchedViewport = viewport
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
-    }
-
-    LaunchedEffect(state.searchedQuery) {
-        val query = state.searchedQuery ?: return@LaunchedEffect
-        searchedViewport = MapViewport(query.northEast, query.southWest)
     }
 
     LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
         val map = kakaoMap ?: return@LaunchedEffect
         val location = currentLocation ?: return@LaunchedEffect
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
+            activeClusterMemberIds = null
             hasCenteredInitialLocation = true
             isInitialLocationCameraMovePending = true
             mapSearchGeneration += 1
@@ -488,56 +483,45 @@ fun HomeScreen(
         state.surfaceState,
         mapZoomLevel,
         mapViewSize,
+        mapContentBottomPaddingPx,
         mapBitmapStyle,
-        searchedViewport,
+        state.searchedQuery,
+        activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        if (state.coordinates.isEmpty()) {
+        val searchedViewport = state.searchedQuery?.let { MapViewport(it.northEast, it.southWest) }
+        if (state.coordinates.isEmpty() || searchedViewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
+        val visibleViewport = map.visibleViewportOrNull(mapViewSize)
+        val visibleGeoViewport = visibleViewport?.geo ?: searchedViewport
+        val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
+            state.coordinates.filter { it.id in memberIds }
+        } ?: state.coordinates
+        val visibleCoordinates = clusterScopedCoordinates.filter { visibleGeoViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
-                val coordinates = searchedViewport?.let { viewport ->
-                    state.coordinates.filter { viewport.contains(it.point) }
-                }.orEmpty()
-                map.renderIndividualMarkers(context, coordinates, mapBitmapStyle)
+                map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
             }
 
             else -> {
-                val coordinates = if (policy.grid != null) {
-                    state.coordinates
-                } else {
-                    searchedViewport?.let { viewport ->
-                        state.coordinates.filter { viewport.contains(it.point) }
-                    }.orEmpty()
-                }
-                val clusters = if (policy.grid != null) {
-                    MapClusterer.clusterInFixedGeoGrid(
-                        items = coordinates.map { MapCoursePoint(it.id, it.point) },
-                        northEast = NationalGrid.northEast,
-                        southWest = NationalGrid.southWest,
-                        policy = policy,
-                    )
-                } else {
-                    MapClusterer.clusterByScreenDistance(
-                        items = coordinates.mapNotNull { place ->
-                            val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
-                                ?: return@mapNotNull null
-                            ProjectedMapItem(place.id, place.point, point.x, point.y)
-                        },
-                        viewportWidth = mapViewSize.width,
-                        viewportHeight = mapViewSize.height,
-                        minimumDistancePx = clusterDistancePx,
-                        targetZoom = policy.targetZoom,
-                    )
-                }
+                val clusters = MapClusterer.clusterByScreenDistance(
+                    items = visibleCoordinates.mapNotNull { place ->
+                        val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
+                            ?: return@mapNotNull null
+                        ProjectedMapItem(place.id, place.point, point.x, point.y)
+                    },
+                    viewport = visibleViewport?.screen ?: return@LaunchedEffect,
+                    minimumDistancePx = clusterDistancePx,
+                    targetZoom = policy.targetZoom,
+                )
                 map.renderClusters(
                     context = context,
                     clusters = clusters,
-                    placesById = coordinates.associateBy { it.id },
+                    placesById = visibleCoordinates.associateBy { it.id },
                     style = mapBitmapStyle,
                 )
             }
@@ -710,6 +694,7 @@ fun HomeScreen(
                                                         hasUserMovedMap = true
                                                         hasUserChosenMapViewport = true
                                                         pendingMapSearch = null
+                                                        activeClusterMemberIds = null
                                                         isInitialLocationCameraMovePending = false
                                                         vm.onIntent(HomeIntent.OnMapGesture)
                                                     }
@@ -727,7 +712,6 @@ fun HomeScreen(
                                                                 zoomLevel = movedMap.zoomLevel,
                                                             )
                                                         ) {
-                                                            searchedViewport = viewport
                                                             pendingMapSearch = null
                                                             isInitialLocationCameraMovePending = false
                                                             vm.onIntent(
@@ -760,19 +744,36 @@ fun HomeScreen(
                                                         is BrowseLabelTag.Cluster -> {
                                                             hasUserChosenMapViewport = true
                                                             mapSearchGeneration += 1
+                                                            val memberPoints = tag.memberPoints.distinct()
+                                                            activeClusterMemberIds = tag.memberIds
+                                                            val memberBounds = memberPoints.boundsOrNull()
+                                                            val target = memberBounds?.let {
+                                                                GeoPoint(
+                                                                    lat = (it.northEast.lat + it.southWest.lat) / 2.0,
+                                                                    lng = (it.northEast.lng + it.southWest.lng) / 2.0,
+                                                                )
+                                                            } ?: tag.point
+                                                            val canFitBounds = memberPoints.size >= 2 && memberBounds != null &&
+                                                                (memberBounds.northEast != memberBounds.southWest)
                                                             pendingMapSearch = PendingMapSearch(
                                                                 generation = mapSearchGeneration,
-                                                                target = tag.point,
-                                                                targetZoom = tag.targetZoom,
+                                                                target = target,
+                                                                targetZoom = tag.targetZoom.takeUnless { canFitBounds },
                                                                 reason = MapSearchMoveReason.CLUSTER,
+                                                                requiredBounds = memberBounds.takeIf { canFitBounds },
                                                             )
-                                                            map.moveCamera(
+                                                            val cameraUpdate = if (canFitBounds) {
+                                                                CameraUpdateFactory.fitMapPoints(
+                                                                    memberPoints.map { LatLng.from(it.lat, it.lng) }.toTypedArray(),
+                                                                    with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() },
+                                                                )
+                                                            } else {
                                                                 CameraUpdateFactory.newCenterPosition(
-                                                                    LatLng.from(tag.point.lat, tag.point.lng),
+                                                                    LatLng.from(target.lat, target.lng),
                                                                     tag.targetZoom,
-                                                                ),
-                                                                CameraAnimation.from(350),
-                                                            )
+                                                                )
+                                                            }
+                                                            map.moveCamera(cameraUpdate, CameraAnimation.from(350))
                                                         }
 
                                                         is BrowseLabelTag.Place -> {
@@ -859,6 +860,7 @@ fun HomeScreen(
                                             ),
                                         )
                                     } else {
+                                        activeClusterMemberIds = null
                                         mapSearchGeneration += 1
                                         pendingMapSearch = PendingMapSearch(
                                             generation = mapSearchGeneration,

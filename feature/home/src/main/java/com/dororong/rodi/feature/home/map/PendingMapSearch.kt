@@ -12,8 +12,9 @@ internal enum class MapSearchMoveReason {
 internal data class PendingMapSearch(
     val generation: Long,
     val target: GeoPoint,
-    val targetZoom: Int,
+    val targetZoom: Int?,
     val reason: MapSearchMoveReason,
+    val requiredBounds: MapViewport? = null,
 )
 
 internal object PendingMapSearchMatcher {
@@ -24,7 +25,11 @@ internal object PendingMapSearchMatcher {
         viewport: MapViewport,
         zoomLevel: Int,
     ): Boolean {
-        if (zoomLevel != pending.targetZoom) return false
+        pending.targetZoom?.let { if (zoomLevel != it) return false }
+
+        pending.requiredBounds?.let { bounds ->
+            return viewport.contains(bounds.northEast) && viewport.contains(bounds.southWest)
+        }
 
         val latitudeSpan = viewport.northEast.lat - viewport.southWest.lat
         val longitudeSpan = viewport.northEast.lng - viewport.southWest.lng

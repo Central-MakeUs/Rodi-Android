@@ -41,6 +41,29 @@ class PendingMapSearchTest {
         assertFalse(PendingMapSearchMatcher.matches(outside, viewport, zoomLevel = 13))
     }
 
+    @Test
+    fun `fit bounds 이동은 모든 멤버 좌표가 viewport 안에 들어오면 완료된다`() {
+        val pending = PendingMapSearch(
+            generation = 1,
+            target = GeoPoint(37.0, 127.0),
+            targetZoom = null,
+            reason = MapSearchMoveReason.CLUSTER,
+            requiredBounds = MapViewport(
+                northEast = GeoPoint(37.5, 127.5),
+                southWest = GeoPoint(36.5, 126.5),
+            ),
+        )
+
+        assertTrue(PendingMapSearchMatcher.matches(pending, viewport, zoomLevel = 8))
+        assertFalse(
+            PendingMapSearchMatcher.matches(
+                pending,
+                MapViewport(GeoPoint(37.4, 127.4), GeoPoint(36.6, 126.6)),
+                zoomLevel = 8,
+            ),
+        )
+    }
+
     private fun pending(target: GeoPoint, zoom: Int) = PendingMapSearch(
         generation = 1,
         target = target,
