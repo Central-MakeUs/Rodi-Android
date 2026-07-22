@@ -33,9 +33,10 @@ class OnboardingRepositoryImplTest {
     fun `submit sends bearer access token and onboarding request`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
+        val prefs = preferences()
         coEvery { tokenStore.getTokens() } returns tokens("access-token")
         coEvery { onboardingApi.submit("Bearer access-token", any()) } returns successResponse()
-        val repository = repository(onboardingApi, tokenStore)
+        val repository = repository(onboardingApi, tokenStore, prefs = prefs)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
 
@@ -46,19 +47,24 @@ class OnboardingRepositoryImplTest {
                 match { it.drivingPeriod == "MONTHS_1_3" && it.level == "ROOKIE" },
             )
         }
+        coVerify { prefs.authorizeSync() }
+        coVerify { prefs.clearSyncPending() }
     }
 
     @Test
     fun `submit skips api without a session and completes locally`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
+        val prefs = preferences()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = repository(onboardingApi, tokenStore)
+        val repository = repository(onboardingApi, tokenStore, prefs = prefs)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
 
         assertEquals(OnboardingSubmissionResult.Submitted, result)
         coVerify(exactly = 0) { onboardingApi.submit(any(), any()) }
+        coVerify(exactly = 0) { prefs.authorizeSync() }
+        coVerify(exactly = 0) { prefs.clearSyncPending() }
     }
 
     @Test
@@ -214,10 +220,15 @@ class OnboardingRepositoryImplTest {
         onboardingApi: OnboardingApi,
         tokenStore: AuthTokenStore,
         authRepository: AuthRepository = mockk(),
+        prefs: OnboardingPreferences = preferences(),
     ): OnboardingRepositoryImpl {
-        val prefs = mockk<OnboardingPreferences>()
-        every { prefs.profile } returns emptyFlow()
         return OnboardingRepositoryImpl(prefs, onboardingApi, tokenStore, authRepository)
+    }
+
+    private fun preferences(): OnboardingPreferences = mockk(relaxed = true) {
+        every { profile } returns emptyFlow()
+        every { isSyncPending } returns emptyFlow()
+        every { isSyncAuthorized } returns emptyFlow()
     }
 
     private fun profile() = OnboardingProfile(

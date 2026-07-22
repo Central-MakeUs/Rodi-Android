@@ -6,6 +6,7 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryCompletedUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -31,13 +32,15 @@ data class RodiAppUiState(
 class RodiAppViewModel @Inject constructor(
     getEntryCompletedUseCase: GetEntryCompletedUseCase,
     getGuestAccessUseCase: GetGuestAccessUseCase,
-    getAuthSessionUseCase: GetAuthSessionUseCase,
+    private val getAuthSessionUseCase: GetAuthSessionUseCase,
+    private val syncPendingOnboardingUseCase: SyncPendingOnboardingUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RodiAppUiState())
     private val sessionEnded = MutableStateFlow(false)
     val state: StateFlow<RodiAppUiState> = _state.asStateFlow()
 
     init {
+        retryPendingOnboardingSync()
         viewModelScope.launch {
             try {
                 combine(
@@ -63,6 +66,17 @@ class RodiAppViewModel @Inject constructor(
 
     fun onSessionEnded() {
         sessionEnded.value = true
+    }
+
+    fun retryPendingOnboardingSync() {
+        viewModelScope.launch {
+            try {
+                if (getAuthSessionUseCase().isLoggedIn) syncPendingOnboardingUseCase()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+            }
+        }
     }
 }
 

@@ -232,7 +232,7 @@ class EntryViewModel @Inject constructor(
             val submissionResult = try {
                 supervisorScope {
                     val submission = async {
-                        saveOnboardingProfileUseCase(profile)
+                        saveOnboardingProfileUseCase.saveForSubmission(profile)
                         saveOnboardingProfileUseCase.submit(profile, level)
                     }
                     delay(ANALYSIS_DURATION_MILLIS.milliseconds)

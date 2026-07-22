@@ -3,11 +3,15 @@ package com.dororong.rodi.core.domain.usecase.auth
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.flowOf
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -30,7 +34,7 @@ class AccountAuthUseCasesTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.restoreWithKakao("credential") } throws AuthException.RecoveryExpired("기간 만료")
 
-        val result = RestoreWithKakaoUseCase(repository)("credential")
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entryRepository())("credential")
 
         assertTrue(result.isFailure)
         assertEquals("기간 만료", result.exceptionOrNull()?.message)
@@ -59,8 +63,18 @@ class AccountAuthUseCasesTest {
         )
         coEvery { repository.restoreWithKakao("credential") } returns expected
 
-        val result = RestoreWithKakaoUseCase(repository)("credential")
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entryRepository())("credential")
 
         assertEquals(expected, result.getOrThrow())
+    }
+
+    private fun onboardingRepository(): OnboardingRepository = mockk {
+        coEvery { profile } returns flowOf(OnboardingProfile())
+        coEvery { saveProfile(any()) } returns Unit
+        coEvery { clearSyncPending() } returns Unit
+    }
+
+    private fun entryRepository(): EntryRepository = mockk {
+        coEvery { clearGuestAccess() } returns Unit
     }
 }

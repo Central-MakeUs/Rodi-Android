@@ -4,7 +4,9 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryCompletedUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUseCase
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -49,7 +51,7 @@ class RodiAppViewModelTest {
             hasRecentKakaoLogin = true,
         )
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isReady)
@@ -67,7 +69,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(true)
         coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isReady)
@@ -89,7 +91,7 @@ class RodiAppViewModelTest {
             hasRecentKakaoLogin = true,
         )
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
         advanceUntilIdle()
 
         viewModel.onSessionEnded()
@@ -98,5 +100,25 @@ class RodiAppViewModelTest {
 
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
         assertFalse(viewModel.state.value.authSession.hasRecentKakaoLogin)
+    }
+
+    @Test
+    fun `retries pending onboarding sync when authenticated app starts`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(true, true)
+
+        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { sync() }
+    }
+
+    private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {
+        coEvery { this@mockk() } returns null
     }
 }

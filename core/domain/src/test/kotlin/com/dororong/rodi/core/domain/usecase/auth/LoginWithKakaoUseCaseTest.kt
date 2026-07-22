@@ -1,10 +1,14 @@
 package com.dororong.rodi.core.domain.usecase.auth
 
 import com.dororong.rodi.core.domain.model.auth.AuthException
-import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
+import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
+import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -17,112 +21,131 @@ import org.junit.jupiter.api.Assertions.fail
 import org.junit.jupiter.api.Test
 
 class LoginWithKakaoUseCaseTest {
-
     @Test
-    fun `invoke returns success when repository login succeeds`() = runTest {
-        val repository = mockk<AuthRepository>()
-        val onboardingRepository = onboardingRepository()
-        coEvery {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = null,
-            )
-        } returns true
-        val useCase = LoginWithKakaoUseCase(repository, onboardingRepository)
+    fun `successful login persists server nickname`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository(OnboardingProfile(nickname = "로컬"))
+        val entry = entryRepository()
+        val sync = syncUseCase()
+        val login = LoginResult.Success(isNewMember = false, nickname = "서버 닉네임")
+        coEvery { auth.loginWithKakao("access-token") } returns login
 
-        val result = useCase("access-token")
+        val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token")
 
-        assertTrue(result.isSuccess)
-        assertEquals(true, result.getOrThrow())
-        coVerify(exactly = 1) {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = null,
-            )
-        }
+        assertEquals(login, result.getOrThrow())
+        coVerify { onboarding.saveProfile(OnboardingProfile(nickname = "서버 닉네임")) }
+        coVerify { onboarding.clearSyncPending() }
+        coVerify(exactly = 0) { sync() }
     }
 
     @Test
-    fun `invoke sends onboarding profile when local draft exists`() = runTest {
-        val repository = mockk<AuthRepository>()
+    fun `complete guest onboarding is submitted after new member login`() = runTest {
+        val auth = mockk<AuthRepository>()
         val profile = OnboardingProfile(
-            nickname = "로디",
-            drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+            nickname = "로컬",
+            drivingPeriod = DrivingPeriod.YEAR_2_TO_10,
         )
-        val onboardingRepository = onboardingRepository(profile)
-        coEvery {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = profile,
-            )
-        } returns true
-        val useCase = LoginWithKakaoUseCase(repository, onboardingRepository)
+        val onboarding = onboardingRepository(profile)
+        val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
+        val sync = syncUseCase()
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(true, "서버")
 
-        val result = useCase("access-token")
+        LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
 
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = profile,
-            )
-        }
+        coVerify { onboarding.savePendingProfile(profile.copy(nickname = "서버")) }
+        coVerify { onboarding.authorizeSync() }
+        coVerify { entry.clearGuestAccess() }
+        coVerify { sync() }
     }
 
     @Test
-    fun `invoke wraps repository failure as Result failure`() = runTest {
-        val repository = mockk<AuthRepository>()
-        val onboardingRepository = onboardingRepository()
-        coEvery {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = null,
-            )
-        } throws AuthException.InvalidCredential("boom")
-        val useCase = LoginWithKakaoUseCase(repository, onboardingRepository)
+    fun `onboarding sync failure does not turn successful login into failure`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10))
+        val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
+        val sync = syncUseCase()
+        val login = LoginResult.Success(true, "서버")
+        coEvery { auth.loginWithKakao("access-token") } returns login
+        coEvery { sync() } throws IllegalStateException("offline")
 
-        val result = useCase("access-token")
+        val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token")
 
-        assertTrue(result.isFailure)
-        assertEquals("boom", result.exceptionOrNull()?.message)
-        coVerify(exactly = 1) {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = null,
-            )
-        }
+        assertEquals(login, result.getOrThrow())
+        coVerify(exactly = 0) { onboarding.clearSyncPending() }
     }
 
     @Test
-    fun `invoke rethrows CancellationException instead of wrapping it`() = runTest {
-        val repository = mockk<AuthRepository>()
-        val onboardingRepository = onboardingRepository()
-        coEvery {
-            repository.loginWithKakao(
-                kakaoAccessToken = "access-token",
-                onboardingProfile = null,
-            )
-        } throws CancellationException("cancelled")
-        val useCase = LoginWithKakaoUseCase(repository, onboardingRepository)
+    fun `authorized pending sync retries even when a later login is no longer new`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository(
+            profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10),
+            isSyncAuthorized = true,
+        )
+        val entry = entryRepository()
+        val sync = syncUseCase()
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(false, "서버")
 
+        LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
+
+        coVerify { sync() }
+        coVerify(exactly = 0) { onboarding.clearSyncPending() }
+    }
+
+    @Test
+    fun `withdrawal pending does not persist a nickname`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val entry = entryRepository()
+        val sync = syncUseCase()
+        val pending = LoginResult.WithdrawalPending(
+            java.time.Instant.parse("2026-07-20T00:00:00Z"),
+            java.time.Instant.parse("2026-07-23T00:00:00Z"),
+        )
+        coEvery { auth.loginWithKakao("access-token") } returns pending
+
+        assertEquals(pending, LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow())
+        coVerify(exactly = 0) { onboarding.saveProfile(any()) }
+    }
+
+    @Test
+    fun `invoke wraps failure and rethrows cancellation`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val entry = entryRepository()
+        val sync = syncUseCase()
+        coEvery { auth.loginWithKakao("bad") } throws AuthException.InvalidCredential("boom")
+        assertTrue(LoginWithKakaoUseCase(auth, onboarding, entry, sync)("bad").isFailure)
+
+        coEvery { auth.loginWithKakao("cancel") } throws CancellationException("cancelled")
         try {
-            useCase("access-token")
+            LoginWithKakaoUseCase(auth, onboarding, entry, sync)("cancel")
             fail("CancellationException should be rethrown")
         } catch (_: CancellationException) {
-            coVerify(exactly = 1) {
-                repository.loginWithKakao(
-                    kakaoAccessToken = "access-token",
-                    onboardingProfile = null,
-                )
-            }
         }
     }
 
     private fun onboardingRepository(
         profile: OnboardingProfile = OnboardingProfile(),
-    ): OnboardingRepository =
-        mockk {
-            coEvery { saveProfile(any()) } returns Unit
-            coEvery { this@mockk.profile } returns flowOf(profile)
-        }
+        isSyncAuthorized: Boolean = false,
+    ): OnboardingRepository = mockk {
+        coEvery { this@mockk.profile } returns flowOf(profile)
+        coEvery { saveProfile(any()) } returns Unit
+        coEvery { savePendingProfile(any()) } returns Unit
+        coEvery { authorizeSync() } returns Unit
+        coEvery { clearSyncPending() } returns Unit
+        coEvery { this@mockk.isSyncAuthorized } returns flowOf(isSyncAuthorized)
+    }
+
+    private fun entryRepository(
+        isCompleted: Boolean = false,
+        hasGuestAccess: Boolean = false,
+    ): EntryRepository = mockk {
+        coEvery { this@mockk.isCompleted } returns flowOf(isCompleted)
+        coEvery { this@mockk.hasGuestAccess } returns flowOf(hasGuestAccess)
+        coEvery { clearGuestAccess() } returns Unit
+    }
+
+    private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {
+        coEvery { this@mockk() } returns OnboardingSubmissionResult.Submitted
+    }
 }

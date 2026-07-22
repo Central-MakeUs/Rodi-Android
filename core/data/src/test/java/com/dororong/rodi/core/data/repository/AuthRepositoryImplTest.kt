@@ -13,6 +13,7 @@ import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -45,13 +46,13 @@ class AuthRepositoryImplTest {
     fun `loginWithKakao saves server tokens`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns tokenEnvelope(true)
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(true)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         val repository = AuthRepositoryImpl(authApi, tokenStore, json)
 
-        val isNewMember = repository.loginWithKakao("kakao-token")
+        val result = repository.loginWithKakao("kakao-token")
 
-        assertTrue(isNewMember)
+        assertEquals(LoginResult.Success(true, "서버 닉네임"), result)
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
     }
 
@@ -200,6 +201,19 @@ class AuthRepositoryImplTest {
             accessToken = "access-new",
             refreshToken = "refresh-new",
             isNewMember = isNewMember,
+        ),
+    )
+
+    private fun loginEnvelope(isNewMember: Boolean) = ApiEnvelope(
+        isSuccess = true,
+        code = "COMMON_200",
+        message = "성공",
+        data = SocialLoginResponse(
+            status = "SUCCESS",
+            accessToken = "access-new",
+            refreshToken = "refresh-new",
+            isNewMember = isNewMember,
+            nickname = "서버 닉네임",
         ),
     )
 }

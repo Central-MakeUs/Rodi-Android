@@ -1,32 +1,52 @@
 package com.dororong.rodi.core.domain.usecase.auth
 
 import com.dororong.rodi.core.common.runSuspendCatching
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
-import kotlinx.coroutines.flow.first
+import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.isReadyForSubmission
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 class LoginWithKakaoUseCase @Inject constructor(
     private val authRepository: AuthRepository,
     private val onboardingRepository: OnboardingRepository,
+    private val entryRepository: EntryRepository,
+    private val syncPendingOnboarding: SyncPendingOnboardingUseCase,
 ) {
-    suspend operator fun invoke(kakaoAccessToken: String): Result<Boolean> =
+    suspend operator fun invoke(kakaoAccessToken: String): Result<LoginResult> =
         runSuspendCatching {
-            authRepository.loginWithKakao(
-                kakaoAccessToken = kakaoAccessToken,
-                onboardingProfile = onboardingRepository.profile.first().takeIf { it.hasDraft },
-            )
+            val result = authRepository.loginWithKakao(kakaoAccessToken)
+            if (result is LoginResult.Success) {
+                val profile = onboardingRepository.profile.first().copy(nickname = result.nickname)
+                val hasCompletedGuestOnboarding = entryRepository.isCompleted.first() == true &&
+                    entryRepository.hasGuestAccess.first()
+                if (hasCompletedGuestOnboarding && profile.isReadyForSubmission) {
+                    onboardingRepository.savePendingProfile(profile)
+                } else {
+                    onboardingRepository.saveProfile(profile)
+                }
+                entryRepository.clearGuestAccess()
+                val canSyncPendingProfile = if (result.isNewMember) {
+                    onboardingRepository.authorizeSync()
+                    true
+                } else {
+                    onboardingRepository.isSyncAuthorized.first()
+                }
+                if (canSyncPendingProfile) attemptPendingSync() else onboardingRepository.clearSyncPending()
+            }
+            result
         }
-}
 
-private val OnboardingProfile.hasDraft: Boolean
-    get() = nickname.isNotBlank() ||
-        drivingPeriod != null ||
-        recentFrequency != null ||
-        roadExperiences.isNotEmpty() ||
-        soloDrivingRange != null ||
-        soloParkingLevel != null ||
-        practiceSituations.isNotEmpty() ||
-        vehicleType != null ||
-        goal.isNotBlank()
+    private suspend fun attemptPendingSync() {
+        try {
+            syncPendingOnboarding()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+        }
+    }
+}

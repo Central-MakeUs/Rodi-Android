@@ -441,6 +441,7 @@ class EntryViewModelTest {
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
         assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        coVerify(exactly = 1) { saveOnboardingProfileUseCase.saveForSubmission(any()) }
         coVerify(exactly = 1) { saveEntryProgressUseCase(any()) }
 
         viewModel.continueAfterOnboardingAnalysis()
@@ -454,7 +455,7 @@ class EntryViewModelTest {
         runTest(testDispatcher) {
             val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
             val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
-            coEvery { saveOnboardingProfileUseCase(any()) } throws IllegalStateException("failed")
+            coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } throws IllegalStateException("failed")
             advanceUntilIdle()
 
             viewModel.effect.test {
@@ -563,6 +564,7 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
         viewModel.effect.test {
@@ -625,6 +627,7 @@ class EntryViewModelTest {
     ): EntryViewModel {
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
         every { getEntryProgressUseCase() } returns flowOf(savedProgress)
         coEvery { saveEntryProgressUseCase(any()) } returns Unit
         every { getOnboardingProfileUseCase() } returns flowOf(savedProfile)
