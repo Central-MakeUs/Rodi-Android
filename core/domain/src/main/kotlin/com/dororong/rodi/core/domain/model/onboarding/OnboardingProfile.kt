@@ -64,7 +64,6 @@ enum class VehicleType(val label: String) {
     SUV("SUV"),
 }
 
-/** 온보딩 설문 응답. 점수 계산/서버 전송은 미확정이라 이번엔 로컬 저장까지만 한다. */
 data class OnboardingProfile(
     val nickname: String = "",
     val drivingPeriod: DrivingPeriod? = null,

@@ -160,6 +160,7 @@ fun EntryFlow(
                     OnboardingAnalysisDialog(
                         state = analysisState,
                         level = level,
+                        copy = state.onboardingAnalysisCopy ?: return@let,
                         onConfirm = viewModel::continueAfterOnboardingAnalysis,
                     )
                 }

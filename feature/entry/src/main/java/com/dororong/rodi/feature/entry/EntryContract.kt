@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.entry
 
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingAnalysisCopy
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
@@ -34,6 +35,7 @@ data class EntryUiState(
     val vehicleType: VehicleType? = null,
     val goal: String = "",
     val onboardingLevel: OnboardingLevel? = null,
+    val onboardingAnalysisCopy: OnboardingAnalysisCopy? = null,
     val onboardingAnalysisState: OnboardingAnalysisState? = null,
 ) {
     val isCareerStepValid: Boolean

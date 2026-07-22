@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
+import com.dororong.rodi.core.domain.model.onboarding.analysisCopy
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
@@ -223,6 +224,7 @@ class EntryViewModel @Inject constructor(
         _state.update {
             it.copy(
                 onboardingLevel = level,
+                onboardingAnalysisCopy = profile.analysisCopy(level),
                 onboardingAnalysisState = OnboardingAnalysisState.ANALYZING,
             )
         }

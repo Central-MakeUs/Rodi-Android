@@ -8,21 +8,27 @@ enum class OnboardingLevel {
     NAVIGATOR,
 }
 
-fun OnboardingProfile.calculateLevel(): OnboardingLevel {
-    if (drivingPeriod?.isNavigatorLevel == true) {
-        return OnboardingLevel.NAVIGATOR
-    }
+data class OnboardingAssessment(
+    val score: Int,
+    val level: OnboardingLevel,
+    val isLevelForced: Boolean,
+)
 
+fun OnboardingProfile.calculateAssessment(): OnboardingAssessment {
     val score = drivingPeriod.score + recentFrequency.score + roadExperiences.maxOfOrNull { it.score }.orZero +
         soloDrivingRange.score + soloParkingLevel.score
 
-    return when (score) {
+    val isLevelForced = drivingPeriod?.isNavigatorLevel == true
+    val level = if (isLevelForced) OnboardingLevel.NAVIGATOR else when (score) {
         in 0..2 -> OnboardingLevel.SEED
         in 3..5 -> OnboardingLevel.ROOKIE
         in 6..9 -> OnboardingLevel.OWNER
         else -> OnboardingLevel.EXPLORER
     }
+    return OnboardingAssessment(score, level, isLevelForced)
 }
+
+fun OnboardingProfile.calculateLevel(): OnboardingLevel = calculateAssessment().level
 
 val DrivingPeriod.isNavigatorLevel: Boolean
     get() = this == DrivingPeriod.YEAR_2_TO_10 || this == DrivingPeriod.OVER_YEAR_10
