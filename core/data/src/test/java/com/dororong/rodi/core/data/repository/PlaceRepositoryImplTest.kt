@@ -5,6 +5,8 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
+import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
+import com.dororong.rodi.core.data.source.remote.model.place.PlaceListItemResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.course.GeoPoint
@@ -21,6 +23,47 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class PlaceRepositoryImplTest {
+    @Test
+    fun `saved places preserves nullable distance and cursor page metadata`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery { api.getSavedPlaces("Bearer access", 20, null) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CursorPagePlaceResponse(
+                items = listOf(
+                    PlaceListItemResponse(
+                        id = 3,
+                        type = "PARKING",
+                        name = "주차장",
+                        address = "서울",
+                        lat = 37.5,
+                        lng = 126.9,
+                        distanceFromMe = null,
+                        practiceTypes = listOf("PARKING"),
+                    ),
+                ),
+                hasNext = true,
+                nextCursor = "next-3",
+                totalCount = 21,
+            ),
+        )
+        val repository = PlaceRepositoryImpl(
+            api,
+            mockk<SavedPlaceLocalDataSource>(relaxed = true),
+            tokenStore,
+            mockk<AuthRepository>(),
+        )
+
+        val page = repository.getSavedPlaces(cursor = null, size = 20)
+
+        assertEquals(null, page.items.single().distanceFromMeMeters)
+        assertEquals("next-3", page.nextCursor)
+        assertEquals(21, page.totalCount)
+    }
+
     @Test
     fun `detail retries once after access token refresh`() = runTest {
         val api = mockk<PlaceApi>()

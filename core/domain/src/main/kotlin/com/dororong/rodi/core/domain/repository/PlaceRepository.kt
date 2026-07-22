@@ -17,6 +17,7 @@ interface PlaceRepository {
         size: Int,
     ): CursorPage<PlaceSummary> = getPlaces(query, cursor, size)
     suspend fun getPlaceDetail(placeId: Long): PlaceDetail
+    suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary>
     suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean)
     fun observeSavedPlaces(): Flow<List<PlaceSummary>>
 }

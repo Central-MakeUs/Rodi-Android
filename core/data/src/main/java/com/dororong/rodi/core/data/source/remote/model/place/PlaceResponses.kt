@@ -28,7 +28,7 @@ data class PlaceListItemResponse(
     val address: String,
     val lat: Double,
     val lng: Double,
-    val distanceFromMe: Long = 0,
+    val distanceFromMe: Long? = null,
     val practiceTypes: List<String> = emptyList(),
     val description: String? = null,
     val distanceMeters: Int? = null,

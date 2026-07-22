@@ -19,6 +19,7 @@ import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.feature.home.HomeIntent
+import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.home.HomeViewModel
 import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
@@ -106,6 +107,11 @@ fun MainScreen(
                     SavedCoursesRoute -> NavEntry(key) {
                         SavedCoursesScreen(
                             onBack = { backStack.removeAt(backStack.lastIndex) },
+                            onPlaceClick = { placeId ->
+                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
+                                backStack.clear()
+                                backStack.add(HomeRoute)
+                            },
                         )
                     }
                     SettingsRoute -> NavEntry(key) {
