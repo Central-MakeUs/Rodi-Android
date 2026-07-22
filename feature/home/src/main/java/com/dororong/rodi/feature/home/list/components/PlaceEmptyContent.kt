@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,9 +26,12 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
+private val EMPTY_SHEET_HANDLE_DRAG_THRESHOLD = 12.dp
+
 @Composable
 fun PlaceEmptyContent(
     isInitialError: Boolean,
+    onHandleDragDown: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -34,7 +40,7 @@ fun PlaceEmptyContent(
             .heightIn(min = 375.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        EmptySheetHandle()
+        EmptySheetHandle(onDragDown = onHandleDragDown)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -70,10 +76,31 @@ fun PlaceEmptyContent(
 }
 
 @Composable
-private fun EmptySheetHandle() {
+private fun EmptySheetHandle(onDragDown: () -> Unit) {
+    val dragThresholdPx = with(LocalDensity.current) { EMPTY_SHEET_HANDLE_DRAG_THRESHOLD.toPx() }
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .pointerInput(onDragDown, dragThresholdPx) {
+                var totalDrag = 0f
+                var actionTriggered = false
+                detectVerticalDragGestures(
+                    onDragStart = {
+                        totalDrag = 0f
+                        actionTriggered = false
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        if (!actionTriggered) {
+                            totalDrag = (totalDrag + dragAmount).coerceAtLeast(0f)
+                            if (totalDrag >= dragThresholdPx) {
+                                actionTriggered = true
+                                onDragDown()
+                            }
+                        }
+                    },
+                )
+            }
             .padding(top = 8.dp, bottom = 10.dp),
         contentAlignment = Alignment.Center,
     ) {

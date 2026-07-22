@@ -50,6 +50,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -78,6 +79,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
+import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
@@ -101,6 +103,7 @@ import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
+import com.dororong.rodi.feature.home.map.InitialLocationState
 import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapBitmapStyle
 import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
@@ -113,7 +116,6 @@ import com.dororong.rodi.feature.home.map.PendingMapSearch
 import com.dororong.rodi.feature.home.map.PendingMapSearchMatcher
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
-import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.clearCurrentLocationMarker
@@ -143,9 +145,11 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
+private const val CLUSTER_FIT_PADDING_DP = 48
 private const val SURFACE_ANIMATION_MILLIS = 300
 private const val RESEARCH_BUTTON_FADE_IN_MILLIS = 150
 private const val RESEARCH_BUTTON_FADE_OUT_MILLIS = 100
@@ -191,7 +195,7 @@ fun HomeScreen(
     var isInitialLocationCameraMovePending by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
-    var isInitialLocationResolved by remember { mutableStateOf(false) }
+    var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapScreenState by remember {
         mutableStateOf(
@@ -240,7 +244,7 @@ fun HomeScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         permissionGranted = result.values.any { it }
-        if (!permissionGranted) isInitialLocationResolved = true
+        if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -263,27 +267,40 @@ fun HomeScreen(
     LaunchedEffect(permissionGranted) {
         if (!permissionGranted) {
             currentLocation = null
+            initialLocationState = InitialLocationState.Unavailable
             kakaoMap?.clearCurrentLocationMarker()
             return@LaunchedEffect
         }
-        isInitialLocationResolved = false
+        initialLocationState = InitialLocationState.Pending
         currentLocation = context.awaitCurrentLocation()
-        isInitialLocationResolved = true
-        context.currentLocationUpdates().collect { currentLocation = it }
+        initialLocationState = if (currentLocation == null) {
+            InitialLocationState.Unavailable
+        } else {
+            InitialLocationState.Ready
+        }
+        context.currentLocationUpdates().collect {
+            currentLocation = it
+            initialLocationState = InitialLocationState.Ready
+        }
     }
 
+    val isEmptySheet = state.showEmpty || state.showInitialError
+    val currentIsEmptySheet by rememberUpdatedState(isEmptySheet)
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.Hidden,
         skipHiddenState = false,
+        confirmValueChange = { targetValue ->
+            targetValue != SheetValue.Expanded || !currentIsEmptySheet
+        },
     )
     val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
     var scaffoldSize by remember { mutableStateOf(IntSize.Zero) }
 
-    LaunchedEffect(state.surfaceState) {
+    LaunchedEffect(state.surfaceState, isEmptySheet) {
         when (state.surfaceState) {
             HomeSurfaceState.Navigation, HomeSurfaceState.Detail -> sheetState.hide()
             HomeSurfaceState.PartialList -> sheetState.partialExpand()
-            HomeSurfaceState.FullList -> sheetState.expand()
+            HomeSurfaceState.FullList -> if (isEmptySheet) sheetState.partialExpand() else sheetState.expand()
         }
     }
     LaunchedEffect(sheetState, state.showEmpty, state.showInitialError) {
@@ -372,14 +389,7 @@ fun HomeScreen(
         parkingSheetLayout = parkingSheetLayout.forPlace(activeParkingPlaceId)
     }
 
-    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && searchedViewport?.let { searched ->
-        currentViewport?.let { current ->
-            ViewportSearchThreshold.isExceeded(
-                searched,
-                current,
-            )
-        }
-    } == true
+    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.isMapSearchDirty
 
     val dismissDetail: () -> Unit = {
         val place = state.selectedPlace
@@ -420,13 +430,12 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, mapViewSize, currentLocation, isInitialLocationResolved) {
+    LaunchedEffect(kakaoMap, mapViewSize, currentLocation, initialLocationState) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (!InitialViewportSearchPolicy.canDispatch(
-                isLocationResolved = isInitialLocationResolved,
+                locationState = initialLocationState,
                 hasCurrentLocation = currentLocation != null,
                 hasCenteredInitialLocation = hasCenteredInitialLocation,
-                hasUserMovedMap = hasUserMovedMap,
                 isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
             )
         ) {
@@ -597,8 +606,8 @@ fun HomeScreen(
         map.scaleBar?.apply {
             setAutoHide(false)
             setPosition(
-                MapGravity.BOTTOM or MapGravity.LEFT,
-                with(density) { 40.dp.toPx() },
+                MapGravity.BOTTOM or MapGravity.RIGHT,
+                with(density) { 60.dp.toPx() },
                 scaleBarBottomPx,
             )
             show()
@@ -649,7 +658,10 @@ fun HomeScreen(
                                     CircularProgressIndicator(color = RodiTheme.colors.primary600)
                                 }
 
-                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(state.showInitialError)
+                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(
+                                    isInitialError = state.showInitialError,
+                                    onHandleDragDown = { scope.launch { sheetState.hide() } },
+                                )
                                 else -> PlaceListContent(
                                     places = state.places,
                                     onPlaceClick = {
@@ -699,6 +711,7 @@ fun HomeScreen(
                                                         hasUserChosenMapViewport = true
                                                         pendingMapSearch = null
                                                         isInitialLocationCameraMovePending = false
+                                                        vm.onIntent(HomeIntent.OnMapGesture)
                                                     }
                                                 }
                                                 map.setOnCameraMoveEndListener { movedMap, _, _ ->
@@ -718,17 +731,16 @@ fun HomeScreen(
                                                             pendingMapSearch = null
                                                             isInitialLocationCameraMovePending = false
                                                             vm.onIntent(
-                                                                HomeIntent.OnResearch(
+                                                                HomeIntent.OnProgrammaticSearch(
                                                                     viewport.toQuery(currentLocation),
                                                                 ),
                                                             )
                                                         } else if (
                                                             pending == null &&
                                                             InitialViewportSearchPolicy.canDispatch(
-                                                                isLocationResolved = isInitialLocationResolved,
+                                                                locationState = initialLocationState,
                                                                 hasCurrentLocation = currentLocation != null,
                                                                 hasCenteredInitialLocation = hasCenteredInitialLocation,
-                                                                hasUserMovedMap = hasUserMovedMap,
                                                                 isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
                                                             )
                                                         ) {
@@ -801,7 +813,6 @@ fun HomeScreen(
                                 onClick = {
                                     val viewport = currentViewport ?: return@MapResearchButton
                                     hasUserChosenMapViewport = true
-                                    searchedViewport = viewport
                                     vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
                                 },
                             )
@@ -951,7 +962,7 @@ fun HomeScreen(
         },
     )
 
-    if (state.pendingAction != null) {
+    if (state.pendingAction != null && state.pendingRestoreCredential == null) {
         LoginRequiredDialog(
             isLoggingIn = state.isLoginInProgress,
             onDismiss = dismissLogin,
@@ -964,6 +975,13 @@ fun HomeScreen(
                     },
                 )
             },
+        )
+    }
+    if (state.pendingRestoreCredential != null) {
+        AccountRecoveryDialog(
+            isRestoring = state.isRestoreInProgress,
+            onConfirm = { vm.onIntent(HomeIntent.OnRestoreAccount) },
+            onDismiss = { vm.onIntent(HomeIntent.OnDismissRestore) },
         )
     }
 
