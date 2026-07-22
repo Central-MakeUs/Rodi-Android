@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home
 
 import app.cash.turbine.test
 import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -11,6 +12,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
@@ -143,6 +145,27 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `map gesture stays dirty until explicit research refresh succeeds`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returnsMany listOf(
+            Result.failure(IllegalStateException("offline")),
+            Result.success(page),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnMapGesture)
+        vm.onIntent(HomeIntent.OnResearch(query()))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isMapSearchDirty)
+
+        vm.onIntent(HomeIntent.OnResearch(query()))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isMapSearchDirty)
+    }
+
+    @Test
     fun `surface transitions navigation partial full partial navigation`() {
         val vm = Dependencies().viewModel()
 
@@ -159,7 +182,7 @@ class HomeViewModelTest {
     @Test
     fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(true)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
             AuthSession(false, false),
             AuthSession(true, true),
@@ -226,6 +249,7 @@ private class Dependencies(loggedIn: Boolean = true) {
     val getRoute = mockk<GetRouteUseCase>()
     val authSession = mockk<GetAuthSessionUseCase>()
     val loginWithKakao = mockk<LoginWithKakaoUseCase>()
+    val restoreWithKakao = mockk<RestoreWithKakaoUseCase>()
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
 
@@ -248,6 +272,7 @@ private class Dependencies(loggedIn: Boolean = true) {
         setPlaceBookmarkUseCase = setBookmark,
         getAuthSessionUseCase = authSession,
         loginWithKakaoUseCase = loginWithKakao,
+        restoreWithKakaoUseCase = restoreWithKakao,
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
     )

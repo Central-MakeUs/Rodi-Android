@@ -44,15 +44,20 @@ data class HomeUiState(
     val nextCursor: String? = null,
     val totalCount: Long? = null,
     val searchedQuery: PlaceViewportQuery? = null,
+    val isMapSearchDirty: Boolean = false,
     val pendingAction: PendingHomeAction? = null,
     val isLoginInProgress: Boolean = false,
+    val pendingRestoreCredential: String? = null,
+    val isRestoreInProgress: Boolean = false,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
 }
 
 sealed interface HomeIntent {
+    data object OnMapGesture : HomeIntent
     data class OnViewportSettled(val query: PlaceViewportQuery) : HomeIntent
+    data class OnProgrammaticSearch(val query: PlaceViewportQuery) : HomeIntent
     data class OnResearch(val query: PlaceViewportQuery) : HomeIntent
     data object OnListOpen : HomeIntent
     data object OnListExpand : HomeIntent
@@ -65,6 +70,8 @@ sealed interface HomeIntent {
     data object OnDismissLogin : HomeIntent
     data class OnKakaoLoginCredential(val accessToken: String) : HomeIntent
     data class OnKakaoLoginFailed(val message: String) : HomeIntent
+    data object OnRestoreAccount : HomeIntent
+    data object OnDismissRestore : HomeIntent
 
     data class OnNavigateClick(
         val kakaoMapInstalled: Boolean,

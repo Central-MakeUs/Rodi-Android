@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.home.map
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import androidx.compose.ui.unit.IntSize
 import com.kakao.vectormap.KakaoMap
-import kotlin.math.hypot
 
 data class MapViewport(
     val northEast: GeoPoint,
@@ -13,38 +12,27 @@ data class MapViewport(
         point.lat in southWest.lat..northEast.lat && point.lng in southWest.lng..northEast.lng
 }
 
+fun List<GeoPoint>.boundsOrNull(): MapViewport? {
+    if (isEmpty()) return null
+    return MapViewport(
+        northEast = GeoPoint(maxOf(GeoPoint::lat), maxOf(GeoPoint::lng)),
+        southWest = GeoPoint(minOf(GeoPoint::lat), minOf(GeoPoint::lng)),
+    )
+}
+
 object InitialViewportSearchPolicy {
     fun canDispatch(
-        isLocationResolved: Boolean,
+        locationState: InitialLocationState,
         hasCurrentLocation: Boolean,
         hasCenteredInitialLocation: Boolean,
-        hasUserMovedMap: Boolean,
         isInitialLocationCameraMovePending: Boolean,
-    ): Boolean = isLocationResolved &&
+    ): Boolean = locationState == InitialLocationState.Ready &&
+        hasCurrentLocation &&
         !isInitialLocationCameraMovePending &&
-        (!hasCurrentLocation || hasCenteredInitialLocation || hasUserMovedMap)
+        hasCenteredInitialLocation
 }
 
-object ViewportSearchThreshold {
-    private const val SEARCH_DISTANCE_RATIO = 0.3
-
-    fun isExceeded(
-        searchedViewport: MapViewport,
-        currentViewport: MapViewport,
-    ): Boolean {
-        val latitudeSpan = searchedViewport.northEast.lat - searchedViewport.southWest.lat
-        val longitudeSpan = searchedViewport.northEast.lng - searchedViewport.southWest.lng
-        if (latitudeSpan <= 0.0 || longitudeSpan <= 0.0) return false
-
-        val searchedCenterLatitude = (searchedViewport.northEast.lat + searchedViewport.southWest.lat) / 2
-        val searchedCenterLongitude = (searchedViewport.northEast.lng + searchedViewport.southWest.lng) / 2
-        val currentCenterLatitude = (currentViewport.northEast.lat + currentViewport.southWest.lat) / 2
-        val currentCenterLongitude = (currentViewport.northEast.lng + currentViewport.southWest.lng) / 2
-        val horizontalDistance = (currentCenterLongitude - searchedCenterLongitude) / longitudeSpan
-        val verticalDistance = (currentCenterLatitude - searchedCenterLatitude) / latitudeSpan
-        return hypot(horizontalDistance, verticalDistance) >= SEARCH_DISTANCE_RATIO
-    }
-}
+enum class InitialLocationState { Pending, Ready, Unavailable }
 
 fun KakaoMap.viewportOrNull(size: IntSize): MapViewport? {
     if (size == IntSize.Zero) return null
