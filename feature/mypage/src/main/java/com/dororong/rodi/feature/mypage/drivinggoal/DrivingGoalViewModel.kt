@@ -2,26 +2,22 @@ package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
-import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
-import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
-import com.dororong.rodi.core.domain.usecase.onboarding.SaveOnboardingProfileUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
+import com.dororong.rodi.core.domain.usecase.member.UpdateDrivingGoalUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class DrivingGoalUiState(
     val initialGoal: String = "",
     val goal: String = "",
+    val isLoading: Boolean = true,
     val isSaving: Boolean = false,
 )
 
@@ -32,62 +28,45 @@ sealed interface DrivingGoalEffect {
 
 @HiltViewModel
 class DrivingGoalViewModel @Inject constructor(
-    private val getOnboardingProfile: GetOnboardingProfileUseCase,
-    private val saveOnboardingProfile: SaveOnboardingProfileUseCase,
+    private val getMyPage: GetMyPageUseCase,
+    private val updateDrivingGoal: UpdateDrivingGoalUseCase,
 ) : ViewModel() {
+    private val _uiState = MutableStateFlow(DrivingGoalUiState())
+    val uiState: StateFlow<DrivingGoalUiState> = _uiState.asStateFlow()
     private val _effect = Channel<DrivingGoalEffect>(Channel.BUFFERED)
-    private val isSaving = MutableStateFlow(false)
-    private val editedGoal = MutableStateFlow<String?>(null)
     val effect = _effect.receiveAsFlow()
 
-    val uiState: StateFlow<DrivingGoalUiState> = combine(
-        getOnboardingProfile(),
-        isSaving,
-        editedGoal,
-    ) { profile, saving, goal ->
-        DrivingGoalUiState(
-            initialGoal = profile.goal,
-            goal = goal ?: profile.goal,
-            isSaving = saving,
-        )
+    init {
+        viewModelScope.launch {
+            getMyPage()
+                .onSuccess { page ->
+                    val goal = page.drivingGoal.orEmpty()
+                    _uiState.value = DrivingGoalUiState(initialGoal = goal, goal = goal, isLoading = false)
+                }
+                .onFailure {
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effect.send(DrivingGoalEffect.ShowSyncError)
+                }
+        }
     }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = DrivingGoalUiState(),
-        )
 
     fun updateGoal(goal: String) {
-        editedGoal.value = goal.take(DRIVING_GOAL_MAX_LENGTH)
+        _uiState.update { it.copy(goal = goal.take(DRIVING_GOAL_MAX_LENGTH)) }
     }
 
     fun save() {
-        val goal = editedGoal.value ?: uiState.value.initialGoal
-        if (goal.isBlank() || goal == uiState.value.initialGoal || uiState.value.isSaving) return
-
+        val state = _uiState.value
+        if (state.goal == state.initialGoal || state.isSaving || state.isLoading) return
         viewModelScope.launch {
-            isSaving.value = true
-            val result = try {
-                val profile = getOnboardingProfile().first().copy(goal = goal.take(DRIVING_GOAL_MAX_LENGTH))
-                saveOnboardingProfile(profile)
-                saveOnboardingProfile.submit(profile, profile.calculateLevel())
-            } catch (exception: CancellationException) {
-                throw exception
-            } catch (_: Throwable) {
-                OnboardingSubmissionResult.UnexpectedFailure
-            } finally {
-                isSaving.value = false
-            }
-            if (result.isSuccessful) {
-                _effect.send(DrivingGoalEffect.NavigateBack)
-            } else {
-                _effect.send(DrivingGoalEffect.ShowSyncError)
-            }
+            _uiState.update { it.copy(isSaving = true) }
+            updateDrivingGoal(state.goal)
+                .onSuccess { _effect.send(DrivingGoalEffect.NavigateBack) }
+                .onFailure {
+                    _uiState.update { it.copy(isSaving = false) }
+                    _effect.send(DrivingGoalEffect.ShowSyncError)
+                }
         }
     }
 }
 
 const val DRIVING_GOAL_MAX_LENGTH = 30
-
-private val OnboardingSubmissionResult.isSuccessful: Boolean
-    get() = this == OnboardingSubmissionResult.Submitted || this == OnboardingSubmissionResult.AlreadyCompleted
