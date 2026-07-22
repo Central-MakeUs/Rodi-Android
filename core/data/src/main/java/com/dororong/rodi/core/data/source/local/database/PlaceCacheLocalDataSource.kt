@@ -3,7 +3,6 @@ package com.dororong.rodi.core.data.source.local.database
 import com.dororong.rodi.core.data.source.local.database.dao.PlaceCacheDao
 import com.dororong.rodi.core.data.source.local.database.entity.PlaceCoordinateEntity
 import com.dororong.rodi.core.data.source.local.database.entity.PlaceSummaryEntity
-import com.dororong.rodi.core.data.source.local.sample.SamplePlaces
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -20,10 +19,7 @@ import kotlin.math.sqrt
 class PlaceCacheLocalDataSource @Inject constructor(
     private val dao: PlaceCacheDao,
 ) {
-    suspend fun seedSamplesIfEmpty() {
-        if (dao.coordinateCount() == 0) dao.upsertCoordinates(SamplePlaces.coordinates().map(PlaceCoordinate::toEntity))
-        if (dao.summaryCount() == 0) dao.upsertSummaries(SamplePlaces.allSummaries().map(PlaceSummary::toEntity))
-    }
+    suspend fun deleteSamples() = dao.deleteSamples()
 
     suspend fun coordinates(): List<PlaceCoordinate> = dao.getCoordinates().map(PlaceCoordinateEntity::toDomain)
 
@@ -33,10 +29,10 @@ class PlaceCacheLocalDataSource @Inject constructor(
         westLongitude = query.southWest.lng,
         eastLongitude = query.northEast.lng,
     ).map { it.toDomain(query.origin) }
-        .sortedBy(PlaceSummary::distanceFromMeMeters)
+        .sortedBy { it.distanceFromMeMeters }
 
-    suspend fun upsertCoordinates(items: List<PlaceCoordinate>) {
-        dao.upsertCoordinates(items.map(PlaceCoordinate::toEntity))
+    suspend fun replaceCoordinates(items: List<PlaceCoordinate>) {
+        dao.replaceCoordinates(items.distinctBy(PlaceCoordinate::id).map(PlaceCoordinate::toEntity))
     }
 
     suspend fun upsertSummaries(items: List<PlaceSummary>) {

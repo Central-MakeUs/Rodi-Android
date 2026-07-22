@@ -27,6 +27,27 @@ interface PlaceCacheDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSummaries(items: List<PlaceSummaryEntity>)
 
+    @Query("DELETE FROM place_coordinates")
+    suspend fun deleteCoordinates()
+
+    @Query("DELETE FROM place_coordinates WHERE id < 0")
+    suspend fun deleteSampleCoordinates()
+
+    @Query("DELETE FROM place_summaries WHERE id < 0")
+    suspend fun deleteSampleSummaries()
+
+    @Transaction
+    suspend fun replaceCoordinates(items: List<PlaceCoordinateEntity>) {
+        deleteCoordinates()
+        upsertCoordinates(items)
+    }
+
+    @Transaction
+    suspend fun deleteSamples() {
+        deleteSampleCoordinates()
+        deleteSampleSummaries()
+    }
+
     @Transaction
     suspend fun upsertSummariesWithCoordinates(
         summaries: List<PlaceSummaryEntity>,
@@ -36,9 +57,4 @@ interface PlaceCacheDao {
         upsertCoordinates(coordinates)
     }
 
-    @Query("SELECT COUNT(*) FROM place_coordinates")
-    suspend fun coordinateCount(): Int
-
-    @Query("SELECT COUNT(*) FROM place_summaries")
-    suspend fun summaryCount(): Int
 }

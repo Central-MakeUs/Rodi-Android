@@ -1,8 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.source.local.database.PlaceCacheLocalDataSource
-import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
-import com.dororong.rodi.core.data.source.local.sample.SamplePlaces
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -12,21 +10,19 @@ import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
-/** Room 캐시를 먼저 읽고 서버 응답으로 갱신하는 PlaceRepository decorator. */
 class CachedPlaceRepository @Inject constructor(
     private val delegate: PlaceRepositoryImpl,
     private val placeCache: PlaceCacheLocalDataSource,
-    private val savedPlaceLocalDataSource: SavedPlaceLocalDataSource,
 ) : PlaceRepository {
     override suspend fun getCoordinates(): List<PlaceCoordinate> {
-        placeCache.seedSamplesIfEmpty()
-        return placeCache.coordinates().preferServerCoordinates()
+        placeCache.deleteSamples()
+        return placeCache.coordinates().distinctBy(PlaceCoordinate::id)
     }
 
     override suspend fun refreshCoordinates(): List<PlaceCoordinate> {
-        val coordinates = delegate.getCoordinates()
-        placeCache.upsertCoordinates(coordinates)
-        return getCoordinates()
+        val coordinates = delegate.getCoordinates().distinctBy(PlaceCoordinate::id)
+        placeCache.replaceCoordinates(coordinates)
+        return coordinates
     }
 
     override suspend fun getPlaces(
@@ -34,9 +30,9 @@ class CachedPlaceRepository @Inject constructor(
         cursor: String?,
         size: Int,
     ): CursorPage<PlaceSummary> {
-        placeCache.seedSamplesIfEmpty()
+        placeCache.deleteSamples()
         return CursorPage(
-            items = placeCache.summaries(query).preferServerSummaries(),
+            items = placeCache.summaries(query).distinctBy(PlaceSummary::id),
             hasNext = false,
             nextCursor = null,
             totalCount = null,
@@ -50,21 +46,16 @@ class CachedPlaceRepository @Inject constructor(
     ): CursorPage<PlaceSummary> {
         val page = delegate.getPlaces(query, cursor, size)
         placeCache.upsertSummaries(page.items)
-        return page.copy(
-            items = placeCache.summaries(query).preferServerSummaries(),
-        )
+        return page.copy(items = page.items.distinctBy(PlaceSummary::id))
     }
 
-    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail =
-        SamplePlaces.detail(placeId) ?: delegate.getPlaceDetail(placeId)
+    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = delegate.getPlaceDetail(placeId)
 
-    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
-        if (SamplePlaces.isSamplePlace(place.id)) {
-            savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
-        } else {
-            delegate.setBookmarked(place, bookmarked)
-        }
-    }
+    override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
+        delegate.getSavedPlaces(cursor, size)
+
+    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) =
+        delegate.setBookmarked(place, bookmarked)
 
     override fun observeSavedPlaces(): Flow<List<PlaceSummary>> = delegate.observeSavedPlaces()
 }
