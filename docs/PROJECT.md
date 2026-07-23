@@ -34,6 +34,7 @@
 | `:feature:auth` | 카카오 로그인 화면 + SDK 로직, 서버 로그인·재발급·로그아웃·탈퇴 유예 계정 복구 연동 |
 | `:feature:entry` | 진입 게이트(위치권한·약관·운전 주의사항) + 온보딩 설문(닉네임·경력·선호), `EntryFlow` + 단계별 Content |
 | `:feature:home` | 홈 화면(지도+코스 바텀시트), 지도 렌더(`map`), 외부 내비 런처(`navi`), 현재 위치(`location`) |
+| `:feature:mypage` | 서버 프로필·운전 목표·저장한 장소 목록과 코스·주차장 상세 진입 |
 | `:feature:settings` | 설정과 약관 목록·WebView. Home과 직접 의존하지 않고 App route로 연결 |
 
 ## 컨벤션 (필수)

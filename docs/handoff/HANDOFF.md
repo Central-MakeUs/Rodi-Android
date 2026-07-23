@@ -49,6 +49,20 @@ PR: #48 (`develop` ← `release/1.1.0-alpha04`)
 - Build/test: `./gradlew :core:domain:test :feature:auth:testDebugUnitTest :app:testDebugUnitTest assembleDebug` GREEN
 - Open questions: 기존 회원 로그인 후 프로세스 종료·재실행 시 홈 직행을 실기기에서 최종 확인한다.
 
+## Follow-up — PR #48 리뷰 반영
+
+Status: IMPL_DONE
+
+- 신규 회원은 로컬 진입 완료 여부와 무관하게 온보딩으로 이동하고, 기존 회원·서버 신규 여부 누락만 각각 홈·로컬 상태로 분기한다.
+- 홈 계정 복구 credential은 ViewModel private 필드에만 유지하고 UI 상태에는 복구 대기 여부만 노출한다.
+- 마이페이지 최초 조회 소유자를 화면 lifecycle로 단일화하고, 기존 콘텐츠를 유지한 백그라운드 갱신 실패는 공용 스낵바로 표시한다.
+- 인증 날짜 파싱 오류 문구를 로그인·복구 공용으로 정리하고, 장소 캐시는 첫 페이지 크기를 지키며 서버 cursor를 첫 페이지 캐시로 재생하지 않는다.
+- `PROJECT.md` 모듈 맵에 실제 `:feature:mypage` 책임을 추가했다.
+- 제외: 온보딩 pending은 repository가 `Submitted`·`AlreadyCompleted`에서 이미 해제하므로 use case 중복 처리를 넣지 않았다. 영문 레벨 표기는 온보딩·마이페이지 공통 현행 정책이라 유지했다. 서버 복구 성공 후 로컬 저장 실패의 보상 정책과 HANDOFF 템플릿 변경은 별도 결정 없이 자동 반영하지 않았다.
+- Changed files: `app/.../RodiApp.kt`, route test; `core/data` auth mapper·cached place repository와 tests; `feature/home` Contract·Screen·ViewModel·test; `feature/mypage` Screen·ViewModel·test; `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :feature:mypage:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE
