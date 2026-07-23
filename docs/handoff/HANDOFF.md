@@ -40,6 +40,15 @@ PR: none
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest` GREEN; 최종 결합 트리 `./gradlew test lint assembleDebug assembleRelease bundleRelease` GREEN (778 tasks); debug APK emulator install·cold launch·프로세스 유지 GREEN
 - Open questions: 서버가 새 6구간 `drivingPeriod` wire enum을 공개해야 기간 선택지·매핑·전송 테스트를 완료하고 Status를 `IMPL_DONE`으로 변경할 수 있다. Navigator 이미지 확정, GitHub `KEYSTORE_BASE64` secret 교체 후 workflow 수동 실행, 지도 제스처·위치 지연/거절·서버 고유 ID 대비 클러스터 합계·축척 간격·온보딩 Figma 대조·계정 복구·empty/normal 시트 실기기 QA가 남아 있다.
 
+## Follow-up — 기존 회원 재실행 진입 게이트
+
+- 서버가 기존 회원으로 확인한 로그인과 계정 복구 성공 시 로컬 `entry_completed`를 저장한다.
+- 신규 회원은 완료 상태를 기록하지 않고 계정 복구 결과의 신규 여부도 화면 전환에 전달해 미완료 온보딩으로 계속 진입한다.
+- 로그인 화면과 홈 내부 보호 동작 로그인이 공유하는 domain use case에서 처리해 모든 인증 진입점에 같은 정책을 적용한다.
+- Changed files: `core/domain/.../LoginWithKakaoUseCase.kt`, `RestoreWithKakaoUseCase.kt`, `feature/auth/.../LoginViewModel.kt`, 관련 tests, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :core:domain:test :feature:auth:testDebugUnitTest :app:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 기존 회원 로그인 후 프로세스 종료·재실행 시 홈 직행을 실기기에서 최종 확인한다.
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

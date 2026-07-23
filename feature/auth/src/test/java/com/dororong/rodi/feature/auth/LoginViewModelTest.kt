@@ -70,6 +70,27 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `recovery preserves new member routing`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        val restore = mockk<RestoreWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(
+            LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
+        )
+        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(true, "로디"))
+        val viewModel = viewModel(login, restore)
+
+        viewModel.onKakaoLoginResult("access-token")
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onRecoveryConfirm()
+            advanceUntilIdle()
+            assertEquals(LoginEffect.NavigateNext(isNewMember = true), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `login failure emits snackbar and returns idle`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.failure(

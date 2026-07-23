@@ -68,6 +68,33 @@ class AccountAuthUseCasesTest {
         assertEquals(expected, result.getOrThrow())
     }
 
+    @Test
+    fun `restoring an existing member persists entry completion`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential")
+
+        assertEquals(restored, result.getOrThrow())
+        coVerify { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restoring a new member keeps entry incomplete`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = true, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+
+        RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential").getOrThrow()
+
+        coVerify(exactly = 0) { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
     private fun onboardingRepository(): OnboardingRepository = mockk {
         coEvery { profile } returns flowOf(OnboardingProfile())
         coEvery { saveProfile(any()) } returns Unit
@@ -75,6 +102,7 @@ class AccountAuthUseCasesTest {
     }
 
     private fun entryRepository(): EntryRepository = mockk {
+        coEvery { setCompleted() } returns Unit
         coEvery { clearGuestAccess() } returns Unit
     }
 }

@@ -34,6 +34,7 @@ class LoginWithKakaoUseCaseTest {
 
         assertEquals(login, result.getOrThrow())
         coVerify { onboarding.saveProfile(OnboardingProfile(nickname = "서버 닉네임")) }
+        coVerify { entry.setCompleted() }
         coVerify { onboarding.clearSyncPending() }
         coVerify(exactly = 0) { sync() }
     }
@@ -55,6 +56,7 @@ class LoginWithKakaoUseCaseTest {
         coVerify { onboarding.savePendingProfile(profile.copy(nickname = "서버")) }
         coVerify { onboarding.authorizeSync() }
         coVerify { entry.clearGuestAccess() }
+        coVerify(exactly = 0) { entry.setCompleted() }
         coVerify { sync() }
     }
 
@@ -142,6 +144,7 @@ class LoginWithKakaoUseCaseTest {
     ): EntryRepository = mockk {
         coEvery { this@mockk.isCompleted } returns flowOf(isCompleted)
         coEvery { this@mockk.hasGuestAccess } returns flowOf(hasGuestAccess)
+        coEvery { setCompleted() } returns Unit
         coEvery { clearGuestAccess() } returns Unit
     }
 

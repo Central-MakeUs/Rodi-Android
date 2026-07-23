@@ -67,7 +67,7 @@ class LoginViewModel @Inject constructor(
                 .onSuccess { result ->
                     if (result is AccountRestoreResult.Restored) {
                         pendingCredential = null
-                        _effect.send(LoginEffect.NavigateNext(isNewMember = false))
+                        _effect.send(LoginEffect.NavigateNext(isNewMember = result.isNewMember))
                     } else {
                         _uiState.update { LoginUiState.RecoveryRequired() }
                         _effect.send(LoginEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))

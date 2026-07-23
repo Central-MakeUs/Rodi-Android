@@ -21,6 +21,7 @@ class RestoreWithKakaoUseCase @Inject constructor(
                     onboardingRepository.profile.first().copy(nickname = result.nickname),
                 )
                 onboardingRepository.clearSyncPending()
+                if (!result.isNewMember) entryRepository.setCompleted()
                 entryRepository.clearGuestAccess()
             }
             result

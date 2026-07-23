@@ -29,6 +29,7 @@ class LoginWithKakaoUseCase @Inject constructor(
                 } else {
                     onboardingRepository.saveProfile(profile)
                 }
+                if (!result.isNewMember) entryRepository.setCompleted()
                 entryRepository.clearGuestAccess()
                 val canSyncPendingProfile = if (result.isNewMember) {
                     onboardingRepository.authorizeSync()
