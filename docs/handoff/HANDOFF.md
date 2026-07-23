@@ -2,7 +2,7 @@
 
 Status: BLOCKED
 Branch: release/1.1.0-alpha04
-PR: none
+PR: #48 (`develop` ← `release/1.1.0-alpha04`)
 
 ## Spec
 
@@ -37,8 +37,8 @@ PR: none
 ## Codex Result — alpha04
 
 - Changed files: `.github/workflows/release.yml`; `app/build.gradle.kts`, `app/src/main/java/com/dororong/rodi/ui/{MainScreen,RodiApp,RodiAppViewModel}.kt`와 app tests; `core/domain`의 auth/member/onboarding/place 모델·저장소·use case·tests; `core/data`의 auth/member/place API·DTO·mapper·repository·DataStore·Room cache·tests; `core/ui/.../AccountRecoveryDialog.kt`; `feature/auth`, `feature/entry`, `feature/home`, `feature/mypage` 화면·ViewModel·Contract·tests; `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`; 삭제 `core/data/.../SamplePlaces.kt`, `SamplePlacesTest.kt`
-- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest` GREEN; 최종 결합 트리 `./gradlew test lint assembleDebug assembleRelease bundleRelease` GREEN (778 tasks); debug APK emulator install·cold launch·프로세스 유지 GREEN
-- Open questions: 서버가 새 6구간 `drivingPeriod` wire enum을 공개해야 기간 선택지·매핑·전송 테스트를 완료하고 Status를 `IMPL_DONE`으로 변경할 수 있다. Navigator 이미지 확정, GitHub `KEYSTORE_BASE64` secret 교체 후 workflow 수동 실행, 지도 제스처·위치 지연/거절·서버 고유 ID 대비 클러스터 합계·축척 간격·온보딩 Figma 대조·계정 복구·empty/normal 시트 실기기 QA가 남아 있다.
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest` GREEN; 최종 결합 트리 `./gradlew test lint assembleDebug assembleRelease bundleRelease` GREEN (778 tasks); debug APK emulator install·cold launch·프로세스 유지 GREEN; 실기기 지도 이동·확대/축소·클러스터 동작 사용자 확인 GREEN
+- Open questions: 서버가 새 6구간 `drivingPeriod` wire enum을 공개해야 기간 선택지·매핑·전송 테스트를 완료하고 Status를 `IMPL_DONE`으로 변경할 수 있다. Navigator 이미지 확정, GitHub `KEYSTORE_BASE64` secret 교체 후 workflow 수동 실행, 위치 지연/거절·온보딩 Figma 대조·계정 복구·empty/normal 시트 실기기 QA가 남아 있다.
 
 ## Follow-up — 기존 회원 재실행 진입 게이트
 
