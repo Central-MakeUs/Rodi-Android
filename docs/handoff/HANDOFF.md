@@ -75,6 +75,18 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN
 - Open questions: 지도·목록에서 각각 상세을 열었을 때의 핸들 하강, 위 방향 드래그, 주차장 콘텐츠 스크롤, 상세 로딩 중 닫기를 실기기에서 최종 확인한다.
 
+## Follow-up — 주차장 중복 마커·요금 안내 복구
+
+Status: IMPL_DONE
+
+- 같은 좌표에 서로 다른 서버 장소 ID가 개별 마커로 겹쳐 있을 때, 주차장 선택 시 선택 대상 외의 동일 좌표 라벨을 숨긴다. 선택 해제 시 숨긴 라벨을 다시 노출한다.
+- Kakao Map 라벨 스타일은 기존 `changeStyles` 대신 라벨을 숨긴 상태에서 `setStyles`와 `invalidate(false)`로 교체한 뒤 다시 노출해 기본 사각 마커가 선택 핀과 함께 남지 않게 했다.
+- Figma `1982:38025`의 요금 안내 4행 구조를 모든 주차장에 공통 적용한다. 무료 주차장도 초기무료·기본요금·추가요금·할증기준시간 행을 유지하며 기본요금만 `무료`로 표시한다.
+- 유료·무료 표시 정책을 단위 테스트로 고정하고 375dp 유료·무료 Preview를 각각 추가했다.
+- Changed files: `feature/home/.../map/BrowseMapRenderer.kt`, `feature/home/.../detail/components/ParkingDetailContent.kt`, `feature/home/.../detail/components/ParkingFeeDisplayTest.kt`, `docs/design/visual-qa.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:compileDebugKotlin :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN; debug APK emulator install·홈/목록 진입 GREEN
+- Open questions: 에뮬레이터 저장 세션의 refresh token 오류로 상세 화면 캡처가 막혔다. 구미의 동일 좌표 주차장 선택 전후 단일 마커와 유·무료 상세의 Figma 픽셀 대조를 실기기에서 최종 확인한다.
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

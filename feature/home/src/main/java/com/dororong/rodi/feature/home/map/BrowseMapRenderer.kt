@@ -107,7 +107,21 @@ private fun KakaoMap.changeParkingMarkerStyle(
     val manager = labelManager ?: return false
     val layer = browseLabelLayer() ?: return false
     val label = layer.allLabels.firstOrNull { it.tag == BrowseLabelTag.Place(parkingId) } ?: return false
-    label.changeStyles(manager.parkingMarkerStyles(context, drawableRes), false)
+    val labelsAtSamePosition = layer.allLabels.filter { candidate ->
+        candidate !== label &&
+            candidate.tag is BrowseLabelTag.Place &&
+            candidate.position.latitude == label.position.latitude &&
+            candidate.position.longitude == label.position.longitude
+    }
+    if (drawableRes == R.drawable.ic_pin_parking_selected) {
+        labelsAtSamePosition.forEach { it.hide() }
+    } else {
+        labelsAtSamePosition.forEach { it.show() }
+    }
+    label.hide()
+    label.setStyles(manager.parkingMarkerStyles(context, drawableRes))
+    label.invalidate(false)
+    label.show()
     return true
 }
 
