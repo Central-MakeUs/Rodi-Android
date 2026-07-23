@@ -47,7 +47,7 @@ data class HomeUiState(
     val isMapSearchDirty: Boolean = false,
     val pendingAction: PendingHomeAction? = null,
     val isLoginInProgress: Boolean = false,
-    val pendingRestoreCredential: String? = null,
+    val hasPendingRestore: Boolean = false,
     val isRestoreInProgress: Boolean = false,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError

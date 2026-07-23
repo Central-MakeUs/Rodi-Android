@@ -964,7 +964,7 @@ fun HomeScreen(
         },
     )
 
-    if (state.pendingAction != null && state.pendingRestoreCredential == null) {
+    if (state.pendingAction != null && !state.hasPendingRestore) {
         LoginRequiredDialog(
             isLoggingIn = state.isLoginInProgress,
             onDismiss = dismissLogin,
@@ -979,7 +979,7 @@ fun HomeScreen(
             },
         )
     }
-    if (state.pendingRestoreCredential != null) {
+    if (state.hasPendingRestore) {
         AccountRecoveryDialog(
             isRestoring = state.isRestoreInProgress,
             onConfirm = { vm.onIntent(HomeIntent.OnRestoreAccount) },

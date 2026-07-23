@@ -65,6 +65,7 @@ class HomeViewModel @Inject constructor(
     private var requestGeneration = 0L
     private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
+    private var pendingRestoreCredential: String? = null
 
     init {
         loadCoordinates()
@@ -95,13 +96,16 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
             is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
             HomeIntent.OnRestoreAccount -> restoreAccount()
-            HomeIntent.OnDismissRestore -> _state.update {
-                it.copy(
-                    pendingAction = null,
-                    pendingRestoreCredential = null,
-                    isLoginInProgress = false,
-                    isRestoreInProgress = false,
-                )
+            HomeIntent.OnDismissRestore -> {
+                pendingRestoreCredential = null
+                _state.update {
+                    it.copy(
+                        pendingAction = null,
+                        hasPendingRestore = false,
+                        isLoginInProgress = false,
+                        isRestoreInProgress = false,
+                    )
+                }
             }
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
@@ -392,11 +396,14 @@ class HomeViewModel @Inject constructor(
                             _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
                             resumePendingAction(action)
                         }
-                        is LoginResult.WithdrawalPending -> _state.update {
-                            it.copy(
-                                pendingRestoreCredential = accessToken,
-                                isLoginInProgress = false,
-                            )
+                        is LoginResult.WithdrawalPending -> {
+                            pendingRestoreCredential = accessToken
+                            _state.update {
+                                it.copy(
+                                    hasPendingRestore = true,
+                                    isLoginInProgress = false,
+                                )
+                            }
                         }
                     }
                 }
@@ -408,7 +415,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun restoreAccount() {
-        val credential = _state.value.pendingRestoreCredential ?: return
+        val credential = pendingRestoreCredential ?: return
         val action = _state.value.pendingAction ?: return
         if (_state.value.isRestoreInProgress) return
         viewModelScope.launch {
@@ -416,10 +423,11 @@ class HomeViewModel @Inject constructor(
             restoreWithKakaoUseCase(credential)
                 .onSuccess { result ->
                     if (result is AccountRestoreResult.Restored && _state.value.pendingAction == action) {
+                        pendingRestoreCredential = null
                         _state.update {
                             it.copy(
                                 pendingAction = null,
-                                pendingRestoreCredential = null,
+                                hasPendingRestore = false,
                                 isRestoreInProgress = false,
                             )
                         }

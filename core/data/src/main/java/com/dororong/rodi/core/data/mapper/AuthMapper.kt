@@ -56,7 +56,7 @@ fun SocialLoginResponse.toAuthTokenResponse(): AuthTokenResponse = AuthTokenResp
 private fun parseDateTime(value: String?, field: String) = try {
     OffsetDateTime.parse(requireField(value, field)).toInstant()
 } catch (_: DateTimeParseException) {
-    throw AuthException.Unknown("복구 응답의 $field 값이 올바르지 않습니다.")
+    throw AuthException.Unknown("인증 응답의 $field 값이 올바르지 않습니다.")
 }
 
 private fun <T> requireField(value: T?, field: String): T =

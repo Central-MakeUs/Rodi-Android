@@ -63,4 +63,17 @@ class AccountRestoreMapperTest {
 
         assertTrue(exception.message!!.contains("복구 응답 상태"))
     }
+
+    @Test
+    fun `reports invalid login timestamps as authentication response errors`() {
+        val response = SocialLoginResponse(
+            status = "WITHDRAWAL_PENDING",
+            withdrawalRequestedAt = "invalid",
+            recoverableUntil = "2026-07-16T00:00:00+09:00",
+        )
+
+        val exception = assertThrows(AuthException.Unknown::class.java) { response.toLoginResult() }
+
+        assertTrue(exception.message!!.contains("인증 응답"))
+    }
 }

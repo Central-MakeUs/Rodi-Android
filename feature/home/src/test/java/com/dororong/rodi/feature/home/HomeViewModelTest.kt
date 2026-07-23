@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home
 
 import app.cash.turbine.test
+import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -202,6 +204,34 @@ class HomeViewModelTest {
         assertNull(vm.state.value.pendingAction)
         assertEquals(10L, vm.state.value.selectedPlaceId)
         coVerify(exactly = 1) { deps.getDetail(10L) }
+    }
+
+    @Test
+    fun `withdrawal pending credential stays private until account restore succeeds`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(
+            LoginResult.WithdrawalPending(
+                withdrawalRequestedAt = Instant.parse("2026-07-13T00:00:00Z"),
+                recoverableUntil = Instant.parse("2026-07-16T00:00:00Z"),
+            ),
+        )
+        coEvery { deps.restoreWithKakao("credential") } returns Result.success(
+            AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnMyClick)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.hasPendingRestore)
+        vm.onIntent(HomeIntent.OnRestoreAccount)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.hasPendingRestore)
+        assertNull(vm.state.value.pendingAction)
+        coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
     }
 
     @Test

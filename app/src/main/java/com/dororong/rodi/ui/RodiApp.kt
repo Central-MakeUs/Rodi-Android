@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.R
@@ -95,12 +96,7 @@ fun RodiApp(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         onNavigateNext = { isNewMember ->
                             backStack.clear()
-                            val destination = when {
-                                isNewMember == false -> MainRoute
-                                state.isEntryCompleted -> MainRoute
-                                else -> EntryRoute
-                            }
-                            backStack.add(destination)
+                            backStack.add(postLoginDestination(isNewMember, state.isEntryCompleted))
                         },
                     )
                 }
@@ -125,6 +121,16 @@ fun RodiApp(
             }
         },
     )
+}
+
+internal fun postLoginDestination(
+    isNewMember: Boolean?,
+    isEntryCompleted: Boolean,
+): NavKey = when {
+    isNewMember == true -> EntryRoute
+    isNewMember == false -> MainRoute
+    isEntryCompleted -> MainRoute
+    else -> EntryRoute
 }
 
 @Composable
