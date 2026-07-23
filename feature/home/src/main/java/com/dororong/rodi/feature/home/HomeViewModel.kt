@@ -90,6 +90,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnLoadNextPage -> loadNextPage()
             is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
             HomeIntent.OnDismissDetail -> dismissDetail()
+            HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
@@ -298,6 +299,10 @@ class HomeViewModel @Inject constructor(
         } else {
             HomeSurfaceState.Navigation
         }
+        dismissDetail(destination)
+    }
+
+    private fun dismissDetail(destination: HomeSurfaceState) {
         detailJob?.cancel()
         routeJob?.cancel()
         _state.update {
@@ -306,6 +311,7 @@ class HomeViewModel @Inject constructor(
                 selectedPlace = null,
                 selectedRoute = null,
                 isRouting = false,
+                isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
                 surfaceState = destination,

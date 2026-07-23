@@ -65,6 +65,7 @@ sealed interface HomeIntent {
     data object OnLoadNextPage : HomeIntent
     data class OnPlaceClick(val id: Long, val origin: HomeDetailOrigin) : HomeIntent
     data object OnDismissDetail : HomeIntent
+    data object OnDragDismissDetail : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
     data object OnDismissLogin : HomeIntent

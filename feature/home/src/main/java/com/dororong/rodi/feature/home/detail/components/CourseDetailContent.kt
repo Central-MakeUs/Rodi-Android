@@ -30,6 +30,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
 import com.dororong.rodi.feature.home.list.components.PracticeTagRow
 import java.util.Locale
 
@@ -38,6 +39,7 @@ fun CourseDetailContent(
     place: PlaceDetail,
     isBookmarkUpdating: Boolean,
     onDismiss: () -> Unit,
+    onHandleDragDown: () -> Unit,
     onBookmarkClick: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
@@ -47,7 +49,10 @@ fun CourseDetailContent(
         modifier = modifier
             .fillMaxWidth(),
     ) {
-        StaticSheetHandle()
+        DismissibleSheetHandle(
+            onDragDown = onHandleDragDown,
+            modifier = Modifier.height(24.dp),
+        )
 
         Row(
             modifier = Modifier
@@ -171,22 +176,6 @@ fun CourseDetailContent(
     }
 }
 
-@Composable
-private fun StaticSheetHandle() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(height = 4.dp, width = 60.dp)
-                .background(RodiTheme.colors.handleBar, RoundedCornerShape(100.dp)),
-        )
-    }
-}
-
 private fun Int.toDistanceText(): String = if (this >= 1_000) {
     if (this % 1_000 == 0) "${this / 1_000}km" else String.format(Locale.KOREA, "%.1fkm", this / 1_000.0)
 } else "${this}m"
@@ -194,13 +183,13 @@ private fun Int.toDistanceText(): String = if (this >= 1_000) {
 @Preview(name = "Course detail - unsaved", showBackground = true, widthDp = 375, heightDp = 297)
 @Composable
 private fun CourseDetailUnsavedPreview() {
-    RodiTheme { CourseDetailContent(HomePreviewData.courseDetail, false, {}, {}, {}) }
+    RodiTheme { CourseDetailContent(HomePreviewData.courseDetail, false, {}, {}, {}, {}) }
 }
 
 @Preview(name = "Course detail - saved", showBackground = true, widthDp = 375, heightDp = 297)
 @Composable
 private fun CourseDetailSavedPreview() {
     RodiTheme {
-        CourseDetailContent(HomePreviewData.courseDetail.copy(isBookmarked = true), false, {}, {}, {})
+        CourseDetailContent(HomePreviewData.courseDetail.copy(isBookmarked = true), false, {}, {}, {}, {})
     }
 }

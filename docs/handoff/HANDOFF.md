@@ -63,6 +63,18 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :feature:mypage:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
 - Open questions: none
 
+## Follow-up — 주차장·경로 상세 시트 단방향 드래그
+
+Status: IMPL_DONE
+
+- empty/error·주차장 상세·경로 상세·상세 로딩 화면이 공용 `DismissibleSheetHandle`을 사용한다. 핸들에서 아래 방향으로 12dp 이상 드래그하면 콜백을 한 번만 호출하고, 위 방향 드래그는 소비하되 시트를 확장하지 않는다.
+- 상세 핸들 드래그는 진입 위치와 관계없이 `Navigation`으로 돌아가며 상세·경로 요청을 취소하고 선택 장소·경로·진입 위치와 상세/경로/북마크 진행 상태를 초기화한다.
+- 드래그 직전 선택된 주차장 마커를 서버 좌표 타입까지 확인해 기본 상태로 복원한다. 상세 응답을 기다리는 중에도 같은 동작을 수행한다.
+- X 버튼과 시스템 뒤로가기는 기존 `OnDismissDetail` 경로를 유지해 목록에서 진입한 경우 `PartialList`로 돌아간다. 주차장 내부 스크롤 영역은 핸들과 분리했다.
+- Changed files: `feature/home/.../components/DismissibleSheetHandle.kt`, `HomeContract.kt`, `HomeScreen.kt`, `HomeViewModel.kt`, `detail/components/{CourseDetailContent,ParkingDetailContent,PlaceDetailLoading}.kt`, `list/components/PlaceEmptyContent.kt`, `HomeViewModelTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 지도·목록에서 각각 상세을 열었을 때의 핸들 하강, 위 방향 드래그, 주차장 콘텐츠 스크롤, 상세 로딩 중 닫기를 실기기에서 최종 확인한다.
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

@@ -5,6 +5,7 @@ import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -32,6 +33,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -232,6 +234,100 @@ class HomeViewModelTest {
         assertFalse(vm.state.value.hasPendingRestore)
         assertNull(vm.state.value.pendingAction)
         coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
+    }
+
+    @Test
+    fun `drag dismiss from list clears course detail and always returns to navigation`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.courseDetail.copy(id = 30L)
+        val route = RouteResult(
+            points = listOf(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0)),
+            isRealRoute = true,
+        )
+        coEvery { deps.getDetail(30L) } returns Result.success(place)
+        coEvery { deps.getRoute(place) } returns Result.success(route)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(30L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+        assertEquals(route, vm.state.value.selectedRoute)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.selectedRoute)
+        assertNull(vm.state.value.detailOrigin)
+        assertFalse(vm.state.value.isDetailLoading)
+        assertFalse(vm.state.value.isRouting)
+        assertFalse(vm.state.value.isBookmarkUpdating)
+    }
+
+    @Test
+    fun `drag dismiss cancels parking detail loading and clears selection`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val detailResult = CompletableDeferred<Result<PlaceDetail>>()
+        coEvery { deps.getDetail(31L) } coAnswers { detailResult.await() }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(31L, HomeDetailOrigin.List))
+        runCurrent()
+        assertTrue(vm.state.value.isDetailLoading)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        runCurrent()
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.detailOrigin)
+        assertFalse(vm.state.value.isDetailLoading)
+        assertFalse(detailResult.isCompleted)
+    }
+
+    @Test
+    fun `drag dismiss clears parking bookmark update state`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 32L, isBookmarked = false)
+        val bookmarkResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.getDetail(32L) } returns Result.success(place)
+        coEvery { deps.setBookmark(place, true) } coAnswers { bookmarkResult.await() }
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(32L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnBookmarkClick)
+        runCurrent()
+        assertTrue(vm.state.value.isBookmarkUpdating)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertFalse(vm.state.value.isBookmarkUpdating)
+
+        bookmarkResult.complete(Result.success(Unit))
+        advanceUntilIdle()
+        assertNull(vm.state.value.selectedPlace)
+    }
+
+    @Test
+    fun `regular dismiss from list keeps partial list destination`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 33L)
+        coEvery { deps.getDetail(33L) } returns Result.success(place)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(33L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnDismissDetail)
+
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.detailOrigin)
     }
 
     @Test

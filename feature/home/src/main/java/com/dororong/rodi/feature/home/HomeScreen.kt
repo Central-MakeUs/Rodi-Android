@@ -391,12 +391,22 @@ fun HomeScreen(
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.isMapSearchDirty
 
+    val deselectSelectedParkingMarker: () -> Unit = {
+        val selectedParkingId = state.selectedPlace
+            ?.takeIf { it.type == PlaceType.PARKING }
+            ?.id
+            ?: state.selectedPlaceId?.takeIf { selectedPlaceId ->
+                state.coordinates.firstOrNull { it.id == selectedPlaceId }?.type == PlaceType.PARKING
+            }
+        selectedParkingId?.let { kakaoMap?.deselectParkingMarker(context, it) }
+    }
     val dismissDetail: () -> Unit = {
-        val place = state.selectedPlace
-        if (place?.type == PlaceType.PARKING) {
-            kakaoMap?.deselectParkingMarker(context, place.id)
-        }
+        deselectSelectedParkingMarker()
         vm.onIntent(HomeIntent.OnDismissDetail)
+    }
+    val dragDismissDetail: () -> Unit = {
+        deselectSelectedParkingMarker()
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
     }
     val dismissLogin: () -> Unit = {
         val pendingPlaceId = (state.pendingAction as? PendingHomeAction.OpenDetail)?.placeId
@@ -914,11 +924,14 @@ fun HomeScreen(
                     ) {
                         val selectedPlace = state.selectedPlace
                         when {
-                            state.isDetailLoading -> PlaceDetailLoading()
+                            state.isDetailLoading -> PlaceDetailLoading(
+                                onHandleDragDown = dragDismissDetail,
+                            )
                             selectedPlace?.type == PlaceType.COURSE -> CourseDetailContent(
                                 place = selectedPlace,
                                 isBookmarkUpdating = state.isBookmarkUpdating,
                                 onDismiss = dismissDetail,
+                                onHandleDragDown = dragDismissDetail,
                                 onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
                                 onNavigate = {
                                     vm.onIntent(
@@ -934,6 +947,7 @@ fun HomeScreen(
                                 place = selectedPlace,
                                 isBookmarkUpdating = state.isBookmarkUpdating,
                                 onDismiss = dismissDetail,
+                                onHandleDragDown = dragDismissDetail,
                                 onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
                                 onNavigate = {
                                     vm.onIntent(
