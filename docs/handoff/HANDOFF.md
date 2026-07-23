@@ -4,6 +4,52 @@ Status: BLOCKED
 Branch: release/1.1.0-alpha04
 PR: #48 (`develop` ← `release/1.1.0-alpha04`)
 
+## Context
+
+alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 인증 복구, 마이페이지·저장 장소 API, 상세 시트 동작 및 릴리스 워크플로를 출시 가능한 상태로 통합한다. 앱 구현과 연결 검증은 완료했지만 서버 OpenAPI의 운전 기간 enum이 승인된 6구간 계약으로 바뀌지 않아 출시는 차단된 상태다.
+
+## Files
+
+- 앱 진입·인증: `app`, `feature/auth`, `feature/entry`
+- 지도·장소 상세: `feature/home`, `core/data` 장소 API·캐시
+- 마이페이지·저장 장소: `feature/mypage`, `core/domain`, `core/data`
+- 출시·검증 기록: `.github/workflows/release.yml`, `docs/PROJECT.md`, `docs/design/visual-qa.md`, `docs/handoff/HANDOFF.md`
+
+## Acceptance
+
+- 인증·온보딩·마이페이지·장소 API와 화면이 연결되고 인증 API의 재발급·취소 계약이 유지된다.
+- 사용자 지도 제스처와 프로그램 카메라 이동을 구분하며, 서버 고유 장소 수와 클러스터 수가 일치한다.
+- 상세·empty 시트의 하강 동작과 선택 해제가 스펙대로 동작한다.
+- 앱 버전은 `versionCode=5`, `versionName=1.1.0-alpha04`이며 최종 결합 트리 빌드가 통과한다.
+- 서버가 새 6구간 `drivingPeriod` wire enum을 공개하기 전에는 출시하지 않는다.
+
+## Verification
+
+- 도메인·데이터·feature 단위 테스트와 `lint`, `assembleDebug`, `assembleRelease`, `bundleRelease`를 최종 결합 트리에서 실행한다.
+- 실기기에서 지도 제스처·클러스터·상세 시트·온보딩·계정 복구·마이페이지와 저장 장소를 확인한다.
+- 주차장 요금 안내는 Preview 구조 대조와 별도로 실제 기기 캡처 상태를 기록한다.
+
+## Out of scope
+
+- 서버 OpenAPI에 없는 새 운전 기간 wire value 추정
+- 확정되지 않은 Navigator 이미지 제작
+- 이번 PR과 무관한 기존 worktree·stash 정리
+
+## Claude Review
+
+### Blocking
+
+- 서버 `drivingPeriod`가 구형 7개 enum을 제공하고 있어 승인된 6구간 계약 반영 전까지 alpha04 출시는 차단한다.
+
+### Nits
+
+- 주차장 요금 안내의 Preview 구조 대조는 완료했지만 실제 기기 상세 캡처는 남아 있다.
+- 위치 지연·거절, 온보딩 Figma 대조, 계정 복구와 시트 제스처의 최종 실기기 QA가 남아 있다.
+
+### Verdict
+
+- 클라이언트 구현과 자동 검증은 완료됐으며 서버 enum 계약과 남은 실기기 QA가 충족되면 출시 가능하다.
+
 ## Spec
 
 - 홈 지도는 사용자의 미세한 이동·확대·축소에도 재검색 버튼을 표시하고, 서버 검색 성공 전까지 유지한다.
@@ -86,6 +132,20 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../map/BrowseMapRenderer.kt`, `feature/home/.../detail/components/ParkingDetailContent.kt`, `feature/home/.../detail/components/ParkingFeeDisplayTest.kt`, `docs/design/visual-qa.md`, `docs/handoff/HANDOFF.md`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:compileDebugKotlin :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN; debug APK emulator install·홈/목록 진입 GREEN
 - Open questions: 에뮬레이터 저장 세션의 refresh token 오류로 상세 화면 캡처가 막혔다. 구미의 동일 좌표 주차장 선택 전후 단일 마커와 유·무료 상세의 Figma 픽셀 대조를 실기기에서 최종 확인한다.
+
+## Follow-up — PR #48 추가 리뷰 반영
+
+Status: IMPL_DONE
+
+- 앱 시작 시 비로그인 사용자는 보류 온보딩 동기화를 호출하지 않고, 일반 동기화 실패는 앱 준비 상태를 막지 않으며 코루틴 취소는 전파하는 계약을 테스트로 고정했다.
+- 계정 복구 서버 성공과 로컬 상태 동기화를 분리했다. 로컬 쓰기 하나가 실패해도 복구 성공을 유지하고 나머지 로컬 갱신을 계속 시도하며 취소는 전파한다.
+- 신규·기존 회원의 로컬 진입 완료 반대 조합, 상세 요청 Job의 실제 취소를 테스트에 추가했다.
+- 온보딩 레벨 표시는 현행 영문 UI 정책을 유지하되 enum 이름 파생 대신 명시적 매핑으로 고정했다.
+- 주차장 요금 안내의 실기기 캡처 미완료 상태를 `Device capture pending`으로 정정하고 alpha04 HANDOFF에 필수 Context·Files·Acceptance·Verification·Out of scope·Claude Review 섹션을 추가했다.
+- 별도 코드 변경 없음: 복구 credential은 이미 ViewModel private 필드에만 보관한다. 온보딩 pending 해제는 `OnboardingRepositoryImpl.submit()`의 성공·기완료 분기에서 수행하고 데이터 테스트가 보장한다.
+- Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`, `RodiAppRouteTest.kt`; `core/domain/.../RestoreWithKakaoUseCase.kt`, `AccountAuthUseCasesTest.kt`; `feature/entry/.../OnboardingAnalysisDialog.kt`; `feature/home/.../HomeViewModelTest.kt`; `docs/design/visual-qa.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :core:domain:test :feature:entry:testDebugUnitTest :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: none
 
 ## Previous alpha03 record
 

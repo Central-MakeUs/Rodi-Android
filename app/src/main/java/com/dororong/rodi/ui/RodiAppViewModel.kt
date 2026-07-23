@@ -71,12 +71,16 @@ class RodiAppViewModel @Inject constructor(
     fun retryPendingOnboardingSync() {
         viewModelScope.launch {
             try {
-                if (getAuthSessionUseCase().isLoggedIn) syncPendingOnboardingUseCase()
+                syncPendingOnboardingIfAuthenticated()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
             }
         }
+    }
+
+    internal suspend fun syncPendingOnboardingIfAuthenticated() {
+        if (getAuthSessionUseCase().isLoggedIn) syncPendingOnboardingUseCase()
     }
 }
 

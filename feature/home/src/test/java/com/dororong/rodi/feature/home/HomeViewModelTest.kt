@@ -27,6 +27,7 @@ import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -268,7 +269,15 @@ class HomeViewModelTest {
     fun `drag dismiss cancels parking detail loading and clears selection`() = runTest(dispatcher) {
         val deps = Dependencies()
         val detailResult = CompletableDeferred<Result<PlaceDetail>>()
-        coEvery { deps.getDetail(31L) } coAnswers { detailResult.await() }
+        var detailRequestCancelled = false
+        coEvery { deps.getDetail(31L) } coAnswers {
+            try {
+                detailResult.await()
+            } catch (error: CancellationException) {
+                detailRequestCancelled = true
+                throw error
+            }
+        }
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.OnPlaceClick(31L, HomeDetailOrigin.List))
@@ -283,7 +292,7 @@ class HomeViewModelTest {
         assertNull(vm.state.value.selectedPlace)
         assertNull(vm.state.value.detailOrigin)
         assertFalse(vm.state.value.isDetailLoading)
-        assertFalse(detailResult.isCompleted)
+        assertTrue(detailRequestCancelled)
     }
 
     @Test

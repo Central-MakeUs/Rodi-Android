@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
@@ -116,6 +117,63 @@ class RodiAppViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { sync() }
+    }
+
+    @Test
+    fun `does not sync pending onboarding when signed out`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(true)
+        coEvery { getAuthSession() } returns AuthSession(false, true)
+
+        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { sync() }
+    }
+
+    @Test
+    fun `pending onboarding sync failure does not block app readiness`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(true, true)
+        coEvery { sync() } throws IllegalStateException("offline")
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.isReady)
+        coVerify(exactly = 1) { sync() }
+    }
+
+    @Test
+    fun `pending onboarding sync propagates cancellation`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(false, true)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        advanceUntilIdle()
+        coEvery { getAuthSession() } returns AuthSession(true, true)
+        coEvery { sync() } throws CancellationException("cancelled")
+
+        try {
+            viewModel.syncPendingOnboardingIfAuthenticated()
+        } catch (_: CancellationException) {
+            coVerify(exactly = 1) { sync() }
+            return@runTest
+        }
+        throw AssertionError("CancellationException should be rethrown")
     }
 
     private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {

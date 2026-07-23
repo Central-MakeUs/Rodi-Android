@@ -13,17 +13,32 @@ class RestoreWithKakaoUseCase @Inject constructor(
     private val onboardingRepository: OnboardingRepository,
     private val entryRepository: EntryRepository,
 ) {
-    suspend operator fun invoke(credential: String): Result<AccountRestoreResult> =
-        runSuspendCatching {
-            val result = authRepository.restoreWithKakao(credential)
-            if (result is AccountRestoreResult.Restored) {
-                onboardingRepository.saveProfile(
-                    onboardingRepository.profile.first().copy(nickname = result.nickname),
-                )
-                onboardingRepository.clearSyncPending()
-                if (!result.isNewMember) entryRepository.setCompleted()
-                entryRepository.clearGuestAccess()
-            }
-            result
+    suspend operator fun invoke(credential: String): Result<AccountRestoreResult> {
+        val restoreResult = runSuspendCatching { authRepository.restoreWithKakao(credential) }
+        val restoredAccount = restoreResult.getOrNull() as? AccountRestoreResult.Restored
+        if (restoredAccount != null) synchronizeLocalState(restoredAccount)
+        return restoreResult
+    }
+
+    private suspend fun synchronizeLocalState(result: AccountRestoreResult.Restored) {
+        attemptLocalUpdate {
+            onboardingRepository.saveProfile(
+                onboardingRepository.profile.first().copy(nickname = result.nickname),
+            )
         }
+        attemptLocalUpdate { onboardingRepository.clearSyncPending() }
+        if (!result.isNewMember) {
+            attemptLocalUpdate { entryRepository.setCompleted() }
+        }
+        attemptLocalUpdate { entryRepository.clearGuestAccess() }
+    }
+
+    private suspend fun attemptLocalUpdate(update: suspend () -> Unit) {
+        try {
+            update()
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+        }
+    }
 }

@@ -197,7 +197,13 @@ private fun OnboardingAnalysisCopy.toAnnotatedString() = buildAnnotatedString {
 }
 
 private val OnboardingLevel.displayName: String
-    get() = name.lowercase().replaceFirstChar { it.titlecase() }
+    get() = when (this) {
+        OnboardingLevel.SEED -> "Seed"
+        OnboardingLevel.ROOKIE -> "Rookie"
+        OnboardingLevel.OWNER -> "Owner"
+        OnboardingLevel.EXPLORER -> "Explorer"
+        OnboardingLevel.NAVIGATOR -> "Navigator"
+    }
 
 private val OnboardingLevel.characterImageRes: Int?
     get() = when (this) {

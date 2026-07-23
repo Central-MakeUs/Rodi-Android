@@ -7,11 +7,13 @@ class RodiAppRouteTest {
     @Test
     fun `new member enters onboarding even when local entry was completed`() {
         assertEquals(EntryRoute, postLoginDestination(isNewMember = true, isEntryCompleted = true))
+        assertEquals(EntryRoute, postLoginDestination(isNewMember = true, isEntryCompleted = false))
     }
 
     @Test
     fun `existing member enters main regardless of local entry state`() {
         assertEquals(MainRoute, postLoginDestination(isNewMember = false, isEntryCompleted = false))
+        assertEquals(MainRoute, postLoginDestination(isNewMember = false, isEntryCompleted = true))
     }
 
     @Test

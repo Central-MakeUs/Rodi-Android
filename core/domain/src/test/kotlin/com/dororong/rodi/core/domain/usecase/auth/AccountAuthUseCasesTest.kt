@@ -95,6 +95,39 @@ class AccountAuthUseCasesTest {
         coVerify { entry.clearGuestAccess() }
     }
 
+    @Test
+    fun `restore success is preserved when a local update fails`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+        coEvery { onboarding.saveProfile(any()) } throws IllegalStateException("local write failed")
+
+        val result = RestoreWithKakaoUseCase(repository, onboarding, entry)("credential")
+
+        assertEquals(restored, result.getOrThrow())
+        coVerify { onboarding.clearSyncPending() }
+        coVerify { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restore local synchronization propagates cancellation`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+        coEvery { onboarding.saveProfile(any()) } throws CancellationException("cancelled")
+
+        try {
+            RestoreWithKakaoUseCase(repository, onboarding, entryRepository())("credential")
+        } catch (_: CancellationException) {
+            return@runTest
+        }
+        throw AssertionError("CancellationException should be rethrown")
+    }
+
     private fun onboardingRepository(): OnboardingRepository = mockk {
         coEvery { profile } returns flowOf(OnboardingProfile())
         coEvery { saveProfile(any()) } returns Unit
