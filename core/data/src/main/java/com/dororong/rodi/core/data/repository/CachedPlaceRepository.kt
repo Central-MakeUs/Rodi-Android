@@ -31,8 +31,15 @@ class CachedPlaceRepository @Inject constructor(
         size: Int,
     ): CursorPage<PlaceSummary> {
         placeCache.deleteSamples()
+        val items = if (cursor == null) {
+            placeCache.summaries(query)
+                .distinctBy(PlaceSummary::id)
+                .take(size)
+        } else {
+            emptyList()
+        }
         return CursorPage(
-            items = placeCache.summaries(query).distinctBy(PlaceSummary::id),
+            items = items,
             hasNext = false,
             nextCursor = null,
             totalCount = null,

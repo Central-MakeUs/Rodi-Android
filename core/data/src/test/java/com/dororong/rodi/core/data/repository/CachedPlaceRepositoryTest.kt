@@ -57,12 +57,41 @@ class CachedPlaceRepositoryTest {
         coVerify { cache.deleteSamples() }
     }
 
+    @Test
+    fun `cached viewport limits the first page and does not replay it for a cursor`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val cache = mockk<PlaceCacheLocalDataSource>()
+        val query = viewportQuery()
+        coEvery { cache.deleteSamples() } returns Unit
+        coEvery { cache.summaries(query) } returns listOf(summary(1), summary(1), summary(2), summary(3))
+
+        val firstPage = CachedPlaceRepository(remote, cache).getPlaces(query, null, 2)
+        val nextPage = CachedPlaceRepository(remote, cache).getPlaces(query, "server-cursor", 2)
+
+        assertEquals(listOf(1L, 2L), firstPage.items.map(PlaceSummary::id))
+        assertEquals(emptyList<PlaceSummary>(), nextPage.items)
+    }
+
     private fun coordinate(id: Long) = PlaceCoordinate(
         id = id,
         type = PlaceType.COURSE,
         name = "장소 $id",
         address = "서울",
         point = GeoPoint(37.5, 126.9),
+    )
+
+    private fun summary(id: Long) = PlaceSummary(
+        id = id,
+        type = PlaceType.COURSE,
+        name = "장소 $id",
+        address = "서울",
+        point = GeoPoint(37.5, 126.9),
+        distanceFromMeMeters = null,
+        practiceTypes = emptyList(),
+        description = null,
+        distanceMeters = null,
+        capacity = null,
+        openTime = null,
     )
 
     private fun viewportQuery() = PlaceViewportQuery(
