@@ -12,7 +12,9 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,6 +30,9 @@ import com.dororong.rodi.feature.mypage.components.MyPageTopBar
 import com.dororong.rodi.feature.mypage.components.ProfileCard
 import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 
 data class MyPageProfile(
     val nickname: String = "",
@@ -47,6 +52,7 @@ fun MyPageScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
+    val snackbarHostState = remember { RodiSnackbarHostState() }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
@@ -54,32 +60,42 @@ fun MyPageScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    when {
-        uiState.isLoading && uiState.profile.nickname.isBlank() -> Box(
-            modifier = modifier.fillMaxSize().background(RodiTheme.colors.white),
-            contentAlignment = Alignment.Center,
-        ) { CircularProgressIndicator(color = RodiTheme.colors.primary600) }
-        uiState.errorMessage != null && uiState.profile.nickname.isBlank() -> Box(
-            modifier = modifier.fillMaxSize().background(RodiTheme.colors.white),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = uiState.errorMessage.orEmpty(),
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.gray700,
-                )
-                Spacer(Modifier.height(16.dp))
-                RodiButton(text = "다시 시도", onClick = viewModel::refresh, fillMaxWidth = false)
-            }
+
+    LaunchedEffect(uiState.errorMessage, uiState.profile.nickname) {
+        val message = uiState.errorMessage
+        if (message != null && uiState.profile.nickname.isNotBlank()) {
+            snackbarHostState.show(RodiSnackbarData(message = message))
         }
-        else -> MyPageContent(
-            profile = uiState.profile,
-            onSettingsClick = onSettingsClick,
-            onGoalClick = onGoalClick,
-            onSavedCoursesClick = onSavedCoursesClick,
-            modifier = modifier,
-        )
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        when {
+            uiState.isLoading && uiState.profile.nickname.isBlank() -> Box(
+                modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
+                contentAlignment = Alignment.Center,
+            ) { CircularProgressIndicator(color = RodiTheme.colors.primary600) }
+            uiState.errorMessage != null && uiState.profile.nickname.isBlank() -> Box(
+                modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = uiState.errorMessage.orEmpty(),
+                        style = RodiTheme.typography.body3Medium,
+                        color = RodiTheme.colors.gray700,
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    RodiButton(text = "다시 시도", onClick = viewModel::refresh, fillMaxWidth = false)
+                }
+            }
+            else -> MyPageContent(
+                profile = uiState.profile,
+                onSettingsClick = onSettingsClick,
+                onGoalClick = onGoalClick,
+                onSavedCoursesClick = onSavedCoursesClick,
+            )
+        }
+        RodiSnackbarHost(snackbarHostState)
     }
 }
 

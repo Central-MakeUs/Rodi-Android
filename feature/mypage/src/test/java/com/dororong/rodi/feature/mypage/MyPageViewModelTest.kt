@@ -33,6 +33,7 @@ class MyPageViewModelTest {
         )
 
         val viewModel = MyPageViewModel(getMyPage)
+        viewModel.refresh()
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -40,5 +41,25 @@ class MyPageViewModelTest {
         assertEquals("서버 닉네임", state.profile.nickname)
         assertEquals(listOf("유턴", "교차로", "주차"), state.profile.practiceTypes)
         assertEquals(7, state.profile.savedPlaceCount)
+    }
+
+    @Test
+    fun `refresh failure preserves loaded profile and exposes the error`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        coEvery { getMyPage() } returnsMany listOf(
+            Result.success(MyPage("서버 닉네임", OnboardingLevel.SEED, emptyList(), null, 3)),
+            Result.failure(IllegalStateException("새로고침 실패")),
+        )
+        val viewModel = MyPageViewModel(getMyPage)
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isLoading)
+        assertEquals("서버 닉네임", state.profile.nickname)
+        assertEquals("새로고침 실패", state.errorMessage)
     }
 }

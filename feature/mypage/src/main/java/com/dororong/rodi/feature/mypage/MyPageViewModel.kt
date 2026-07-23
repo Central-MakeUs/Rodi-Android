@@ -28,10 +28,6 @@ class MyPageViewModel @Inject constructor(
     val uiState: StateFlow<MyPageUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
 
-    init {
-        refresh()
-    }
-
     fun refresh() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
