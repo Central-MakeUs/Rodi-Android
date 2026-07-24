@@ -104,6 +104,10 @@ class EntryPreferences @Inject constructor(
         context.entryDataStore.edit { it[KEY_GUEST_ACCESS] = false }
     }
 
+    suspend fun clear() {
+        context.entryDataStore.edit { it.clear() }
+    }
+
     suspend fun saveProgress(progress: EntryProgress) {
         context.entryDataStore.edit { prefs ->
             prefs[KEY_STEP] = progress.step.name

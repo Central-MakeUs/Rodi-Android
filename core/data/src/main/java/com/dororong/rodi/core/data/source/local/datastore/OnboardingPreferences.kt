@@ -91,6 +91,10 @@ class OnboardingPreferences @Inject constructor(
         }
     }
 
+    suspend fun clear() {
+        context.onboardingDataStore.edit { it.clear() }
+    }
+
     suspend fun authorizeSync() {
         context.onboardingDataStore.edit { it[KEY_SYNC_AUTHORIZED] = true }
     }

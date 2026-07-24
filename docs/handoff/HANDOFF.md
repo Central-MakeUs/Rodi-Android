@@ -180,6 +180,26 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :feature:settings:testDebugUnitTest assembleRelease` GREEN
 - Open questions: none
 
+## Follow-up — Navigator 레벨 이미지 적용
+
+Status: IMPL_DONE
+
+- 온보딩 분석 결과에는 투명 배경 Navigator 일러스트를, 마이페이지 프로필 카드에는 배경 포함 Navigator 일러스트를 적용했다.
+- 기존 레벨별 자산 크기(온보딩 300×300, 프로필 270×270)와 동일한 원본을 사용해 기존 레이아웃 규칙을 유지한다.
+- Changed files: `core/ui/.../illust_level_navigator.png`, `feature/entry/.../OnboardingAnalysisDialog.kt`, `feature/mypage/.../illust_profile_navigator.png`, `feature/mypage/.../ProfileCard.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: none
+
+## Follow-up — 로그아웃·탈퇴 시 온보딩 로컬 정보 초기화
+
+Status: IMPL_DONE
+
+- 로그아웃과 탈퇴의 서버 요청·세션 토큰 삭제가 성공한 뒤, 온보딩 프로필·보류 동기화 상태와 진입 게이트 진행 상태·둘러보기 권한을 모두 초기화한다.
+- 서버 요청이 실패하거나 취소되면 기존 로컬 정보는 유지한다.
+- Changed files: `core/domain` 온보딩 정리 use case·로그아웃·탈퇴 use case와 tests; `core/data` entry/onboarding DataStore·repository와 tests; `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:settings:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE
