@@ -47,6 +47,13 @@ class AuthTokenDataStore @Inject constructor(
         }
     }
 
+    suspend fun readRecentProvider(): String? =
+        try {
+            context.authTokenDataStore.data.first()[KEY_RECENT_PROVIDER]
+        } catch (_: IOException) {
+            null
+        }
+
     suspend fun save(tokens: AuthTokens): Boolean = try {
         val encryptedTokens = EncryptedAuthTokens(
             accessToken = tokenEncryption.encrypt(tokens.accessToken, ACCESS_TOKEN_AAD),
@@ -55,6 +62,7 @@ class AuthTokenDataStore @Inject constructor(
         )
         context.authTokenDataStore.edit { preferences ->
             preferences[KEY_TOKENS] = json.encodeToString(encryptedTokens)
+            preferences[KEY_RECENT_PROVIDER] = tokens.provider
         }
         true
     } catch (_: TokenEncryptionException) {
@@ -63,8 +71,11 @@ class AuthTokenDataStore @Inject constructor(
         false
     }
 
-    suspend fun clear(): Boolean = try {
-        context.authTokenDataStore.edit { preferences -> preferences.remove(KEY_TOKENS) }
+    suspend fun clear(recentProvider: String? = null): Boolean = try {
+        context.authTokenDataStore.edit { preferences ->
+            preferences.remove(KEY_TOKENS)
+            if (recentProvider != null) preferences[KEY_RECENT_PROVIDER] = recentProvider
+        }
         true
     } catch (_: IOException) {
         false
@@ -79,6 +90,7 @@ class AuthTokenDataStore @Inject constructor(
 
     private companion object {
         val KEY_TOKENS = stringPreferencesKey("tokens")
+        val KEY_RECENT_PROVIDER = stringPreferencesKey("recent_provider")
         const val ACCESS_TOKEN_AAD = "rodi:auth:access:v1"
         const val REFRESH_TOKEN_AAD = "rodi:auth:refresh:v1"
         const val PROVIDER_AAD = "rodi:auth:provider:v1"

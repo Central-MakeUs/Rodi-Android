@@ -200,6 +200,29 @@ Status: IMPL_DONE
 - Build/test: `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:settings:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
 - Open questions: none
 
+## Follow-up — 둘러보기·게스트 신규 회원 엔트리 분리
+
+Status: IMPL_DONE
+
+- 엔트리 모드를 일반 로그인, 둘러보기, 게스트 신규 회원 가입으로 영속화했다. 기존 둘러보기 사용자는 저장된 모드가 없어도 게스트 권한으로 식별한다.
+- 둘러보기는 약관 → 운전 자격 및 주의 사항 → 위치 권한 → 홈만 진행하며 닉네임과 온보딩 설문을 건너뛴다. 이전 버전에서 설문 단계에 남은 게스트 진행 상태는 주의 사항으로 보정한다.
+- 홈 로그인 다이얼로그에서 신규 회원이면 기존 게스트 온보딩 답변을 초기화하고 닉네임 → 기존 온보딩 → 분석 완료 다이얼로그를 진행한다. 분석 완료 확인 시 다이얼로그를 유지한 채 완료 상태를 저장한 뒤 홈으로 이동하며 약관·주의 사항·위치 권한을 다시 노출하지 않는다.
+- 홈 로그인 다이얼로그의 기존 회원은 온보딩으로 보내지 않고 로그인 전에 요청한 상세·북마크·마이페이지 동작을 기존처럼 재개한다. 최초 로그인 화면의 신규·기존 회원 분기는 유지한다.
+- Changed files: `app/.../{MainScreen,RodiApp}.kt`; `core/domain` entry mode·repository·guest/login use case와 tests; `core/data` entry DataStore·repository와 test; `feature/entry` Contract·Flow·ViewModel·NicknameContent와 tests; `feature/home` Contract·Screen·ViewModel과 test; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:entry:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest assembleDebug` GREEN
+- Open questions: none
+
+## Follow-up — 최근 카카오 로그인 툴팁 복구
+
+Status: IMPL_DONE
+
+- Figma `1946:18595`와 로그인 화면을 대조했다. 최근 카카오 로그인 상태에서 둘러보기 숨김과 `최근에 로그인했어요!` 툴팁 표시는 기존 UI를 그대로 사용한다.
+- 최근 로그인 provider를 세션 토큰과 분리해 저장한다. 로그아웃·세션 종료로 토큰을 삭제해도 카카오 로그인 이력은 유지되며 앱 재실행 후에도 최근 로그인 화면으로 진입한다.
+- 기존 설치 사용자가 업데이트 후 처음 로그아웃할 때는 삭제 직전 토큰의 provider를 최근 로그인 이력으로 보존한다.
+- Changed files: `core/data/.../AuthTokenDataStore.kt`, `AuthTokenStore.kt`, `AuthRepositoryImpl.kt`와 tests; `app/.../RodiAppViewModel.kt`와 test; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :core:data:testDebugUnitTest :app:testDebugUnitTest assembleDebug` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

@@ -100,7 +100,7 @@ class RodiAppViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
-        assertFalse(viewModel.state.value.authSession.hasRecentKakaoLogin)
+        assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
     }
 
     @Test

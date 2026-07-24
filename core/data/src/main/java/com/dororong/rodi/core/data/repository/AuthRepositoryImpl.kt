@@ -33,9 +33,10 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun getSession(): AuthSession {
         val tokens = tokenStore.getTokens()
+        val recentProvider = tokens?.provider ?: tokenStore.getRecentProvider()
         return AuthSession(
             isLoggedIn = tokens != null,
-            hasRecentKakaoLogin = tokens?.isKakaoProvider == true,
+            hasRecentKakaoLogin = recentProvider == KAKAO_PROVIDER,
         )
     }
 

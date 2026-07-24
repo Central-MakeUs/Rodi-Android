@@ -54,7 +54,14 @@ class RodiAppViewModel @Inject constructor(
                         isReady = true,
                         isEntryCompleted = isEntryCompleted,
                         hasGuestAccess = hasGuestAccess,
-                        authSession = if (hasSessionEnded) LoggedOutSession else authSession,
+                        authSession = if (hasSessionEnded) {
+                            AuthSession(
+                                isLoggedIn = false,
+                                hasRecentKakaoLogin = authSession.hasRecentKakaoLogin,
+                            )
+                        } else {
+                            authSession
+                        },
                     )
                 }.collect(_state)
             } catch (error: CancellationException) {
@@ -83,8 +90,3 @@ class RodiAppViewModel @Inject constructor(
         if (getAuthSessionUseCase().isLoggedIn) syncPendingOnboardingUseCase()
     }
 }
-
-private val LoggedOutSession = AuthSession(
-    isLoggedIn = false,
-    hasRecentKakaoLogin = false,
-)
