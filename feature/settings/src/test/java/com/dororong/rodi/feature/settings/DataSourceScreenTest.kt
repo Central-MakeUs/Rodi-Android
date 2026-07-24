@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.settings.datasource
+package com.dororong.rodi.feature.settings
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test

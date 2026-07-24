@@ -170,6 +170,16 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:settings:testDebugUnitTest assembleDebug` GREEN
 - Open questions: 실제 기기에서 설정 → 데이터 출처 진입·복귀와 긴 문구 스크롤을 최종 확인한다.
 
+## Follow-up — PR #48 최종 리뷰 반영
+
+Status: IMPL_DONE
+
+- 보류 온보딩 재시도의 실제 `viewModelScope.launch` 진입점이 반환한 Job에서 `CancellationException`이 취소 완료 원인으로 전파되는지 테스트한다.
+- 단일 화면인 `DataSourceScreen`과 고지문 테스트를 `feature.settings` 루트 패키지로 이동해 저장소 구조 규칙을 따른다.
+- Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `feature/settings/.../DataSourceScreen.kt`, `DataSourceScreenTest.kt`, `SettingsScreen.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :feature:settings:testDebugUnitTest assembleRelease` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

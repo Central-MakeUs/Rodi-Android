@@ -35,7 +35,6 @@ import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.account.AccountSettingsScreen
 import com.dororong.rodi.feature.settings.account.InquiryScreen
-import com.dororong.rodi.feature.settings.datasource.DataSourceScreen
 import com.dororong.rodi.feature.settings.licenses.OpenSourceLicensesScreen
 import com.dororong.rodi.feature.settings.permission.PermissionSettingsScreen
 import com.dororong.rodi.feature.settings.terms.TermsReviewScreen

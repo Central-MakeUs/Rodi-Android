@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUse
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,7 +69,7 @@ class RodiAppViewModel @Inject constructor(
         sessionEnded.value = true
     }
 
-    fun retryPendingOnboardingSync() {
+    fun retryPendingOnboardingSync(): Job =
         viewModelScope.launch {
             try {
                 syncPendingOnboardingIfAuthenticated()
@@ -77,7 +78,6 @@ class RodiAppViewModel @Inject constructor(
             } catch (_: Throwable) {
             }
         }
-    }
 
     internal suspend fun syncPendingOnboardingIfAuthenticated() {
         if (getAuthSessionUseCase().isLoggedIn) syncPendingOnboardingUseCase()

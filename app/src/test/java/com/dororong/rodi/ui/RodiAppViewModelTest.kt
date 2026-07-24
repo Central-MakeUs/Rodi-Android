@@ -154,7 +154,7 @@ class RodiAppViewModelTest {
     }
 
     @Test
-    fun `pending onboarding sync propagates cancellation`() = runTest(dispatcher) {
+    fun `retry pending onboarding sync propagates cancellation`() = runTest(dispatcher) {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
         val getAuthSession = mockk<GetAuthSessionUseCase>()
@@ -167,13 +167,14 @@ class RodiAppViewModelTest {
         coEvery { getAuthSession() } returns AuthSession(true, true)
         coEvery { sync() } throws CancellationException("cancelled")
 
-        try {
-            viewModel.syncPendingOnboardingIfAuthenticated()
-        } catch (_: CancellationException) {
-            coVerify(exactly = 1) { sync() }
-            return@runTest
-        }
-        throw AssertionError("CancellationException should be rethrown")
+        var completionCause: Throwable? = null
+        val retryJob = viewModel.retryPendingOnboardingSync()
+        retryJob.invokeOnCompletion { completionCause = it }
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { sync() }
+        assertTrue(retryJob.isCancelled)
+        assertTrue(completionCause is CancellationException)
     }
 
     private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {
