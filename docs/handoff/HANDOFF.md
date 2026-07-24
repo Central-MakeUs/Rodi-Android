@@ -1,12 +1,12 @@
 # HANDOFF — Rodi 1.1.0-alpha04 출시 필수 수정
 
-Status: BLOCKED
+Status: IMPL_DONE
 Branch: release/1.1.0-alpha04
 PR: #48 (`develop` ← `release/1.1.0-alpha04`)
 
 ## Context
 
-alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 인증 복구, 마이페이지·저장 장소 API, 상세 시트 동작 및 릴리스 워크플로를 출시 가능한 상태로 통합한다. 앱 구현과 연결 검증은 완료했지만 서버 OpenAPI의 운전 기간 enum이 승인된 6구간 계약으로 바뀌지 않아 출시는 차단된 상태다.
+alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 인증 복구, 마이페이지·저장 장소 API, 상세 시트 동작 및 릴리스 워크플로를 출시 가능한 상태로 통합한다. 서버와 합의된 7개 운전 기간 enum을 앱 선택지·점수·전송 계약에 반영했으며 실제 서버 배포 확인만 출시 게이트로 남아 있다.
 
 ## Files
 
@@ -21,7 +21,7 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 - 사용자 지도 제스처와 프로그램 카메라 이동을 구분하며, 서버 고유 장소 수와 클러스터 수가 일치한다.
 - 상세·empty 시트의 하강 동작과 선택 해제가 스펙대로 동작한다.
 - 앱 버전은 `versionCode=5`, `versionName=1.1.0-alpha04`이며 최종 결합 트리 빌드가 통과한다.
-- 서버가 새 6구간 `drivingPeriod` wire enum을 공개하기 전에는 출시하지 않는다.
+- 앱과 서버가 합의된 7개 `drivingPeriod` wire enum을 동일하게 사용하며 실제 서버 배포를 확인한 뒤 출시한다.
 
 ## Verification
 
@@ -31,7 +31,7 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 
 ## Out of scope
 
-- 서버 OpenAPI에 없는 새 운전 기간 wire value 추정
+- 구형 운전 기간 값을 새 wire value로 추정 변환하는 호환 로직
 - 확정되지 않은 Navigator 이미지 제작
 - 이번 PR과 무관한 기존 worktree·stash 정리
 
@@ -39,7 +39,7 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 
 ### Blocking
 
-- 서버 `drivingPeriod`가 구형 7개 enum을 제공하고 있어 승인된 6구간 계약 반영 전까지 alpha04 출시는 차단한다.
+- 클라이언트 구현 차단 사항은 없다. 서버 배포본과 OpenAPI가 합의된 7개 enum을 제공하는지 출시 전에 확인한다.
 
 ### Nits
 
@@ -48,7 +48,7 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 
 ### Verdict
 
-- 클라이언트 구현과 자동 검증은 완료됐으며 서버 enum 계약과 남은 실기기 QA가 충족되면 출시 가능하다.
+- 클라이언트 구현과 자동 검증은 완료됐으며 서버 배포 확인과 남은 실기기 QA가 충족되면 출시 가능하다.
 
 ## Spec
 
@@ -59,7 +59,7 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 - 로그인 응답의 서버 닉네임과 탈퇴 유예 계정 복구 흐름을 연결한다.
 - 마이페이지 조회·운전 목표 수정·저장한 장소 목록 API를 실제 화면에 연결한다.
 - 기존 empty 시트 하강 동작을 보존하고 버전을 `1.1.0-alpha04`/code 5로 변경한다.
-- 새 6구간 운전 기간 wire enum은 서버 OpenAPI가 제공한 값만 사용하며, 미반영 시 출시를 차단한다.
+- 운전 기간은 서버와 합의된 `UNDER_1_MONTH`, `MONTHS_1_2`, `MONTHS_3_5`, `MONTHS_6_11`, `YEARS_1_2`, `YEARS_3_9`, `OVER_10_YEARS`만 사용한다.
 
 ## Alpha04 implementation
 
@@ -78,13 +78,13 @@ alpha04는 홈 지도 검색·클러스터·초기 위치, 온보딩 정책과 �
 
 - 서버 OpenAPI의 인증·회원·온보딩·장소 11개 경로를 Retrofit 선언과 대조했으며 미연결 엔드포인트는 없다.
 - `GET/PATCH /api/v1/members/me`, `GET /api/v1/places/bookmarks`, 로그인 닉네임, `WITHDRAWAL_PENDING` 복구 경로가 연결됐다.
-- 서버 `drivingPeriod`는 아직 `UNDER_1_MONTH`, `MONTHS_1_3`, `MONTHS_3_6`, `MONTHS_6_12`, `YEARS_1_2`, `YEARS_2_10`, `OVER_10_YEARS`의 구형 7개 enum이다. 승인된 새 6구간 wire value가 아니므로 이름을 추정하지 않았고 alpha04 출시는 차단한다.
+- 서버와 합의된 `drivingPeriod` 계약은 `UNDER_1_MONTH`, `MONTHS_1_2`, `MONTHS_3_5`, `MONTHS_6_11`, `YEARS_1_2`, `YEARS_3_9`, `OVER_10_YEARS`다. 클라이언트는 이 값만 전송하며 구형 enum 호환 변환은 하지 않는다.
 
 ## Codex Result — alpha04
 
 - Changed files: `.github/workflows/release.yml`; `app/build.gradle.kts`, `app/src/main/java/com/dororong/rodi/ui/{MainScreen,RodiApp,RodiAppViewModel}.kt`와 app tests; `core/domain`의 auth/member/onboarding/place 모델·저장소·use case·tests; `core/data`의 auth/member/place API·DTO·mapper·repository·DataStore·Room cache·tests; `core/ui/.../AccountRecoveryDialog.kt`; `feature/auth`, `feature/entry`, `feature/home`, `feature/mypage` 화면·ViewModel·Contract·tests; `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`; 삭제 `core/data/.../SamplePlaces.kt`, `SamplePlacesTest.kt`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest` GREEN; 최종 결합 트리 `./gradlew test lint assembleDebug assembleRelease bundleRelease` GREEN (778 tasks); debug APK emulator install·cold launch·프로세스 유지 GREEN; 실기기 지도 이동·확대/축소·클러스터 동작 사용자 확인 GREEN
-- Open questions: 서버가 새 6구간 `drivingPeriod` wire enum을 공개해야 기간 선택지·매핑·전송 테스트를 완료하고 Status를 `IMPL_DONE`으로 변경할 수 있다. Navigator 이미지 확정, GitHub `KEYSTORE_BASE64` secret 교체 후 workflow 수동 실행, 위치 지연/거절·온보딩 Figma 대조·계정 복구·empty/normal 시트 실기기 QA가 남아 있다.
+- Open questions: 서버 배포본과 OpenAPI의 새 7개 `drivingPeriod` enum 확인, Navigator 이미지 확정, GitHub `KEYSTORE_BASE64` secret 교체 후 workflow 수동 실행, 위치 지연/거절·온보딩 Figma 대조·계정 복구·empty/normal 시트 실기기 QA가 남아 있다.
 
 ## Follow-up — 기존 회원 재실행 진입 게이트
 
@@ -146,6 +146,29 @@ Status: IMPL_DONE
 - Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`, `RodiAppRouteTest.kt`; `core/domain/.../RestoreWithKakaoUseCase.kt`, `AccountAuthUseCasesTest.kt`; `feature/entry/.../OnboardingAnalysisDialog.kt`; `feature/home/.../HomeViewModelTest.kt`; `docs/design/visual-qa.md`, `docs/handoff/HANDOFF.md`
 - Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :core:domain:test :feature:entry:testDebugUnitTest :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
 - Open questions: none
+
+## Follow-up — 운전 기간 서버 enum 갱신
+
+Status: IMPL_DONE
+
+- 운전 기간 도메인 enum과 서버 wire value를 `UNDER_1_MONTH`, `MONTHS_1_2`, `MONTHS_3_5`, `MONTHS_6_11`, `YEARS_1_2`, `YEARS_3_9`, `OVER_10_YEARS`로 통일했다.
+- 선택 UI는 `1개월 미만`, `1~2개월`, `3~5개월`, `6~11개월`, `1~2년`, `3~9년`, `10년 이상` 순서로 표시한다.
+- `UNDER_1_MONTH`·`MONTHS_1_2`·`MONTHS_3_5`는 0점, `MONTHS_6_11`·`YEARS_1_2`는 1점, `YEARS_3_9`·`OVER_10_YEARS`는 즉시 Navigator로 판정한다.
+- 구형 로컬 enum 값을 새 서버 값으로 추정하는 호환 변환은 추가하지 않았다.
+- Changed files: `core/domain/.../OnboardingProfile.kt`, `OnboardingLevel.kt`와 tests; `core/data/.../OnboardingMapper.kt`, repository·mapper tests; `feature/entry/.../CareerContent.kt`, `EntryViewModelTest.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:entry:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: 서버 배포본과 OpenAPI가 새 7개 enum을 실제 제공하는지 출시 전에 확인한다.
+
+## Follow-up — 주차장 공공데이터 출처 고지
+
+Status: IMPL_DONE
+
+- 설정 메뉴의 `오픈소스 라이센스`와 별도로 `데이터 출처` 항목을 추가했다.
+- 데이터 출처 화면에 공공데이터포털 `전국주차장정보표준데이터`, 제공기관 안내, 2026년 7월 23일 기준일과 실제 운영 정보 차이 가능성을 고지한다.
+- 시스템 뒤로가기와 상단 뒤로가기는 기존 설정 내부 목적지 규칙에 따라 설정 메뉴로 돌아간다.
+- Changed files: `feature/settings/.../SettingsScreen.kt`, `datasource/DataSourceScreen.kt`, `DataSourceScreenTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:settings:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 실제 기기에서 설정 → 데이터 출처 진입·복귀와 긴 문구 스크롤을 최종 확인한다.
 
 ## Previous alpha03 record
 
