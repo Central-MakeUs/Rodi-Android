@@ -35,6 +35,7 @@ import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.account.AccountSettingsScreen
 import com.dororong.rodi.feature.settings.account.InquiryScreen
+import com.dororong.rodi.feature.settings.datasource.DataSourceScreen
 import com.dororong.rodi.feature.settings.licenses.OpenSourceLicensesScreen
 import com.dororong.rodi.feature.settings.permission.PermissionSettingsScreen
 import com.dororong.rodi.feature.settings.terms.TermsReviewScreen
@@ -44,6 +45,7 @@ private enum class SettingsDestination {
     Permission,
     Terms,
     Licenses,
+    DataSource,
     Account,
     Inquiry,
 }
@@ -86,6 +88,10 @@ fun SettingsScreen(
             onBack = { destinationName = SettingsDestination.Menu.name },
         )
 
+        destination == SettingsDestination.DataSource -> DataSourceScreen(
+            onBack = { destinationName = SettingsDestination.Menu.name },
+        )
+
         destination == SettingsDestination.Account -> AccountSettingsScreen(
             onBack = { destinationName = SettingsDestination.Menu.name },
             onInquiryClick = { destinationName = SettingsDestination.Inquiry.name },
@@ -102,6 +108,7 @@ fun SettingsScreen(
             onPermissionClick = { destinationName = SettingsDestination.Permission.name },
             onTermsClick = { destinationName = SettingsDestination.Terms.name },
             onLicensesClick = { destinationName = SettingsDestination.Licenses.name },
+            onDataSourceClick = { destinationName = SettingsDestination.DataSource.name },
             onAccountClick = { destinationName = SettingsDestination.Account.name },
         )
     }
@@ -114,6 +121,7 @@ private fun SettingsContent(
     onPermissionClick: () -> Unit,
     onTermsClick: () -> Unit,
     onLicensesClick: () -> Unit,
+    onDataSourceClick: () -> Unit,
     onAccountClick: () -> Unit,
 ) {
     Surface(
@@ -131,6 +139,7 @@ private fun SettingsContent(
             SettingsMenuItem(text = "권한 설정 변경", onClick = onPermissionClick)
             SettingsMenuItem(text = "약관 다시보기", onClick = onTermsClick)
             SettingsMenuItem(text = "오픈소스 라이센스", onClick = onLicensesClick)
+            SettingsMenuItem(text = "데이터 출처", onClick = onDataSourceClick)
             SettingsMenuItem(text = "계정정보 관리", onClick = onAccountClick)
             SettingsVersionItem(appVersion = appVersion)
         }
@@ -231,6 +240,7 @@ private fun SettingsContentPreview() {
             onPermissionClick = {},
             onTermsClick = {},
             onLicensesClick = {},
+            onDataSourceClick = {},
             onAccountClick = {},
         )
     }
