@@ -44,7 +44,7 @@ class LoginWithKakaoUseCaseTest {
         val auth = mockk<AuthRepository>()
         val profile = OnboardingProfile(
             nickname = "로컬",
-            drivingPeriod = DrivingPeriod.YEAR_2_TO_10,
+            drivingPeriod = DrivingPeriod.YEARS_3_9,
         )
         val onboarding = onboardingRepository(profile)
         val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
@@ -63,7 +63,7 @@ class LoginWithKakaoUseCaseTest {
     @Test
     fun `onboarding sync failure does not turn successful login into failure`() = runTest {
         val auth = mockk<AuthRepository>()
-        val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10))
+        val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9))
         val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
         val sync = syncUseCase()
         val login = LoginResult.Success(true, "서버")
@@ -80,7 +80,7 @@ class LoginWithKakaoUseCaseTest {
     fun `authorized pending sync retries even when a later login is no longer new`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(
-            profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10),
+            profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9),
             isSyncAuthorized = true,
         )
         val entry = entryRepository()

@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test
 class SyncPendingOnboardingUseCaseTest {
     @Test
     fun `pending complete profile is submitted with calculated level`() = runTest {
-        val profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10)
+        val profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9)
         val repository = repository(profile, isPending = true, isAuthorized = true)
         coEvery { repository.submit(profile, OnboardingLevel.NAVIGATOR) } returns
             OnboardingSubmissionResult.Submitted
@@ -40,7 +40,7 @@ class SyncPendingOnboardingUseCaseTest {
     @Test
     fun `guest pending profile waits until a new member login authorizes sync`() = runTest {
         val repository = repository(
-            OnboardingProfile(drivingPeriod = DrivingPeriod.YEAR_2_TO_10),
+            OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9),
             isPending = true,
             isAuthorized = false,
         )

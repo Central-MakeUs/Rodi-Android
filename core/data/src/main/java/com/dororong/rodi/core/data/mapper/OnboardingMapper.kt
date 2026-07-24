@@ -25,12 +25,12 @@ fun OnboardingProfile.toRequest(level: OnboardingLevel): OnboardingRequest = Onb
 
 private fun DrivingPeriod.toApiValue(): String = when (this) {
     DrivingPeriod.UNDER_1_MONTH -> "UNDER_1_MONTH"
-    DrivingPeriod.MONTH_1_TO_3 -> "MONTHS_1_3"
-    DrivingPeriod.MONTH_3_TO_6 -> "MONTHS_3_6"
-    DrivingPeriod.MONTH_6_TO_YEAR_1 -> "MONTHS_6_12"
-    DrivingPeriod.YEAR_1_TO_2 -> "YEARS_1_2"
-    DrivingPeriod.YEAR_2_TO_10 -> "YEARS_2_10"
-    DrivingPeriod.OVER_YEAR_10 -> "OVER_10_YEARS"
+    DrivingPeriod.MONTHS_1_2 -> "MONTHS_1_2"
+    DrivingPeriod.MONTHS_3_5 -> "MONTHS_3_5"
+    DrivingPeriod.MONTHS_6_11 -> "MONTHS_6_11"
+    DrivingPeriod.YEARS_1_2 -> "YEARS_1_2"
+    DrivingPeriod.YEARS_3_9 -> "YEARS_3_9"
+    DrivingPeriod.OVER_10_YEARS -> "OVER_10_YEARS"
 }
 
 private fun RecentDrivingFrequency.toApiValue(): String = when (this) {

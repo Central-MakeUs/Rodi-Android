@@ -44,7 +44,7 @@ class OnboardingRepositoryImplTest {
         coVerify {
             onboardingApi.submit(
                 "Bearer access-token",
-                match { it.drivingPeriod == "MONTHS_1_3" && it.level == "ROOKIE" },
+                match { it.drivingPeriod == "MONTHS_1_2" && it.level == "ROOKIE" },
             )
         }
         coVerify { prefs.authorizeSync() }
@@ -232,7 +232,7 @@ class OnboardingRepositoryImplTest {
     }
 
     private fun profile() = OnboardingProfile(
-        drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+        drivingPeriod = DrivingPeriod.MONTHS_1_2,
     )
 
     private fun tokens(accessToken: String = "access-token") =

@@ -6,6 +6,22 @@ import org.junit.jupiter.api.Test
 class OnboardingLevelTest {
 
     @Test
+    fun `driving period options follow the approved order and labels`() {
+        assertEquals(
+            listOf(
+                "UNDER_1_MONTH" to "1개월 미만",
+                "MONTHS_1_2" to "1~2개월",
+                "MONTHS_3_5" to "3~5개월",
+                "MONTHS_6_11" to "6~11개월",
+                "YEARS_1_2" to "1~2년",
+                "YEARS_3_9" to "3~9년",
+                "OVER_10_YEARS" to "10년 이상",
+            ),
+            DrivingPeriod.entries.map { it.name to it.label },
+        )
+    }
+
+    @Test
     fun `score boundaries map to the expected non navigator levels`() {
         val profilesByExpectedScore = mapOf(
             0 to OnboardingProfile(),
@@ -16,7 +32,7 @@ class OnboardingLevelTest {
             ),
             5 to OnboardingProfile(soloDrivingRange = SoloDrivingRange.HIGHWAY_LONG_DISTANCE),
             6 to OnboardingProfile(
-                drivingPeriod = DrivingPeriod.MONTH_6_TO_YEAR_1,
+                drivingPeriod = DrivingPeriod.MONTHS_6_11,
                 soloDrivingRange = SoloDrivingRange.HIGHWAY_LONG_DISTANCE,
             ),
             9 to OnboardingProfile(
@@ -24,12 +40,12 @@ class OnboardingLevelTest {
                 soloParkingLevel = SoloParkingLevel.MOSTLY_POSSIBLE,
             ),
             10 to OnboardingProfile(
-                drivingPeriod = DrivingPeriod.MONTH_6_TO_YEAR_1,
+                drivingPeriod = DrivingPeriod.MONTHS_6_11,
                 soloDrivingRange = SoloDrivingRange.HIGHWAY_LONG_DISTANCE,
                 soloParkingLevel = SoloParkingLevel.MOSTLY_POSSIBLE,
             ),
             14 to OnboardingProfile(
-                drivingPeriod = DrivingPeriod.MONTH_6_TO_YEAR_1,
+                drivingPeriod = DrivingPeriod.MONTHS_6_11,
                 recentFrequency = RecentDrivingFrequency.WEEKLY_4_PLUS,
                 roadExperiences = listOf(RoadExperience.SOLO),
                 soloDrivingRange = SoloDrivingRange.HIGHWAY_LONG_DISTANCE,
@@ -55,8 +71,8 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `two years or more is always navigator`() {
-        val periods = listOf(DrivingPeriod.YEAR_2_TO_10, DrivingPeriod.OVER_YEAR_10)
+    fun `three years or more is always navigator`() {
+        val periods = listOf(DrivingPeriod.YEARS_3_9, DrivingPeriod.OVER_10_YEARS)
 
         periods.forEach { period ->
             val assessment = OnboardingProfile(drivingPeriod = period).calculateAssessment()
@@ -66,9 +82,32 @@ class OnboardingLevelTest {
     }
 
     @Test
+    fun `driving periods apply the approved score and forced level policy`() {
+        val expected = mapOf(
+            DrivingPeriod.UNDER_1_MONTH to (0 to false),
+            DrivingPeriod.MONTHS_1_2 to (0 to false),
+            DrivingPeriod.MONTHS_3_5 to (0 to false),
+            DrivingPeriod.MONTHS_6_11 to (1 to false),
+            DrivingPeriod.YEARS_1_2 to (1 to false),
+            DrivingPeriod.YEARS_3_9 to (0 to true),
+            DrivingPeriod.OVER_10_YEARS to (0 to true),
+        )
+
+        expected.forEach { (period, policy) ->
+            val assessment = OnboardingProfile(drivingPeriod = period).calculateAssessment()
+            assertEquals(policy.first, assessment.score)
+            assertEquals(policy.second, assessment.isLevelForced)
+            assertEquals(
+                if (policy.second) OnboardingLevel.NAVIGATOR else OnboardingLevel.SEED,
+                assessment.level,
+            )
+        }
+    }
+
+    @Test
     fun `highest road experience and solo answers determine score`() {
         val profile = OnboardingProfile(
-            drivingPeriod = DrivingPeriod.YEAR_1_TO_2,
+            drivingPeriod = DrivingPeriod.YEARS_1_2,
             recentFrequency = RecentDrivingFrequency.WEEKLY_2_TO_3,
             roadExperiences = listOf(RoadExperience.WITH_COMPANION, RoadExperience.SOLO),
             soloDrivingRange = SoloDrivingRange.UNFAMILIAR_ROAD,

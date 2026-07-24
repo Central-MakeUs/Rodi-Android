@@ -40,7 +40,7 @@ class OnboardingPolicyTest {
     @Test
     fun `analysis copy combines distance frequency and level sentence`() {
         val profile = OnboardingProfile(
-            drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+            drivingPeriod = DrivingPeriod.MONTHS_1_2,
             recentFrequency = RecentDrivingFrequency.MONTHLY_1_TO_2,
             roadExperiences = listOf(RoadExperience.SOLO),
             soloDrivingRange = SoloDrivingRange.NEAR_HOME,
@@ -54,7 +54,7 @@ class OnboardingPolicyTest {
 
     @Test
     fun `navigator uses fixed copy and activity recommendations`() {
-        val copy = OnboardingProfile(drivingPeriod = DrivingPeriod.OVER_YEAR_10)
+        val copy = OnboardingProfile(drivingPeriod = DrivingPeriod.OVER_10_YEARS)
             .analysisCopy(OnboardingLevel.NAVIGATOR)
 
         assertEquals(null, copy.distanceExpression)

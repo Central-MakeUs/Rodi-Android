@@ -31,12 +31,12 @@ fun OnboardingProfile.calculateAssessment(): OnboardingAssessment {
 fun OnboardingProfile.calculateLevel(): OnboardingLevel = calculateAssessment().level
 
 val DrivingPeriod.isNavigatorLevel: Boolean
-    get() = this == DrivingPeriod.YEAR_2_TO_10 || this == DrivingPeriod.OVER_YEAR_10
+    get() = this == DrivingPeriod.YEARS_3_9 || this == DrivingPeriod.OVER_10_YEARS
 
 private val DrivingPeriod?.score: Int
     get() = when (this) {
-        DrivingPeriod.MONTH_6_TO_YEAR_1,
-        DrivingPeriod.YEAR_1_TO_2,
+        DrivingPeriod.MONTHS_6_11,
+        DrivingPeriod.YEARS_1_2,
         -> 1
         else -> 0
     }

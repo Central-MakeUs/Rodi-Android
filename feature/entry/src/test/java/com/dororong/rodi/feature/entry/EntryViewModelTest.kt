@@ -73,7 +73,7 @@ class EntryViewModelTest {
             ),
             savedProfile = OnboardingProfile(
                 nickname = "로디",
-                drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+                drivingPeriod = DrivingPeriod.MONTHS_1_2,
                 recentFrequency = RecentDrivingFrequency.WEEKLY_1,
                 roadExperiences = listOf(RoadExperience.SOLO),
                 soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
@@ -92,7 +92,7 @@ class EntryViewModelTest {
         assertTrue(viewModel.privacyTermsChecked)
         assertTrue(viewModel.locationTermsChecked)
         assertEquals("로디", viewModel.nickname)
-        assertEquals(DrivingPeriod.MONTH_1_TO_3, viewModel.drivingPeriod)
+        assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
         assertEquals(RecentDrivingFrequency.WEEKLY_1, viewModel.recentFrequency)
         assertEquals(listOf(RoadExperience.SOLO), viewModel.roadExperiences)
         assertEquals(SoloDrivingRange.FAMILIAR_ROAD, viewModel.soloDrivingRange)
@@ -257,7 +257,7 @@ class EntryViewModelTest {
     fun `long driving period completes career step without detail questions`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEARS_3_9)
 
         assertTrue(viewModel.isCareerStepValid)
         assertEquals(null, viewModel.recentFrequency)
@@ -273,7 +273,7 @@ class EntryViewModelTest {
 
         viewModel.next()
         viewModel.next()
-        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEARS_3_9)
         viewModel.continueAfterCareer()
 
         assertEquals(EntryStep.CAREER, viewModel.step)
@@ -296,7 +296,7 @@ class EntryViewModelTest {
     fun `short driving period requires recent frequency and road experience`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         assertFalse(viewModel.isCareerStepValid)
 
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
@@ -313,7 +313,7 @@ class EntryViewModelTest {
 
         viewModel.next()
         viewModel.next()
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
 
@@ -327,7 +327,7 @@ class EntryViewModelTest {
     fun `solo road experience among multiple selections requires conditional answers and clears them when removed`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
         viewModel.toggleRoadExperience(RoadExperience.SOLO)
@@ -392,7 +392,7 @@ class EntryViewModelTest {
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         advanceUntilIdle()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.SOLO)
         viewModel.selectSoloDrivingRange(SoloDrivingRange.FAMILIAR_ROAD)
@@ -405,7 +405,7 @@ class EntryViewModelTest {
         coVerify {
             saveOnboardingProfileUseCase(
                 match {
-                    it.drivingPeriod == DrivingPeriod.MONTH_1_TO_3 &&
+                    it.drivingPeriod == DrivingPeriod.MONTHS_1_2 &&
                         it.recentFrequency == RecentDrivingFrequency.WEEKLY_1 &&
                         it.roadExperiences == listOf(RoadExperience.SOLO) &&
                         it.soloDrivingRange == SoloDrivingRange.FAMILIAR_ROAD &&
