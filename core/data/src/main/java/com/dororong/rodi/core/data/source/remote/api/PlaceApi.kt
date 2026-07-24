@@ -13,6 +13,13 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface PlaceApi {
+    @GET("places/bookmarks")
+    suspend fun getSavedPlaces(
+        @Header("Authorization") authorization: String,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPagePlaceResponse>
+
     @GET("places/coordinates")
     suspend fun getCoordinates(): ApiEnvelope<List<PlaceCoordinateResponse>>
 

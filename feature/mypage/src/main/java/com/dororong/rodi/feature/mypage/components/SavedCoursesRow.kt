@@ -17,7 +17,7 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
-internal fun SavedCoursesRow(count: Int, onClick: () -> Unit) {
+internal fun SavedCoursesRow(count: Long, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -26,14 +26,14 @@ internal fun SavedCoursesRow(count: Int, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "저장한 코스 ($count)",
+            text = "저장한 장소 ($count)",
             style = RodiTheme.typography.body1Medium,
             color = RodiTheme.colors.black,
             modifier = Modifier.weight(1f),
         )
         Icon(
             painter = painterResource(CoreUiR.drawable.ic_chevron_right),
-            contentDescription = "저장한 코스 보기",
+            contentDescription = "저장한 장소 보기",
             tint = RodiTheme.colors.gray600,
             modifier = Modifier.size(20.dp),
         )

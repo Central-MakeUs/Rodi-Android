@@ -23,6 +23,8 @@ sealed interface BrowseLabelTag {
     data class Cluster(
         val point: GeoPoint,
         val targetZoom: Int,
+        val memberIds: Set<Long>,
+        val memberPoints: List<GeoPoint>,
     ) : BrowseLabelTag
 
     data class Place(val id: Long) : BrowseLabelTag
@@ -51,7 +53,14 @@ internal fun KakaoMap.renderClusters(
                 LabelOptions.from(LatLng.from(cluster.representativePoint.lat, cluster.representativePoint.lng))
                     .setStyles(styles)
                     .setClickable(true)
-                    .setTag(BrowseLabelTag.Cluster(cluster.representativePoint, cluster.targetZoom)),
+                    .setTag(
+                        BrowseLabelTag.Cluster(
+                            point = cluster.representativePoint,
+                            targetZoom = cluster.targetZoom,
+                            memberIds = cluster.memberIds.toSet(),
+                            memberPoints = cluster.memberIds.mapNotNull(placesById::get).map { it.point },
+                        ),
+                    ),
             )
         } else {
             val place = placesById[cluster.memberIds.single()] ?: return@forEach
@@ -98,7 +107,21 @@ private fun KakaoMap.changeParkingMarkerStyle(
     val manager = labelManager ?: return false
     val layer = browseLabelLayer() ?: return false
     val label = layer.allLabels.firstOrNull { it.tag == BrowseLabelTag.Place(parkingId) } ?: return false
-    label.changeStyles(manager.parkingMarkerStyles(context, drawableRes), false)
+    val labelsAtSamePosition = layer.allLabels.filter { candidate ->
+        candidate !== label &&
+            candidate.tag is BrowseLabelTag.Place &&
+            candidate.position.latitude == label.position.latitude &&
+            candidate.position.longitude == label.position.longitude
+    }
+    if (drawableRes == R.drawable.ic_pin_parking_selected) {
+        labelsAtSamePosition.forEach { it.hide() }
+    } else {
+        labelsAtSamePosition.forEach { it.show() }
+    }
+    label.hide()
+    label.setStyles(manager.parkingMarkerStyles(context, drawableRes))
+    label.invalidate(false)
+    label.show()
     return true
 }
 
@@ -120,7 +143,7 @@ internal fun KakaoMap.renderIndividualMarkers(
     places: List<PlaceCoordinate>,
     style: MapBitmapStyle,
 ) {
-    val clusters = places.distinctMarkerPlaces().map { place ->
+    val clusters = places.map { place ->
         MapCluster(
             memberIds = listOf(place.id),
             representativePoint = place.point,
@@ -134,9 +157,6 @@ internal fun KakaoMap.renderIndividualMarkers(
         style = style,
     )
 }
-
-internal fun List<PlaceCoordinate>.distinctMarkerPlaces(): List<PlaceCoordinate> =
-    distinctBy { place -> Triple(place.type, place.point.lat, place.point.lng) }
 
 private fun createClusterTooltipBitmap(
     count: Int,

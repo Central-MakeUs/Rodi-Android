@@ -79,7 +79,7 @@ private fun DrivingGoalContent(
     modifier: Modifier = Modifier,
 ) {
     val focusRequester = remember { FocusRequester() }
-    val canSave = goal.isNotBlank() && goal != initialGoal && !isSaving
+    val canSave = goal != initialGoal && !isSaving
 
     LaunchedEffect(initialGoal) {
         if (initialGoal.isBlank()) focusRequester.requestFocus()

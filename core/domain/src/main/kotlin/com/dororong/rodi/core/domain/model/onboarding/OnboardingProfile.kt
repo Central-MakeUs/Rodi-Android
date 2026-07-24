@@ -2,12 +2,12 @@ package com.dororong.rodi.core.domain.model.onboarding
 
 enum class DrivingPeriod(val label: String) {
     UNDER_1_MONTH("1개월 미만"),
-    MONTH_1_TO_3("1~3개월"),
-    MONTH_3_TO_6("3~6개월"),
-    MONTH_6_TO_YEAR_1("6~1년"),
-    YEAR_1_TO_2("1~2년"),
-    YEAR_2_TO_10("2~10년"),
-    OVER_YEAR_10("10년 이상"),
+    MONTHS_1_2("1~2개월"),
+    MONTHS_3_5("3~5개월"),
+    MONTHS_6_11("6~11개월"),
+    YEARS_1_2("1~2년"),
+    YEARS_3_9("3~9년"),
+    OVER_10_YEARS("10년 이상"),
 }
 
 enum class RecentDrivingFrequency(val label: String) {
@@ -64,7 +64,6 @@ enum class VehicleType(val label: String) {
     SUV("SUV"),
 }
 
-/** 온보딩 설문 응답. 점수 계산/서버 전송은 미확정이라 이번엔 로컬 저장까지만 한다. */
 data class OnboardingProfile(
     val nickname: String = "",
     val drivingPeriod: DrivingPeriod? = null,

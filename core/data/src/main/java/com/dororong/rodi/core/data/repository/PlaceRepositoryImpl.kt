@@ -51,6 +51,11 @@ class PlaceRepositoryImpl @Inject constructor(
         api.getPlaceDetail("Bearer $accessToken", placeId).requireData().toDomain()
     }
 
+    override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
+        authenticatedRequest { accessToken ->
+            api.getSavedPlaces("Bearer $accessToken", size, cursor).requireData().toDomain()
+        }
+
     override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
         authenticatedRequest { accessToken ->
             val response = if (bookmarked) {

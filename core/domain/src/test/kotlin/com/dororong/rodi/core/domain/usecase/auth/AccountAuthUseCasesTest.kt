@@ -3,11 +3,15 @@ package com.dororong.rodi.core.domain.usecase.auth
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.flowOf
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -30,7 +34,7 @@ class AccountAuthUseCasesTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.restoreWithKakao("credential") } throws AuthException.RecoveryExpired("기간 만료")
 
-        val result = RestoreWithKakaoUseCase(repository)("credential")
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entryRepository())("credential")
 
         assertTrue(result.isFailure)
         assertEquals("기간 만료", result.exceptionOrNull()?.message)
@@ -59,8 +63,79 @@ class AccountAuthUseCasesTest {
         )
         coEvery { repository.restoreWithKakao("credential") } returns expected
 
-        val result = RestoreWithKakaoUseCase(repository)("credential")
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entryRepository())("credential")
 
         assertEquals(expected, result.getOrThrow())
+    }
+
+    @Test
+    fun `restoring an existing member persists entry completion`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+
+        val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential")
+
+        assertEquals(restored, result.getOrThrow())
+        coVerify { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restoring a new member keeps entry incomplete`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = true, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+
+        RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential").getOrThrow()
+
+        coVerify(exactly = 0) { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restore success is preserved when a local update fails`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val entry = entryRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+        coEvery { onboarding.saveProfile(any()) } throws IllegalStateException("local write failed")
+
+        val result = RestoreWithKakaoUseCase(repository, onboarding, entry)("credential")
+
+        assertEquals(restored, result.getOrThrow())
+        coVerify { onboarding.clearSyncPending() }
+        coVerify { entry.setCompleted() }
+        coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restore local synchronization propagates cancellation`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        coEvery { repository.restoreWithKakao("credential") } returns restored
+        coEvery { onboarding.saveProfile(any()) } throws CancellationException("cancelled")
+
+        try {
+            RestoreWithKakaoUseCase(repository, onboarding, entryRepository())("credential")
+        } catch (_: CancellationException) {
+            return@runTest
+        }
+        throw AssertionError("CancellationException should be rethrown")
+    }
+
+    private fun onboardingRepository(): OnboardingRepository = mockk {
+        coEvery { profile } returns flowOf(OnboardingProfile())
+        coEvery { saveProfile(any()) } returns Unit
+        coEvery { clearSyncPending() } returns Unit
+    }
+
+    private fun entryRepository(): EntryRepository = mockk {
+        coEvery { setCompleted() } returns Unit
+        coEvery { clearGuestAccess() } returns Unit
     }
 }

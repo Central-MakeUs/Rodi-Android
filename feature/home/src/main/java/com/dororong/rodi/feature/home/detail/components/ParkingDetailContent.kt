@@ -37,7 +37,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.domain.model.place.ParkingFeeInfo
 import com.dororong.rodi.core.domain.model.place.ParkingPlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
@@ -45,6 +44,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,6 +53,7 @@ fun ParkingDetailContent(
     place: PlaceDetail,
     isBookmarkUpdating: Boolean,
     onDismiss: () -> Unit,
+    onHandleDragDown: () -> Unit,
     onBookmarkClick: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
@@ -64,7 +65,10 @@ fun ParkingDetailContent(
     var hoursExpanded by rememberSaveable(place.id) { mutableStateOf(initialHoursExpanded) }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        StaticParkingSheetHandle()
+        DismissibleSheetHandle(
+            onDragDown = onHandleDragDown,
+            modifier = Modifier.height(24.dp),
+        )
 
         Row(
             modifier = Modifier
@@ -152,10 +156,8 @@ fun ParkingDetailContent(
                 HorizontalDivider(color = RodiTheme.colors.gray100)
                 Text("요금 안내", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray800)
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (parking.isFree) {
-                        ParkingFeeRow("주차 요금", "무료")
-                    } else {
-                        ParkingFeeRows(parking.feeInfo)
+                    parking.toFeeDisplayRows().forEach { row ->
+                        ParkingFeeRow(row.label, row.value)
                     }
                 }
             }
@@ -173,23 +175,6 @@ fun ParkingDetailContent(
             BookmarkButton(place.isBookmarked, onBookmarkClick, !isBookmarkUpdating)
             RodiButton("연습하러 가기", onNavigate, Modifier.weight(1f))
         }
-    }
-}
-
-@Composable
-private fun StaticParkingSheetHandle() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 60.dp, height = 4.dp)
-                .clip(RoundedCornerShape(100.dp))
-                .background(RodiTheme.colors.handleBar),
-        )
     }
 }
 
@@ -305,20 +290,6 @@ private fun ParkingHoursDetails(parking: ParkingPlaceDetail) {
 }
 
 @Composable
-private fun ParkingFeeRows(fee: ParkingFeeInfo?) {
-    ParkingFeeRow("초기무료", "해당항목없음")
-    ParkingFeeRow(
-        "기본요금",
-        formatParkingRate(fee?.baseMinutes, fee?.baseFee),
-    )
-    ParkingFeeRow(
-        "추가요금",
-        formatParkingRate(fee?.addUnitMinutes, fee?.addUnitFee),
-    )
-    ParkingFeeRow("할증기준시간", "해당항목없음")
-}
-
-@Composable
 private fun ParkingFeeRow(label: String, value: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -371,6 +342,26 @@ private fun DottedDivider(modifier: Modifier = Modifier) {
 private fun String?.orMissing(): String = this?.takeIf(String::isNotBlank) ?: "해당항목없음"
 private fun Int.won(): String = "${NumberFormat.getNumberInstance(Locale.KOREA).format(this)}원"
 
+internal data class ParkingFeeDisplayRow(
+    val label: String,
+    val value: String,
+)
+
+internal fun ParkingPlaceDetail.toFeeDisplayRows(): List<ParkingFeeDisplayRow> {
+    val baseRate = if (isFree) "무료" else formatParkingRate(feeInfo?.baseMinutes, feeInfo?.baseFee)
+    val additionalRate = if (isFree) {
+        "해당항목없음"
+    } else {
+        formatParkingRate(feeInfo?.addUnitMinutes, feeInfo?.addUnitFee)
+    }
+    return listOf(
+        ParkingFeeDisplayRow("초기무료", "해당항목없음"),
+        ParkingFeeDisplayRow("기본요금", baseRate),
+        ParkingFeeDisplayRow("추가요금", additionalRate),
+        ParkingFeeDisplayRow("할증기준시간", "해당항목없음"),
+    )
+}
+
 private fun formatParkingRate(minutes: Int?, fee: Int?): String =
     if (minutes != null && fee != null) {
         "${minutes}분 ･ ${fee.won()}"
@@ -416,14 +407,26 @@ private fun String.withoutDistrictPrefix(): String {
 @Preview(name = "Parking detail - paid", showBackground = true, widthDp = 375, heightDp = 400)
 @Composable
 private fun ParkingPaidPreview() {
-    RodiTheme { ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}) }
+    RodiTheme { ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}) }
+}
+
+@Preview(name = "Parking detail - free", showBackground = true, widthDp = 375, heightDp = 400)
+@Composable
+private fun ParkingFreePreview() {
+    val freeParking = HomePreviewData.parkingDetail.copy(
+        parking = HomePreviewData.parkingDetail.parking?.copy(
+            isFree = true,
+            feeInfo = null,
+        ),
+    )
+    RodiTheme { ParkingDetailContent(freeParking, false, {}, {}, {}, {}) }
 }
 
 @Preview(name = "Parking detail - address", showBackground = true, widthDp = 375, heightDp = 400)
 @Composable
 private fun ParkingAddressPreview() {
     RodiTheme {
-        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, initialAddressExpanded = true)
+        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}, initialAddressExpanded = true)
     }
 }
 
@@ -431,12 +434,12 @@ private fun ParkingAddressPreview() {
 @Composable
 private fun ParkingHoursPreview() {
     RodiTheme {
-        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, initialHoursExpanded = true)
+        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}, initialHoursExpanded = true)
     }
 }
 
 @Preview(name = "Parking detail - missing", showBackground = true, widthDp = 320, heightDp = 400, fontScale = 1.3f)
 @Composable
 private fun ParkingMissingPreview() {
-    RodiTheme { ParkingDetailContent(HomePreviewData.parkingMissingFields, false, {}, {}, {}) }
+    RodiTheme { ParkingDetailContent(HomePreviewData.parkingMissingFields, false, {}, {}, {}, {}) }
 }

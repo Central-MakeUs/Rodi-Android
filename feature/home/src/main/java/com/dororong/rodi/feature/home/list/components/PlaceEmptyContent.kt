@@ -1,8 +1,6 @@
 package com.dororong.rodi.feature.home.list.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,10 +19,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
 
 @Composable
 fun PlaceEmptyContent(
     isInitialError: Boolean,
+    onHandleDragDown: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -34,7 +33,10 @@ fun PlaceEmptyContent(
             .heightIn(min = 375.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        EmptySheetHandle()
+        DismissibleSheetHandle(
+            onDragDown = onHandleDragDown,
+            modifier = Modifier.height(22.dp),
+        )
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -66,22 +68,6 @@ fun PlaceEmptyContent(
                 modifier = Modifier.width(287.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun EmptySheetHandle() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp, bottom = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 60.dp, height = 4.dp)
-                .background(RodiTheme.colors.handleBar, RoundedCornerShape(3.dp)),
-        )
     }
 }
 

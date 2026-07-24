@@ -2,6 +2,8 @@ package com.dororong.rodi.core.data.source.local.datastore
 
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -25,10 +27,6 @@ import javax.inject.Singleton
 
 private val Context.onboardingDataStore by preferencesDataStore(name = "onboarding")
 
-/**
- * 온보딩 설문(닉네임·경력·선호) 응답을 로컬에 저장한다.
- * 서버 API/점수 계산 스펙이 없어 지금은 DataStore 로컬 저장만 한다(BACKLOG 참고).
- */
 @Singleton
 class OnboardingPreferences @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -61,22 +59,54 @@ class OnboardingPreferences @Inject constructor(
                 )
             }
 
+    val isSyncPending: Flow<Boolean> =
+        context.onboardingDataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .map { it[KEY_SYNC_PENDING] ?: false }
+
+    val isSyncAuthorized: Flow<Boolean> =
+        context.onboardingDataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .map { it[KEY_SYNC_AUTHORIZED] ?: false }
+
     suspend fun saveProfile(profile: OnboardingProfile) {
-        context.onboardingDataStore.edit { prefs ->
-            prefs[KEY_NICKNAME] = profile.nickname
-            profile.drivingPeriod?.let { prefs[KEY_DRIVING_PERIOD] = it.name } ?: prefs.remove(KEY_DRIVING_PERIOD)
-            profile.recentFrequency?.let { prefs[KEY_RECENT_FREQUENCY] = it.name } ?: prefs.remove(KEY_RECENT_FREQUENCY)
-            prefs[KEY_ROAD_EXPERIENCES] = profile.roadExperiences.map { it.name }.toSet()
-            profile.soloDrivingRange?.let { prefs[KEY_SOLO_DRIVING_RANGE] = it.name } ?: prefs.remove(
-                KEY_SOLO_DRIVING_RANGE,
-            )
-            profile.soloParkingLevel?.let { prefs[KEY_SOLO_PARKING_LEVEL] = it.name } ?: prefs.remove(
-                KEY_SOLO_PARKING_LEVEL,
-            )
-            prefs[KEY_PRACTICE_SITUATIONS] = profile.practiceSituations.map { it.name }.toSet()
-            profile.vehicleType?.let { prefs[KEY_VEHICLE_TYPE] = it.name } ?: prefs.remove(KEY_VEHICLE_TYPE)
-            prefs[KEY_GOAL] = profile.goal
+        context.onboardingDataStore.edit { it.writeProfile(profile) }
+    }
+
+    suspend fun savePendingProfile(profile: OnboardingProfile) {
+        context.onboardingDataStore.edit {
+            it.writeProfile(profile)
+            it[KEY_SYNC_PENDING] = true
         }
+    }
+
+    suspend fun clearSyncPending() {
+        context.onboardingDataStore.edit {
+            it[KEY_SYNC_PENDING] = false
+            it[KEY_SYNC_AUTHORIZED] = false
+        }
+    }
+
+    suspend fun authorizeSync() {
+        context.onboardingDataStore.edit { it[KEY_SYNC_AUTHORIZED] = true }
+    }
+
+    private fun MutablePreferences.writeProfile(profile: OnboardingProfile) {
+        this[KEY_NICKNAME] = profile.nickname
+        profile.drivingPeriod?.let { this[KEY_DRIVING_PERIOD] = it.name } ?: remove(KEY_DRIVING_PERIOD)
+        profile.recentFrequency?.let { this[KEY_RECENT_FREQUENCY] = it.name } ?: remove(KEY_RECENT_FREQUENCY)
+        this[KEY_ROAD_EXPERIENCES] = profile.roadExperiences.map { it.name }.toSet()
+        profile.soloDrivingRange?.let { this[KEY_SOLO_DRIVING_RANGE] = it.name }
+            ?: remove(KEY_SOLO_DRIVING_RANGE)
+        profile.soloParkingLevel?.let { this[KEY_SOLO_PARKING_LEVEL] = it.name }
+            ?: remove(KEY_SOLO_PARKING_LEVEL)
+        this[KEY_PRACTICE_SITUATIONS] = profile.practiceSituations.map { it.name }.toSet()
+        profile.vehicleType?.let { this[KEY_VEHICLE_TYPE] = it.name } ?: remove(KEY_VEHICLE_TYPE)
+        this[KEY_GOAL] = profile.goal
     }
 
     private companion object {
@@ -89,6 +119,8 @@ class OnboardingPreferences @Inject constructor(
         val KEY_PRACTICE_SITUATIONS = stringSetPreferencesKey("practice_situation_set")
         val KEY_VEHICLE_TYPE = stringPreferencesKey("vehicle_type")
         val KEY_GOAL = stringPreferencesKey("goal")
+        val KEY_SYNC_PENDING = booleanPreferencesKey("onboarding_sync_pending")
+        val KEY_SYNC_AUTHORIZED = booleanPreferencesKey("onboarding_sync_authorized")
 
         const val LEGACY_ROAD_EXPERIENCE_KEY = "road_experience"
         const val LEGACY_PRACTICE_SITUATIONS_KEY = "practice_situations"

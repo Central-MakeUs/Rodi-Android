@@ -26,8 +26,13 @@ class OnboardingRepositoryImpl @Inject constructor(
     private val authRepository: AuthRepository,
 ) : OnboardingRepository {
     override val profile: Flow<OnboardingProfile> = prefs.profile
+    override val isSyncPending: Flow<Boolean> = prefs.isSyncPending
+    override val isSyncAuthorized: Flow<Boolean> = prefs.isSyncAuthorized
 
     override suspend fun saveProfile(profile: OnboardingProfile) = prefs.saveProfile(profile)
+    override suspend fun savePendingProfile(profile: OnboardingProfile) = prefs.savePendingProfile(profile)
+    override suspend fun authorizeSync() = prefs.authorizeSync()
+    override suspend fun clearSyncPending() = prefs.clearSyncPending()
 
     override suspend fun submit(
         profile: OnboardingProfile,
@@ -38,6 +43,7 @@ class OnboardingRepositoryImpl @Inject constructor(
             Timber.w("Onboarding submit skipped: missing auth session.")
             return OnboardingSubmissionResult.Submitted
         }
+        authorizeSync()
         val request = profile.toRequest(level)
         Timber.d(
             "Submitting onboarding: level=%s, drivingPeriod=%s, practiceTypes=%d, carType=%s, hasGoal=%s",
@@ -47,7 +53,11 @@ class OnboardingRepositoryImpl @Inject constructor(
             request.carType,
             request.drivingGoal != null,
         )
-        return submitWithAccessToken(request, tokens.accessToken, canRefreshToken = true)
+        val result = submitWithAccessToken(request, tokens.accessToken, canRefreshToken = true)
+        if (result == OnboardingSubmissionResult.Submitted || result == OnboardingSubmissionResult.AlreadyCompleted) {
+            clearSyncPending()
+        }
+        return result
     }
 
     private suspend fun submitWithAccessToken(

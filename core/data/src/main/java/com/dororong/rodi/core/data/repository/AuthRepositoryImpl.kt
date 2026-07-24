@@ -4,7 +4,7 @@ import com.dororong.rodi.core.data.mapper.authRequest
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toAccountRestoreResult
 import com.dororong.rodi.core.data.mapper.toAuthTokenResponse
-import com.dororong.rodi.core.data.mapper.toOAuthRequest
+import com.dororong.rodi.core.data.mapper.toLoginResult
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.KAKAO_PROVIDER
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
@@ -16,7 +16,7 @@ import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -39,22 +39,20 @@ class AuthRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun loginWithKakao(
-        kakaoAccessToken: String,
-        onboardingProfile: OnboardingProfile?,
-    ): Boolean {
+    override suspend fun loginWithKakao(kakaoAccessToken: String): LoginResult {
         val envelope = request {
             authApi.oauthLogin(
                 "kakao",
-                OAuthLoginRequest(
-                    credential = kakaoAccessToken,
-                    onboardingProfile = onboardingProfile?.toOAuthRequest(),
-                ),
+                OAuthLoginRequest(credential = kakaoAccessToken),
             )
         }
         val body = envelope.requireData()
-        saveTokens(body.accessToken, body.refreshToken)
-        return body.isNewMember
+        val result = body.toLoginResult()
+        if (result is LoginResult.Success) {
+            val tokens = body.toAuthTokenResponse()
+            saveTokens(tokens.accessToken, tokens.refreshToken)
+        }
+        return result
     }
 
     override suspend fun reissueToken() {

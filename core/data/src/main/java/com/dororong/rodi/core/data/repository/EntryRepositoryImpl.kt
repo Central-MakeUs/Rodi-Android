@@ -17,5 +17,6 @@ class EntryRepositoryImpl @Inject constructor(
     override suspend fun setCompleted() = prefs.setCompleted()
     override suspend fun markLocationPermissionRequested() = prefs.markLocationPermissionRequested()
     override suspend fun grantGuestAccess() = prefs.grantGuestAccess()
+    override suspend fun clearGuestAccess() = prefs.clearGuestAccess()
     override suspend fun saveProgress(progress: EntryProgress) = prefs.saveProgress(progress)
 }

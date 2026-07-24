@@ -1,12 +1,16 @@
 package com.dororong.rodi.feature.auth
 
 import app.cash.turbine.test
+import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.usecase.auth.GrantGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -21,96 +25,107 @@ import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginViewModelTest {
-
     private val testDispatcher = StandardTestDispatcher()
 
     @BeforeEach
-    fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-    }
+    fun setUp() = Dispatchers.setMain(testDispatcher)
 
     @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `onKakaoLoginResult emits NavigateNext when login succeeds`() = runTest(testDispatcher) {
-        val useCase = mockk<LoginWithKakaoUseCase>()
-        coEvery { useCase("access-token") } returns Result.success(true)
-        val grantGuestAccessUseCase = mockk<GrantGuestAccessUseCase>()
-        coEvery { grantGuestAccessUseCase() } returns Unit
-        val viewModel = LoginViewModel(useCase, grantGuestAccessUseCase)
+    fun `successful login navigates next`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(LoginResult.Success(false, "로디"))
+        val viewModel = viewModel(login = login)
 
         viewModel.effect.test {
             viewModel.onKakaoLoginResult("access-token")
             advanceUntilIdle()
-
-            assertEquals(LoginEffect.NavigateNext, awaitItem())
-            coVerify(exactly = 1) { useCase("access-token") }
+            assertEquals(LoginEffect.NavigateNext(isNewMember = false), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `onKakaoLoginResult emits snackbar and returns Idle when login fails`() = runTest(testDispatcher) {
-        val useCase = mockk<LoginWithKakaoUseCase>()
-        coEvery { useCase("access-token") } returns
-            Result.failure(AuthException.InvalidCredential("카카오 인증에 실패했습니다."))
-        val grantGuestAccessUseCase = mockk<GrantGuestAccessUseCase>()
-        coEvery { grantGuestAccessUseCase() } returns Unit
-        val viewModel = LoginViewModel(useCase, grantGuestAccessUseCase)
+    fun `withdrawal pending opens recovery and confirmation navigates after restore`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        val restore = mockk<RestoreWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(
+            LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
+        )
+        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(false, "로디"))
+        val viewModel = viewModel(login, restore)
+
+        viewModel.onKakaoLoginResult("access-token")
+        advanceUntilIdle()
+        assertEquals(LoginUiState.RecoveryRequired(), viewModel.uiState.value)
+
+        viewModel.effect.test {
+            viewModel.onRecoveryConfirm()
+            advanceUntilIdle()
+            assertEquals(LoginEffect.NavigateNext(isNewMember = false), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `recovery preserves new member routing`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        val restore = mockk<RestoreWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(
+            LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
+        )
+        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(true, "로디"))
+        val viewModel = viewModel(login, restore)
+
+        viewModel.onKakaoLoginResult("access-token")
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onRecoveryConfirm()
+            advanceUntilIdle()
+            assertEquals(LoginEffect.NavigateNext(isNewMember = true), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `login failure emits snackbar and returns idle`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.failure(
+            AuthException.InvalidCredential("카카오 인증에 실패했습니다."),
+        )
+        val viewModel = viewModel(login = login)
 
         viewModel.effect.test {
             viewModel.onKakaoLoginResult("access-token")
             advanceUntilIdle()
-
-            assertEquals(
-                LoginEffect.ShowSnackbar("카카오 인증에 실패했습니다."),
-                awaitItem(),
-            )
+            assertEquals(LoginEffect.ShowSnackbar("카카오 인증에 실패했습니다."), awaitItem())
             assertEquals(LoginUiState.Idle, viewModel.uiState.value)
-            coVerify(exactly = 1) { useCase("access-token") }
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `onSkipClick emits NavigateNext without invoking use case`() = runTest(testDispatcher) {
-        val useCase = mockk<LoginWithKakaoUseCase>()
-        val grantGuestAccessUseCase = mockk<GrantGuestAccessUseCase>()
-        coEvery { grantGuestAccessUseCase() } returns Unit
-        val viewModel = LoginViewModel(useCase, grantGuestAccessUseCase)
+    fun `skip grants guest access and navigates`() = runTest(testDispatcher) {
+        val grant = mockk<GrantGuestAccessUseCase>()
+        coEvery { grant() } returns Unit
+        val login = mockk<LoginWithKakaoUseCase>()
+        val viewModel = viewModel(login = login, grant = grant)
 
         viewModel.effect.test {
             viewModel.onSkipClick()
             advanceUntilIdle()
-
-            assertEquals(LoginEffect.NavigateNext, awaitItem())
-            coVerify(exactly = 0) { useCase(any()) }
-            coVerify(exactly = 1) { grantGuestAccessUseCase() }
+            assertEquals(LoginEffect.NavigateNext(isNewMember = null), awaitItem())
+            coVerify(exactly = 1) { grant() }
             cancelAndIgnoreRemainingEvents()
         }
     }
 
-    @Test
-    fun `onSkipClick emits snackbar when guest access cannot be saved`() = runTest(testDispatcher) {
-        val useCase = mockk<LoginWithKakaoUseCase>()
-        val grantGuestAccessUseCase = mockk<GrantGuestAccessUseCase>()
-        coEvery { grantGuestAccessUseCase() } throws IllegalStateException("failed")
-        val viewModel = LoginViewModel(useCase, grantGuestAccessUseCase)
-
-        viewModel.effect.test {
-            viewModel.onSkipClick()
-            advanceUntilIdle()
-
-            assertEquals(
-                LoginEffect.ShowSnackbar("둘러보기를 시작할 수 없습니다. 다시 시도해주세요."),
-                awaitItem(),
-            )
-            coVerify(exactly = 0) { useCase(any()) }
-            coVerify(exactly = 1) { grantGuestAccessUseCase() }
-            cancelAndIgnoreRemainingEvents()
-        }
-    }
+    private fun viewModel(
+        login: LoginWithKakaoUseCase,
+        restore: RestoreWithKakaoUseCase = mockk(),
+        grant: GrantGuestAccessUseCase = mockk(relaxed = true),
+    ) = LoginViewModel(login, restore, grant)
 }

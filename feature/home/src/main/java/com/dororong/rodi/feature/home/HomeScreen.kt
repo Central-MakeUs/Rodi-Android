@@ -50,9 +50,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -79,6 +79,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
+import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
@@ -102,16 +103,17 @@ import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
+import com.dororong.rodi.feature.home.map.InitialLocationState
 import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapBitmapStyle
 import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
-import com.dororong.rodi.feature.home.map.MapCoursePoint
+import com.dororong.rodi.feature.home.map.MapSearchMoveReason
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.MapViewport
-import com.dororong.rodi.feature.home.map.NationalGrid
+import com.dororong.rodi.feature.home.map.PendingMapSearch
+import com.dororong.rodi.feature.home.map.PendingMapSearchMatcher
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
-import com.dororong.rodi.feature.home.map.ViewportSearchThreshold
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
 import com.dororong.rodi.feature.home.map.clearCurrentLocationMarker
@@ -130,6 +132,8 @@ import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
+import com.dororong.rodi.feature.home.map.boundsOrNull
+import com.dororong.rodi.feature.home.map.visibleViewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -141,10 +145,11 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
+private const val CLUSTER_FIT_PADDING_DP = 48
 private const val SURFACE_ANIMATION_MILLIS = 300
 private const val RESEARCH_BUTTON_FADE_IN_MILLIS = 150
 private const val RESEARCH_BUTTON_FADE_OUT_MILLIS = 100
@@ -156,13 +161,9 @@ private val PARTIAL_LIST_HEADER_HEIGHT = 48.dp
 private val FULL_LIST_HEADER_HEIGHT = 64.dp
 private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
+private const val MIN_ZOOM = 6
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
-private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
-
-private data class ParkingMapPadding(
-    val placeId: Long,
-    val bottomPx: Int,
-)
+private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
 
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
@@ -188,12 +189,13 @@ fun HomeScreen(
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
     var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
     var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
-    var searchedViewport by remember { mutableStateOf<MapViewport?>(null) }
-    var shouldResearchOnCameraMoveEnd by remember { mutableStateOf(false) }
+    var pendingMapSearch by remember { mutableStateOf<PendingMapSearch?>(null) }
+    var activeClusterMemberIds by remember { mutableStateOf<Set<Long>?>(null) }
+    var mapSearchGeneration by remember { mutableStateOf(0L) }
     var isInitialLocationCameraMovePending by remember { mutableStateOf(false) }
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
-    var isInitialLocationResolved by remember { mutableStateOf(false) }
+    var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var mapScreenState by remember {
         mutableStateOf(
@@ -203,12 +205,12 @@ fun HomeScreen(
     }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
     var hasUserMovedMap by remember { mutableStateOf(false) }
+    var hasUserChosenMapViewport by remember { mutableStateOf(false) }
     var hasCenteredInitialLocation by remember { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
-    var parkingDetailSheetHeightPx by remember { mutableIntStateOf(0) }
-    var parkingMapPadding by remember { mutableStateOf<ParkingMapPadding?>(null) }
+    var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -242,7 +244,7 @@ fun HomeScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         permissionGranted = result.values.any { it }
-        if (!permissionGranted) isInitialLocationResolved = true
+        if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -265,26 +267,40 @@ fun HomeScreen(
     LaunchedEffect(permissionGranted) {
         if (!permissionGranted) {
             currentLocation = null
+            initialLocationState = InitialLocationState.Unavailable
             kakaoMap?.clearCurrentLocationMarker()
             return@LaunchedEffect
         }
+        initialLocationState = InitialLocationState.Pending
         currentLocation = context.awaitCurrentLocation()
-        isInitialLocationResolved = true
-        context.currentLocationUpdates().collect { currentLocation = it }
+        initialLocationState = if (currentLocation == null) {
+            InitialLocationState.Unavailable
+        } else {
+            InitialLocationState.Ready
+        }
+        context.currentLocationUpdates().collect {
+            currentLocation = it
+            initialLocationState = InitialLocationState.Ready
+        }
     }
 
+    val isEmptySheet = state.showEmpty || state.showInitialError
+    val currentIsEmptySheet by rememberUpdatedState(isEmptySheet)
     val sheetState = rememberStandardBottomSheetState(
         initialValue = SheetValue.Hidden,
         skipHiddenState = false,
+        confirmValueChange = { targetValue ->
+            targetValue != SheetValue.Expanded || !currentIsEmptySheet
+        },
     )
     val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
     var scaffoldSize by remember { mutableStateOf(IntSize.Zero) }
 
-    LaunchedEffect(state.surfaceState) {
+    LaunchedEffect(state.surfaceState, isEmptySheet) {
         when (state.surfaceState) {
             HomeSurfaceState.Navigation, HomeSurfaceState.Detail -> sheetState.hide()
             HomeSurfaceState.PartialList -> sheetState.partialExpand()
-            HomeSurfaceState.FullList -> sheetState.expand()
+            HomeSurfaceState.FullList -> if (isEmptySheet) sheetState.partialExpand() else sheetState.expand()
         }
     }
     LaunchedEffect(sheetState, state.showEmpty, state.showInitialError) {
@@ -325,9 +341,14 @@ fun HomeScreen(
     }
     val navigationInsetPx = WindowInsets.navigationBars.getBottom(density)
     val navigationInset = with(density) { navigationInsetPx.toDp() }
+    val selectedDetailPlaceId = state.selectedPlace?.id
     val bottomControlOffset = with(density) {
         if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
-            maxOf(68.dp, parkingDetailSheetHeightPx.toDp() + 12.dp - navigationInset)
+            val parkingHeightPx = parkingSheetLayout
+                .takeIf { it.placeId == selectedDetailPlaceId }
+                ?.currentHeightPx
+                ?: 0
+            maxOf(68.dp, parkingHeightPx.toDp() + 12.dp - navigationInset)
         } else if (visibleSheetHeight > 0.dp) {
             maxOf(68.dp, visibleSheetHeight + 12.dp - navigationInset)
         } else {
@@ -337,13 +358,13 @@ fun HomeScreen(
     val listViewportHeight = (
         visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
         ).coerceAtLeast(0.dp)
-    val selectedDetailPlaceId = state.selectedPlace?.id
     val mapContentBottomPaddingPx = when {
+        state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
-        state.selectedPlace?.type == PlaceType.PARKING -> parkingMapPadding
-            ?.takeIf { it.placeId == selectedDetailPlaceId }
-            ?.bottomPx
+        state.selectedPlace?.type == PlaceType.PARKING -> parkingSheetLayout
+            .takeIf { it.placeId == selectedDetailPlaceId }
+            ?.initialMapPaddingPx
             ?: 0
         else -> 0
     }
@@ -356,36 +377,36 @@ fun HomeScreen(
         state.selectedPlace?.type,
         state.isDetailLoading,
     ) {
-        parkingMapPadding = null
-        val placeId = selectedDetailPlaceId ?: return@LaunchedEffect
-        if (
-            state.surfaceState != HomeSurfaceState.Detail ||
-            state.selectedPlace?.type != PlaceType.PARKING ||
-            state.isDetailLoading
+        val activeParkingPlaceId = if (
+            state.surfaceState == HomeSurfaceState.Detail &&
+            state.selectedPlace?.type == PlaceType.PARKING &&
+            !state.isDetailLoading
         ) {
-            return@LaunchedEffect
+            selectedDetailPlaceId
+        } else {
+            null
         }
-
-        withFrameNanos { }
-        val initialSheetHeightPx = snapshotFlow { parkingDetailSheetHeightPx }.first { it > 0 }
-        parkingMapPadding = ParkingMapPadding(placeId, initialSheetHeightPx)
+        parkingSheetLayout = parkingSheetLayout.forPlace(activeParkingPlaceId)
     }
 
-    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && searchedViewport?.let { searched ->
-        currentViewport?.let { current ->
-            ViewportSearchThreshold.isExceeded(
-                searched,
-                current,
-            )
-        }
-    } == true
+    val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.isMapSearchDirty
 
+    val deselectSelectedParkingMarker: () -> Unit = {
+        val selectedParkingId = state.selectedPlace
+            ?.takeIf { it.type == PlaceType.PARKING }
+            ?.id
+            ?: state.selectedPlaceId?.takeIf { selectedPlaceId ->
+                state.coordinates.firstOrNull { it.id == selectedPlaceId }?.type == PlaceType.PARKING
+            }
+        selectedParkingId?.let { kakaoMap?.deselectParkingMarker(context, it) }
+    }
     val dismissDetail: () -> Unit = {
-        val place = state.selectedPlace
-        if (place?.type == PlaceType.PARKING) {
-            kakaoMap?.deselectParkingMarker(context, place.id)
-        }
+        deselectSelectedParkingMarker()
         vm.onIntent(HomeIntent.OnDismissDetail)
+    }
+    val dragDismissDetail: () -> Unit = {
+        deselectSelectedParkingMarker()
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
     }
     val dismissLogin: () -> Unit = {
         val pendingPlaceId = (state.pendingAction as? PendingHomeAction.OpenDetail)?.placeId
@@ -419,13 +440,12 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, mapViewSize, currentLocation, isInitialLocationResolved) {
+    LaunchedEffect(kakaoMap, mapViewSize, currentLocation, initialLocationState) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (!InitialViewportSearchPolicy.canDispatch(
-                isLocationResolved = isInitialLocationResolved,
+                locationState = initialLocationState,
                 hasCurrentLocation = currentLocation != null,
                 hasCenteredInitialLocation = hasCenteredInitialLocation,
-                hasUserMovedMap = hasUserMovedMap,
                 isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
             )
         ) {
@@ -433,22 +453,23 @@ fun HomeScreen(
         }
         val viewport = map.viewportOrNull(mapViewSize) ?: return@LaunchedEffect
         currentViewport = viewport
-        if (searchedViewport == null) searchedViewport = viewport
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
-    LaunchedEffect(state.searchedQuery) {
-        val query = state.searchedQuery ?: return@LaunchedEffect
-        searchedViewport = MapViewport(query.northEast, query.southWest)
-    }
-
-    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap) {
+    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
         val map = kakaoMap ?: return@LaunchedEffect
         val location = currentLocation ?: return@LaunchedEffect
-        if (!hasCenteredInitialLocation && !hasUserMovedMap) {
+        if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
+            activeClusterMemberIds = null
             hasCenteredInitialLocation = true
             isInitialLocationCameraMovePending = true
-            shouldResearchOnCameraMoveEnd = true
+            mapSearchGeneration += 1
+            pendingMapSearch = PendingMapSearch(
+                generation = mapSearchGeneration,
+                target = GeoPoint(location.latitude, location.longitude),
+                targetZoom = DEFAULT_ZOOM,
+                reason = MapSearchMoveReason.INITIAL_LOCATION,
+            )
             map.moveCamera(
                 CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
                 CameraAnimation.from(300),
@@ -472,56 +493,45 @@ fun HomeScreen(
         state.surfaceState,
         mapZoomLevel,
         mapViewSize,
+        mapContentBottomPaddingPx,
         mapBitmapStyle,
-        searchedViewport,
+        state.searchedQuery,
+        activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        if (state.coordinates.isEmpty()) {
+        val searchedViewport = state.searchedQuery?.let { MapViewport(it.northEast, it.southWest) }
+        if (state.coordinates.isEmpty() || searchedViewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
+        val visibleViewport = map.visibleViewportOrNull(mapViewSize)
+        val visibleGeoViewport = visibleViewport?.geo ?: searchedViewport
+        val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
+            state.coordinates.filter { it.id in memberIds }
+        } ?: state.coordinates
+        val visibleCoordinates = clusterScopedCoordinates.filter { visibleGeoViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
-                val coordinates = searchedViewport?.let { viewport ->
-                    state.coordinates.filter { viewport.contains(it.point) }
-                }.orEmpty()
-                map.renderIndividualMarkers(context, coordinates, mapBitmapStyle)
+                map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
             }
 
             else -> {
-                val coordinates = if (policy.grid != null) {
-                    state.coordinates
-                } else {
-                    searchedViewport?.let { viewport ->
-                        state.coordinates.filter { viewport.contains(it.point) }
-                    }.orEmpty()
-                }
-                val clusters = if (policy.grid != null) {
-                    MapClusterer.clusterInFixedGeoGrid(
-                        items = coordinates.map { MapCoursePoint(it.id, it.point) },
-                        northEast = NationalGrid.northEast,
-                        southWest = NationalGrid.southWest,
-                        policy = policy,
-                    )
-                } else {
-                    MapClusterer.clusterByScreenDistance(
-                        items = coordinates.mapNotNull { place ->
-                            val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
-                                ?: return@mapNotNull null
-                            ProjectedMapItem(place.id, place.point, point.x, point.y)
-                        },
-                        viewportWidth = mapViewSize.width,
-                        viewportHeight = mapViewSize.height,
-                        minimumDistancePx = clusterDistancePx,
-                        targetZoom = policy.targetZoom,
-                    )
-                }
+                val clusters = MapClusterer.clusterByScreenDistance(
+                    items = visibleCoordinates.mapNotNull { place ->
+                        val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
+                            ?: return@mapNotNull null
+                        ProjectedMapItem(place.id, place.point, point.x, point.y)
+                    },
+                    viewport = visibleViewport?.screen ?: return@LaunchedEffect,
+                    minimumDistancePx = clusterDistancePx,
+                    targetZoom = policy.targetZoom,
+                )
                 map.renderClusters(
                     context = context,
                     clusters = clusters,
-                    placesById = coordinates.associateBy { it.id },
+                    placesById = visibleCoordinates.associateBy { it.id },
                     style = mapBitmapStyle,
                 )
             }
@@ -590,8 +600,8 @@ fun HomeScreen(
         map.scaleBar?.apply {
             setAutoHide(false)
             setPosition(
-                MapGravity.BOTTOM or MapGravity.LEFT,
-                with(density) { 40.dp.toPx() },
+                MapGravity.BOTTOM or MapGravity.RIGHT,
+                with(density) { 60.dp.toPx() },
                 scaleBarBottomPx,
             )
             show()
@@ -642,7 +652,10 @@ fun HomeScreen(
                                     CircularProgressIndicator(color = RodiTheme.colors.primary600)
                                 }
 
-                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(state.showInitialError)
+                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(
+                                    isInitialError = state.showInitialError,
+                                    onHandleDragDown = { scope.launch { sheetState.hide() } },
+                                )
                                 else -> PlaceListContent(
                                     places = state.places,
                                     onPlaceClick = {
@@ -681,30 +694,47 @@ fun HomeScreen(
                                             override fun onMapReady(map: KakaoMap) {
                                                 kakaoMap = map
                                                 map.setPadding(0, 0, 0, 0)
+                                                map.setCameraMinLevel(MIN_ZOOM)
+                                                map.setGestureEnable(GestureType.Rotate, false)
+                                                map.setGestureEnable(GestureType.RotateZoom, false)
+                                                map.setGestureEnable(GestureType.Tilt, false)
                                                 map.setOnCameraMoveStartListener { _, gesture ->
                                                     if (gesture != GestureType.Unknown) {
                                                         isAtCurrentLocation = false
                                                         hasUserMovedMap = true
+                                                        hasUserChosenMapViewport = true
+                                                        pendingMapSearch = null
+                                                        activeClusterMemberIds = null
+                                                        isInitialLocationCameraMovePending = false
+                                                        vm.onIntent(HomeIntent.OnMapGesture)
                                                     }
                                                 }
                                                 map.setOnCameraMoveEndListener { movedMap, _, _ ->
                                                     mapZoomLevel = movedMap.zoomLevel
                                                     movedMap.viewportOrNull(mapViewSize)?.let { viewport ->
                                                         currentViewport = viewport
-                                                        if (shouldResearchOnCameraMoveEnd) {
-                                                            searchedViewport = viewport
-                                                            shouldResearchOnCameraMoveEnd = false
+                                                        val pending = pendingMapSearch
+                                                        if (
+                                                            pending != null &&
+                                                            PendingMapSearchMatcher.matches(
+                                                                pending = pending,
+                                                                viewport = viewport,
+                                                                zoomLevel = movedMap.zoomLevel,
+                                                            )
+                                                        ) {
+                                                            pendingMapSearch = null
                                                             isInitialLocationCameraMovePending = false
                                                             vm.onIntent(
-                                                                HomeIntent.OnResearch(
+                                                                HomeIntent.OnProgrammaticSearch(
                                                                     viewport.toQuery(currentLocation),
                                                                 ),
                                                             )
-                                                        } else if (InitialViewportSearchPolicy.canDispatch(
-                                                                isLocationResolved = isInitialLocationResolved,
+                                                        } else if (
+                                                            pending == null &&
+                                                            InitialViewportSearchPolicy.canDispatch(
+                                                                locationState = initialLocationState,
                                                                 hasCurrentLocation = currentLocation != null,
                                                                 hasCenteredInitialLocation = hasCenteredInitialLocation,
-                                                                hasUserMovedMap = hasUserMovedMap,
                                                                 isInitialLocationCameraMovePending = isInitialLocationCameraMovePending,
                                                             )
                                                         ) {
@@ -722,14 +752,38 @@ fun HomeScreen(
                                                 map.setOnLabelClickListener { _, _, label ->
                                                     when (val tag = label.tag) {
                                                         is BrowseLabelTag.Cluster -> {
-                                                            shouldResearchOnCameraMoveEnd = true
-                                                            map.moveCamera(
-                                                                CameraUpdateFactory.newCenterPosition(
-                                                                    LatLng.from(tag.point.lat, tag.point.lng),
-                                                                    tag.targetZoom,
-                                                                ),
-                                                                CameraAnimation.from(350),
+                                                            hasUserChosenMapViewport = true
+                                                            mapSearchGeneration += 1
+                                                            val memberPoints = tag.memberPoints.distinct()
+                                                            activeClusterMemberIds = tag.memberIds
+                                                            val memberBounds = memberPoints.boundsOrNull()
+                                                            val target = memberBounds?.let {
+                                                                GeoPoint(
+                                                                    lat = (it.northEast.lat + it.southWest.lat) / 2.0,
+                                                                    lng = (it.northEast.lng + it.southWest.lng) / 2.0,
+                                                                )
+                                                            } ?: tag.point
+                                                            val canFitBounds = memberPoints.size >= 2 && memberBounds != null &&
+                                                                (memberBounds.northEast != memberBounds.southWest)
+                                                            pendingMapSearch = PendingMapSearch(
+                                                                generation = mapSearchGeneration,
+                                                                target = target,
+                                                                targetZoom = tag.targetZoom.takeUnless { canFitBounds },
+                                                                reason = MapSearchMoveReason.CLUSTER,
+                                                                requiredBounds = memberBounds.takeIf { canFitBounds },
                                                             )
+                                                            val cameraUpdate = if (canFitBounds) {
+                                                                CameraUpdateFactory.fitMapPoints(
+                                                                    memberPoints.map { LatLng.from(it.lat, it.lng) }.toTypedArray(),
+                                                                    with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() },
+                                                                )
+                                                            } else {
+                                                                CameraUpdateFactory.newCenterPosition(
+                                                                    LatLng.from(target.lat, target.lng),
+                                                                    tag.targetZoom,
+                                                                )
+                                                            }
+                                                            map.moveCamera(cameraUpdate, CameraAnimation.from(350))
                                                         }
 
                                                         is BrowseLabelTag.Place -> {
@@ -769,7 +823,7 @@ fun HomeScreen(
                             MapResearchButton(
                                 onClick = {
                                     val viewport = currentViewport ?: return@MapResearchButton
-                                    searchedViewport = viewport
+                                    hasUserChosenMapViewport = true
                                     vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
                                 },
                             )
@@ -816,7 +870,14 @@ fun HomeScreen(
                                             ),
                                         )
                                     } else {
-                                        shouldResearchOnCameraMoveEnd = true
+                                        activeClusterMemberIds = null
+                                        mapSearchGeneration += 1
+                                        pendingMapSearch = PendingMapSearch(
+                                            generation = mapSearchGeneration,
+                                            target = GeoPoint(location.latitude, location.longitude),
+                                            targetZoom = DEFAULT_ZOOM,
+                                            reason = MapSearchMoveReason.CURRENT_LOCATION,
+                                        )
                                         kakaoMap?.apply {
                                             moveCamera(
                                                 CameraUpdateFactory.newCenterPosition(location, DEFAULT_ZOOM),
@@ -846,8 +907,14 @@ fun HomeScreen(
                                         courseDetailSheetHeightPx = it.height
                                     }
                                     PlaceType.PARKING -> Modifier
-                                        .heightIn(max = PARKING_DETAIL_SHEET_HEIGHT)
-                                        .onSizeChanged { parkingDetailSheetHeightPx = it.height }
+                                        .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                        .onSizeChanged { size ->
+                                            selectedDetailPlaceId?.let { placeId ->
+                                                parkingSheetLayout = parkingSheetLayout
+                                                    .forPlace(placeId)
+                                                    .onMeasured(placeId, size.height)
+                                            }
+                                        }
                                     null -> Modifier
                                 },
                             ),
@@ -857,11 +924,14 @@ fun HomeScreen(
                     ) {
                         val selectedPlace = state.selectedPlace
                         when {
-                            state.isDetailLoading -> PlaceDetailLoading()
+                            state.isDetailLoading -> PlaceDetailLoading(
+                                onHandleDragDown = dragDismissDetail,
+                            )
                             selectedPlace?.type == PlaceType.COURSE -> CourseDetailContent(
                                 place = selectedPlace,
                                 isBookmarkUpdating = state.isBookmarkUpdating,
                                 onDismiss = dismissDetail,
+                                onHandleDragDown = dragDismissDetail,
                                 onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
                                 onNavigate = {
                                     vm.onIntent(
@@ -877,6 +947,7 @@ fun HomeScreen(
                                 place = selectedPlace,
                                 isBookmarkUpdating = state.isBookmarkUpdating,
                                 onDismiss = dismissDetail,
+                                onHandleDragDown = dragDismissDetail,
                                 onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
                                 onNavigate = {
                                     vm.onIntent(
@@ -907,7 +978,7 @@ fun HomeScreen(
         },
     )
 
-    if (state.pendingAction != null) {
+    if (state.pendingAction != null && !state.hasPendingRestore) {
         LoginRequiredDialog(
             isLoggingIn = state.isLoginInProgress,
             onDismiss = dismissLogin,
@@ -920,6 +991,13 @@ fun HomeScreen(
                     },
                 )
             },
+        )
+    }
+    if (state.hasPendingRestore) {
+        AccountRecoveryDialog(
+            isRestoring = state.isRestoreInProgress,
+            onConfirm = { vm.onIntent(HomeIntent.OnRestoreAccount) },
+            onDismiss = { vm.onIntent(HomeIntent.OnDismissRestore) },
         )
     }
 

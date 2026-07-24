@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.detail.components
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.CircularProgressIndicator
@@ -10,18 +11,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
 
 @Composable
 fun PlaceDetailLoading(
+    onHandleDragDown: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .height(240.dp),
-        contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(color = RodiTheme.colors.primary600)
+        DismissibleSheetHandle(
+            onDragDown = onHandleDragDown,
+            modifier = Modifier.height(24.dp),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(color = RodiTheme.colors.primary600)
+        }
     }
 }
 

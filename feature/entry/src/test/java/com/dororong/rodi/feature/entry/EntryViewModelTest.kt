@@ -73,7 +73,7 @@ class EntryViewModelTest {
             ),
             savedProfile = OnboardingProfile(
                 nickname = "로디",
-                drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+                drivingPeriod = DrivingPeriod.MONTHS_1_2,
                 recentFrequency = RecentDrivingFrequency.WEEKLY_1,
                 roadExperiences = listOf(RoadExperience.SOLO),
                 soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
@@ -92,7 +92,7 @@ class EntryViewModelTest {
         assertTrue(viewModel.privacyTermsChecked)
         assertTrue(viewModel.locationTermsChecked)
         assertEquals("로디", viewModel.nickname)
-        assertEquals(DrivingPeriod.MONTH_1_TO_3, viewModel.drivingPeriod)
+        assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
         assertEquals(RecentDrivingFrequency.WEEKLY_1, viewModel.recentFrequency)
         assertEquals(listOf(RoadExperience.SOLO), viewModel.roadExperiences)
         assertEquals(SoloDrivingRange.FAMILIAR_ROAD, viewModel.soloDrivingRange)
@@ -100,6 +100,20 @@ class EntryViewModelTest {
         assertEquals(listOf(PracticeSituation.PARKING, PracticeSituation.LANE_CHANGE), viewModel.practiceSituations)
         assertEquals(VehicleType.SUV, viewModel.vehicleType)
         assertEquals("주차 연습", viewModel.goal)
+    }
+
+    @Test
+    fun `restores completed profile at precautions without another submission`() = runTest(testDispatcher) {
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            savedProgress = EntryProgress(step = EntryProgressStep.PRECAUTIONS),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        coVerify(exactly = 0) { saveOnboardingProfileUseCase.submit(any(), any()) }
     }
 
     @Test
@@ -126,7 +140,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `back moves through previous steps and returns false at terms`() {
+    fun `back moves through previous steps and stops at precautions`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.back())
@@ -146,18 +160,8 @@ class EntryViewModelTest {
         assertTrue(viewModel.back())
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
 
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.PREFERENCE, viewModel.step)
-
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.CAREER, viewModel.step)
-
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.NICKNAME, viewModel.step)
-
-        viewModel.openWebView("https://example.com")
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.TERMS, viewModel.step)
+        assertFalse(viewModel.back())
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
     }
 
     @Test
@@ -253,7 +257,7 @@ class EntryViewModelTest {
     fun `long driving period completes career step without detail questions`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEARS_3_9)
 
         assertTrue(viewModel.isCareerStepValid)
         assertEquals(null, viewModel.recentFrequency)
@@ -269,7 +273,7 @@ class EntryViewModelTest {
 
         viewModel.next()
         viewModel.next()
-        viewModel.selectDrivingPeriod(DrivingPeriod.YEAR_2_TO_10)
+        viewModel.selectDrivingPeriod(DrivingPeriod.YEARS_3_9)
         viewModel.continueAfterCareer()
 
         assertEquals(EntryStep.CAREER, viewModel.step)
@@ -284,15 +288,15 @@ class EntryViewModelTest {
         viewModel.continueAfterOnboardingAnalysis()
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-        assertTrue(viewModel.back())
-        assertEquals(EntryStep.CAREER, viewModel.step)
+        assertFalse(viewModel.back())
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
     }
 
     @Test
     fun `short driving period requires recent frequency and road experience`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         assertFalse(viewModel.isCareerStepValid)
 
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
@@ -309,7 +313,7 @@ class EntryViewModelTest {
 
         viewModel.next()
         viewModel.next()
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
 
@@ -323,7 +327,7 @@ class EntryViewModelTest {
     fun `solo road experience among multiple selections requires conditional answers and clears them when removed`() {
         val viewModel = testViewModel()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
         viewModel.toggleRoadExperience(RoadExperience.SOLO)
@@ -388,7 +392,7 @@ class EntryViewModelTest {
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         advanceUntilIdle()
 
-        viewModel.selectDrivingPeriod(DrivingPeriod.MONTH_1_TO_3)
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
         viewModel.selectRecentFrequency(RecentDrivingFrequency.WEEKLY_1)
         viewModel.toggleRoadExperience(RoadExperience.SOLO)
         viewModel.selectSoloDrivingRange(SoloDrivingRange.FAMILIAR_ROAD)
@@ -401,7 +405,7 @@ class EntryViewModelTest {
         coVerify {
             saveOnboardingProfileUseCase(
                 match {
-                    it.drivingPeriod == DrivingPeriod.MONTH_1_TO_3 &&
+                    it.drivingPeriod == DrivingPeriod.MONTHS_1_2 &&
                         it.recentFrequency == RecentDrivingFrequency.WEEKLY_1 &&
                         it.roadExperiences == listOf(RoadExperience.SOLO) &&
                         it.soloDrivingRange == SoloDrivingRange.FAMILIAR_ROAD &&
@@ -417,7 +421,11 @@ class EntryViewModelTest {
     @Test
     fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
-        val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
+        val saveEntryProgressUseCase = testSaveEntryProgressUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            saveEntryProgressUseCase = saveEntryProgressUseCase,
+        )
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
@@ -431,7 +439,15 @@ class EntryViewModelTest {
         advanceTimeBy(1)
         runCurrent()
 
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
         assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        coVerify(exactly = 1) { saveOnboardingProfileUseCase.saveForSubmission(any()) }
+        coVerify(exactly = 1) { saveEntryProgressUseCase(any()) }
+
+        viewModel.continueAfterOnboardingAnalysis()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
     }
 
     @Test
@@ -439,7 +455,7 @@ class EntryViewModelTest {
         runTest(testDispatcher) {
             val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
             val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
-            coEvery { saveOnboardingProfileUseCase(any()) } throws IllegalStateException("failed")
+            coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } throws IllegalStateException("failed")
             advanceUntilIdle()
 
             viewModel.effect.test {
@@ -476,6 +492,7 @@ class EntryViewModelTest {
         advanceTimeBy(3_000)
         runCurrent()
 
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
         assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
     }
 
@@ -547,6 +564,7 @@ class EntryViewModelTest {
         )
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
         viewModel.effect.test {
@@ -609,6 +627,7 @@ class EntryViewModelTest {
     ): EntryViewModel {
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
+        coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
         every { getEntryProgressUseCase() } returns flowOf(savedProgress)
         coEvery { saveEntryProgressUseCase(any()) } returns Unit
         every { getOnboardingProfileUseCase() } returns flowOf(savedProfile)

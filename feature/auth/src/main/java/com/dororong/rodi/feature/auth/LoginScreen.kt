@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.components.RodiTooltip
+import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.button.KakaoLoginButton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -37,7 +38,7 @@ import dagger.hilt.android.EntryPointAccessors
 
 @Composable
 fun LoginScreen(
-    onNavigateNext: () -> Unit,
+    onNavigateNext: (isNewMember: Boolean?) -> Unit,
     showRecentKakaoLogin: Boolean,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -55,7 +56,7 @@ fun LoginScreen(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            LoginEffect.NavigateNext -> onNavigateNext()
+            is LoginEffect.NavigateNext -> onNavigateNext(effect.isNewMember)
             is LoginEffect.ShowSnackbar ->
                 snackbarHostState.show(RodiSnackbarData(message = effect.message))
         }
@@ -78,6 +79,13 @@ fun LoginScreen(
         onSkipClick = viewModel::onSkipClick,
     )
     RodiSnackbarHost(snackbarHostState)
+    (uiState as? LoginUiState.RecoveryRequired)?.let { recoveryState ->
+        AccountRecoveryDialog(
+            isRestoring = recoveryState.isRestoring,
+            onConfirm = viewModel::onRecoveryConfirm,
+            onDismiss = viewModel::onRecoveryDismiss,
+        )
+    }
 }
 
 @Composable
@@ -141,7 +149,7 @@ fun LoginContent(
             }
             KakaoLoginButton(
                 onClick = onKakaoLoginClick,
-                enabled = uiState != LoginUiState.LoggingIn,
+                enabled = uiState == LoginUiState.Idle,
                 modifier = Modifier.fillMaxWidth(),
             )
         }

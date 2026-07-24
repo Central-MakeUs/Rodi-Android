@@ -3,6 +3,8 @@ package com.dororong.rodi.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -10,6 +12,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
@@ -44,6 +47,7 @@ class HomeViewModel @Inject constructor(
     private val setPlaceBookmarkUseCase: SetPlaceBookmarkUseCase,
     private val getAuthSessionUseCase: GetAuthSessionUseCase,
     private val loginWithKakaoUseCase: LoginWithKakaoUseCase,
+    private val restoreWithKakaoUseCase: RestoreWithKakaoUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
 ) : ViewModel() {
@@ -59,7 +63,9 @@ class HomeViewModel @Inject constructor(
     private var detailJob: Job? = null
     private var routeJob: Job? = null
     private var requestGeneration = 0L
+    private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
+    private var pendingRestoreCredential: String? = null
 
     init {
         loadCoordinates()
@@ -67,19 +73,41 @@ class HomeViewModel @Inject constructor(
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
+            HomeIntent.OnMapGesture -> {
+                mapMovementGeneration += 1
+                _state.update { it.copy(isMapSearchDirty = true) }
+            }
             is HomeIntent.OnViewportSettled -> loadInitialViewport(intent.query)
-            is HomeIntent.OnResearch -> loadFirstPage(intent.query, force = true)
+            is HomeIntent.OnProgrammaticSearch -> loadFirstPage(intent.query, force = true)
+            is HomeIntent.OnResearch -> loadFirstPage(
+                query = intent.query,
+                force = true,
+                clearMapMovementGeneration = mapMovementGeneration,
+            )
             HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
             HomeIntent.OnListExpand -> _state.update { it.copy(surfaceState = HomeSurfaceState.FullList) }
             HomeIntent.OnListCollapse -> collapseList()
             HomeIntent.OnLoadNextPage -> loadNextPage()
             is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
             HomeIntent.OnDismissDetail -> dismissDetail()
+            HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
             is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
             is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
+            HomeIntent.OnRestoreAccount -> restoreAccount()
+            HomeIntent.OnDismissRestore -> {
+                pendingRestoreCredential = null
+                _state.update {
+                    it.copy(
+                        pendingAction = null,
+                        hasPendingRestore = false,
+                        isLoginInProgress = false,
+                        isRestoreInProgress = false,
+                    )
+                }
+            }
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
@@ -100,7 +128,11 @@ class HomeViewModel @Inject constructor(
         if (_state.value.searchedQuery == null) loadFirstPage(query, force = false)
     }
 
-    private fun loadFirstPage(query: PlaceViewportQuery, force: Boolean) {
+    private fun loadFirstPage(
+        query: PlaceViewportQuery,
+        force: Boolean,
+        clearMapMovementGeneration: Long? = null,
+    ) {
         val key = PlaceRequestKey(query, cursor = null)
         if (!force && key == lastFirstPageKey) return
         if (key == lastFirstPageKey && firstPageJob?.isActive == true) return
@@ -120,7 +152,7 @@ class HomeViewModel @Inject constructor(
                 .onSuccess { page ->
                     if (generation != requestGeneration) return@onSuccess
                     applyFirstPage(query, page)
-                    refreshFirstPage(query, generation)
+                    refreshFirstPage(query, generation, clearMapMovementGeneration)
                 }
                 .onFailure { error ->
                     if (generation != requestGeneration) return@onFailure
@@ -134,10 +166,22 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private suspend fun refreshFirstPage(query: PlaceViewportQuery, generation: Long) {
+    private suspend fun refreshFirstPage(
+        query: PlaceViewportQuery,
+        generation: Long,
+        clearMapMovementGeneration: Long?,
+    ) {
         refreshPlacesUseCase(query, cursor = null, size = PLACE_PAGE_SIZE)
             .onSuccess { page ->
-                if (generation == requestGeneration) applyFirstPage(query, page)
+                if (generation == requestGeneration) {
+                    applyFirstPage(query, page)
+                    if (
+                        clearMapMovementGeneration != null &&
+                        clearMapMovementGeneration == mapMovementGeneration
+                    ) {
+                        _state.update { it.copy(isMapSearchDirty = false) }
+                    }
+                }
             }
             .onFailure { error ->
                 if (generation == requestGeneration && _state.value.places.isEmpty()) {
@@ -255,6 +299,10 @@ class HomeViewModel @Inject constructor(
         } else {
             HomeSurfaceState.Navigation
         }
+        dismissDetail(destination)
+    }
+
+    private fun dismissDetail(destination: HomeSurfaceState) {
         detailJob?.cancel()
         routeJob?.cancel()
         _state.update {
@@ -263,6 +311,7 @@ class HomeViewModel @Inject constructor(
                 selectedPlace = null,
                 selectedRoute = null,
                 isRouting = false,
+                isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
                 surfaceState = destination,
@@ -347,14 +396,55 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             _state.update { it.copy(isLoginInProgress = true) }
             loginWithKakaoUseCase(accessToken)
-                .onSuccess {
-                    if (_state.value.pendingAction == action) {
-                        _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
-                        resumePendingAction(action)
+                .onSuccess { result ->
+                    when (result) {
+                        is LoginResult.Success -> if (_state.value.pendingAction == action) {
+                            _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+                            resumePendingAction(action)
+                        }
+                        is LoginResult.WithdrawalPending -> {
+                            pendingRestoreCredential = accessToken
+                            _state.update {
+                                it.copy(
+                                    hasPendingRestore = true,
+                                    isLoginInProgress = false,
+                                )
+                            }
+                        }
                     }
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isLoginInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun restoreAccount() {
+        val credential = pendingRestoreCredential ?: return
+        val action = _state.value.pendingAction ?: return
+        if (_state.value.isRestoreInProgress) return
+        viewModelScope.launch {
+            _state.update { it.copy(isRestoreInProgress = true) }
+            restoreWithKakaoUseCase(credential)
+                .onSuccess { result ->
+                    if (result is AccountRestoreResult.Restored && _state.value.pendingAction == action) {
+                        pendingRestoreCredential = null
+                        _state.update {
+                            it.copy(
+                                pendingAction = null,
+                                hasPendingRestore = false,
+                                isRestoreInProgress = false,
+                            )
+                        }
+                        resumePendingAction(action)
+                    } else {
+                        _state.update { it.copy(isRestoreInProgress = false) }
+                        _effect.send(HomeEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isRestoreInProgress = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }

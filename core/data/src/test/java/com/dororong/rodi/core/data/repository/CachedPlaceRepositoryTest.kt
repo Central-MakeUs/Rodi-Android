@@ -1,10 +1,11 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.source.local.database.PlaceCacheLocalDataSource
-import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
+import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -14,37 +15,61 @@ import org.junit.jupiter.api.Test
 
 class CachedPlaceRepositoryTest {
     @Test
-    fun `coordinates return local cache before requesting server`() = runTest {
+    fun `coordinates purge legacy samples before returning server cache`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
-        val saved = mockk<SavedPlaceLocalDataSource>()
-        val localCoordinates = listOf(coordinate(1))
-        coEvery { cache.seedSamplesIfEmpty() } returns Unit
-        coEvery { cache.coordinates() } returns localCoordinates
-        val repository = CachedPlaceRepository(remote, cache, saved)
+        val coordinates = listOf(coordinate(1), coordinate(1), coordinate(2))
+        coEvery { cache.deleteSamples() } returns Unit
+        coEvery { cache.coordinates() } returns coordinates
 
-        val result = repository.getCoordinates()
+        val result = CachedPlaceRepository(remote, cache).getCoordinates()
 
-        assertEquals(localCoordinates, result)
+        assertEquals(listOf(1L, 2L), result.map(PlaceCoordinate::id))
+        coVerify { cache.deleteSamples() }
         coVerify(exactly = 0) { remote.getCoordinates() }
     }
 
     @Test
-    fun `coordinate refresh stores server result and returns refreshed cache`() = runTest {
+    fun `coordinate refresh atomically replaces cache with unique server rows`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
-        val saved = mockk<SavedPlaceLocalDataSource>()
-        val serverCoordinates = listOf(coordinate(2))
-        coEvery { remote.getCoordinates() } returns serverCoordinates
-        coEvery { cache.upsertCoordinates(serverCoordinates) } returns Unit
-        coEvery { cache.seedSamplesIfEmpty() } returns Unit
-        coEvery { cache.coordinates() } returns serverCoordinates
-        val repository = CachedPlaceRepository(remote, cache, saved)
+        val server = listOf(coordinate(2), coordinate(2), coordinate(3))
+        coEvery { remote.getCoordinates() } returns server
+        coEvery { cache.replaceCoordinates(any()) } returns Unit
 
-        val result = repository.refreshCoordinates()
+        val result = CachedPlaceRepository(remote, cache).refreshCoordinates()
 
-        assertEquals(serverCoordinates, result)
-        coVerify(exactly = 1) { cache.upsertCoordinates(serverCoordinates) }
+        assertEquals(listOf(2L, 3L), result.map(PlaceCoordinate::id))
+        coVerify { cache.replaceCoordinates(match { it.map(PlaceCoordinate::id) == listOf(2L, 3L) }) }
+    }
+
+    @Test
+    fun `cached viewport never returns a negative sample id`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val cache = mockk<PlaceCacheLocalDataSource>()
+        val query = viewportQuery()
+        coEvery { cache.deleteSamples() } returns Unit
+        coEvery { cache.summaries(query) } returns emptyList()
+
+        val page = CachedPlaceRepository(remote, cache).getPlaces(query, null, 20)
+
+        assertEquals(emptyList<PlaceSummary>(), page.items)
+        coVerify { cache.deleteSamples() }
+    }
+
+    @Test
+    fun `cached viewport limits the first page and does not replay it for a cursor`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val cache = mockk<PlaceCacheLocalDataSource>()
+        val query = viewportQuery()
+        coEvery { cache.deleteSamples() } returns Unit
+        coEvery { cache.summaries(query) } returns listOf(summary(1), summary(1), summary(2), summary(3))
+
+        val firstPage = CachedPlaceRepository(remote, cache).getPlaces(query, null, 2)
+        val nextPage = CachedPlaceRepository(remote, cache).getPlaces(query, "server-cursor", 2)
+
+        assertEquals(listOf(1L, 2L), firstPage.items.map(PlaceSummary::id))
+        assertEquals(emptyList<PlaceSummary>(), nextPage.items)
     }
 
     private fun coordinate(id: Long) = PlaceCoordinate(
@@ -53,5 +78,25 @@ class CachedPlaceRepositoryTest {
         name = "장소 $id",
         address = "서울",
         point = GeoPoint(37.5, 126.9),
+    )
+
+    private fun summary(id: Long) = PlaceSummary(
+        id = id,
+        type = PlaceType.COURSE,
+        name = "장소 $id",
+        address = "서울",
+        point = GeoPoint(37.5, 126.9),
+        distanceFromMeMeters = null,
+        practiceTypes = emptyList(),
+        description = null,
+        distanceMeters = null,
+        capacity = null,
+        openTime = null,
+    )
+
+    private fun viewportQuery() = PlaceViewportQuery(
+        southWest = GeoPoint(37.0, 126.0),
+        northEast = GeoPoint(38.0, 127.0),
+        origin = GeoPoint(37.5, 126.5),
     )
 }

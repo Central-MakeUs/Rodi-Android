@@ -1,19 +1,15 @@
 package com.dororong.rodi.feature.mypage.drivinggoal
 
 import app.cash.turbine.test
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
-import com.dororong.rodi.core.domain.repository.OnboardingRepository
-import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
-import com.dororong.rodi.core.domain.usecase.onboarding.SaveOnboardingProfileUseCase
+import com.dororong.rodi.core.domain.model.member.MyPage
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
+import com.dororong.rodi.core.domain.usecase.member.UpdateDrivingGoalUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -26,104 +22,29 @@ import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DrivingGoalViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
 
-    private val testDispatcher = StandardTestDispatcher()
-
-    @BeforeEach
-    fun setUp() {
-        Dispatchers.setMain(testDispatcher)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
+    @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
+    @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `saves goal locally before navigating back when synchronization succeeds`() = runTest(testDispatcher) {
-        val profile = OnboardingProfile(goal = "기존 목표")
-        val repository = mockk<OnboardingRepository> {
-            every { this@mockk.profile } returns flowOf(profile)
-            coEvery { saveProfile(any()) } returns Unit
-            coEvery { submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
-        }
-        val viewModel = DrivingGoalViewModel(
-            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
+    fun `empty goal deletes an existing server goal`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val update = mockk<UpdateDrivingGoalUseCase>()
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("로디", OnboardingLevel.SEED, emptyList(), "기존 목표", 0),
         )
+        coEvery { update("") } returns Result.success(Unit)
+        val viewModel = DrivingGoalViewModel(getMyPage, update)
+        advanceUntilIdle()
 
         viewModel.effect.test {
-            viewModel.updateGoal("강남에서 운전하기")
+            viewModel.updateGoal("")
             viewModel.save()
             advanceUntilIdle()
-
             assertEquals(DrivingGoalEffect.NavigateBack, awaitItem())
+            coVerify { update("") }
+            cancelAndIgnoreRemainingEvents()
         }
-        coVerify(ordering = io.mockk.Ordering.ORDERED) {
-            repository.saveProfile(match { it.goal == "강남에서 운전하기" })
-            repository.submit(match { it.goal == "강남에서 운전하기" }, any())
-        }
-    }
-
-    @Test
-    fun `keeps local goal and shows error when synchronization fails`() = runTest(testDispatcher) {
-        val repository = mockk<OnboardingRepository> {
-            every { this@mockk.profile } returns flowOf(OnboardingProfile())
-            coEvery { saveProfile(any()) } returns Unit
-            coEvery { submit(any(), any()) } returns OnboardingSubmissionResult.RetryableFailure
-        }
-        val viewModel = DrivingGoalViewModel(
-            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
-        )
-
-        viewModel.effect.test {
-            viewModel.updateGoal("주차 자신감 갖기")
-            viewModel.save()
-            advanceUntilIdle()
-
-            assertEquals(DrivingGoalEffect.ShowSyncError, awaitItem())
-        }
-        coVerify { repository.saveProfile(match { it.goal == "주차 자신감 갖기" }) }
-    }
-
-    @Test
-    fun `does not save when goal is unchanged`() = runTest(testDispatcher) {
-        val repository = mockk<OnboardingRepository> {
-            every { this@mockk.profile } returns flowOf(OnboardingProfile(goal = "기존 목표"))
-        }
-        val viewModel = DrivingGoalViewModel(
-            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
-        )
-        advanceUntilIdle()
-
-        viewModel.updateGoal("기존 목표")
-        viewModel.save()
-        advanceUntilIdle()
-
-        coVerify(exactly = 0) { repository.saveProfile(any()) }
-        coVerify(exactly = 0) { repository.submit(any(), any()) }
-    }
-
-    @Test
-    fun `does not emit an effect when saving is cancelled`() = runTest(testDispatcher) {
-        val repository = mockk<OnboardingRepository> {
-            every { this@mockk.profile } returns flowOf(OnboardingProfile())
-            coEvery { saveProfile(any()) } throws CancellationException()
-        }
-        val viewModel = DrivingGoalViewModel(
-            getOnboardingProfile = GetOnboardingProfileUseCase(repository),
-            saveOnboardingProfile = SaveOnboardingProfileUseCase(repository),
-        )
-
-        viewModel.effect.test {
-            viewModel.updateGoal("새 목표")
-            viewModel.save()
-            advanceUntilIdle()
-
-            expectNoEvents()
-        }
-        assertEquals(false, viewModel.uiState.value.isSaving)
     }
 }

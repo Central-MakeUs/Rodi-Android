@@ -72,7 +72,9 @@ fun EntryFlow(
     }
 
     BackHandler(
-        enabled = state.step != EntryStep.TERMS && state.onboardingAnalysisState == null,
+        enabled = state.step != EntryStep.TERMS &&
+            state.step != EntryStep.PRECAUTIONS &&
+            state.onboardingAnalysisState == null,
     ) { viewModel.back() }
 
     CompositionLocalProvider(LocalStepProgressAnimationState provides stepProgressAnimationState) {
@@ -108,7 +110,7 @@ fun EntryFlow(
                         onLicenseToggle = viewModel::toggleLicense,
                         onCompanionToggle = viewModel::toggleCompanion,
                         onAgreeToggle = viewModel::togglePrecautionAgreement,
-                        onBack = { viewModel.back() },
+                        onBack = null,
                         onComplete = viewModel::next,
                     )
 
@@ -158,6 +160,7 @@ fun EntryFlow(
                     OnboardingAnalysisDialog(
                         state = analysisState,
                         level = level,
+                        copy = state.onboardingAnalysisCopy ?: return@let,
                         onConfirm = viewModel::continueAfterOnboardingAnalysis,
                     )
                 }

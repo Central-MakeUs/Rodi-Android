@@ -11,6 +11,8 @@ class SaveOnboardingProfileUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(profile: OnboardingProfile) = onboardingRepository.saveProfile(profile)
 
+    suspend fun saveForSubmission(profile: OnboardingProfile) = onboardingRepository.savePendingProfile(profile)
+
     suspend fun submit(profile: OnboardingProfile, level: OnboardingLevel): OnboardingSubmissionResult =
         onboardingRepository.submit(profile, level)
 }

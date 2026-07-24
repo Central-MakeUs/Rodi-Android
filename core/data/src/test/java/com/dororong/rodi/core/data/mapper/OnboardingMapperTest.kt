@@ -16,7 +16,7 @@ class OnboardingMapperTest {
     @Test
     fun `maps onboarding profile to server enum values`() {
         val request = OnboardingProfile(
-            drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+            drivingPeriod = DrivingPeriod.MONTHS_1_2,
             recentFrequency = RecentDrivingFrequency.WEEKLY_2_TO_3,
             roadExperiences = listOf(RoadExperience.WITH_COMPANION),
             soloDrivingRange = SoloDrivingRange.HIGHWAY_LONG_DISTANCE,
@@ -26,7 +26,7 @@ class OnboardingMapperTest {
             goal = "출퇴근",
         ).toRequest(OnboardingLevel.ROOKIE)
 
-        assertEquals("MONTHS_1_3", request.drivingPeriod)
+        assertEquals("MONTHS_1_2", request.drivingPeriod)
         assertEquals("WEEKLY_2_3", request.recentFrequency)
         assertEquals(listOf("ACCOMPANIED"), request.roadExperiences)
         assertEquals("HIGHWAY_LONG", request.soloDrivingRange)
@@ -34,5 +34,23 @@ class OnboardingMapperTest {
         assertEquals(listOf("LEFT_RIGHT_TURN", "MULTILANE"), request.practiceTypes)
         assertEquals("LIGHT", request.carType)
         assertEquals("출퇴근", request.drivingGoal)
+    }
+
+    @Test
+    fun `maps every approved driving period to its exact wire value`() {
+        val expected = mapOf(
+            DrivingPeriod.UNDER_1_MONTH to "UNDER_1_MONTH",
+            DrivingPeriod.MONTHS_1_2 to "MONTHS_1_2",
+            DrivingPeriod.MONTHS_3_5 to "MONTHS_3_5",
+            DrivingPeriod.MONTHS_6_11 to "MONTHS_6_11",
+            DrivingPeriod.YEARS_1_2 to "YEARS_1_2",
+            DrivingPeriod.YEARS_3_9 to "YEARS_3_9",
+            DrivingPeriod.OVER_10_YEARS to "OVER_10_YEARS",
+        )
+
+        expected.forEach { (period, wireValue) ->
+            val request = OnboardingProfile(drivingPeriod = period).toRequest(OnboardingLevel.SEED)
+            assertEquals(wireValue, request.drivingPeriod)
+        }
     }
 }

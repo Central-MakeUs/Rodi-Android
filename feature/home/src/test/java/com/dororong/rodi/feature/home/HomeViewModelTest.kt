@@ -1,8 +1,11 @@
 package com.dororong.rodi.feature.home
 
 import app.cash.turbine.test
+import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -11,6 +14,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
+import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
@@ -23,12 +27,14 @@ import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -38,6 +44,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -143,6 +150,27 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `map gesture stays dirty until explicit research refresh succeeds`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returnsMany listOf(
+            Result.failure(IllegalStateException("offline")),
+            Result.success(page),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnMapGesture)
+        vm.onIntent(HomeIntent.OnResearch(query()))
+        advanceUntilIdle()
+        assertTrue(vm.state.value.isMapSearchDirty)
+
+        vm.onIntent(HomeIntent.OnResearch(query()))
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isMapSearchDirty)
+    }
+
+    @Test
     fun `surface transitions navigation partial full partial navigation`() {
         val vm = Dependencies().viewModel()
 
@@ -159,7 +187,7 @@ class HomeViewModelTest {
     @Test
     fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(true)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
             AuthSession(false, false),
             AuthSession(true, true),
@@ -179,6 +207,136 @@ class HomeViewModelTest {
         assertNull(vm.state.value.pendingAction)
         assertEquals(10L, vm.state.value.selectedPlaceId)
         coVerify(exactly = 1) { deps.getDetail(10L) }
+    }
+
+    @Test
+    fun `withdrawal pending credential stays private until account restore succeeds`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(
+            LoginResult.WithdrawalPending(
+                withdrawalRequestedAt = Instant.parse("2026-07-13T00:00:00Z"),
+                recoverableUntil = Instant.parse("2026-07-16T00:00:00Z"),
+            ),
+        )
+        coEvery { deps.restoreWithKakao("credential") } returns Result.success(
+            AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnMyClick)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.hasPendingRestore)
+        vm.onIntent(HomeIntent.OnRestoreAccount)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.hasPendingRestore)
+        assertNull(vm.state.value.pendingAction)
+        coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
+    }
+
+    @Test
+    fun `drag dismiss from list clears course detail and always returns to navigation`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.courseDetail.copy(id = 30L)
+        val route = RouteResult(
+            points = listOf(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0)),
+            isRealRoute = true,
+        )
+        coEvery { deps.getDetail(30L) } returns Result.success(place)
+        coEvery { deps.getRoute(place) } returns Result.success(route)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(30L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+        assertEquals(route, vm.state.value.selectedRoute)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.selectedRoute)
+        assertNull(vm.state.value.detailOrigin)
+        assertFalse(vm.state.value.isDetailLoading)
+        assertFalse(vm.state.value.isRouting)
+        assertFalse(vm.state.value.isBookmarkUpdating)
+    }
+
+    @Test
+    fun `drag dismiss cancels parking detail loading and clears selection`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val detailResult = CompletableDeferred<Result<PlaceDetail>>()
+        var detailRequestCancelled = false
+        coEvery { deps.getDetail(31L) } coAnswers {
+            try {
+                detailResult.await()
+            } catch (error: CancellationException) {
+                detailRequestCancelled = true
+                throw error
+            }
+        }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(31L, HomeDetailOrigin.List))
+        runCurrent()
+        assertTrue(vm.state.value.isDetailLoading)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        runCurrent()
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.detailOrigin)
+        assertFalse(vm.state.value.isDetailLoading)
+        assertTrue(detailRequestCancelled)
+    }
+
+    @Test
+    fun `drag dismiss clears parking bookmark update state`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 32L, isBookmarked = false)
+        val bookmarkResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.getDetail(32L) } returns Result.success(place)
+        coEvery { deps.setBookmark(place, true) } coAnswers { bookmarkResult.await() }
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(32L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnBookmarkClick)
+        runCurrent()
+        assertTrue(vm.state.value.isBookmarkUpdating)
+
+        vm.onIntent(HomeIntent.OnDragDismissDetail)
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertFalse(vm.state.value.isBookmarkUpdating)
+
+        bookmarkResult.complete(Result.success(Unit))
+        advanceUntilIdle()
+        assertNull(vm.state.value.selectedPlace)
+    }
+
+    @Test
+    fun `regular dismiss from list keeps partial list destination`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 33L)
+        coEvery { deps.getDetail(33L) } returns Result.success(place)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(33L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnDismissDetail)
+
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertNull(vm.state.value.selectedPlaceId)
+        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.state.value.detailOrigin)
     }
 
     @Test
@@ -226,6 +384,7 @@ private class Dependencies(loggedIn: Boolean = true) {
     val getRoute = mockk<GetRouteUseCase>()
     val authSession = mockk<GetAuthSessionUseCase>()
     val loginWithKakao = mockk<LoginWithKakaoUseCase>()
+    val restoreWithKakao = mockk<RestoreWithKakaoUseCase>()
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
 
@@ -248,6 +407,7 @@ private class Dependencies(loggedIn: Boolean = true) {
         setPlaceBookmarkUseCase = setBookmark,
         getAuthSessionUseCase = authSession,
         loginWithKakaoUseCase = loginWithKakao,
+        restoreWithKakaoUseCase = restoreWithKakao,
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
     )

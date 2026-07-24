@@ -11,5 +11,6 @@ interface EntryRepository {
     suspend fun setCompleted()
     suspend fun markLocationPermissionRequested()
     suspend fun grantGuestAccess()
+    suspend fun clearGuestAccess()
     suspend fun saveProgress(progress: EntryProgress)
 }

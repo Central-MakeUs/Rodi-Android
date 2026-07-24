@@ -17,7 +17,7 @@ interface AuthApi {
     suspend fun oauthLogin(
         @Path("provider") provider: String,
         @Body request: OAuthLoginRequest,
-    ): ApiEnvelope<AuthTokenResponse>
+    ): ApiEnvelope<SocialLoginResponse>
 
     @POST("auth/token/refresh")
     suspend fun reissue(@Body request: TokenRefreshRequest): ApiEnvelope<AuthTokenResponse>

@@ -188,7 +188,7 @@ private fun <T> MultiChoiceQuestion(
 private fun CareerContentPreview() {
     RodiTheme {
         CareerContent(
-            drivingPeriod = DrivingPeriod.MONTH_1_TO_3,
+            drivingPeriod = DrivingPeriod.MONTHS_1_2,
             recentFrequency = RecentDrivingFrequency.WEEKLY_1,
             roadExperiences = listOf(RoadExperience.SOLO),
             soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,9 +24,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.R
@@ -40,8 +45,17 @@ fun RodiApp(
     viewModel: RodiAppViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val backStack = remember { mutableStateListOf<Any>() }
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.retryPendingOnboardingSync()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) {
         delay(1_000.milliseconds)
@@ -80,9 +94,9 @@ fun RodiApp(
                 LoginRoute -> NavEntry(key) {
                     LoginScreen(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
-                        onNavigateNext = {
+                        onNavigateNext = { isNewMember ->
                             backStack.clear()
-                            backStack.add(if (state.isEntryCompleted) MainRoute else EntryRoute)
+                            backStack.add(postLoginDestination(isNewMember, state.isEntryCompleted))
                         },
                     )
                 }
@@ -107,6 +121,16 @@ fun RodiApp(
             }
         },
     )
+}
+
+internal fun postLoginDestination(
+    isNewMember: Boolean?,
+    isEntryCompleted: Boolean,
+): NavKey = when {
+    isNewMember == true -> EntryRoute
+    isNewMember == false -> MainRoute
+    isEntryCompleted -> MainRoute
+    else -> EntryRoute
 }
 
 @Composable

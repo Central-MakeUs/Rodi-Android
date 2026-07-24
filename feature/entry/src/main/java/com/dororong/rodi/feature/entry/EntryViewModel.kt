@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
+import com.dororong.rodi.core.domain.model.onboarding.analysisCopy
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
@@ -205,11 +206,7 @@ class EntryViewModel @Inject constructor(
             EntryStep.NICKNAME -> EntryStep.TERMS
             EntryStep.CAREER -> EntryStep.NICKNAME
             EntryStep.PREFERENCE -> EntryStep.CAREER
-            EntryStep.PRECAUTIONS -> if (state.value.drivingPeriod?.isNavigatorLevel == true) {
-                EntryStep.CAREER
-            } else {
-                EntryStep.PREFERENCE
-            }
+            EntryStep.PRECAUTIONS -> return false
             EntryStep.LOCATION -> EntryStep.PRECAUTIONS
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
@@ -227,6 +224,7 @@ class EntryViewModel @Inject constructor(
         _state.update {
             it.copy(
                 onboardingLevel = level,
+                onboardingAnalysisCopy = profile.analysisCopy(level),
                 onboardingAnalysisState = OnboardingAnalysisState.ANALYZING,
             )
         }
@@ -234,7 +232,7 @@ class EntryViewModel @Inject constructor(
             val submissionResult = try {
                 supervisorScope {
                     val submission = async {
-                        saveOnboardingProfileUseCase(profile)
+                        saveOnboardingProfileUseCase.saveForSubmission(profile)
                         saveOnboardingProfileUseCase.submit(profile, level)
                     }
                     delay(ANALYSIS_DURATION_MILLIS.milliseconds)
@@ -251,7 +249,11 @@ class EntryViewModel @Inject constructor(
             when (submissionResult) {
                 OnboardingSubmissionResult.Submitted,
                 OnboardingSubmissionResult.AlreadyCompleted,
-                -> _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+                -> {
+                    _state.update { it.copy(step = EntryStep.PRECAUTIONS) }
+                    persistEntryProgressNow()
+                    _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+                }
 
                 else -> {
                     _state.update { it.copy(onboardingAnalysisState = null) }
@@ -262,18 +264,7 @@ class EntryViewModel @Inject constructor(
     }
 
     fun continueAfterOnboardingAnalysis() {
-        if (state.value.step == EntryStep.CAREER && state.value.drivingPeriod?.isNavigatorLevel == true) {
-            _state.update {
-                it.copy(
-                    step = EntryStep.PRECAUTIONS,
-                    onboardingAnalysisState = null,
-                )
-            }
-            persistEntryProgress()
-        } else {
-            _state.update { it.copy(onboardingAnalysisState = null) }
-            next()
-        }
+        _state.update { it.copy(onboardingAnalysisState = null) }
     }
 
     fun finish() {
@@ -339,6 +330,16 @@ class EntryViewModel @Inject constructor(
                 throw error
             } catch (_: Throwable) {
             }
+        }
+    }
+
+    private suspend fun persistEntryProgressNow() {
+        val progress = currentEntryProgress()
+        try {
+            saveEntryProgressUseCase(progress)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
         }
     }
 

@@ -37,7 +37,7 @@ data class PlaceSummary(
     val name: String,
     val address: String,
     val point: GeoPoint,
-    val distanceFromMeMeters: Long,
+    val distanceFromMeMeters: Long?,
     val practiceTypes: List<PracticeType>,
     val description: String?,
     val distanceMeters: Int?,
