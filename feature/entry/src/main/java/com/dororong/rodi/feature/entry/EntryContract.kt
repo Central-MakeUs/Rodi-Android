@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.entry
 
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingAnalysisCopy
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
@@ -17,6 +18,7 @@ enum class OnboardingAnalysisState { ANALYZING, RESULT }
 
 data class EntryUiState(
     val isRestored: Boolean = false,
+    val mode: EntryMode = EntryMode.AUTHENTICATED,
     val step: EntryStep = EntryStep.TERMS,
     val webViewUrl: String = "",
     val serviceTermsChecked: Boolean = false,

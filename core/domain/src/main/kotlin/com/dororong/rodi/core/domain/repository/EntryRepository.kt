@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.domain.repository
 
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import kotlinx.coroutines.flow.Flow
 
 interface EntryRepository {
@@ -9,6 +10,7 @@ interface EntryRepository {
     val hasRequestedLocationPermission: Flow<Boolean>
     val progress: Flow<EntryProgress>
     suspend fun setCompleted()
+    suspend fun start(mode: EntryMode)
     suspend fun markLocationPermissionRequested()
     suspend fun grantGuestAccess()
     suspend fun clearGuestAccess()

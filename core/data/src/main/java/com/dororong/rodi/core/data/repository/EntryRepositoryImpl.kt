@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.source.local.datastore.EntryPreferences
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -15,6 +16,7 @@ class EntryRepositoryImpl @Inject constructor(
     override val progress: Flow<EntryProgress> = prefs.progress
 
     override suspend fun setCompleted() = prefs.setCompleted()
+    override suspend fun start(mode: EntryMode) = prefs.start(mode)
     override suspend fun markLocationPermissionRequested() = prefs.markLocationPermissionRequested()
     override suspend fun grantGuestAccess() = prefs.grantGuestAccess()
     override suspend fun clearGuestAccess() = prefs.clearGuestAccess()

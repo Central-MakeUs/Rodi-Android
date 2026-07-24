@@ -3,9 +3,10 @@ package com.dororong.rodi.feature.entry
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.NicknameGenerator
-import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
+import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
@@ -58,8 +59,10 @@ class EntryViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             try {
-                restoreProgress(getEntryProgressUseCase().first())
+                val progress = getEntryProgressUseCase().first()
+                restoreProgress(progress)
                 restoreOnboardingProfile(getOnboardingProfileUseCase().first())
+                applyMode(progress.mode)
                 if (state.value.step == EntryStep.NICKNAME) generateNicknameIfNeeded()
             } catch (error: CancellationException) {
                 throw error
@@ -165,7 +168,11 @@ class EntryViewModel @Inject constructor(
         val previousNickname = state.value.nickname
         _state.update {
             val nextStep = when (it.step) {
-                    EntryStep.TERMS -> EntryStep.NICKNAME
+                    EntryStep.TERMS -> if (it.mode == EntryMode.GUEST_BROWSE) {
+                        EntryStep.PRECAUTIONS
+                    } else {
+                        EntryStep.NICKNAME
+                    }
                     EntryStep.NICKNAME -> EntryStep.CAREER
                     EntryStep.CAREER -> EntryStep.PREFERENCE
                     EntryStep.PREFERENCE -> EntryStep.PRECAUTIONS
@@ -203,7 +210,11 @@ class EntryViewModel @Inject constructor(
 
     fun back(): Boolean {
         val previousStep = when (state.value.step) {
-            EntryStep.NICKNAME -> EntryStep.TERMS
+            EntryStep.NICKNAME -> if (state.value.mode == EntryMode.GUEST_SIGN_UP) {
+                return false
+            } else {
+                EntryStep.TERMS
+            }
             EntryStep.CAREER -> EntryStep.NICKNAME
             EntryStep.PREFERENCE -> EntryStep.CAREER
             EntryStep.PRECAUTIONS -> return false
@@ -264,6 +275,10 @@ class EntryViewModel @Inject constructor(
     }
 
     fun continueAfterOnboardingAnalysis() {
+        if (state.value.mode == EntryMode.GUEST_SIGN_UP) {
+            finish()
+            return
+        }
         _state.update { it.copy(onboardingAnalysisState = null) }
     }
 
@@ -321,6 +336,35 @@ class EntryViewModel @Inject constructor(
         }
     }
 
+    private suspend fun applyMode(mode: EntryMode) {
+        val restoredStep = state.value.step
+        val targetStep = when (mode) {
+            EntryMode.AUTHENTICATED -> restoredStep
+            EntryMode.GUEST_BROWSE -> when (restoredStep) {
+                EntryStep.NICKNAME,
+                EntryStep.CAREER,
+                EntryStep.PREFERENCE,
+                -> EntryStep.PRECAUTIONS
+
+                else -> restoredStep
+            }
+
+            EntryMode.GUEST_SIGN_UP -> when (restoredStep) {
+                EntryStep.TERMS,
+                EntryStep.TERMS_WEBVIEW,
+                -> EntryStep.NICKNAME
+
+                EntryStep.PRECAUTIONS,
+                EntryStep.LOCATION,
+                -> EntryStep.CAREER
+
+                else -> restoredStep
+            }
+        }
+        _state.update { it.copy(mode = mode, step = targetStep) }
+        if (targetStep != restoredStep) persistEntryProgressNow()
+    }
+
     private fun persistEntryProgress() {
         val progress = currentEntryProgress()
         viewModelScope.launch {
@@ -358,6 +402,7 @@ class EntryViewModel @Inject constructor(
     private fun currentEntryProgress(): EntryProgress =
         state.value.let {
             EntryProgress(
+                mode = it.mode,
                 step = it.step.toEntryProgressStep(),
                 webViewUrl = it.webViewUrl,
                 serviceTermsChecked = it.serviceTermsChecked,

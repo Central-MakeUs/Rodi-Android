@@ -32,6 +32,7 @@ import dagger.hilt.android.EntryPointAccessors
 @Composable
 fun MainScreen(
     onSessionEnded: () -> Unit,
+    onGuestSignUp: () -> Unit,
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
@@ -82,6 +83,7 @@ fun MainScreen(
                             onMyPageClick = {
                                 backStack[backStack.lastIndex] = MyPageRoute
                             },
+                            onGuestSignUp = onGuestSignUp,
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
