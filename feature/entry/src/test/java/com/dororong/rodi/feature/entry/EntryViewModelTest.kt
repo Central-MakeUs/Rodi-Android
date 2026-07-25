@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.entry
 
 import app.cash.turbine.test
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
@@ -137,6 +138,42 @@ class EntryViewModelTest {
 
         viewModel.next()
         assertEquals(EntryStep.LOCATION, viewModel.step)
+    }
+
+    @Test
+    fun `guest browse skips onboarding between terms and precautions`() = runTest(testDispatcher) {
+        val viewModel = testViewModel(mode = EntryMode.GUEST_BROWSE)
+        advanceUntilIdle()
+
+        viewModel.next()
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+        viewModel.next()
+        assertEquals(EntryStep.LOCATION, viewModel.step)
+    }
+
+    @Test
+    fun `guest browse restores legacy onboarding step at precautions`() = runTest(testDispatcher) {
+        val viewModel = testViewModel(
+            mode = EntryMode.GUEST_BROWSE,
+            savedProgress = EntryProgress(step = EntryProgressStep.PREFERENCE),
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
+    }
+
+    @Test
+    fun `guest sign up starts at nickname and cannot return to terms`() = runTest(testDispatcher) {
+        val viewModel = testViewModel(
+            mode = EntryMode.GUEST_SIGN_UP,
+            savedProgress = EntryProgress(step = EntryProgressStep.NICKNAME),
+        )
+        advanceUntilIdle()
+
+        assertEquals(EntryStep.NICKNAME, viewModel.step)
+        assertFalse(viewModel.back())
+        assertEquals(EntryStep.NICKNAME, viewModel.step)
     }
 
     @Test
@@ -451,6 +488,33 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `guest sign up completes entry when analysis result is confirmed`() = runTest(testDispatcher) {
+        val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            mode = EntryMode.GUEST_SIGN_UP,
+            savedProgress = EntryProgress(step = EntryProgressStep.PREFERENCE),
+            setEntryCompletedUseCase = setEntryCompletedUseCase,
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns
+            OnboardingSubmissionResult.Submitted
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        viewModel.effect.test {
+            viewModel.continueAfterOnboardingAnalysis()
+            advanceUntilIdle()
+
+            coVerify(exactly = 1) { setEntryCompletedUseCase() }
+            assertEquals(EntryEffect.CompleteEntry, awaitItem())
+        }
+    }
+
+    @Test
     fun `onboarding analysis emits failure only after three seconds when local save fails`() =
         runTest(testDispatcher) {
             val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
@@ -624,11 +688,13 @@ class EntryViewModelTest {
         getOnboardingProfileUseCase: GetOnboardingProfileUseCase = testGetOnboardingProfileUseCase(),
         savedProgress: EntryProgress = EntryProgress(),
         savedProfile: OnboardingProfile = OnboardingProfile(),
+        mode: EntryMode = EntryMode.AUTHENTICATED,
     ): EntryViewModel {
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
         coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
-        every { getEntryProgressUseCase() } returns flowOf(savedProgress)
+        val progressWithMode = savedProgress.copy(mode = mode)
+        every { getEntryProgressUseCase() } returns flowOf(progressWithMode)
         coEvery { saveEntryProgressUseCase(any()) } returns Unit
         every { getOnboardingProfileUseCase() } returns flowOf(savedProfile)
         return EntryViewModel(

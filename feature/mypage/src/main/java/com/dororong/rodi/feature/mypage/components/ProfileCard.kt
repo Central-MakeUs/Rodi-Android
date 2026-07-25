@@ -237,7 +237,7 @@ private val OnboardingLevel.characterImageRes: Int
         OnboardingLevel.ROOKIE -> R.drawable.illust_profile_rookie
         OnboardingLevel.OWNER -> R.drawable.illust_profile_owner
         OnboardingLevel.EXPLORER -> R.drawable.illust_profile_explorer
-        OnboardingLevel.NAVIGATOR -> R.drawable.img_rodi_profile
+        OnboardingLevel.NAVIGATOR -> R.drawable.illust_profile_navigator
     }
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 248)

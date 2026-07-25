@@ -22,6 +22,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.feature.entry.component.OnboardingAnalysisDialog
 import com.dororong.rodi.feature.entry.component.LocalStepProgressAnimationState
 import com.dororong.rodi.feature.entry.component.rememberStepProgressAnimationState
@@ -33,10 +34,6 @@ import com.dororong.rodi.feature.entry.content.PreferenceContent
 import com.dororong.rodi.feature.entry.content.TermsAgreementContent
 import com.dororong.rodi.core.ui.R as CoreUiR
 
-/**
- * 진입 게이트 호스트: 약관 → 닉네임 → 경력 → 선호 → 주의사항 → 위치권한 순으로 상태 머신을 전환한다.
- * 마지막 단계 완료 시 [onComplete].
- */
 @Composable
 fun EntryFlow(
     onComplete: () -> Unit,
@@ -74,6 +71,7 @@ fun EntryFlow(
     BackHandler(
         enabled = state.step != EntryStep.TERMS &&
             state.step != EntryStep.PRECAUTIONS &&
+            !(state.mode == EntryMode.GUEST_SIGN_UP && state.step == EntryStep.NICKNAME) &&
             state.onboardingAnalysisState == null,
     ) { viewModel.back() }
 
@@ -116,7 +114,11 @@ fun EntryFlow(
 
                     EntryStep.NICKNAME -> NicknameContent(
                         nickname = state.nickname,
-                        onBack = { viewModel.back() },
+                        onBack = ({
+                            viewModel.back()
+                            Unit
+                        })
+                            .takeUnless { state.mode == EntryMode.GUEST_SIGN_UP },
                         onNext = viewModel::next,
                     )
 

@@ -210,6 +210,26 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `guest new member navigates to sign up without resuming pending action`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns
+            Result.success(LoginResult.Success(true, "로디"))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnMyClick)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateGuestSignUp, awaitItem())
+            assertNull(vm.state.value.pendingAction)
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `withdrawal pending credential stays private until account restore succeeds`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(

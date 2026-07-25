@@ -91,6 +91,7 @@ sealed interface HomeEffect {
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
     data object NavigateMyPage : HomeEffect
+    data object NavigateGuestSignUp : HomeEffect
 }
 
 sealed interface PendingHomeAction {

@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -73,6 +74,9 @@ class EntryPreferences @Inject constructor(
             }
             .map { prefs ->
                 EntryProgress(
+                    mode = prefs[KEY_MODE].toEntryModeOrDefault(
+                        hasGuestAccess = prefs[KEY_GUEST_ACCESS] ?: false,
+                    ),
                     step = prefs[KEY_STEP].toEntryProgressStepOrDefault(),
                     webViewUrl = prefs[KEY_WEB_VIEW_URL].orEmpty(),
                     serviceTermsChecked = prefs[KEY_SERVICE_TERMS_CHECKED] ?: false,
@@ -92,6 +96,17 @@ class EntryPreferences @Inject constructor(
         }
     }
 
+    suspend fun start(mode: EntryMode) {
+        context.entryDataStore.edit { prefs ->
+            prefs[KEY_COMPLETED] = false
+            prefs[KEY_MODE] = mode.name
+            if (mode == EntryMode.GUEST_SIGN_UP) {
+                ENTRY_PROGRESS_KEYS.forEach { prefs.remove(it) }
+                prefs[KEY_STEP] = EntryProgressStep.NICKNAME.name
+            }
+        }
+    }
+
     suspend fun markLocationPermissionRequested() {
         context.entryDataStore.edit { it[KEY_LOCATION_PERMISSION_REQUESTED] = true }
     }
@@ -104,9 +119,14 @@ class EntryPreferences @Inject constructor(
         context.entryDataStore.edit { it[KEY_GUEST_ACCESS] = false }
     }
 
+    suspend fun clear() {
+        context.entryDataStore.edit { it.clear() }
+    }
+
     suspend fun saveProgress(progress: EntryProgress) {
         context.entryDataStore.edit { prefs ->
             prefs[KEY_STEP] = progress.step.name
+            prefs[KEY_MODE] = progress.mode.name
             prefs[KEY_WEB_VIEW_URL] = progress.webViewUrl
             prefs[KEY_SERVICE_TERMS_CHECKED] = progress.serviceTermsChecked
             prefs[KEY_PRIVACY_TERMS_CHECKED] = progress.privacyTermsChecked
@@ -129,6 +149,7 @@ class EntryPreferences @Inject constructor(
         val KEY_LICENSE_CHECKED = booleanPreferencesKey("license_checked")
         val KEY_COMPANION_CHECKED = booleanPreferencesKey("companion_checked")
         val KEY_PRECAUTION_AGREEMENT_CHECKED = booleanPreferencesKey("precaution_agreement_checked")
+        val KEY_MODE = stringPreferencesKey("entry_mode")
         val ENTRY_PROGRESS_KEYS = listOf(
             KEY_STEP,
             KEY_WEB_VIEW_URL,
@@ -146,3 +167,7 @@ private fun String?.toEntryProgressStepOrDefault(): EntryProgressStep =
     this?.let { value ->
         runCatching { EntryProgressStep.valueOf(value) }.getOrNull()
     } ?: EntryProgressStep.TERMS
+
+private fun String?.toEntryModeOrDefault(hasGuestAccess: Boolean): EntryMode =
+    this?.let { value -> EntryMode.entries.firstOrNull { it.name == value } }
+        ?: if (hasGuestAccess) EntryMode.GUEST_BROWSE else EntryMode.AUTHENTICATED

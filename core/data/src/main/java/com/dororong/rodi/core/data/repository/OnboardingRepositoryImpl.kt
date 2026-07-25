@@ -33,6 +33,7 @@ class OnboardingRepositoryImpl @Inject constructor(
     override suspend fun savePendingProfile(profile: OnboardingProfile) = prefs.savePendingProfile(profile)
     override suspend fun authorizeSync() = prefs.authorizeSync()
     override suspend fun clearSyncPending() = prefs.clearSyncPending()
+    override suspend fun clear() = prefs.clear()
 
     override suspend fun submit(
         profile: OnboardingProfile,

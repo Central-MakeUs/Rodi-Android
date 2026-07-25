@@ -13,5 +13,6 @@ interface OnboardingRepository {
     suspend fun savePendingProfile(profile: OnboardingProfile)
     suspend fun authorizeSync()
     suspend fun clearSyncPending()
+    suspend fun clear()
     suspend fun submit(profile: OnboardingProfile, level: OnboardingLevel): OnboardingSubmissionResult
 }

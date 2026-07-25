@@ -174,6 +174,7 @@ typealias KakaoLoginRequest = (
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
+    onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
@@ -437,6 +438,7 @@ fun HomeScreen(
 
             is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
             HomeEffect.NavigateMyPage -> onMyPageClick()
+            HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
         }
     }
 

@@ -16,7 +16,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 @Composable
 fun NicknameContent(
     nickname: String,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

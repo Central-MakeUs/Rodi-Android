@@ -211,7 +211,7 @@ private val OnboardingLevel.characterImageRes: Int?
         OnboardingLevel.ROOKIE -> CoreUiR.drawable.illust_level_rookie
         OnboardingLevel.OWNER -> CoreUiR.drawable.illust_level_owner
         OnboardingLevel.EXPLORER -> CoreUiR.drawable.illust_level_explorer
-        OnboardingLevel.NAVIGATOR -> null
+        OnboardingLevel.NAVIGATOR -> CoreUiR.drawable.illust_level_navigator
     }
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)

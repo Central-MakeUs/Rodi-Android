@@ -2,6 +2,7 @@ package com.dororong.rodi.core.domain.usecase.auth
 
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
@@ -40,7 +41,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `complete guest onboarding is submitted after new member login`() = runTest {
+    fun `guest new member clears legacy onboarding and starts guest sign up`() = runTest {
         val auth = mockk<AuthRepository>()
         val profile = OnboardingProfile(
             nickname = "로컬",
@@ -53,18 +54,21 @@ class LoginWithKakaoUseCaseTest {
 
         LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
 
-        coVerify { onboarding.savePendingProfile(profile.copy(nickname = "서버")) }
+        coVerify { onboarding.clear() }
+        coVerify { onboarding.saveProfile(OnboardingProfile(nickname = "서버")) }
         coVerify { onboarding.authorizeSync() }
+        coVerify { onboarding.clearSyncPending() }
+        coVerify { entry.start(EntryMode.GUEST_SIGN_UP) }
         coVerify { entry.clearGuestAccess() }
-        coVerify(exactly = 0) { entry.setCompleted() }
-        coVerify { sync() }
+        coVerify(exactly = 0) { onboarding.savePendingProfile(any()) }
+        coVerify(exactly = 0) { sync() }
     }
 
     @Test
     fun `onboarding sync failure does not turn successful login into failure`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9))
-        val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
+        val entry = entryRepository(isCompleted = true, hasGuestAccess = false)
         val sync = syncUseCase()
         val login = LoginResult.Success(true, "서버")
         coEvery { auth.loginWithKakao("access-token") } returns login
@@ -73,6 +77,7 @@ class LoginWithKakaoUseCaseTest {
         val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token")
 
         assertEquals(login, result.getOrThrow())
+        coVerify { entry.start(EntryMode.AUTHENTICATED) }
         coVerify(exactly = 0) { onboarding.clearSyncPending() }
     }
 
@@ -135,6 +140,7 @@ class LoginWithKakaoUseCaseTest {
         coEvery { savePendingProfile(any()) } returns Unit
         coEvery { authorizeSync() } returns Unit
         coEvery { clearSyncPending() } returns Unit
+        coEvery { clear() } returns Unit
         coEvery { this@mockk.isSyncAuthorized } returns flowOf(isSyncAuthorized)
     }
 
@@ -145,6 +151,7 @@ class LoginWithKakaoUseCaseTest {
         coEvery { this@mockk.isCompleted } returns flowOf(isCompleted)
         coEvery { this@mockk.hasGuestAccess } returns flowOf(hasGuestAccess)
         coEvery { setCompleted() } returns Unit
+        coEvery { start(any()) } returns Unit
         coEvery { clearGuestAccess() } returns Unit
     }
 

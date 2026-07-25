@@ -400,7 +400,11 @@ class HomeViewModel @Inject constructor(
                     when (result) {
                         is LoginResult.Success -> if (_state.value.pendingAction == action) {
                             _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
-                            resumePendingAction(action)
+                            if (result.isNewMember) {
+                                _effect.send(HomeEffect.NavigateGuestSignUp)
+                            } else {
+                                resumePendingAction(action)
+                            }
                         }
                         is LoginResult.WithdrawalPending -> {
                             pendingRestoreCredential = accessToken

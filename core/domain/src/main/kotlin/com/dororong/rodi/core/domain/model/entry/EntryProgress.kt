@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.domain.model.entry
 
 data class EntryProgress(
+    val mode: EntryMode = EntryMode.AUTHENTICATED,
     val step: EntryProgressStep = EntryProgressStep.TERMS,
     val webViewUrl: String = "",
     val serviceTermsChecked: Boolean = false,

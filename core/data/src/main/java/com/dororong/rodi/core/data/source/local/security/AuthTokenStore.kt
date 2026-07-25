@@ -39,6 +39,10 @@ class AuthTokenStore @Inject constructor(
         }
     }
 
+    suspend fun getRecentProvider(): String? = withContext(Dispatchers.IO) {
+        dataStore.readRecentProvider()
+    }
+
     suspend fun save(
         accessToken: String,
         refreshToken: String,
@@ -61,10 +65,11 @@ class AuthTokenStore @Inject constructor(
     suspend fun clear(): Boolean = withContext(Dispatchers.IO) { mutex.withLock { clearLocked() } }
 
     private suspend fun clearLocked(): Boolean {
+        val recentProvider = cachedTokens?.provider
         cachedTokens = null
         cacheInitialized = true
         removeLegacyStore()
-        return dataStore.clear()
+        return dataStore.clear(recentProvider)
     }
 
     private fun removeLegacyStore() {

@@ -110,6 +110,10 @@ fun RodiApp(
                 }
                 MainRoute -> NavEntry(key) {
                     MainScreen(
+                        onGuestSignUp = {
+                            backStack.clear()
+                            backStack.add(EntryRoute)
+                        },
                         onSessionEnded = {
                             viewModel.onSessionEnded()
                             backStack.clear()

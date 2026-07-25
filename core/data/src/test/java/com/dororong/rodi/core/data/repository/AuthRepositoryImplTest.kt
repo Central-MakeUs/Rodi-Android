@@ -43,6 +43,20 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `getSession keeps recent Kakao login after tokens are cleared`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns null
+        coEvery { tokenStore.getRecentProvider() } returns "kakao"
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        val session = repository.getSession()
+
+        assertFalse(session.isLoggedIn)
+        assertTrue(session.hasRecentKakaoLogin)
+    }
+
+    @Test
     fun `loginWithKakao saves server tokens`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()

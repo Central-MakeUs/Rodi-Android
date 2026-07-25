@@ -30,6 +30,16 @@ import java.io.IOException
 
 class OnboardingRepositoryImplTest {
     @Test
+    fun `clear delegates to local preferences`() = runTest {
+        val prefs = preferences()
+        val repository = repository(mockk(), mockk(), prefs = prefs)
+
+        repository.clear()
+
+        coVerify { prefs.clear() }
+    }
+
+    @Test
     fun `submit sends bearer access token and onboarding request`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
