@@ -25,11 +25,15 @@ jobs:
           python-version: '3.12'
 
       - name: Install dependencies
-        run: pip install google-play-scraper requests
+        run: pip install google-auth requests
 
-      - name: Check Play Store status
+      - name: Test release watch
+        run: python .github/playstore-watch/test_check_playstore_update.py
+
+      - name: Check Play production release
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         run: python .github/playstore-watch/check_playstore_update.py
 
       - name: Commit updated state

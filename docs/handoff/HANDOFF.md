@@ -295,3 +295,15 @@ Status: IMPL_DONE
 - Changed files: `feature/home/src/main/java/com/dororong/rodi/feature/home/HomeScreen.kt`, `feature/home/src/main/java/com/dororong/rodi/feature/home/list/components/PlaceEmptyContent.kt`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN; debug APK emulator install GREEN
 - Open questions: none
+
+## Follow-up — Play Store 출시 감시
+
+Status: BLOCKED
+
+- 공개 Play Store 페이지의 버전·업데이트 날짜 스크래핑을 제거하고 Google Play Developer API의 `production` 트랙을 조회한다.
+- 기본 브랜치의 `app/build.gradle.kts`에 있는 `versionCode`가 마지막 Discord 알림 코드보다 클 때만 감시한다.
+- 대상 코드가 production 트랙에서 `RELEASE_LIFECYCLE_STATE_PUBLISHED`가 되면 Discord를 한 번 전송하고 상태 파일에 알림 코드를 기록한다.
+- GitHub Secret `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`에는 Play Console에서 앱 조회 권한을 부여한 서비스 계정 JSON 전체를 저장해야 한다.
+- Changed files: `.github/workflows/playstore-watch.yml`, `.github/playstore-watch/check_playstore_update.py`, `playstore-state.json`, `test_check_playstore_update.py`, `docs/handoff/HANDOFF.md`
+- Build/test: `python3 .github/playstore-watch/test_check_playstore_update.py` GREEN; `python3 -m py_compile .github/playstore-watch/check_playstore_update.py .github/playstore-watch/test_check_playstore_update.py` GREEN
+- Open questions: Play Console 서비스 계정과 GitHub Secret 설정은 저장소 밖 권한이 필요하다.
