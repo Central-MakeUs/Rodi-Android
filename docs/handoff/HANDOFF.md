@@ -198,7 +198,7 @@ Status: IMPL_DONE
 - 서버 요청이 실패하거나 취소되면 기존 로컬 정보는 유지한다.
 - Changed files: `core/domain` 온보딩 정리 use case·로그아웃·탈퇴 use case와 tests; `core/data` entry/onboarding DataStore·repository와 tests; `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:settings:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
-- Open questions: none
+- Open questions: 실기기에서 로그아웃·탈퇴 서버 성공 및 세션 종료 후 온보딩 재진입 상태가 초기화되는지, 서버 요청 실패·취소 시 로컬 상태가 유지되는지 확인이 필요하다.
 
 ## Follow-up — 둘러보기·게스트 신규 회원 엔트리 분리
 
@@ -222,6 +222,17 @@ Status: IMPL_DONE
 - Changed files: `core/data/.../AuthTokenDataStore.kt`, `AuthTokenStore.kt`, `AuthRepositoryImpl.kt`와 tests; `app/.../RodiAppViewModel.kt`와 test; `docs/handoff/HANDOFF.md`
 - Build/test: `git diff --check` GREEN; `./gradlew :core:data:testDebugUnitTest :app:testDebugUnitTest assembleDebug` GREEN
 - Open questions: none
+
+## Follow-up — PR #49 리뷰 반영
+
+Status: IMPL_DONE
+
+- 로그아웃·탈퇴 뒤 온보딩 로컬 상태 정리는 한 저장소가 실패해도 나머지 저장소를 계속 정리한다. 실패한 대상은 `OnboardingDataCleanupException`으로 구분하고 코루틴 취소는 그대로 전파한다.
+- 둘러보기에서 신규 회원으로 전환할 때에는 기존 약관·주의사항 진행 키를 모두 제거한 뒤 닉네임 단계부터 시작한다. 위치 권한 처리와 둘러보기 권한은 유지한다.
+- 게스트 신규 회원 로그인 후에는 게스트 작업 재개 effect가 추가로 발생하지 않는 회귀 테스트를 고정했다.
+- Changed files: `core/domain` 온보딩 정리 use case·로그아웃·탈퇴 tests; `core/data/.../EntryPreferences.kt`; `feature/home/.../HomeViewModelTest.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: 로그아웃·탈퇴의 서버 성공·실패·취소와 게스트 신규 회원 전환은 실기기에서 최종 확인이 필요하다.
 
 ## Previous alpha03 record
 

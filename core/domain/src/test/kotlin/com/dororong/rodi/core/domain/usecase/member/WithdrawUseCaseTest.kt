@@ -56,4 +56,20 @@ class WithdrawUseCaseTest {
         }
         throw AssertionError("CancellationException should be rethrown")
     }
+
+    @Test
+    fun `returns failure when local onboarding cleanup fails after withdrawal`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.withdraw() } returns Unit
+        coEvery { clearOnboardingData() } throws IllegalStateException("local cleanup failed")
+
+        val result = WithdrawUseCase(repository, clearOnboardingData)()
+
+        assertTrue(result.isFailure)
+        coVerifyOrder {
+            repository.withdraw()
+            clearOnboardingData()
+        }
+    }
 }

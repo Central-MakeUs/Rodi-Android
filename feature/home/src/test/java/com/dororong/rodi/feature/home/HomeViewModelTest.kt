@@ -225,6 +225,7 @@ class HomeViewModelTest {
 
             assertEquals(HomeEffect.NavigateGuestSignUp, awaitItem())
             assertNull(vm.state.value.pendingAction)
+            expectNoEvents()
         }
     }
 

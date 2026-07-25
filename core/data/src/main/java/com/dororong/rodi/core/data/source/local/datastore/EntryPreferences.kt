@@ -101,8 +101,8 @@ class EntryPreferences @Inject constructor(
             prefs[KEY_COMPLETED] = false
             prefs[KEY_MODE] = mode.name
             if (mode == EntryMode.GUEST_SIGN_UP) {
+                ENTRY_PROGRESS_KEYS.forEach { prefs.remove(it) }
                 prefs[KEY_STEP] = EntryProgressStep.NICKNAME.name
-                prefs.remove(KEY_WEB_VIEW_URL)
             }
         }
     }

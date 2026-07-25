@@ -75,6 +75,22 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
+    fun `logout returns failure when local onboarding cleanup fails after server logout`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.logout() } returns Unit
+        coEvery { clearOnboardingData() } throws IllegalStateException("local cleanup failed")
+
+        val result = LogoutUseCase(repository, clearOnboardingData)()
+
+        assertTrue(result.isFailure)
+        coVerifyOrder {
+            repository.logout()
+            clearOnboardingData()
+        }
+    }
+
+    @Test
     fun `restore returns domain result from repository`() = runTest {
         val repository = mockk<AuthRepository>()
         val expected = AccountRestoreResult.WithdrawalPending(
