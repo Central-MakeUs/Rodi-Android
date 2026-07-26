@@ -234,6 +234,16 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
 - Open questions: 로그아웃·탈퇴의 서버 성공·실패·취소와 게스트 신규 회원 전환은 실기기에서 최종 확인이 필요하다.
 
+## Follow-up — main 기준 CodeRabbit 앱 리뷰
+
+Status: IMPL_DONE
+
+- 로그인 성공 후 앱 루트가 인증 세션을 다시 조회하고, 세션 조회 실패 뒤에도 다음 갱신으로 정상 상태를 복구한다.
+- 앱 루트 백스택을 Navigation 3의 저장 가능한 `NavBackStack`으로 바꿔 프로세스 재생성 시에도 route 타입과 복원 경로를 유지한다.
+- Changed files: `app/.../RodiApp.kt`, `RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :app:assembleDebug` GREEN
+- Open questions: CodeRabbit free CLI의 `core` 전체 리뷰는 150파일 제한을 초과했고, `core/data` 경량 리뷰는 결과 없이 장시간 대기해 이번 커밋에 포함하지 않았다.
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE
