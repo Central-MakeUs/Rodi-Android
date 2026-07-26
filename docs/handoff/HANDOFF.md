@@ -270,6 +270,7 @@ Status: IMPL_DONE
 Status: IMPL_DONE
 
 - 앱 루트 상태 수집은 영구 오류에서 최대 세 번만 재시도하고, 재시도마다 1초씩 증가하는 대기 시간을 적용한다. 취소 예외는 기존처럼 즉시 전파한다.
+- 첫 번째 재시도는 1초가 경과하기 전에는 실행되지 않는지 단위 테스트로 고정했다.
 - 로그인 직후 인증 세션 갱신은 `MutableStateFlow.update`로 원자적으로 증가시킨다.
 - 클러스터 bounds 이동은 지도 viewport의 바텀 네비 패딩과 분리된 64dp 카메라 여백만 사용한다.
 - Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `feature/home/.../HomeScreen.kt`; `docs/handoff/HANDOFF.md`

@@ -144,7 +144,13 @@ class RodiAppViewModelTest {
         assertEquals(1, attempts)
         assertTrue(viewModel.state.value.isReady)
 
-        advanceTimeBy(1_000L)
+        advanceTimeBy(999L)
+        runCurrent()
+
+        assertEquals(1, attempts)
+
+        advanceTimeBy(1L)
+        runCurrent()
         advanceUntilIdle()
 
         assertEquals(2, attempts)
