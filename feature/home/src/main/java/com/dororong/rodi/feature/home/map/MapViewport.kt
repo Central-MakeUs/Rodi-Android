@@ -57,12 +57,11 @@ fun KakaoMap.viewportOrNull(size: IntSize): MapViewport? {
 
 fun KakaoMap.visibleViewportOrNull(size: IntSize): VisibleMapViewport? {
     val sdkViewport = viewport
-    val mapPadding = padding
     val screen = MapScreenRect(
-        left = sdkViewport.left + mapPadding.left,
-        top = sdkViewport.top + mapPadding.top,
-        right = sdkViewport.right - mapPadding.right,
-        bottom = sdkViewport.bottom - mapPadding.bottom,
+        left = sdkViewport.left,
+        top = sdkViewport.top,
+        right = sdkViewport.right,
+        bottom = sdkViewport.bottom,
     ).takeIf(MapScreenRect::isValid) ?: MapScreenRect(
         left = 0,
         top = 0,

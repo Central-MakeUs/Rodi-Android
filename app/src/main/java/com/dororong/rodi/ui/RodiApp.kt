@@ -15,8 +15,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.R
@@ -46,7 +45,7 @@ fun RodiApp(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
-    val backStack = remember { mutableStateListOf<Any>() }
+    val backStack = rememberNavBackStack()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
@@ -95,6 +94,7 @@ fun RodiApp(
                     LoginScreen(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         onNavigateNext = { isNewMember ->
+                            viewModel.onLoginSucceeded()
                             backStack.clear()
                             backStack.add(postLoginDestination(isNewMember, state.isEntryCompleted))
                         },

@@ -234,6 +234,49 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:home:testDebugUnitTest` GREEN; `./gradlew assembleDebug` GREEN
 - Open questions: 로그아웃·탈퇴의 서버 성공·실패·취소와 게스트 신규 회원 전환은 실기기에서 최종 확인이 필요하다.
 
+## Follow-up — main 기준 CodeRabbit 앱 리뷰
+
+Status: IMPL_DONE
+
+- 로그인 성공 후 앱 루트가 인증 세션을 다시 조회하고, 세션 조회 실패 뒤에도 다음 갱신으로 정상 상태를 복구한다.
+- 앱 루트 백스택을 Navigation 3의 저장 가능한 `NavBackStack`으로 바꿔 프로세스 재생성 시에도 route 타입과 복원 경로를 유지한다.
+- Changed files: `app/.../RodiApp.kt`, `RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :app:assembleDebug` GREEN
+- Open questions: CodeRabbit free CLI의 `core` 전체 리뷰는 150파일 제한을 초과했고, `core/data` 경량 리뷰는 결과 없이 장시간 대기해 이번 커밋에 포함하지 않았다.
+
+## Follow-up — 1.1.1 버전 반영
+
+Status: IMPL_DONE
+
+- 앱 버전을 `versionName=1.1.1`, `versionCode=7`로 최종 반영했다.
+- Changed files: `app/build.gradle.kts`, `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew assembleDebug` GREEN
+- Open questions: none
+
+## Follow-up — 클러스터 바텀 네비 안전 여백
+
+Status: IMPL_DONE
+
+- Navigation 상태에서는 실제 측정한 바텀 네비 높이를 지도 하단 패딩으로 사용한다.
+- 클러스터 bounds 이동의 고정 여백은 64dp로 늘리고, 이보다 바텀 네비 높이와 16dp 안전 여백이 크면 그 값을 사용한다. SDK가 전체 MapView 기준으로 bounds를 계산해도 선택 마커 좌표가 네비 아래로 내려가지 않는다.
+- SDK가 이미 padding을 반영해 반환한 viewport를 앱에서 다시 차감하지 않도록 수정했다. 부분 목록·상세 시트의 기존 패딩과 선택 클러스터 ID 제한은 유지한다.
+- 앱 버전은 `versionName=1.1.1`, `versionCode=7`이다.
+- Changed files: `app/build.gradle.kts`, `feature/home/.../HomeScreen.kt`, `feature/home/.../map/{MapViewport.kt,MapClustererTest.kt}`, `docs/{PROJECT.md,handoff/HANDOFF.md}`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 실제 서버 클러스터에서 긴 이름·주차장 마커가 바텀 네비 위에 표시되는지 실기기 확인이 필요하다.
+
+## Follow-up — PR #51 리뷰 반영
+
+Status: IMPL_DONE
+
+- 앱 루트 상태 수집은 영구 오류에서 최대 세 번만 재시도하고, 재시도마다 1초씩 증가하는 대기 시간을 적용한다. 취소 예외는 기존처럼 즉시 전파한다.
+- 첫 번째 재시도는 1초가 경과하기 전에는 실행되지 않는지 단위 테스트로 고정했다.
+- 로그인 직후 인증 세션 갱신은 `MutableStateFlow.update`로 원자적으로 증가시킨다.
+- 클러스터 bounds 이동은 지도 viewport의 바텀 네비 패딩과 분리된 64dp 카메라 여백만 사용한다.
+- Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `feature/home/.../HomeScreen.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :feature:home:testDebugUnitTest assembleDebug` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

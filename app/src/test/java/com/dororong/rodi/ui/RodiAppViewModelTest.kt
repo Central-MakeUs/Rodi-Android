@@ -15,8 +15,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
@@ -75,8 +77,84 @@ class RodiAppViewModelTest {
 
         assertTrue(viewModel.state.value.isReady)
         assertFalse(viewModel.state.value.isEntryCompleted)
-        assertFalse(viewModel.state.value.hasGuestAccess)
+        assertTrue(viewModel.state.value.hasGuestAccess)
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
+    }
+
+    @Test
+    fun `refreshes the auth session after login succeeds`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        viewModel.onLoginSucceeded()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.authSession.isLoggedIn)
+        assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
+        coVerify(atLeast = 2) { getAuthSession() }
+    }
+
+    @Test
+    fun `recovers auth session collection when a later refresh succeeds`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        viewModel.onLoginSucceeded()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.authSession.isLoggedIn)
+        coVerify(atLeast = 2) { getAuthSession() }
+    }
+
+    @Test
+    fun `retries an entry state collection failure with backoff`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        var attempts = 0
+        every { getEntryCompleted() } answers {
+            kotlinx.coroutines.flow.flow {
+                if (attempts++ == 0) throw IllegalStateException("DataStore unavailable")
+                emit(true)
+            }
+        }
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        runCurrent()
+
+        assertEquals(1, attempts)
+        assertTrue(viewModel.state.value.isReady)
+
+        advanceTimeBy(999L)
+        runCurrent()
+
+        assertEquals(1, attempts)
+
+        advanceTimeBy(1L)
+        runCurrent()
+        advanceUntilIdle()
+
+        assertEquals(2, attempts)
+        assertTrue(viewModel.state.value.isEntryCompleted)
     }
 
     @Test
