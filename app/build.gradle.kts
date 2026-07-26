@@ -14,11 +14,17 @@ val localProperties = Properties().apply {
     if (localProps.exists()) localProps.inputStream().use { load(it) }
 }
 
-fun Properties.requireNotBlank(key: String): String =
-    getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
-        ?: throw GradleException("local.properties에 '$key'가 설정되지 않았습니다.")
+val releaseSigningProperties = Properties().apply {
+    val signingProps = rootProject.file("keystore.properties")
+    if (signingProps.exists()) signingProps.inputStream().use { load(it) }
+}
 
-val kakaoNativeAppKey: String = localProperties.requireNotBlank("KAKAO_NATIVE_APP_KEY")
+fun Properties.requireNotBlank(key: String, source: String): String =
+    getProperty(key)?.trim()?.takeIf { it.isNotEmpty() }
+        ?: throw GradleException("${source}에 '$key'가 설정되지 않았습니다.")
+
+val kakaoNativeAppKey: String = localProperties.requireNotBlank("KAKAO_NATIVE_APP_KEY", "local.properties")
+val hasLocalReleaseSigning = releaseSigningProperties.isNotEmpty()
 
 android {
     namespace = "com.dororong.rodi"
@@ -39,8 +45,22 @@ android {
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
     }
 
+    signingConfigs {
+        if (hasLocalReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(
+                    releaseSigningProperties.requireNotBlank("storeFile", "keystore.properties"),
+                )
+                storePassword = releaseSigningProperties.requireNotBlank("storePassword", "keystore.properties")
+                keyAlias = releaseSigningProperties.requireNotBlank("keyAlias", "keystore.properties")
+                keyPassword = releaseSigningProperties.requireNotBlank("keyPassword", "keystore.properties")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             ndk {
