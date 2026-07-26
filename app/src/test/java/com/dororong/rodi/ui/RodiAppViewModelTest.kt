@@ -75,8 +75,50 @@ class RodiAppViewModelTest {
 
         assertTrue(viewModel.state.value.isReady)
         assertFalse(viewModel.state.value.isEntryCompleted)
-        assertFalse(viewModel.state.value.hasGuestAccess)
+        assertTrue(viewModel.state.value.hasGuestAccess)
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
+    }
+
+    @Test
+    fun `refreshes the auth session after login succeeds`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        viewModel.onLoginSucceeded()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.authSession.isLoggedIn)
+        assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
+        coVerify(atLeast = 2) { getAuthSession() }
+    }
+
+    @Test
+    fun `recovers auth session collection when a later refresh succeeds`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        viewModel.onLoginSucceeded()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.authSession.isLoggedIn)
+        coVerify(atLeast = 2) { getAuthSession() }
     }
 
     @Test

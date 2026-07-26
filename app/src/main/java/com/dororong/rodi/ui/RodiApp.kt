@@ -95,6 +95,7 @@ fun RodiApp(
                     LoginScreen(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         onNavigateNext = { isNewMember ->
+                            viewModel.onLoginSucceeded()
                             backStack.clear()
                             backStack.add(postLoginDestination(isNewMember, state.isEntryCompleted))
                         },
