@@ -150,7 +150,6 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
 private const val CLUSTER_FIT_PADDING_DP = 64
-private const val CLUSTER_FIT_BOTTOM_GUTTER_DP = 16
 private const val SURFACE_ANIMATION_MILLIS = 300
 private const val RESEARCH_BUTTON_FADE_IN_MILLIS = 150
 private const val RESEARCH_BUTTON_FADE_OUT_MILLIS = 100
@@ -372,12 +371,7 @@ fun HomeScreen(
             ?: 0
         else -> 0
     }
-    val clusterFitPaddingPx = with(density) {
-        maxOf(
-            CLUSTER_FIT_PADDING_DP.dp.roundToPx(),
-            mapContentBottomPaddingPx + CLUSTER_FIT_BOTTOM_GUTTER_DP.dp.roundToPx(),
-        )
-    }
+    val clusterFitPaddingPx = with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() }
     val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
 

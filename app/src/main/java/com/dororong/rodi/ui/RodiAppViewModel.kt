@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class RodiAppUiState(
@@ -75,10 +76,11 @@ class RodiAppViewModel @Inject constructor(
                         authSession
                     },
                 )
-            }.retryWhen { error, _ ->
+            }.retryWhen { error, attempt ->
                 if (error is CancellationException) throw error
+                if (attempt >= MAX_AUTH_SESSION_RETRY_ATTEMPTS) return@retryWhen false
                 _state.value = RodiAppUiState(isReady = true)
-                delay(RETRY_DELAY_MILLIS)
+                delay(RETRY_DELAY_MILLIS * (attempt + 1))
                 true
             }.collect(_state)
         }
@@ -86,7 +88,7 @@ class RodiAppViewModel @Inject constructor(
 
     fun onLoginSucceeded() {
         sessionEnded.value = false
-        authSessionRefresh.value += 1
+        authSessionRefresh.update { it + 1 }
     }
 
     fun onSessionEnded() {
@@ -109,5 +111,6 @@ class RodiAppViewModel @Inject constructor(
 
     private companion object {
         const val RETRY_DELAY_MILLIS = 1_000L
+        const val MAX_AUTH_SESSION_RETRY_ATTEMPTS = 3L
     }
 }

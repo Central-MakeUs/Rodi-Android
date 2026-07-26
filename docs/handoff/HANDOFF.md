@@ -248,7 +248,7 @@ Status: IMPL_DONE
 
 Status: IMPL_DONE
 
-- 앱 버전을 `versionName=1.1.1`, `versionCode=6`으로 올렸다.
+- 앱 버전을 `versionName=1.1.1`, `versionCode=7`로 최종 반영했다.
 - Changed files: `app/build.gradle.kts`, `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew assembleDebug` GREEN
 - Open questions: none
@@ -264,6 +264,17 @@ Status: IMPL_DONE
 - Changed files: `app/build.gradle.kts`, `feature/home/.../HomeScreen.kt`, `feature/home/.../map/{MapViewport.kt,MapClustererTest.kt}`, `docs/{PROJECT.md,handoff/HANDOFF.md}`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN
 - Open questions: 실제 서버 클러스터에서 긴 이름·주차장 마커가 바텀 네비 위에 표시되는지 실기기 확인이 필요하다.
+
+## Follow-up — PR #51 리뷰 반영
+
+Status: IMPL_DONE
+
+- 앱 루트 상태 수집은 영구 오류에서 최대 세 번만 재시도하고, 재시도마다 1초씩 증가하는 대기 시간을 적용한다. 취소 예외는 기존처럼 즉시 전파한다.
+- 로그인 직후 인증 세션 갱신은 `MutableStateFlow.update`로 원자적으로 증가시킨다.
+- 클러스터 bounds 이동은 지도 viewport의 바텀 네비 패딩과 분리된 64dp 카메라 여백만 사용한다.
+- Changed files: `app/.../RodiAppViewModel.kt`, `RodiAppViewModelTest.kt`; `feature/home/.../HomeScreen.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :feature:home:testDebugUnitTest assembleDebug` GREEN
+- Open questions: none
 
 ## Previous alpha03 record
 
