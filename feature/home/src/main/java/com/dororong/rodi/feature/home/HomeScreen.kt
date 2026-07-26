@@ -149,7 +149,8 @@ import kotlinx.coroutines.launch
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
-private const val CLUSTER_FIT_PADDING_DP = 48
+private const val CLUSTER_FIT_PADDING_DP = 64
+private const val CLUSTER_FIT_BOTTOM_GUTTER_DP = 16
 private const val SURFACE_ANIMATION_MILLIS = 300
 private const val RESEARCH_BUTTON_FADE_IN_MILLIS = 150
 private const val RESEARCH_BUTTON_FADE_OUT_MILLIS = 100
@@ -212,6 +213,7 @@ fun HomeScreen(
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
+    var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -361,6 +363,7 @@ fun HomeScreen(
         ).coerceAtLeast(0.dp)
     val mapContentBottomPaddingPx = when {
         state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
+        state.surfaceState == HomeSurfaceState.Navigation -> bottomNavigationHeightPx
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
         state.selectedPlace?.type == PlaceType.PARKING -> parkingSheetLayout
@@ -368,6 +371,12 @@ fun HomeScreen(
             ?.initialMapPaddingPx
             ?: 0
         else -> 0
+    }
+    val clusterFitPaddingPx = with(density) {
+        maxOf(
+            CLUSTER_FIT_PADDING_DP.dp.roundToPx(),
+            mapContentBottomPaddingPx + CLUSTER_FIT_BOTTOM_GUTTER_DP.dp.roundToPx(),
+        )
     }
     val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
@@ -777,7 +786,7 @@ fun HomeScreen(
                                                             val cameraUpdate = if (canFitBounds) {
                                                                 CameraUpdateFactory.fitMapPoints(
                                                                     memberPoints.map { LatLng.from(it.lat, it.lng) }.toTypedArray(),
-                                                                    with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() },
+                                                                    clusterFitPaddingPx,
                                                                 )
                                                             } else {
                                                                 CameraUpdateFactory.newCenterPosition(
@@ -892,7 +901,11 @@ fun HomeScreen(
                             )
                         }
 
-                        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .onSizeChanged { bottomNavigationHeightPx = it.height },
+                        ) {
                             bottomNavigation()
                         }
                     }

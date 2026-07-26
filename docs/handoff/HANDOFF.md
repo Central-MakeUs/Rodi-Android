@@ -253,6 +253,18 @@ Status: IMPL_DONE
 - Build/test: `./gradlew assembleDebug` GREEN
 - Open questions: none
 
+## Follow-up — 클러스터 바텀 네비 안전 여백
+
+Status: IMPL_DONE
+
+- Navigation 상태에서는 실제 측정한 바텀 네비 높이를 지도 하단 패딩으로 사용한다.
+- 클러스터 bounds 이동의 고정 여백은 64dp로 늘리고, 이보다 바텀 네비 높이와 16dp 안전 여백이 크면 그 값을 사용한다. SDK가 전체 MapView 기준으로 bounds를 계산해도 선택 마커 좌표가 네비 아래로 내려가지 않는다.
+- SDK가 이미 padding을 반영해 반환한 viewport를 앱에서 다시 차감하지 않도록 수정했다. 부분 목록·상세 시트의 기존 패딩과 선택 클러스터 ID 제한은 유지한다.
+- 앱 버전은 `versionName=1.1.1`, `versionCode=7`이다.
+- Changed files: `app/build.gradle.kts`, `feature/home/.../HomeScreen.kt`, `feature/home/.../map/{MapViewport.kt,MapClustererTest.kt}`, `docs/{PROJECT.md,handoff/HANDOFF.md}`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 실제 서버 클러스터에서 긴 이름·주차장 마커가 바텀 네비 위에 표시되는지 실기기 확인이 필요하다.
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE

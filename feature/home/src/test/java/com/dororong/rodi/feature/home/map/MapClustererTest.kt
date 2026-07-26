@@ -90,6 +90,22 @@ class MapClustererTest {
         assertEquals(setOf(2L, 3L), clusters.flatMap { it.memberIds }.toSet())
     }
 
+    @Test
+    fun `excludes markers covered by bottom navigation from the cluster`() {
+        val clusters = MapClusterer.clusterByScreenDistance(
+            items = listOf(
+                item(1, 37.50, 126.90, 180, 560),
+                item(2, 37.51, 126.91, 180, 639),
+                item(3, 37.52, 126.92, 180, 640),
+            ),
+            viewport = MapScreenRect(left = 0, top = 0, right = 360, bottom = 640),
+            minimumDistancePx = 56,
+            targetZoom = 14,
+        )
+
+        assertEquals(setOf(1L, 2L), clusters.flatMap { it.memberIds }.toSet())
+    }
+
     private fun item(id: Long, lat: Double, lng: Double, x: Int, y: Int) =
         ProjectedMapItem(id, GeoPoint(lat, lng), x, y)
 
