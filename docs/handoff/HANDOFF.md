@@ -244,6 +244,15 @@ Status: IMPL_DONE
 - Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest :app:assembleDebug` GREEN
 - Open questions: CodeRabbit free CLI의 `core` 전체 리뷰는 150파일 제한을 초과했고, `core/data` 경량 리뷰는 결과 없이 장시간 대기해 이번 커밋에 포함하지 않았다.
 
+## Follow-up — 1.1.1 버전 반영
+
+Status: IMPL_DONE
+
+- 앱 버전을 `versionName=1.1.1`, `versionCode=6`으로 올렸다.
+- Changed files: `app/build.gradle.kts`, `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew assembleDebug` GREEN
+- Open questions: none
+
 ## Previous alpha03 record
 
 Status: IMPL_DONE
