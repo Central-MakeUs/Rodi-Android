@@ -16,6 +16,9 @@ data object MainRoute : NavKey
 data object HomeRoute : NavKey
 
 @Serializable
+data object SearchRoute : NavKey
+
+@Serializable
 data object MyPageRoute : NavKey
 
 @Serializable

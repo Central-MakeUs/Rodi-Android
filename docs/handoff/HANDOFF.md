@@ -350,3 +350,33 @@ Status: BLOCKED
 - Changed files: `.github/workflows/playstore-watch.yml`, `.github/playstore-watch/check_playstore_update.py`, `playstore-state.json`, `test_check_playstore_update.py`, `docs/handoff/HANDOFF.md`
 - Build/test: `python3 .github/playstore-watch/test_check_playstore_update.py` GREEN; `python3 -m py_compile .github/playstore-watch/check_playstore_update.py .github/playstore-watch/test_check_playstore_update.py` GREEN
 - Open questions: Play Console 서비스 계정과 GitHub Secret 설정은 저장소 밖 권한이 필요하다.
+
+## Follow-up — 홈 검색바
+
+Status: IMPL_DONE
+
+- 홈 지도 상단에 Figma 검색바를 추가했다. 시스템 앱바 아래 5dp, 좌우 16dp, 높이 46dp·반경 8dp, 내부 좌측 12dp와 아이콘-힌트 8dp 간격을 적용했다.
+- 재검색 버튼은 검색바 외곽 하단에서 7dp, 입력 영역 하단에서 12dp 떨어지도록 동일한 상단 레이아웃에 배치했다. 기존 지도·목록·내 위치·바텀시트 동작은 변경하지 않았다.
+- Figma 검색 아이콘 원본 경로를 drawable 자산으로 저장했다. 검색바 탭 시 빈 검색 화면으로 이동하고, 시스템 뒤로가기는 홈으로 복귀한다. 검색 입력·결과·필터 연동은 후속 작업으로 남긴다.
+- Changed files: `app/.../ui/{MainScreen,RodiRoute}.kt`; `feature/home/.../{HomeScreen,SearchScreen}.kt`, `components/HomeSearchBar.kt`, `res/drawable/ic_search.xml`; `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :app:testDebugUnitTest assembleDebug` GREEN
+- Open questions: 연결된 Android 기기가 없어 홈 → 검색 화면 → 뒤로가기와 Figma 픽셀 대조는 실기기 또는 에뮬레이터에서 최종 확인이 필요하다.
+
+## Follow-up — 홈 검색바 그림자
+
+Status: IMPL_DONE
+
+- 검색바 그림자 elevation을 4dp에서 현재의 2/3인 2.67dp로 낮췄다.
+- Changed files: `feature/home/.../components/HomeSearchBar.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew assembleDebug` GREEN
+- Open questions: 연결된 Android 기기가 없어 실제 화면에서 그림자 농도는 최종 확인이 필요하다.
+
+## Follow-up — 홈 검색바 Preview
+
+Status: IMPL_DONE
+
+- `Home chrome - search`와 `Home chrome - search with research` 375×812 Preview를 추가했다.
+- 실제 홈과 Preview가 같은 상단 컨트롤을 사용하도록 정리해 검색바와 재검색 버튼의 상대 간격을 함께 확인할 수 있다.
+- Changed files: `feature/home/.../HomeScreen.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:compileDebugKotlin assembleDebug` GREEN
+- Open questions: none

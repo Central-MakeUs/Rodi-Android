@@ -22,6 +22,7 @@ import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.home.HomeViewModel
+import com.dororong.rodi.feature.home.SearchScreen
 import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
 import com.dororong.rodi.feature.mypage.MyPageScreen
 import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
@@ -83,6 +84,7 @@ fun MainScreen(
                             onMyPageClick = {
                                 backStack[backStack.lastIndex] = MyPageRoute
                             },
+                            onSearchClick = { backStack.add(SearchRoute) },
                             onGuestSignUp = onGuestSignUp,
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
@@ -92,6 +94,13 @@ fun MainScreen(
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()
                             },
                             vm = homeViewModel,
+                        )
+                    }
+                    SearchRoute -> NavEntry(key) {
+                        SearchScreen(
+                            onBack = {
+                                if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                            },
                         )
                     }
                     MyPageRoute -> NavEntry(key) {

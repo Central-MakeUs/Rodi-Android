@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -83,6 +84,7 @@ import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
+import com.dororong.rodi.feature.home.components.HomeSearchBar
 import com.dororong.rodi.feature.home.components.MapListButton
 import com.dororong.rodi.feature.home.components.MapLoadingScreen
 import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
@@ -174,6 +176,7 @@ typealias KakaoLoginRequest = (
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
+    onSearchClick: () -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     bottomNavigation: @Composable () -> Unit = {},
@@ -816,23 +819,16 @@ fun HomeScreen(
                             )
                         }
 
-                        AnimatedVisibility(
-                            visible = shouldShowResearch,
-                            enter = fadeIn(tween(durationMillis = RESEARCH_BUTTON_FADE_IN_MILLIS)),
-                            exit = fadeOut(tween(durationMillis = RESEARCH_BUTTON_FADE_OUT_MILLIS)),
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .statusBarsPadding()
-                                .padding(top = 63.dp),
-                        ) {
-                            MapResearchButton(
-                                onClick = {
-                                    val viewport = currentViewport ?: return@MapResearchButton
-                                    hasUserChosenMapViewport = true
-                                    vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
-                                },
-                            )
-                        }
+                        HomeTopControls(
+                            showResearch = shouldShowResearch,
+                            onSearchClick = onSearchClick,
+                            onResearchClick = {
+                                val viewport = currentViewport ?: return@HomeTopControls
+                                hasUserChosenMapViewport = true
+                                vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
+                            },
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
 
                         AnimatedVisibility(
                             visible = state.surfaceState == HomeSurfaceState.Navigation,
@@ -1130,13 +1126,61 @@ private fun Context.isPackageInstalled(packageName: String): Boolean = runCatchi
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
 
-@Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
-private fun HomeChromePreview() {
+private fun HomeTopControls(
+    showResearch: Boolean,
+    onSearchClick: () -> Unit,
+    onResearchClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        HomeSearchBar(
+            onClick = onSearchClick,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
+        )
+
+        AnimatedVisibility(
+            visible = showResearch,
+            enter = fadeIn(tween(durationMillis = RESEARCH_BUTTON_FADE_IN_MILLIS)),
+            exit = fadeOut(tween(durationMillis = RESEARCH_BUTTON_FADE_OUT_MILLIS)),
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(7.dp))
+                MapResearchButton(onClick = onResearchClick)
+            }
+        }
+    }
+}
+
+@Preview(name = "Home chrome - search", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun HomeChromeSearchPreview() {
+    HomeChromePreview(showResearch = false)
+}
+
+@Preview(name = "Home chrome - search with research", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun HomeChromeSearchWithResearchPreview() {
+    HomeChromePreview(showResearch = true)
+}
+
+@Composable
+private fun HomeChromePreview(showResearch: Boolean) {
     RodiTheme {
         Box(Modifier
             .fillMaxSize()
             .background(RodiTheme.colors.gray100)) {
+            HomeTopControls(
+                showResearch = showResearch,
+                onSearchClick = {},
+                onResearchClick = {},
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
             RodiBottomNavigation(
                 selectedDestination = RodiBottomNavigationDestination.Home,
                 onHomeClick = {},
@@ -1158,16 +1202,4 @@ private fun HomeChromePreview() {
             )
         }
     }
-}
-
-@Preview(
-    name = "Home chrome - small large font",
-    showBackground = true,
-    widthDp = 320,
-    heightDp = 640,
-    fontScale = 1.3f,
-)
-@Composable
-private fun HomeChromeSmallPreview() {
-    HomeChromePreview()
 }
