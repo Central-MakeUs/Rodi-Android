@@ -93,6 +93,9 @@ import com.dororong.rodi.feature.home.components.NaviPickerSheet
 import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
+import com.dororong.rodi.feature.home.filter.FilterBottomSheet
+import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
@@ -213,6 +216,9 @@ fun HomeScreen(
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
+    var isFilterSheetVisible by remember { mutableStateOf(false) }
+    var selectedFilterCategory by remember { mutableStateOf(FilterCategory.BASIC_DRIVING) }
+    var selectedFilterPracticeOption by remember { mutableStateOf<FilterPracticeOption?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -421,10 +427,14 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = state.surfaceState != HomeSurfaceState.Navigation) {
-        when (state.surfaceState) {
-            HomeSurfaceState.Detail -> dismissDetail()
-            else -> vm.onIntent(HomeIntent.OnListCollapse)
+    BackHandler(enabled = isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        if (isFilterSheetVisible) {
+            isFilterSheetVisible = false
+        } else {
+            when (state.surfaceState) {
+                HomeSurfaceState.Detail -> dismissDetail()
+                else -> vm.onIntent(HomeIntent.OnListCollapse)
+            }
         }
     }
 
@@ -645,6 +655,7 @@ fun HomeScreen(
                                     expansionProgress = sheetExpansionProgress,
                                     onExpand = { vm.onIntent(HomeIntent.OnListExpand) },
                                     onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
+                                    onFilterClick = { isFilterSheetVisible = true },
                                 )
                             }
                             when {
@@ -1010,6 +1021,24 @@ fun HomeScreen(
         )
     }
 
+    if (isFilterSheetVisible) {
+        FilterBottomSheet(
+            selectedCategory = selectedFilterCategory,
+            selectedPracticeOption = selectedFilterPracticeOption,
+            onCategorySelect = { category ->
+                selectedFilterCategory = category
+                selectedFilterPracticeOption = null
+            },
+            onPracticeOptionSelect = { selectedFilterPracticeOption = it },
+            onReset = {
+                selectedFilterCategory = FilterCategory.BASIC_DRIVING
+                selectedFilterPracticeOption = null
+            },
+            onApply = { isFilterSheetVisible = false },
+            onDismiss = { isFilterSheetVisible = false },
+        )
+    }
+
     naviPlaceId?.let {
         NaviPickerSheet(
             onDismiss = { naviPlaceId = null },
@@ -1036,6 +1065,7 @@ private fun ListSheetHeader(
     expansionProgress: Float,
     onExpand: () -> Unit,
     onBack: () -> Unit,
+    onFilterClick: () -> Unit,
 ) {
     val density = LocalDensity.current
     var titleWidthPx by remember { mutableIntStateOf(0) }
@@ -1101,6 +1131,34 @@ private fun ListSheetHeader(
                 .graphicsLayer { alpha = titleCenteringProgress }
                 .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
         )
+        Icon(
+            painter = painterResource(R.drawable.ic_filter_top),
+            contentDescription = "필터",
+            tint = RodiTheme.colors.black,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 16.dp, top = 40.dp)
+                .size(24.dp)
+                .graphicsLayer { alpha = titleCenteringProgress }
+                .clickable(enabled = titleCenteringProgress == 1f, onClick = onFilterClick),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 16.dp, top = 24.dp)
+                .size(23.dp)
+                .graphicsLayer { alpha = 1f - titleCenteringProgress }
+                .background(RodiTheme.colors.gray100, RoundedCornerShape(20.dp))
+                .clickable(enabled = titleCenteringProgress == 0f, onClick = onFilterClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_filter),
+                contentDescription = "필터",
+                tint = RodiTheme.colors.black,
+                modifier = Modifier.size(16.dp),
+            )
+        }
         Text(
             text = "추천 목록",
             style = RodiTheme.typography.headline1,
@@ -1170,4 +1228,34 @@ private fun HomeChromePreview() {
 @Composable
 private fun HomeChromeSmallPreview() {
     HomeChromePreview()
+}
+
+@Preview(name = "List header - partial", showBackground = true, widthDp = 375, heightDp = 64)
+@Composable
+private fun PartialListHeaderPreview() {
+    RodiTheme {
+        Surface(color = RodiTheme.colors.white) {
+            ListSheetHeader(
+                expansionProgress = 0f,
+                onExpand = {},
+                onBack = {},
+                onFilterClick = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "List header - full with filter", showBackground = true, widthDp = 375, heightDp = 80)
+@Composable
+private fun FullListHeaderPreview() {
+    RodiTheme {
+        Surface(color = RodiTheme.colors.white) {
+            ListSheetHeader(
+                expansionProgress = 1f,
+                onExpand = {},
+                onBack = {},
+                onFilterClick = {},
+            )
+        }
+    }
 }

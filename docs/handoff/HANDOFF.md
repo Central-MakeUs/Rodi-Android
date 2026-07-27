@@ -350,3 +350,26 @@ Status: BLOCKED
 - Changed files: `.github/workflows/playstore-watch.yml`, `.github/playstore-watch/check_playstore_update.py`, `playstore-state.json`, `test_check_playstore_update.py`, `docs/handoff/HANDOFF.md`
 - Build/test: `python3 .github/playstore-watch/test_check_playstore_update.py` GREEN; `python3 -m py_compile .github/playstore-watch/check_playstore_update.py .github/playstore-watch/test_check_playstore_update.py` GREEN
 - Open questions: Play Console 서비스 계정과 GitHub Secret 설정은 저장소 밖 권한이 필요하다.
+
+## Follow-up — 전체 목록 필터 버튼
+
+Status: IMPL_DONE
+
+- 제공받은 `sliders-horizontal.svg`·`sliders-horizontal-top.svg` 원본을 각각 `ic_filter.xml`·`ic_filter_top.xml`로 저장했다.
+- 부분 목록에는 우측 16dp·23dp 연회색 원형 버튼 안에 16dp 아이콘을, 전체화면에는 우측 16dp·24dp 배경 없는 아이콘을 표시한다. 탭 동작·필터 시트·목록 필터링은 포함하지 않는다.
+- `ListSheetHeader`의 부분/전체 상태 Preview를 추가했다.
+- Changed files: `feature/home/src/main/java/com/dororong/rodi/feature/home/HomeScreen.kt`, `feature/home/src/main/res/drawable/ic_filter.xml`, `feature/home/src/main/res/drawable/ic_filter_top.xml`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew assembleDebug` GREEN
+- Open questions: none
+
+## Follow-up — 필터 바텀시트
+
+Status: IMPL_DONE
+
+- 필터 아이콘을 탭하면 50% dim 위에 Figma `1772:20353`~`1772:20538` 기준 401dp 고정 높이 바텀시트가 표시된다. 버튼 아래에는 홈 인디케이터 영역만 남기고 시스템 내비게이션 inset이 중복되지 않게 했다. 시스템 뒤로가기·바깥 영역·결과보기로 시트를 닫는다.
+- 카테고리별 연습유형은 기초 주행(직선주행·좌우회전·차선변경), 도심 기본(교차로·유턴), 주차(없음), 도로 흐름(다차로주행·합류·고속진입), 복합 상황(회전교차로·비보호좌회전·좁은도로·코너링)으로 전환된다. 각 비주차 카테고리에는 `전체` 옵션이 있다.
+- 초기화는 기초 주행과 연습유형 미선택으로 되돌린다. 현재 장소 API·지도 좌표에 필터 조건이 없어 목록/마커 데이터 필터링은 연결하지 않았다.
+- 기초 주행·주차·복합 상황 Filter Preview를 추가했다.
+- Changed files: `feature/home/.../HomeScreen.kt`, `filter/FilterBottomSheet.kt`, `filter/FilterCategoryTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; debug APK emulator install GREEN; 복합 상황·주차 유형 전환 및 시스템 뒤로가기 닫힘 GREEN
+- Open questions: 목록·지도에 적용할 서버 필터 계약이 아직 없다.
