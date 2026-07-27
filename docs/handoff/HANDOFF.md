@@ -380,3 +380,15 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../HomeScreen.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew :feature:home:compileDebugKotlin assembleDebug` GREEN
 - Open questions: none
+
+## Follow-up — 검색 화면 상태 UI
+
+Status: IMPL_DONE
+
+- 검색 화면 진입 시 텍스트필드에 자동 포커스하고 최근 검색어 4개와 삭제 아이콘을 표시한다.
+- 입력 문자열에 맞는 지역구 예시(서울·대전·울산·부산·대구 중구)를 로컬 UI 상태로 표시한다. 일치 항목이 없으면 기존 바텀시트의 `illust_course_empty` 일러스트와 Figma 빈 상태 문구를 표시한다.
+- 실제 지역 검색 API, 최근 검색어 저장·삭제, 연관어/빈 상태 항목 선택은 연결하지 않았다.
+- 최근·연관어·빈 상태 Preview와 지역구 매칭 단위 테스트를 추가했다.
+- Changed files: `feature/home/.../SearchScreen.kt`, `SearchScreenTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; debug APK emulator install GREEN
+- Open questions: 실제 검색·최근 검색어 저장 계약이 정의되면 현재 로컬 예시 목록을 데이터 소스로 교체해야 한다.
