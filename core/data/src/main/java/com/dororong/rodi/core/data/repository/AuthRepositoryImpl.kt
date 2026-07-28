@@ -19,17 +19,24 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
+import retrofit2.HttpException
 import javax.inject.Inject
+import javax.inject.Singleton
 
+@Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
     private val tokenStore: AuthTokenStore,
     private val json: Json,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
+    private val sessionExpirations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     override suspend fun getSession(): AuthSession {
         val tokens = tokenStore.getTokens()
@@ -66,7 +73,7 @@ class AuthRepositoryImpl @Inject constructor(
             if (currentTokens.refreshToken != requestedRefreshToken) return
 
             try {
-                val body = request { authApi.reissue(TokenRefreshRequest(currentTokens.refreshToken)) }.requireData()
+                val body = refreshRequest(currentTokens.refreshToken)
                 saveTokens(body.accessToken, body.refreshToken)
             } catch (exception: AuthException.SessionRevoked) {
                 try {
@@ -76,10 +83,13 @@ class AuthRepositoryImpl @Inject constructor(
                 } catch (clearException: Throwable) {
                     exception.addSuppressed(clearException)
                 }
+                sessionExpirations.tryEmit(Unit)
                 throw exception
             }
         }
     }
+
+    override fun observeSessionExpiration(): Flow<Unit> = sessionExpirations.asSharedFlow()
 
     override suspend fun restoreWithKakao(credential: String): AccountRestoreResult {
         val body = request { authApi.restore("kakao", SocialLoginRequest(credential)) }.requireData()
@@ -111,6 +121,29 @@ class AuthRepositoryImpl @Inject constructor(
 
     private suspend fun <T> request(block: suspend () -> T): T = json.authRequest(block)
 
+    private suspend fun refreshRequest(refreshToken: String) = try {
+        authApi.reissue(TokenRefreshRequest(refreshToken)).requireRefreshData()
+    } catch (exception: CancellationException) {
+        throw exception
+    } catch (exception: HttpException) {
+        if (exception.code() == HTTP_UNAUTHORIZED) {
+            throw AuthException.SessionRevoked(SESSION_EXPIRED_MESSAGE)
+        }
+        throw exception.toAuthException(json)
+    } catch (exception: AuthException) {
+        throw exception
+    } catch (exception: Throwable) {
+        throw exception.toAuthException(json)
+    }
+
+    private fun <T> ApiEnvelope<T>.requireRefreshData(): T = when {
+        isSuccess -> data ?: throw AuthException.Unknown(message.ifBlank { "응답 데이터가 없습니다." })
+        code.contains(HTTP_UNAUTHORIZED.toString()) -> throw AuthException.SessionRevoked(
+            message.ifBlank { SESSION_EXPIRED_MESSAGE },
+        )
+        else -> throw toAuthException()
+    }
+
     private fun <T> ApiEnvelope<T>.requireData(): T {
         if (!isSuccess) throw toAuthException()
         return data ?: throw AuthException.Unknown(message.ifBlank { "응답 데이터가 없습니다." })
@@ -118,5 +151,10 @@ class AuthRepositoryImpl @Inject constructor(
 
     private fun ApiEnvelope<*>.requireSuccess() {
         if (!isSuccess) throw toAuthException()
+    }
+
+    private companion object {
+        const val HTTP_UNAUTHORIZED = 401
+        const val SESSION_EXPIRED_MESSAGE = "로그인 정보가 만료되었습니다."
     }
 }
