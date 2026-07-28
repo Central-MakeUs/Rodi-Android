@@ -409,3 +409,12 @@ refresh token 무효 상태에서 앱이 오류를 반복 표시하는 대신 �
 - Changed files: `core/domain/.../AuthRepository.kt`; `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test; `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test; `feature/auth/.../LoginScreen.kt`; `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN; `./gradlew test lint assembleDebug` GREEN; `git diff --check` GREEN
 - Open questions: 실제 refresh token 무효 상태의 로그인 전환과 안내 스낵바 실기기 최종 확인
+
+## Follow-up — 1.1.2 버전 반영
+
+Status: IMPL_DONE
+
+- 앱 버전을 `versionName=1.1.2`, `versionCode=8`로 반영했다.
+- Changed files: `app/build.gradle.kts`, `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew test lint assembleRelease bundleRelease` GREEN
+- Open questions: none
