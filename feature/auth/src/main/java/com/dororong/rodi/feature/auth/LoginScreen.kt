@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -40,6 +41,8 @@ import dagger.hilt.android.EntryPointAccessors
 fun LoginScreen(
     onNavigateNext: (isNewMember: Boolean?) -> Unit,
     showRecentKakaoLogin: Boolean,
+    sessionExpiredMessage: Boolean = false,
+    onSessionExpiredMessageShown: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
     val activity = LocalActivity.current
@@ -53,6 +56,13 @@ fun LoginScreen(
     }
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(sessionExpiredMessage) {
+        if (sessionExpiredMessage) {
+            snackbarHostState.show(RodiSnackbarData(message = "로그인 정보가 만료되어 다시 로그인해주세요."))
+            onSessionExpiredMessageShown()
+        }
+    }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {

@@ -350,3 +350,62 @@ Status: BLOCKED
 - Changed files: `.github/workflows/playstore-watch.yml`, `.github/playstore-watch/check_playstore_update.py`, `playstore-state.json`, `test_check_playstore_update.py`, `docs/handoff/HANDOFF.md`
 - Build/test: `python3 .github/playstore-watch/test_check_playstore_update.py` GREEN; `python3 -m py_compile .github/playstore-watch/check_playstore_update.py .github/playstore-watch/test_check_playstore_update.py` GREEN
 - Open questions: Play Console 서비스 계정과 GitHub Secret 설정은 저장소 밖 권한이 필요하다.
+
+## Follow-up — refresh token 세션 만료 처리
+
+Status: IMPL_DONE
+Target branch: `develop`
+Review status: IN_REVIEW
+
+### Context
+
+refresh token 무효 상태에서 앱이 오류를 반복 표시하는 대신 세션을 종료하고 재로그인을 유도해야 한다.
+
+### Spec
+
+- refresh endpoint의 HTTP 또는 API envelope 401은 `SessionRevoked`로 정규화한다.
+- 토큰 정리 뒤 늦게 시작한 앱 루트 구독도 세션 만료 상태를 확인해 로그인으로 전환한다.
+- 네트워크·5xx 오류는 로그인 상태를 유지한다.
+
+### Files
+
+- `core/domain/.../AuthRepository.kt`
+- `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test
+- `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test
+- `feature/auth/.../LoginScreen.kt`
+
+### Acceptance
+
+- 세션 만료는 현재 화면과 관계없이 로그인 화면으로 전환하고 안내 스낵바를 한 번만 표시한다.
+- refresh 401은 토큰을 정리하고, 구독 시작 전 만료된 상태도 놓치지 않는다.
+
+### Verification
+
+- `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN
+- `./gradlew test lint assembleDebug` GREEN
+- `git diff --check` GREEN
+- emulator debug APK 설치 및 콜드 런치 GREEN
+
+### Out of scope
+
+- 실제 서버에서 refresh token을 강제로 무효화하는 테스트 계정·운영 도구 제공
+
+### Claude Review
+
+#### Blocking
+
+- 초기 리뷰에서 세션 만료 이벤트가 늦은 구독자에게 누락될 수 있어 보완했다.
+
+#### Nits
+
+- HTTP 401 예외 경로와 HANDOFF 필수 형식을 추가 검증했다.
+
+#### Verdict
+
+- NEEDS_CHANGES (초기 리뷰 기록, 후속 수정 반영 완료)
+
+## Codex Result
+
+- Changed files: `core/domain/.../AuthRepository.kt`; `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test; `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test; `feature/auth/.../LoginScreen.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN; `./gradlew test lint assembleDebug` GREEN; `git diff --check` GREEN
+- Open questions: 실제 refresh token 무효 상태의 로그인 전환과 안내 스낵바 실기기 최종 확인

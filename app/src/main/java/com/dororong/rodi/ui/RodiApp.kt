@@ -33,6 +33,7 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
 import com.dororong.rodi.R
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.auth.LoginScreen
 import com.dororong.rodi.feature.entry.EntryFlow
@@ -47,6 +48,17 @@ fun RodiApp(
     val lifecycleOwner = LocalLifecycleOwner.current
     val backStack = rememberNavBackStack()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
+    var showSessionExpiredMessage by rememberSaveable { mutableStateOf(false) }
+
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            RodiAppEffect.NavigateToLogin -> {
+                showSessionExpiredMessage = true
+                backStack.clear()
+                backStack.add(LoginRoute)
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -93,6 +105,8 @@ fun RodiApp(
                 LoginRoute -> NavEntry(key) {
                     LoginScreen(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
+                        sessionExpiredMessage = showSessionExpiredMessage,
+                        onSessionExpiredMessageShown = { showSessionExpiredMessage = false },
                         onNavigateNext = { isNewMember ->
                             viewModel.onLoginSucceeded()
                             backStack.clear()
@@ -116,8 +130,6 @@ fun RodiApp(
                         },
                         onSessionEnded = {
                             viewModel.onSessionEnded()
-                            backStack.clear()
-                            backStack.add(LoginRoute)
                         },
                     )
                 }
