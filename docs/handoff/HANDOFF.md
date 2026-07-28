@@ -354,11 +354,58 @@ Status: BLOCKED
 ## Follow-up — refresh token 세션 만료 처리
 
 Status: IMPL_DONE
+Target branch: `develop`
+Review status: IN_REVIEW
 
-- refresh endpoint가 HTTP 또는 API envelope의 401 응답을 반환하면 `SessionRevoked`로 정규화하고, 로컬 토큰을 정리한 뒤 앱 루트에 세션 만료 이벤트를 한 번만 전달한다.
-- 앱 루트는 현재 화면의 종류와 무관하게 백스택을 로그인 화면으로 교체한다. 로그인 화면에서는 `로그인 정보가 만료되어 다시 로그인해주세요.` 공용 스낵바를 한 번만 표시한다.
-- 네트워크·서버 오류는 세션 종료 이벤트를 발생시키지 않아 기존 로그인 상태와 현재 화면을 유지한다.
-- 인증 repository를 singleton으로 바인딩해 재발급 mutex와 세션 이벤트가 모든 API 요청·앱 루트에서 공유되도록 했다.
+### Context
+
+refresh token 무효 상태에서 앱이 오류를 반복 표시하는 대신 세션을 종료하고 재로그인을 유도해야 한다.
+
+### Spec
+
+- refresh endpoint의 HTTP 또는 API envelope 401은 `SessionRevoked`로 정규화한다.
+- 토큰 정리 뒤 늦게 시작한 앱 루트 구독도 세션 만료 상태를 확인해 로그인으로 전환한다.
+- 네트워크·5xx 오류는 로그인 상태를 유지한다.
+
+### Files
+
+- `core/domain/.../AuthRepository.kt`
+- `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test
+- `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test
+- `feature/auth/.../LoginScreen.kt`
+
+### Acceptance
+
+- 세션 만료는 현재 화면과 관계없이 로그인 화면으로 전환하고 안내 스낵바를 한 번만 표시한다.
+- refresh 401은 토큰을 정리하고, 구독 시작 전 만료된 상태도 놓치지 않는다.
+
+### Verification
+
+- `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN
+- `./gradlew test lint assembleDebug` GREEN
+- `git diff --check` GREEN
+- emulator debug APK 설치 및 콜드 런치 GREEN
+
+### Out of scope
+
+- 실제 서버에서 refresh token을 강제로 무효화하는 테스트 계정·운영 도구 제공
+
+### Claude Review
+
+#### Blocking
+
+- 초기 리뷰에서 세션 만료 이벤트가 늦은 구독자에게 누락될 수 있어 보완했다.
+
+#### Nits
+
+- HTTP 401 예외 경로와 HANDOFF 필수 형식을 추가 검증했다.
+
+#### Verdict
+
+- NEEDS_CHANGES (초기 리뷰 기록, 후속 수정 반영 완료)
+
+## Codex Result
+
 - Changed files: `core/domain/.../AuthRepository.kt`; `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test; `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test; `feature/auth/.../LoginScreen.kt`; `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN; `./gradlew test lint assembleDebug` GREEN; `git diff --check` GREEN
-- Open questions: 실제 refresh 토큰 무효 응답을 재현할 연결 기기가 없어, 로그인 화면 전환과 안내 스낵바의 실기기 최종 확인이 필요하다.
+- Open questions: 실제 refresh token 무효 상태의 로그인 전환과 안내 스낵바 실기기 최종 확인

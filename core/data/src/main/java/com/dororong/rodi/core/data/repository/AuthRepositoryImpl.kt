@@ -20,8 +20,8 @@ import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -36,7 +36,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val json: Json,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
-    private val sessionExpirations = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val sessionExpired = MutableStateFlow(false)
 
     override suspend fun getSession(): AuthSession {
         val tokens = tokenStore.getTokens()
@@ -83,13 +83,13 @@ class AuthRepositoryImpl @Inject constructor(
                 } catch (clearException: Throwable) {
                     exception.addSuppressed(clearException)
                 }
-                sessionExpirations.tryEmit(Unit)
+                sessionExpired.value = true
                 throw exception
             }
         }
     }
 
-    override fun observeSessionExpiration(): Flow<Unit> = sessionExpirations.asSharedFlow()
+    override fun observeSessionExpiration(): Flow<Boolean> = sessionExpired.asStateFlow()
 
     override suspend fun restoreWithKakao(credential: String): AccountRestoreResult {
         val body = request { authApi.restore("kakao", SocialLoginRequest(credential)) }.requireData()
@@ -111,6 +111,7 @@ class AuthRepositoryImpl @Inject constructor(
         if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
+        sessionExpired.value = false
     }
 
     private suspend fun clearTokens() {

@@ -12,7 +12,7 @@ interface AuthRepository {
 
     suspend fun reissueToken()
 
-    fun observeSessionExpiration(): Flow<Unit>
+    fun observeSessionExpiration(): Flow<Boolean>
 
     suspend fun restoreWithKakao(credential: String): AccountRestoreResult
 

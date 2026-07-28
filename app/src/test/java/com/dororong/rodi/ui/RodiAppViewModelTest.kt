@@ -16,8 +16,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -191,7 +189,7 @@ class RodiAppViewModelTest {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
         val getAuthSession = mockk<GetAuthSessionUseCase>()
-        val expirations = MutableSharedFlow<Unit>()
+        val expirations = MutableStateFlow(false)
         every { getEntryCompleted() } returns flowOf(true)
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
@@ -206,9 +204,31 @@ class RodiAppViewModelTest {
         val effectCollection = launch { viewModel.effect.collect(effects::add) }
         advanceUntilIdle()
 
-        expirations.emit(Unit)
+        expirations.value = true
         advanceUntilIdle()
-        expirations.emit(Unit)
+
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
+        effectCollection.cancel()
+    }
+
+    @Test
+    fun `expired session before ViewModel creation still navigates to login`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(MutableStateFlow(true)),
+        )
+        val effects = mutableListOf<RodiAppEffect>()
+        val effectCollection = launch { viewModel.effect.collect(effects::add) }
         advanceUntilIdle()
 
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
@@ -295,7 +315,7 @@ class RodiAppViewModelTest {
     }
 
     private fun sessionExpirationUseCase(
-        expirations: kotlinx.coroutines.flow.Flow<Unit> = emptyFlow(),
+        expirations: kotlinx.coroutines.flow.Flow<Boolean> = flowOf(false),
     ): AuthRepository = mockk {
         every { observeSessionExpiration() } returns expirations
     }
