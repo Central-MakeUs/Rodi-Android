@@ -16,17 +16,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -39,54 +41,102 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.ui.R as CoreUiR
-
-private val recentSearches = List(4) { "서울 중구" }
-private val regionSuggestions = listOf("서울 중구", "대전 중구", "울산 중구", "부산 중구", "대구 중구")
+import com.dororong.rodi.core.ui.effect.CollectEffect
+import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.home.list.components.PlaceListContent
+import com.dororong.rodi.feature.home.search.SearchEffect
+import com.dororong.rodi.feature.home.search.SearchIntent
+import com.dororong.rodi.feature.home.search.SearchResultState
+import com.dororong.rodi.feature.home.search.SearchUiState
+import com.dororong.rodi.feature.home.search.SearchViewModel
 
 @Composable
 fun SearchScreen(
+    origin: GeoPoint,
     onBack: () -> Unit,
+    onPlaceClick: (Long) -> Unit,
+    viewModel: SearchViewModel = hiltViewModel(),
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(Unit) { focusRequester.requestFocus() }
+    LaunchedEffect(origin) {
+        viewModel.initialize(origin)
+        focusRequester.requestFocus()
+    }
     BackHandler(onBack = onBack)
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            is SearchEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+        }
+    }
 
-    SearchScreenContent(
-        query = query,
-        focusRequester = focusRequester,
-        onQueryChange = { query = it },
-        onBack = onBack,
-    )
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = RodiTheme.colors.white,
+    ) { innerPadding ->
+        SearchScreenContent(
+            state = state,
+            focusRequester = focusRequester,
+            onIntent = viewModel::onIntent,
+            onBack = onBack,
+            onPlaceClick = onPlaceClick,
+            modifier = Modifier.padding(innerPadding),
+        )
+    }
 }
 
 @Composable
 private fun SearchScreenContent(
-    query: String,
+    state: SearchUiState,
     focusRequester: FocusRequester,
-    onQueryChange: (String) -> Unit,
+    onIntent: (SearchIntent) -> Unit,
     onBack: () -> Unit,
+    onPlaceClick: (Long) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
             .statusBarsPadding(),
     ) {
         SearchInput(
-            query = query,
+            query = state.query,
             focusRequester = focusRequester,
-            onQueryChange = onQueryChange,
+            onQueryChange = { onIntent(SearchIntent.OnQueryChange(it)) },
+            onImeSearch = { onIntent(SearchIntent.OnImeSearch) },
             onBack = onBack,
         )
         when {
-            query.isBlank() -> RecentSearchList()
-            regionSuggestionsFor(query).isNotEmpty() -> SuggestionList(regionSuggestionsFor(query))
-            else -> SearchEmptyContent(query)
+            state.query.isBlank() -> RecentSearchList(
+                searches = state.recentSearches,
+                isLoading = state.isRecentSearchesLoading,
+                isDeletingAll = state.isDeletingAllRecentSearches,
+                deletingIds = state.deletingRecentSearchIds,
+                onSearchClick = { onIntent(SearchIntent.OnQueryChange(it)) },
+                onDeleteAll = { onIntent(SearchIntent.OnDeleteAllRecentSearches) },
+                onDelete = { onIntent(SearchIntent.OnDeleteRecentSearch(it)) },
+                modifier = Modifier.weight(1f),
+            )
+
+            state.resultState == SearchResultState.Loading -> SearchLoadingContent(Modifier.weight(1f))
+            state.resultState == SearchResultState.Content -> PlaceListContent(
+                places = state.places,
+                onPlaceClick = onPlaceClick,
+                onLoadNextPage = { onIntent(SearchIntent.OnLoadNextPage) },
+                isNextPageLoading = state.isNextPageLoading,
+                topContentPadding = 0.dp,
+                modifier = Modifier.weight(1f),
+            )
+
+            state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim())
+            else -> Unit
         }
     }
 }
@@ -96,6 +146,7 @@ private fun SearchInput(
     query: String,
     focusRequester: FocusRequester,
     onQueryChange: (String) -> Unit,
+    onImeSearch: () -> Unit,
     onBack: () -> Unit,
 ) {
     Row(
@@ -123,15 +174,16 @@ private fun SearchInput(
             cursorBrush = SolidColor(RodiTheme.colors.black),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { onImeSearch() }),
             modifier = Modifier
                 .weight(1f)
                 .focusRequester(focusRequester)
-                .semantics { contentDescription = "지역 검색어 입력" },
+                .semantics { contentDescription = "지역 또는 장소 검색어 입력" },
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (query.isBlank()) {
                         Text(
-                            text = "시/군/구로 검색하기",
+                            text = "시/군/구 또는 장소명으로 검색하기",
                             style = RodiTheme.typography.body2Medium,
                             color = RodiTheme.colors.gray500,
                         )
@@ -144,48 +196,59 @@ private fun SearchInput(
 }
 
 @Composable
-private fun RecentSearchList() {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "최근 검색어",
-                style = RodiTheme.typography.caption2Medium,
-                color = RodiTheme.colors.gray700,
-            )
-            Text(
-                text = "전체삭제",
-                style = RodiTheme.typography.caption2Medium,
-                color = RodiTheme.colors.gray500,
-            )
-        }
-        recentSearches.forEach { searchTerm ->
-            SearchRow(
-                text = searchTerm,
-                trailingContent = {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_x),
-                        contentDescription = "최근 검색어 삭제",
-                        tint = RodiTheme.colors.black,
-                        modifier = Modifier.size(20.dp),
-                    )
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun SuggestionList(suggestions: List<String>) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        suggestions.forEach { suggestion ->
-            SearchRow(text = suggestion)
+private fun RecentSearchList(
+    searches: List<com.dororong.rodi.core.domain.model.search.RecentSearch>,
+    isLoading: Boolean,
+    isDeletingAll: Boolean,
+    deletingIds: Set<Long>,
+    onSearchClick: (String) -> Unit,
+    onDeleteAll: () -> Unit,
+    onDelete: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        isLoading -> SearchLoadingContent(modifier)
+        searches.isEmpty() -> Unit
+        else -> Column(modifier = modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "최근 검색어",
+                    style = RodiTheme.typography.caption2Medium,
+                    color = RodiTheme.colors.gray700,
+                )
+                Text(
+                    text = "전체삭제",
+                    style = RodiTheme.typography.caption2Medium,
+                    color = RodiTheme.colors.gray500,
+                    modifier = Modifier.clickable(enabled = !isDeletingAll, onClick = onDeleteAll),
+                )
+            }
+            searches.forEach { search ->
+                SearchRow(
+                    text = search.keyword,
+                    onClick = { onSearchClick(search.keyword) },
+                    trailingContent = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_x),
+                            contentDescription = "최근 검색어 삭제",
+                            tint = RodiTheme.colors.black,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clickable(
+                                    enabled = search.id !in deletingIds && !isDeletingAll,
+                                    onClick = { onDelete(search.id) },
+                                ),
+                        )
+                    },
+                )
+            }
         }
     }
 }
@@ -193,6 +256,7 @@ private fun SuggestionList(suggestions: List<String>) {
 @Composable
 private fun SearchRow(
     text: String,
+    onClick: () -> Unit,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -200,14 +264,15 @@ private fun SearchRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(61.dp)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = text,
-                style = RodiTheme.typography.body1Medium,
-                color = RodiTheme.colors.gray800,
+                style = RodiTheme.typography.body2Medium,
+                color = RodiTheme.colors.black,
             )
             trailingContent?.invoke()
         }
@@ -216,11 +281,24 @@ private fun SearchRow(
 }
 
 @Composable
+private fun SearchLoadingContent(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            color = RodiTheme.colors.primary600,
+            strokeWidth = 2.dp,
+        )
+    }
+}
+
+@Composable
 private fun SearchEmptyContent(query: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 132.dp),
+            .padding(top = 136.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Image(
@@ -230,13 +308,12 @@ private fun SearchEmptyContent(query: String) {
         )
         Text(
             text = "‘$query’검색 결과가 없어요.",
-            style = RodiTheme.typography.headline1,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 16.dp),
+            style = RodiTheme.typography.body1SemiBold,
+            color = RodiTheme.colors.black,
+            modifier = Modifier.padding(top = 20.dp),
         )
         Text(
-            text = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구로 검색해주세요.",
+            text = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구 또는 장소명으로 검색해주세요.",
             style = RodiTheme.typography.body3Medium,
             color = RodiTheme.colors.gray600,
             textAlign = TextAlign.Center,
@@ -245,31 +322,21 @@ private fun SearchEmptyContent(query: String) {
     }
 }
 
-internal fun regionSuggestionsFor(query: String): List<String> =
-    regionSuggestions.filter { it.contains(query.trim()) }
-
 @Preview(name = "Search - recent", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun SearchRecentPreview() {
     RodiTheme {
         SearchScreenContent(
-            query = "",
+            state = SearchUiState(
+                recentSearches = List(4) { index ->
+                    com.dororong.rodi.core.domain.model.search.RecentSearch(index.toLong(), "서울 중구")
+                },
+                isRecentSearchesLoading = false,
+            ),
             focusRequester = remember { FocusRequester() },
-            onQueryChange = {},
+            onIntent = {},
             onBack = {},
-        )
-    }
-}
-
-@Preview(name = "Search - suggestions", showBackground = true, widthDp = 375, heightDp = 812)
-@Composable
-private fun SearchSuggestionsPreview() {
-    RodiTheme {
-        SearchScreenContent(
-            query = "중구",
-            focusRequester = remember { FocusRequester() },
-            onQueryChange = {},
-            onBack = {},
+            onPlaceClick = {},
         )
     }
 }
@@ -279,10 +346,11 @@ private fun SearchSuggestionsPreview() {
 private fun SearchEmptyPreview() {
     RodiTheme {
         SearchScreenContent(
-            query = "중군",
+            state = SearchUiState(query = "중군", resultState = SearchResultState.Empty),
             focusRequester = remember { FocusRequester() },
-            onQueryChange = {},
+            onIntent = {},
             onBack = {},
+            onPlaceClick = {},
         )
     }
 }

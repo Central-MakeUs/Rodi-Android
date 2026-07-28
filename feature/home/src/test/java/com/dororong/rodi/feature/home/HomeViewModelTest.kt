@@ -210,6 +210,25 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `search opens login flow and navigates after existing member login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        val vm = deps.viewModel()
+        val origin = GeoPoint(37.5, 126.9)
+
+        vm.onIntent(HomeIntent.OnSearchClick(origin))
+        advanceUntilIdle()
+        assertEquals(PendingHomeAction.OpenSearch(origin), vm.state.value.pendingAction)
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateSearch(origin), awaitItem())
+        }
+    }
+
+    @Test
     fun `guest new member navigates to sign up without resuming pending action`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns

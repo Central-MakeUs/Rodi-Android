@@ -35,6 +35,16 @@ interface PlaceApi {
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPagePlaceResponse>
 
+    @GET("places/search")
+    suspend fun searchPlaces(
+        @Header("Authorization") authorization: String,
+        @Query("keyword") keyword: String,
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPagePlaceResponse>
+
     @GET("places/{placeId}")
     suspend fun getPlaceDetail(
         @Header("Authorization") authorization: String,

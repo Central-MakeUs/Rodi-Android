@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.source.local.database.PlaceCacheLocalDataSource
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -55,6 +56,13 @@ class CachedPlaceRepository @Inject constructor(
         placeCache.upsertSummaries(page.items)
         return page.copy(items = page.items.distinctBy(PlaceSummary::id))
     }
+
+    override suspend fun searchPlaces(
+        keyword: String,
+        origin: GeoPoint,
+        cursor: String?,
+        size: Int,
+    ): CursorPage<PlaceSummary> = delegate.searchPlaces(keyword, origin, cursor, size)
 
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = delegate.getPlaceDetail(placeId)
 

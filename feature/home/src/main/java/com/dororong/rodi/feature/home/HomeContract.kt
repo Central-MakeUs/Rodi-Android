@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home
 
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -68,6 +69,7 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
+    data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
     data object OnDismissLogin : HomeIntent
     data class OnKakaoLoginCredential(val accessToken: String) : HomeIntent
     data class OnKakaoLoginFailed(val message: String) : HomeIntent
@@ -90,6 +92,7 @@ sealed interface HomeEffect {
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
+    data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
 }
@@ -98,4 +101,5 @@ sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction
     data object ToggleBookmark : PendingHomeAction
     data object OpenMyPage : PendingHomeAction
+    data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
 }

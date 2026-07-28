@@ -392,3 +392,15 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../SearchScreen.kt`, `SearchScreenTest.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; debug APK emulator install GREEN
 - Open questions: 실제 검색·최근 검색어 저장 계약이 정의되면 현재 로컬 예시 목록을 데이터 소스로 교체해야 한다.
+
+## Follow-up — 장소 검색·최근 검색어 API
+
+Status: IMPL_DONE
+
+- 비로그인 사용자가 홈 검색바를 누르면 기존 로그인 다이얼로그를 표시하고, 기존 회원 로그인 또는 계정 복구 성공 뒤에만 현재 지도 중심 좌표를 포함한 검색 화면으로 이동한다.
+- 최근 검색어 조회·전체삭제·개별삭제를 JWT API에 연결했다. 최근 검색어 행은 입력값을 채우고, 삭제 성공 후에만 목록에서 제거한다.
+- 주소·장소명 검색은 1~50자 입력을 300ms 디바운스로 요청하며, 기존 장소 카드·페이지네이션·상세 시트 진입을 재사용한다. 서버가 성공 검색어를 저장하므로 이후 진입 시 최근 검색어가 갱신된다.
+- 현재 API 범위에는 저장 필터 조회와 인증 필터가 적용된 지도·추천 목록 재조회 계약이 없다. 이 기능들은 별도 서버 계약과 UI 작업이 필요하다.
+- Changed files: `app/.../MainScreen.kt`, `RodiRoute.kt`; `core/domain` 검색 모델·repository·use case; `core/data` 장소 검색·최근 검색 API·repository·DI와 tests; `feature/home` 검색 인증 게이트·SearchScreen·SearchViewModel과 tests; `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest` GREEN
+- Open questions: 저장 필터 선택 상태 조회 API와 인증 필터가 반영된 지도·추천 목록 API 계약이 필요하다.

@@ -6,6 +6,7 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -42,6 +43,22 @@ class PlaceRepositoryImpl @Inject constructor(
             neLng = query.northEast.lng,
             lat = query.origin.lat,
             lng = query.origin.lng,
+            size = size,
+            cursor = cursor,
+        ).requireData().toDomain()
+    }
+
+    override suspend fun searchPlaces(
+        keyword: String,
+        origin: GeoPoint,
+        cursor: String?,
+        size: Int,
+    ): CursorPage<PlaceSummary> = authenticatedRequest { accessToken ->
+        api.searchPlaces(
+            authorization = "Bearer $accessToken",
+            keyword = keyword,
+            lat = origin.lat,
+            lng = origin.lng,
             size = size,
             cursor = cursor,
         ).requireData().toDomain()

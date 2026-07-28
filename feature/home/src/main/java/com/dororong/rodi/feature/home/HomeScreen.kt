@@ -176,7 +176,7 @@ typealias KakaoLoginRequest = (
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
-    onSearchClick: () -> Unit,
+    onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     bottomNavigation: @Composable () -> Unit = {},
@@ -443,6 +443,7 @@ fun HomeScreen(
             }
 
             is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
         }
@@ -821,7 +822,13 @@ fun HomeScreen(
 
                         HomeTopControls(
                             showResearch = shouldShowResearch,
-                            onSearchClick = onSearchClick,
+                            onSearchClick = {
+                                vm.onIntent(
+                                    HomeIntent.OnSearchClick(
+                                        currentViewport?.toQuery(currentLocation)?.origin,
+                                    ),
+                                )
+                            },
                             onResearchClick = {
                                 val viewport = currentViewport ?: return@HomeTopControls
                                 hasUserChosenMapViewport = true

@@ -1,0 +1,68 @@
+package com.dororong.rodi.core.data.repository
+
+import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
+import com.dororong.rodi.core.data.source.local.security.AuthTokens
+import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
+import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchResponse
+import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
+import com.dororong.rodi.core.domain.repository.AuthRepository
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+
+class RecentSearchRepositoryImplTest {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    @Test
+    fun `recent searches use bearer access token and map identifiers`() = runTest {
+        val api = mockk<RecentSearchApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { api.getRecentSearches("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = listOf(RecentSearchResponse(5, "서울 중구")),
+        )
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), json)
+
+        val searches = repository.getRecentSearches()
+
+        assertEquals(listOf("서울 중구"), searches.map { it.keyword })
+        assertEquals(listOf(5L), searches.map { it.id })
+    }
+
+    @Test
+    fun `recent search delete retries once after access token refresh`() = runTest {
+        val api = mockk<RecentSearchApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val authRepository = mockk<AuthRepository>()
+        coEvery { tokenStore.getTokens() } returnsMany listOf(
+            AuthTokens("old", "refresh", "kakao"),
+            AuthTokens("new", "refresh", "kakao"),
+        )
+        coEvery { api.deleteRecentSearch("Bearer old", 7) } returns ApiEnvelope(
+            isSuccess = false,
+            code = "COMMON_401",
+            message = "만료됨",
+        )
+        coEvery { authRepository.reissueToken() } returns Unit
+        coEvery { api.deleteRecentSearch("Bearer new", 7) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = buildJsonObject { },
+        )
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, authRepository, json)
+
+        repository.deleteRecentSearch(7)
+
+        coVerify(exactly = 1) { authRepository.reissueToken() }
+        coVerify(exactly = 1) { api.deleteRecentSearch("Bearer new", 7) }
+    }
+}

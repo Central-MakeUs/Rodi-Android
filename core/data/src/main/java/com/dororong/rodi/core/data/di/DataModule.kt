@@ -7,6 +7,7 @@ import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.repository.CachedPlaceRepository
 import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.data.repository.MemberRepositoryImpl
+import com.dororong.rodi.core.data.repository.RecentSearchRepositoryImpl
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
@@ -14,6 +15,7 @@ import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
+import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -42,5 +44,8 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindPlaceRepository(impl: CachedPlaceRepository): PlaceRepository
+
+    @Binds
+    abstract fun bindRecentSearchRepository(impl: RecentSearchRepositoryImpl): RecentSearchRepository
 
 }

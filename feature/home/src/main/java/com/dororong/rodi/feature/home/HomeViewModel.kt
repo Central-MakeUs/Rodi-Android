@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -93,6 +94,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
+            is HomeIntent.OnSearchClick -> openSearch(intent.origin)
             HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
             is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
             is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
@@ -290,6 +292,7 @@ class HomeViewModel @Inject constructor(
             is PendingHomeAction.OpenDetail -> openPlace(action.placeId, action.origin)
             PendingHomeAction.ToggleBookmark -> toggleBookmark()
             PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
+            is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
         }
     }
 
@@ -382,6 +385,18 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateMyPage)
             } else {
                 requireLogin(PendingHomeAction.OpenMyPage)
+            }
+        }
+    }
+
+    private fun openSearch(origin: GeoPoint?) {
+        viewModelScope.launch {
+            if (origin == null) {
+                _effect.send(HomeEffect.ShowSnackbar("지도 위치를 준비 중이에요. 잠시 후 다시 시도해주세요."))
+            } else if (isLoggedIn()) {
+                _effect.send(HomeEffect.NavigateSearch(origin))
+            } else {
+                requireLogin(PendingHomeAction.OpenSearch(origin))
             }
         }
     }

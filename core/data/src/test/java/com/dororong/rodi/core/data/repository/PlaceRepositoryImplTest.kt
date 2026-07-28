@@ -24,6 +24,38 @@ import org.junit.jupiter.api.Test
 
 class PlaceRepositoryImplTest {
     @Test
+    fun `search sends authenticated keyword and location`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val authRepository = mockk<AuthRepository>()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery {
+            api.searchPlaces("Bearer access", "강남", 37.5, 126.9, 20, null)
+        } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CursorPagePlaceResponse(
+                items = listOf(
+                    PlaceListItemResponse(8, "COURSE", "강남 코스", "서울 강남구", 37.5, 126.9),
+                ),
+                totalCount = 1,
+            ),
+        )
+        val repository = PlaceRepositoryImpl(
+            api,
+            mockk<SavedPlaceLocalDataSource>(relaxed = true),
+            tokenStore,
+            authRepository,
+        )
+
+        val page = repository.searchPlaces("강남", GeoPoint(37.5, 126.9), null, 20)
+
+        assertEquals(listOf("강남 코스"), page.items.map { it.name })
+        coVerify { api.searchPlaces("Bearer access", "강남", 37.5, 126.9, 20, null) }
+    }
+
+    @Test
     fun `saved places preserves nullable distance and cursor page metadata`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
