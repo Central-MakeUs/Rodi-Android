@@ -3,6 +3,7 @@ package com.dororong.rodi.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryCompletedUseCase
@@ -12,6 +13,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -35,6 +39,10 @@ data class RodiAppUiState(
     ),
 )
 
+sealed interface RodiAppEffect {
+    data object NavigateToLogin : RodiAppEffect
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RodiAppViewModel @Inject constructor(
@@ -42,14 +50,20 @@ class RodiAppViewModel @Inject constructor(
     getGuestAccessUseCase: GetGuestAccessUseCase,
     private val getAuthSessionUseCase: GetAuthSessionUseCase,
     private val syncPendingOnboardingUseCase: SyncPendingOnboardingUseCase,
+    authRepository: AuthRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RodiAppUiState())
     private val authSessionRefresh = MutableStateFlow(0)
     private val sessionEnded = MutableStateFlow(false)
+    private val _effect = Channel<RodiAppEffect>(Channel.BUFFERED)
+    val effect: Flow<RodiAppEffect> = _effect.receiveAsFlow()
     val state: StateFlow<RodiAppUiState> = _state.asStateFlow()
 
     init {
         retryPendingOnboardingSync()
+        viewModelScope.launch {
+            authRepository.observeSessionExpiration().collect { onSessionEnded() }
+        }
         viewModelScope.launch {
             combine(
                 getEntryCompletedUseCase().filterNotNull(),
@@ -92,7 +106,9 @@ class RodiAppViewModel @Inject constructor(
     }
 
     fun onSessionEnded() {
+        if (sessionEnded.value) return
         sessionEnded.value = true
+        _effect.trySend(RodiAppEffect.NavigateToLogin)
     }
 
     fun retryPendingOnboardingSync(): Job =

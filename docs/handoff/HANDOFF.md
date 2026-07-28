@@ -350,3 +350,15 @@ Status: BLOCKED
 - Changed files: `.github/workflows/playstore-watch.yml`, `.github/playstore-watch/check_playstore_update.py`, `playstore-state.json`, `test_check_playstore_update.py`, `docs/handoff/HANDOFF.md`
 - Build/test: `python3 .github/playstore-watch/test_check_playstore_update.py` GREEN; `python3 -m py_compile .github/playstore-watch/check_playstore_update.py .github/playstore-watch/test_check_playstore_update.py` GREEN
 - Open questions: Play Console 서비스 계정과 GitHub Secret 설정은 저장소 밖 권한이 필요하다.
+
+## Follow-up — refresh token 세션 만료 처리
+
+Status: IMPL_DONE
+
+- refresh endpoint가 HTTP 또는 API envelope의 401 응답을 반환하면 `SessionRevoked`로 정규화하고, 로컬 토큰을 정리한 뒤 앱 루트에 세션 만료 이벤트를 한 번만 전달한다.
+- 앱 루트는 현재 화면의 종류와 무관하게 백스택을 로그인 화면으로 교체한다. 로그인 화면에서는 `로그인 정보가 만료되어 다시 로그인해주세요.` 공용 스낵바를 한 번만 표시한다.
+- 네트워크·서버 오류는 세션 종료 이벤트를 발생시키지 않아 기존 로그인 상태와 현재 화면을 유지한다.
+- 인증 repository를 singleton으로 바인딩해 재발급 mutex와 세션 이벤트가 모든 API 요청·앱 루트에서 공유되도록 했다.
+- Changed files: `core/domain/.../AuthRepository.kt`; `core/data/.../{di/DataModule.kt,repository/AuthRepositoryImpl.kt}`와 test; `app/.../ui/{RodiApp,RodiAppViewModel}.kt`와 test; `feature/auth/.../LoginScreen.kt`; `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew clean :core:domain:test :core:data:testDebugUnitTest :app:testDebugUnitTest` GREEN; `./gradlew test lint assembleDebug` GREEN; `git diff --check` GREEN
+- Open questions: 실제 refresh 토큰 무효 응답을 재현할 연결 기기가 없어, 로그인 화면 전환과 안내 스낵바의 실기기 최종 확인이 필요하다.
