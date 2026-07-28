@@ -373,3 +373,15 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../HomeScreen.kt`, `filter/FilterBottomSheet.kt`, `filter/FilterCategoryTest.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: `git diff --check` GREEN; `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; debug APK emulator install GREEN; 복합 상황·주차 유형 전환 및 시스템 뒤로가기 닫힘 GREEN
 - Open questions: 목록·지도에 적용할 서버 필터 계약이 아직 없다.
+
+## Follow-up — 홈 다중 필터 저장 API
+
+Status: IMPL_DONE
+
+- 카테고리를 전환해도 선택한 연습유형을 유지하고, 여러 카테고리 태그를 혼합 선택해 한 번에 저장한다. 주차 카테고리는 `PARKING` 태그를 토글하며, 카테고리별 `전체`는 해당 카테고리의 실제 태그 전체를 토글한다.
+- `PUT /members/me/filter-tags`를 Member API·repository·use case에 연결한다. 저장 중 입력을 막고, 성공하면 시트를 닫으며 실패하면 선택을 유지한 채 홈 스낵바로 알린다.
+- 비로그인 필터 저장은 기존 홈 로그인 다이얼로그를 거치고, 기존 회원 로그인 또는 계정 복구 성공 후 같은 태그 집합을 저장한다.
+- 저장된 필터 조회 API와 인증 필터가 반영된 지도·추천 목록 재조회 계약은 서버에 없어 이번 변경에 포함하지 않았다.
+- Changed files: `core/domain/.../MemberRepository.kt`, `UpdateFilterTagsUseCase.kt`; `core/data` Member API·DTO·repository와 test; `feature/home` Contract·ViewModel·Screen·FilterBottomSheet와 tests; `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew clean :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest` GREEN
+- Open questions: 저장된 필터 복원 API와 인증 필터 적용 목록 API 계약이 필요하다.

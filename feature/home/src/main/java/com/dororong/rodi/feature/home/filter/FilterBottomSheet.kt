@@ -92,19 +92,21 @@ enum class FilterPracticeOption(
     UNPROTECTED_LEFT_TURN("비보호좌회전", PracticeType.UNPROTECTED_LEFT_TURN),
     NARROW_ROAD("좁은도로", PracticeType.NARROW_ROAD),
     CORNERING("코너링", PracticeType.CORNERING),
+    PARKING("주차", PracticeType.PARKING),
     ALL("전체", null),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterBottomSheet(
-    selectedCategory: FilterCategory,
-    selectedPracticeOption: FilterPracticeOption?,
+    activeCategory: FilterCategory,
+    selectedPracticeTypes: Set<PracticeType>,
     onCategorySelect: (FilterCategory) -> Unit,
-    onPracticeOptionSelect: (FilterPracticeOption) -> Unit,
+    onPracticeOptionToggle: (FilterPracticeOption) -> Unit,
     onReset: () -> Unit,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
+    isSaving: Boolean,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -119,12 +121,13 @@ fun FilterBottomSheet(
         contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
         FilterBottomSheetContent(
-            selectedCategory = selectedCategory,
-            selectedPracticeOption = selectedPracticeOption,
+            activeCategory = activeCategory,
+            selectedPracticeTypes = selectedPracticeTypes,
             onCategorySelect = onCategorySelect,
-            onPracticeOptionSelect = onPracticeOptionSelect,
+            onPracticeOptionToggle = onPracticeOptionToggle,
             onReset = onReset,
             onApply = onApply,
+            isSaving = isSaving,
         )
     }
 }
@@ -132,12 +135,13 @@ fun FilterBottomSheet(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterBottomSheetContent(
-    selectedCategory: FilterCategory,
-    selectedPracticeOption: FilterPracticeOption?,
+    activeCategory: FilterCategory,
+    selectedPracticeTypes: Set<PracticeType>,
     onCategorySelect: (FilterCategory) -> Unit,
-    onPracticeOptionSelect: (FilterPracticeOption) -> Unit,
+    onPracticeOptionToggle: (FilterPracticeOption) -> Unit,
     onReset: () -> Unit,
     onApply: () -> Unit,
+    isSaving: Boolean,
 ) {
     Box(
         modifier = Modifier
@@ -177,12 +181,22 @@ private fun FilterBottomSheetContent(
             FilterCategory.entries.forEach { category ->
                 FilterChip(
                     label = category.label,
-                    selected = category == selectedCategory,
-                    onClick = { onCategorySelect(category) },
+                    selected = when (category) {
+                        FilterCategory.PARKING -> PracticeType.PARKING in selectedPracticeTypes
+                        else -> category == activeCategory
+                    },
+                    onClick = {
+                        if (category == FilterCategory.PARKING) {
+                            onPracticeOptionToggle(FilterPracticeOption.PARKING)
+                        } else {
+                            onCategorySelect(category)
+                        }
+                    },
+                    enabled = !isSaving,
                 )
             }
         }
-        if (selectedCategory.practiceOptions.isNotEmpty()) {
+        if (activeCategory.practiceOptions.isNotEmpty()) {
             Text(
                 text = "연습유형",
                 style = RodiTheme.typography.body1SemiBold,
@@ -198,11 +212,12 @@ private fun FilterBottomSheetContent(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                selectedCategory.practiceOptions.forEach { option ->
+                activeCategory.practiceOptions.forEach { option ->
                     FilterChip(
                         label = option.label,
-                        selected = option == selectedPracticeOption,
-                        onClick = { onPracticeOptionSelect(option) },
+                        selected = option.isSelected(activeCategory, selectedPracticeTypes),
+                        onClick = { onPracticeOptionToggle(option) },
+                        enabled = !isSaving,
                     )
                 }
             }
@@ -226,6 +241,7 @@ private fun FilterBottomSheetContent(
                     borderColor = RodiTheme.colors.gray300,
                     textColor = RodiTheme.colors.gray800,
                     onClick = onReset,
+                    enabled = !isSaving,
                     modifier = Modifier.weight(1f),
                 )
                 FilterActionButton(
@@ -234,6 +250,7 @@ private fun FilterBottomSheetContent(
                     borderColor = Color.Transparent,
                     textColor = RodiTheme.colors.white,
                     onClick = onApply,
+                    enabled = !isSaving,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -247,6 +264,7 @@ private fun FilterChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    enabled: Boolean,
 ) {
     val shape = RoundedCornerShape(16.dp)
     val borderColor = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.primary200
@@ -257,7 +275,7 @@ private fun FilterChip(
         modifier = Modifier
             .border(1.dp, borderColor, shape)
             .background(background, shape)
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -276,6 +294,7 @@ private fun FilterActionButton(
     borderColor: Color,
     textColor: Color,
     onClick: () -> Unit,
+    enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(8.dp)
@@ -284,7 +303,7 @@ private fun FilterActionButton(
             .height(48.dp)
             .border(1.dp, borderColor, shape)
             .background(containerColor, shape)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -300,12 +319,13 @@ private fun FilterActionButton(
 private fun BasicDrivingFilterPreview() {
     RodiTheme {
         FilterBottomSheetContent(
-            selectedCategory = FilterCategory.BASIC_DRIVING,
-            selectedPracticeOption = FilterPracticeOption.LEFT_RIGHT_TURN,
+            activeCategory = FilterCategory.BASIC_DRIVING,
+            selectedPracticeTypes = setOf(PracticeType.LEFT_RIGHT_TURN, PracticeType.INTERSECTION),
             onCategorySelect = {},
-            onPracticeOptionSelect = {},
+            onPracticeOptionToggle = {},
             onReset = {},
             onApply = {},
+            isSaving = false,
         )
     }
 }
@@ -315,12 +335,13 @@ private fun BasicDrivingFilterPreview() {
 private fun ParkingFilterPreview() {
     RodiTheme {
         FilterBottomSheetContent(
-            selectedCategory = FilterCategory.PARKING,
-            selectedPracticeOption = null,
+            activeCategory = FilterCategory.BASIC_DRIVING,
+            selectedPracticeTypes = setOf(PracticeType.PARKING),
             onCategorySelect = {},
-            onPracticeOptionSelect = {},
+            onPracticeOptionToggle = {},
             onReset = {},
             onApply = {},
+            isSaving = false,
         )
     }
 }
@@ -330,12 +351,24 @@ private fun ParkingFilterPreview() {
 private fun ComplexSituationsFilterPreview() {
     RodiTheme {
         FilterBottomSheetContent(
-            selectedCategory = FilterCategory.COMPLEX_SITUATIONS,
-            selectedPracticeOption = FilterPracticeOption.CORNERING,
+            activeCategory = FilterCategory.COMPLEX_SITUATIONS,
+            selectedPracticeTypes = setOf(PracticeType.CORNERING, PracticeType.STRAIGHT),
             onCategorySelect = {},
-            onPracticeOptionSelect = {},
+            onPracticeOptionToggle = {},
             onReset = {},
             onApply = {},
+            isSaving = false,
         )
     }
+}
+
+internal fun FilterCategory.practiceTypes(): Set<PracticeType> =
+    practiceOptions.mapNotNull(FilterPracticeOption::practiceType).toSet()
+
+private fun FilterPracticeOption.isSelected(
+    category: FilterCategory,
+    selectedPracticeTypes: Set<PracticeType>,
+): Boolean = when (this) {
+    FilterPracticeOption.ALL -> category.practiceTypes().all(selectedPracticeTypes::contains)
+    else -> practiceType in selectedPracticeTypes
 }

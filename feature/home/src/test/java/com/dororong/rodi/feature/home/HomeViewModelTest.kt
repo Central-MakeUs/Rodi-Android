@@ -18,12 +18,15 @@ import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -392,6 +395,65 @@ class HomeViewModelTest {
         assertFalse(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
         assertEquals(4, vm.state.value.selectedPlace?.bookmarkCount)
     }
+
+    @Test
+    fun `filter keeps mixed tags across categories and saves them together`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterOpen)
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.ALL))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.PARKING))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+
+        assertEquals(
+            setOf(
+                PracticeType.STRAIGHT,
+                PracticeType.LEFT_RIGHT_TURN,
+                PracticeType.LANE_CHANGE,
+                PracticeType.INTERSECTION,
+                PracticeType.PARKING,
+            ),
+            vm.state.value.selectedFilterPracticeTypes,
+        )
+        assertFalse(vm.state.value.isFilterSheetVisible)
+        coVerify {
+            deps.updateFilterTags(
+                setOf(
+                    PracticeType.STRAIGHT,
+                    PracticeType.LEFT_RIGHT_TURN,
+                    PracticeType.LANE_CHANGE,
+                    PracticeType.INTERSECTION,
+                    PracticeType.PARKING,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `guest filter save resumes after existing member login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+        assertEquals(
+            PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
+            vm.state.value.pendingAction,
+        )
+
+        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        advanceUntilIdle()
+
+        coVerify { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) }
+    }
 }
 
 private class Dependencies(loggedIn: Boolean = true) {
@@ -407,6 +469,7 @@ private class Dependencies(loggedIn: Boolean = true) {
     val restoreWithKakao = mockk<RestoreWithKakaoUseCase>()
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
+    val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -430,6 +493,7 @@ private class Dependencies(loggedIn: Boolean = true) {
         restoreWithKakaoUseCase = restoreWithKakao,
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
+        updateFilterTagsUseCase = updateFilterTags,
     )
 }
 

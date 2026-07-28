@@ -94,8 +94,6 @@ import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
 import com.dororong.rodi.feature.home.filter.FilterBottomSheet
-import com.dororong.rodi.feature.home.filter.FilterCategory
-import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
@@ -216,9 +214,6 @@ fun HomeScreen(
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
-    var isFilterSheetVisible by remember { mutableStateOf(false) }
-    var selectedFilterCategory by remember { mutableStateOf(FilterCategory.BASIC_DRIVING) }
-    var selectedFilterPracticeOption by remember { mutableStateOf<FilterPracticeOption?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -427,9 +422,9 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
-        if (isFilterSheetVisible) {
-            isFilterSheetVisible = false
+    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        if (state.isFilterSheetVisible) {
+            vm.onIntent(HomeIntent.OnFilterDismiss)
         } else {
             when (state.surfaceState) {
                 HomeSurfaceState.Detail -> dismissDetail()
@@ -655,7 +650,7 @@ fun HomeScreen(
                                     expansionProgress = sheetExpansionProgress,
                                     onExpand = { vm.onIntent(HomeIntent.OnListExpand) },
                                     onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
-                                    onFilterClick = { isFilterSheetVisible = true },
+                                    onFilterClick = { vm.onIntent(HomeIntent.OnFilterOpen) },
                                 )
                             }
                             when {
@@ -1021,21 +1016,16 @@ fun HomeScreen(
         )
     }
 
-    if (isFilterSheetVisible) {
+    if (state.isFilterSheetVisible) {
         FilterBottomSheet(
-            selectedCategory = selectedFilterCategory,
-            selectedPracticeOption = selectedFilterPracticeOption,
-            onCategorySelect = { category ->
-                selectedFilterCategory = category
-                selectedFilterPracticeOption = null
-            },
-            onPracticeOptionSelect = { selectedFilterPracticeOption = it },
-            onReset = {
-                selectedFilterCategory = FilterCategory.BASIC_DRIVING
-                selectedFilterPracticeOption = null
-            },
-            onApply = { isFilterSheetVisible = false },
-            onDismiss = { isFilterSheetVisible = false },
+            activeCategory = state.activeFilterCategory,
+            selectedPracticeTypes = state.selectedFilterPracticeTypes,
+            onCategorySelect = { vm.onIntent(HomeIntent.OnFilterCategorySelect(it)) },
+            onPracticeOptionToggle = { vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(it)) },
+            onReset = { vm.onIntent(HomeIntent.OnFilterReset) },
+            onApply = { vm.onIntent(HomeIntent.OnFilterApply) },
+            onDismiss = { vm.onIntent(HomeIntent.OnFilterDismiss) },
+            isSaving = state.isFilterSaving,
         )
     }
 
