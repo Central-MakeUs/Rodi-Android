@@ -476,3 +476,13 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../{HomeScreen,HomeViewModel}.kt`, `HomeViewModelTest.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: 사용자 수동 검증 예정(명령 미실행)
 - Open questions: none
+
+## Follow-up — 바텀시트 뒤 지도 마커 제외
+
+Status: IMPL_DONE
+
+- 지도 하단 패딩으로 실제 노출 영역이 바뀔 때, 마커와 클러스터 후보도 마지막 서버 검색 범위가 아닌 KakaoMap의 padding 반영 가시 viewport로 제한한다.
+- 따라서 바텀시트에 가려진 영역의 마커·클러스터는 렌더링 대상에서 제외되며, 시트를 내리면 가시 viewport 변화에 따라 다시 표시된다.
+- Changed files: `feature/home/.../HomeScreen.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; `git diff --check` GREEN
+- Open questions: 바텀시트 partial/full 전환과 지도 이동 뒤 재검색의 실기기 최종 확인이 필요하다.
