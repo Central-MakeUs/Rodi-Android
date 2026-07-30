@@ -385,6 +385,18 @@ Status: IMPL_DONE
 - Changed files: `core/domain/.../MemberRepository.kt`, `UpdateFilterTagsUseCase.kt`; `core/data` Member API·DTO·repository와 test; `feature/home` Contract·ViewModel·Screen·FilterBottomSheet와 tests; `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew clean :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest` GREEN
 - Open questions: 저장된 필터 복원 API와 인증 필터 적용 목록 API 계약이 필요하다.
+
+## Follow-up — 인증 필터 목록 조회
+
+Status: IMPL_DONE
+
+- 필터 저장 성공 뒤 재조회하는 `GET /places`는 로그인 세션이 있으면 Bearer access token을 함께 전송하고,
+  비로그인에서는 공개 요청을 유지한다. 401은 기존 재발급·한 번 재시도 흐름을 재사용한다.
+- 액세스 토큰 원문을 남기던 임시 Timber 로그와 무의미한 use case 호출 부수효과를 제거했다.
+- Changed files: `core/data/.../PlaceApi.kt`, `PlaceRepositoryImpl.kt`, 관련 repository test,
+  `core/domain/.../GetPlacesUseCase.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:assembleDebug` GREEN
+- Open questions: 서버는 optional Bearer를 해석해 저장된 필터를 `GET /places` 결과에 반영해야 한다.
 ## Follow-up — refresh token 세션 만료 처리
 
 Status: IMPL_DONE

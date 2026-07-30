@@ -329,10 +329,12 @@ fun HomeScreen(
     val sheetOffsetPx by remember {
         derivedStateOf { runCatching { sheetState.requireOffset() }.getOrDefault(scaffoldSize.height.toFloat()) }
     }
+    val visibleSheetHeightPx = BottomSheetViewportPolicy.bottomPaddingPx(
+        mapHeightPx = scaffoldSize.height,
+        sheetTopPx = sheetOffsetPx,
+    )
     val visibleSheetHeight = with(density) {
-        (scaffoldSize.height - sheetOffsetPx)
-            .coerceAtLeast(0f)
-            .toDp()
+        visibleSheetHeightPx.toDp()
     }
     val sheetExpansionProgress = with(density) {
         val partialSheetOffsetPx = (scaffoldSize.height - 380.dp.toPx()).coerceAtLeast(0f)
@@ -362,7 +364,8 @@ fun HomeScreen(
         visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
         ).coerceAtLeast(0.dp)
     val mapContentBottomPaddingPx = when {
-        state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
+        state.surfaceState == HomeSurfaceState.PartialList ||
+            state.surfaceState == HomeSurfaceState.FullList -> visibleSheetHeightPx
         state.surfaceState == HomeSurfaceState.Navigation -> bottomNavigationHeightPx
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
