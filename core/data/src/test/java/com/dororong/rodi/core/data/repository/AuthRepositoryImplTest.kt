@@ -16,10 +16,15 @@ import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import retrofit2.HttpException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -113,6 +118,76 @@ class AuthRepositoryImplTest {
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `reissueToken emits session expiration after an unauthorized refresh response`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns ApiEnvelope(
+            isSuccess = false,
+            code = "AUTH_401_1",
+            message = "refresh token이 유효하지 않습니다.",
+        )
+        coEvery { tokenStore.clear() } returns true
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val expiration = async(start = CoroutineStart.UNDISPATCHED) {
+            repository.observeSessionExpiration().first { it }
+        }
+
+        assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
+
+        expiration.await()
+        coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `reissueToken preserves session expiration for a late subscriber`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns ApiEnvelope(
+            isSuccess = false,
+            code = "AUTH_401_1",
+            message = "refresh token이 유효하지 않습니다.",
+        )
+        coEvery { tokenStore.clear() } returns true
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
+
+        assertTrue(repository.observeSessionExpiration().first())
+    }
+
+    @Test
+    fun `reissueToken clears tokens and expires the session for an HTTP 401 response`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val httpException = mockk<HttpException>()
+        every { httpException.code() } returns 401
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws httpException
+        coEvery { tokenStore.clear() } returns true
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
+
+        assertTrue(repository.observeSessionExpiration().first())
+        coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `reissueToken keeps the session for a network failure`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws IOException("offline")
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+
+        assertThrowsSuspend<AuthException.Network> { repository.reissueToken() }
+
+        coVerify(exactly = 0) { tokenStore.clear() }
     }
 
     @Test
