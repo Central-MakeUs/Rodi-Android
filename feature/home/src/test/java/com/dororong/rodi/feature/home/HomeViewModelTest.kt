@@ -435,6 +435,30 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `successful filter save reloads the current home viewport`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
+        val filteredPage = CursorPage(listOf(summary(2)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
+            Result.success(initialPage),
+            Result.success(filteredPage),
+        )
+        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnFilterOpen)
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
+        coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
     fun `guest filter save resumes after existing member login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))

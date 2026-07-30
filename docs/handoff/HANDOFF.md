@@ -452,3 +452,15 @@ Status: IMPL_DONE
 - Changed files: `app/build.gradle.kts`, `docs/PROJECT.md`, `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew test lint assembleRelease bundleRelease` GREEN
 - Open questions: none
+
+## Follow-up — 홈 필터 적용 뒤 목록 재조회
+
+Status: IMPL_DONE
+
+- 필터 태그 저장 PUT이 성공하면 필터 시트를 닫고, 마지막 홈 뷰포트를 강제 첫 페이지 조회한다. 서버에 저장된 필터가 적용된 현위치 장소 목록으로 기존 항목·페이지 커서를 교체한다.
+- 저장 실패 시에는 기존처럼 시트와 선택 상태를 유지하고 목록을 다시 요청하지 않는다.
+- 지도 좌표는 기존 `places/coordinates` 계약을 유지하며, 이번 재조회 범위는 홈 장소 목록이다.
+- 지도 마커는 마지막 재검색 뷰포트 안의 캐시 좌표만 그린다. 지도 이동만으로 새 영역의 마커를 표시하지 않고, `이 지역 재검색` 성공 뒤 해당 영역의 마커를 갱신한다.
+- Changed files: `feature/home/.../{HomeScreen,HomeViewModel}.kt`, `HomeViewModelTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: 사용자 수동 검증 예정(명령 미실행)
+- Open questions: none

@@ -445,6 +445,9 @@ class HomeViewModel @Inject constructor(
             updateFilterTagsUseCase(filterTags)
                 .onSuccess {
                     _state.update { it.copy(isFilterSheetVisible = false, isFilterSaving = false) }
+                    _state.value.searchedQuery?.let { query ->
+                        loadFirstPage(query, force = true)
+                    }
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isFilterSaving = false) }

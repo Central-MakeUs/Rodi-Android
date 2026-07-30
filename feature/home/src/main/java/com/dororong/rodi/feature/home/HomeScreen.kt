@@ -517,11 +517,10 @@ fun HomeScreen(
             return@LaunchedEffect
         }
         val visibleViewport = map.visibleViewportOrNull(mapViewSize)
-        val visibleGeoViewport = visibleViewport?.geo ?: searchedViewport
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { visibleGeoViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
