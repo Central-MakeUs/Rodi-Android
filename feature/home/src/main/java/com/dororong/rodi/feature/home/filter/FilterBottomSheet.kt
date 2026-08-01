@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.home.filter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,10 +21,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -92,14 +96,13 @@ enum class FilterPracticeOption(
     UNPROTECTED_LEFT_TURN("비보호좌회전", PracticeType.UNPROTECTED_LEFT_TURN),
     NARROW_ROAD("좁은도로", PracticeType.NARROW_ROAD),
     CORNERING("코너링", PracticeType.CORNERING),
-    PARKING("주차", PracticeType.PARKING),
     ALL("전체", null),
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FilterBottomSheet(
-    activeCategory: FilterCategory,
+    activeCategory: FilterCategory?,
     selectedPracticeTypes: Set<PracticeType>,
     onCategorySelect: (FilterCategory) -> Unit,
     onPracticeOptionToggle: (FilterPracticeOption) -> Unit,
@@ -135,7 +138,7 @@ fun FilterBottomSheet(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterBottomSheetContent(
-    activeCategory: FilterCategory,
+    activeCategory: FilterCategory?,
     selectedPracticeTypes: Set<PracticeType>,
     onCategorySelect: (FilterCategory) -> Unit,
     onPracticeOptionToggle: (FilterPracticeOption) -> Unit,
@@ -181,22 +184,13 @@ private fun FilterBottomSheetContent(
             FilterCategory.entries.forEach { category ->
                 FilterChip(
                     label = category.label,
-                    selected = when (category) {
-                        FilterCategory.PARKING -> PracticeType.PARKING in selectedPracticeTypes
-                        else -> category == activeCategory
-                    },
-                    onClick = {
-                        if (category == FilterCategory.PARKING) {
-                            onPracticeOptionToggle(FilterPracticeOption.PARKING)
-                        } else {
-                            onCategorySelect(category)
-                        }
-                    },
+                    selected = category == activeCategory,
+                    onClick = { onCategorySelect(category) },
                     enabled = !isSaving,
                 )
             }
         }
-        if (activeCategory.practiceOptions.isNotEmpty()) {
+        activeCategory?.takeIf { it.practiceOptions.isNotEmpty() }?.let { category ->
             Text(
                 text = "연습유형",
                 style = RodiTheme.typography.body1SemiBold,
@@ -212,10 +206,10 @@ private fun FilterBottomSheetContent(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                activeCategory.practiceOptions.forEach { option ->
+                category.practiceOptions.forEach { option ->
                     FilterChip(
                         label = option.label,
-                        selected = option.isSelected(activeCategory, selectedPracticeTypes),
+                        selected = option.isSelected(category, selectedPracticeTypes),
                         onClick = { onPracticeOptionToggle(option) },
                         enabled = !isSaving,
                     )
@@ -270,12 +264,19 @@ private fun FilterChip(
     val borderColor = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.primary200
     val background = if (selected) RodiTheme.colors.primary100 else RodiTheme.colors.white
     val textColor = if (selected) RodiTheme.colors.primary800 else RodiTheme.colors.gray600
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = Modifier
-            .border(1.dp, borderColor, shape)
+            .clip(shape)
             .background(background, shape)
-            .clickable(enabled = enabled, onClick = onClick)
+            .border(1.dp, borderColor, shape)
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true),
+                onClick = onClick,
+            )
             .padding(horizontal = 14.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -330,12 +331,28 @@ private fun BasicDrivingFilterPreview() {
     }
 }
 
+@Preview(name = "Filter - no category", showBackground = true, widthDp = 375, heightDp = 401)
+@Composable
+private fun NoCategoryFilterPreview() {
+    RodiTheme {
+        FilterBottomSheetContent(
+            activeCategory = null,
+            selectedPracticeTypes = setOf(PracticeType.STRAIGHT, PracticeType.PARKING),
+            onCategorySelect = {},
+            onPracticeOptionToggle = {},
+            onReset = {},
+            onApply = {},
+            isSaving = false,
+        )
+    }
+}
+
 @Preview(name = "Filter - parking", showBackground = true, widthDp = 375, heightDp = 401)
 @Composable
 private fun ParkingFilterPreview() {
     RodiTheme {
         FilterBottomSheetContent(
-            activeCategory = FilterCategory.BASIC_DRIVING,
+            activeCategory = FilterCategory.PARKING,
             selectedPracticeTypes = setOf(PracticeType.PARKING),
             onCategorySelect = {},
             onPracticeOptionToggle = {},

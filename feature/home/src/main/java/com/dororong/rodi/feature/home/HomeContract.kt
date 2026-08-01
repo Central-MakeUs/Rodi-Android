@@ -53,7 +53,7 @@ data class HomeUiState(
     val hasPendingRestore: Boolean = false,
     val isRestoreInProgress: Boolean = false,
     val isFilterSheetVisible: Boolean = false,
-    val activeFilterCategory: FilterCategory = FilterCategory.BASIC_DRIVING,
+    val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
     val isFilterSaving: Boolean = false,
 ) {

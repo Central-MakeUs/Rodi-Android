@@ -406,7 +406,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.ALL))
         vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
         vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
         vm.onIntent(HomeIntent.OnFilterApply)
         advanceUntilIdle()
 
@@ -432,6 +433,59 @@ class HomeViewModelTest {
                 ),
             )
         }
+    }
+
+    @Test
+    fun `tapping an active category clears it without clearing selected practice types`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.BASIC_DRIVING))
+
+        assertNull(vm.state.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+    }
+
+    @Test
+    fun `tapping parking twice removes its tag and clears the active category`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        assertEquals(FilterCategory.PARKING, vm.state.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.PARKING), vm.state.value.selectedFilterPracticeTypes)
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+
+        assertNull(vm.state.value.activeFilterCategory)
+        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+    }
+
+    @Test
+    fun `moving from parking keeps its tag but activates only the new category`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+
+        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.activeFilterCategory)
+        assertEquals(
+            setOf(PracticeType.PARKING, PracticeType.MERGING),
+            vm.state.value.selectedFilterPracticeTypes,
+        )
+    }
+
+    @Test
+    fun `reset activates basic driving and clears all filter tags`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.OnFilterReset)
+
+        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.activeFilterCategory)
+        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
     }
 
     @Test

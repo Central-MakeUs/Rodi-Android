@@ -11,6 +11,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
@@ -38,6 +41,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
@@ -55,14 +59,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -165,6 +176,7 @@ private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
 
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
@@ -1131,34 +1143,32 @@ private fun ListSheetHeader(
                 .graphicsLayer { alpha = titleCenteringProgress }
                 .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
         )
-        Icon(
+        FilterHeaderIconButton(
             painter = painterResource(R.drawable.ic_filter_top),
-            contentDescription = "필터",
-            tint = RodiTheme.colors.black,
+            iconSize = 24.dp,
+            visualSize = 24.dp,
+            visualBottomInset = 0.dp,
+            backgroundColor = null,
+            onClick = onFilterClick,
+            enabled = titleCenteringProgress == 1f,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(end = 16.dp, top = 40.dp)
-                .size(24.dp)
+                .padding(end = 4.dp, top = 16.dp)
                 .graphicsLayer { alpha = titleCenteringProgress }
-                .clickable(enabled = titleCenteringProgress == 1f, onClick = onFilterClick),
         )
-        Box(
+        FilterHeaderIconButton(
+            painter = painterResource(R.drawable.ic_filter),
+            iconSize = 16.dp,
+            visualSize = 23.dp,
+            visualBottomInset = 1.dp,
+            backgroundColor = RodiTheme.colors.gray100,
+            onClick = onFilterClick,
+            enabled = titleCenteringProgress == 0f,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(end = 16.dp, top = 24.dp)
-                .size(23.dp)
+                .padding(end = 4.dp)
                 .graphicsLayer { alpha = 1f - titleCenteringProgress }
-                .background(RodiTheme.colors.gray100, RoundedCornerShape(20.dp))
-                .clickable(enabled = titleCenteringProgress == 0f, onClick = onFilterClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_filter),
-                contentDescription = "필터",
-                tint = RodiTheme.colors.black,
-                modifier = Modifier.size(16.dp),
-            )
-        }
+        )
         Text(
             text = "추천 목록",
             style = RodiTheme.typography.headline1,
@@ -1169,6 +1179,53 @@ private fun ListSheetHeader(
                 .padding(start = 16.dp, top = titleTopPadding)
                 .graphicsLayer { translationX = titleTranslation * titleCenteringProgress },
         )
+    }
+}
+
+@Composable
+private fun FilterHeaderIconButton(
+    painter: Painter,
+    iconSize: Dp,
+    visualSize: Dp,
+    visualBottomInset: Dp,
+    backgroundColor: Color?,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .size(FILTER_HEADER_ICON_TOUCH_SIZE)
+            .semantics { contentDescription = "필터" }
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .offset(y = -visualBottomInset)
+                .size(visualSize)
+                .clip(CircleShape)
+                .then(backgroundColor?.let { Modifier.background(it, CircleShape) } ?: Modifier)
+                .indication(
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = true, radius = visualSize / 2),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painter,
+                contentDescription = null,
+                tint = RodiTheme.colors.black,
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }
 

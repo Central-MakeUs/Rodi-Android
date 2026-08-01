@@ -102,7 +102,12 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
             is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
             is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
-            HomeIntent.OnFilterReset -> _state.update { it.copy(selectedFilterPracticeTypes = emptySet()) }
+            HomeIntent.OnFilterReset -> _state.update {
+                it.copy(
+                    activeFilterCategory = FilterCategory.BASIC_DRIVING,
+                    selectedFilterPracticeTypes = emptySet(),
+                )
+            }
             HomeIntent.OnFilterApply -> applyFilter()
             HomeIntent.OnFilterDismiss -> dismissFilter()
             HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
@@ -214,6 +219,7 @@ class HomeViewModel @Inject constructor(
                 totalCount = page.totalCount,
                 searchedQuery = query,
                 isNextPageLoading = false,
+                placeListGeneration = it.placeListGeneration + 1,
             )
         }
     }
@@ -400,16 +406,36 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun selectFilterCategory(category: FilterCategory) {
-        if (category != FilterCategory.PARKING && !_state.value.isFilterSaving) {
-            _state.update { it.copy(activeFilterCategory = category) }
+        if (_state.value.isFilterSaving) return
+        _state.update { current ->
+            if (current.activeFilterCategory == category) {
+                current.copy(
+                    activeFilterCategory = null,
+                    selectedFilterPracticeTypes = if (category == FilterCategory.PARKING) {
+                        current.selectedFilterPracticeTypes - PracticeType.PARKING
+                    } else {
+                        current.selectedFilterPracticeTypes
+                    },
+                )
+            } else {
+                current.copy(
+                    activeFilterCategory = category,
+                    selectedFilterPracticeTypes = if (category == FilterCategory.PARKING) {
+                        current.selectedFilterPracticeTypes + PracticeType.PARKING
+                    } else {
+                        current.selectedFilterPracticeTypes
+                    },
+                )
+            }
         }
     }
 
     private fun toggleFilterPracticeOption(option: FilterPracticeOption) {
         if (_state.value.isFilterSaving) return
         _state.update { current ->
+            val activeCategory = current.activeFilterCategory ?: return@update current
             val targetTypes = when (option) {
-                FilterPracticeOption.ALL -> current.activeFilterCategory.practiceTypes()
+                FilterPracticeOption.ALL -> activeCategory.practiceTypes()
                 else -> setOf(requireNotNull(option.practiceType))
             }
             val selectedTypes = if (targetTypes.all(current.selectedFilterPracticeTypes::contains)) {
