@@ -547,7 +547,7 @@ fun HomeScreen(
                             ?: return@mapNotNull null
                         ProjectedMapItem(place.id, place.point, point.x, point.y)
                     },
-                    viewport = visibleViewport?.screen ?: return@LaunchedEffect,
+                    viewport = currentViewport?.screen ?: return@LaunchedEffect,
                     minimumDistancePx = clusterDistancePx,
                     targetZoom = policy.targetZoom,
                 )
