@@ -133,8 +133,8 @@ import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
+import com.dororong.rodi.feature.home.map.viewportAboveBottomInsetOrNull
 import com.dororong.rodi.feature.home.map.boundsOrNull
-import com.dororong.rodi.feature.home.map.visibleViewportOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -519,12 +519,10 @@ fun HomeScreen(
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
-        val visibleViewport = map.visibleViewportOrNull(mapViewSize)
-        val visibleGeoViewport = visibleViewport?.geo ?: searchedViewport
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { visibleGeoViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
@@ -836,7 +834,16 @@ fun HomeScreen(
                         ) {
                             MapResearchButton(
                                 onClick = {
-                                    val viewport = currentViewport ?: return@MapResearchButton
+                                    val viewport = when (state.surfaceState) {
+                                        HomeSurfaceState.PartialList,
+                                        HomeSurfaceState.FullList,
+                                        -> kakaoMap?.viewportAboveBottomInsetOrNull(
+                                            size = mapViewSize,
+                                            bottomInsetPx = visibleSheetHeightPx,
+                                        )
+
+                                        else -> currentViewport
+                                    } ?: return@MapResearchButton
                                     hasUserChosenMapViewport = true
                                     vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
                                 },

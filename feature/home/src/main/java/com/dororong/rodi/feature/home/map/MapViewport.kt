@@ -55,6 +55,20 @@ fun KakaoMap.viewportOrNull(size: IntSize): MapViewport? {
     return visibleViewportOrNull(size)?.geo
 }
 
+fun KakaoMap.viewportAboveBottomInsetOrNull(
+    size: IntSize,
+    bottomInsetPx: Int,
+): MapViewport? {
+    if (size.width <= 0 || size.height <= 0) return null
+    val bottom = (size.height - bottomInsetPx).coerceIn(1, size.height)
+    val northEast = fromScreenPoint(size.width - 1, 0) ?: return null
+    val southWest = fromScreenPoint(0, bottom - 1) ?: return null
+    return MapViewport(
+        northEast = GeoPoint(northEast.latitude, northEast.longitude),
+        southWest = GeoPoint(southWest.latitude, southWest.longitude),
+    )
+}
+
 fun KakaoMap.visibleViewportOrNull(size: IntSize): VisibleMapViewport? {
     val sdkViewport = viewport
     val screen = MapScreenRect(
