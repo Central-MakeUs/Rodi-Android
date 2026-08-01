@@ -25,6 +25,7 @@ interface PlaceApi {
 
     @GET("places")
     suspend fun getPlaces(
+        @Header("Authorization") authorization: String?,
         @Query("swLat") swLat: Double,
         @Query("swLng") swLng: Double,
         @Query("neLat") neLat: Double,

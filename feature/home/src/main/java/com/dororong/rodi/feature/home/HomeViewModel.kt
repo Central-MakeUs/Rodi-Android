@@ -11,17 +11,22 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.filter.FilterPracticeOption
+import com.dororong.rodi.feature.home.filter.practiceTypes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -51,6 +56,7 @@ class HomeViewModel @Inject constructor(
     private val restoreWithKakaoUseCase: RestoreWithKakaoUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
+    private val updateFilterTagsUseCase: UpdateFilterTagsUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -95,6 +101,19 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
+            HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
+            is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
+            is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
+            HomeIntent.OnFilterReset -> if (!_state.value.isFilterSaving) {
+                _state.update {
+                    it.copy(
+                        activeFilterCategory = FilterCategory.BASIC_DRIVING,
+                        selectedFilterPracticeTypes = emptySet(),
+                    )
+                }
+            }
+            HomeIntent.OnFilterApply -> applyFilter()
+            HomeIntent.OnFilterDismiss -> dismissFilter()
             HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
             is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
             is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
@@ -193,7 +212,10 @@ class HomeViewModel @Inject constructor(
             }
     }
 
-    private fun applyFirstPage(query: PlaceViewportQuery, page: CursorPage<PlaceSummary>) {
+    private fun applyFirstPage(
+        query: PlaceViewportQuery,
+        page: CursorPage<PlaceSummary>,
+    ) {
         val uniqueItems = page.items.distinctBy(PlaceSummary::id)
         _state.update {
             it.copy(
@@ -204,6 +226,7 @@ class HomeViewModel @Inject constructor(
                 totalCount = page.totalCount,
                 searchedQuery = query,
                 isNextPageLoading = false,
+                placeListGeneration = it.placeListGeneration + 1,
             )
         }
     }
@@ -293,6 +316,7 @@ class HomeViewModel @Inject constructor(
             PendingHomeAction.ToggleBookmark -> toggleBookmark()
             PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
             is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
+            is PendingHomeAction.SaveFilterTags -> saveFilterTags(action.filterTags)
         }
     }
 
@@ -398,6 +422,89 @@ class HomeViewModel @Inject constructor(
             } else {
                 requireLogin(PendingHomeAction.OpenSearch(origin))
             }
+        }
+    }
+
+    private fun selectFilterCategory(category: FilterCategory) {
+        if (_state.value.isFilterSaving) return
+        _state.update { current ->
+            if (current.activeFilterCategory == category) {
+                current.copy(
+                    activeFilterCategory = null,
+                    selectedFilterPracticeTypes = if (category == FilterCategory.PARKING) {
+                        current.selectedFilterPracticeTypes - PracticeType.PARKING
+                    } else {
+                        current.selectedFilterPracticeTypes
+                    },
+                )
+            } else {
+                current.copy(
+                    activeFilterCategory = category,
+                    selectedFilterPracticeTypes = if (category == FilterCategory.PARKING) {
+                        current.selectedFilterPracticeTypes + PracticeType.PARKING
+                    } else {
+                        current.selectedFilterPracticeTypes
+                    },
+                )
+            }
+        }
+    }
+
+    private fun toggleFilterPracticeOption(option: FilterPracticeOption) {
+        if (_state.value.isFilterSaving) return
+        _state.update { current ->
+            val activeCategory = current.activeFilterCategory ?: return@update current
+            val targetTypes = when (option) {
+                FilterPracticeOption.ALL -> activeCategory.practiceTypes()
+                else -> setOf(requireNotNull(option.practiceType))
+            }
+            val selectedTypes = if (targetTypes.all(current.selectedFilterPracticeTypes::contains)) {
+                current.selectedFilterPracticeTypes - targetTypes
+            } else {
+                current.selectedFilterPracticeTypes + targetTypes
+            }
+            current.copy(selectedFilterPracticeTypes = selectedTypes)
+        }
+    }
+
+    private fun applyFilter() {
+        val filterTags = _state.value.selectedFilterPracticeTypes
+        if (_state.value.isFilterSaving) return
+        viewModelScope.launch {
+            if (isLoggedIn()) {
+                saveFilterTags(filterTags)
+            } else {
+                requireLogin(PendingHomeAction.SaveFilterTags(filterTags))
+            }
+        }
+    }
+
+    private fun saveFilterTags(filterTags: Set<PracticeType>) {
+        if (_state.value.isFilterSaving) return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    selectedFilterPracticeTypes = filterTags,
+                    isFilterSaving = true,
+                )
+            }
+            updateFilterTagsUseCase(filterTags)
+                .onSuccess {
+                    _state.update { it.copy(isFilterSheetVisible = false, isFilterSaving = false) }
+                    _state.value.searchedQuery?.let { query ->
+                        loadFirstPage(query, force = true)
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isFilterSaving = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
+        }
+    }
+
+    private fun dismissFilter() {
+        if (!_state.value.isFilterSaving) {
+            _state.update { it.copy(isFilterSheetVisible = false) }
         }
     }
 

@@ -24,35 +24,46 @@ import org.junit.jupiter.api.Test
 
 class PlaceRepositoryImplTest {
     @Test
-    fun `search sends authenticated keyword and location`() = runTest {
+    fun `places sends access token when a session exists`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
+        val query = viewportQuery()
         coEvery { tokenStore.getTokens() } returns tokens("access")
         coEvery {
-            api.searchPlaces("Bearer access", "강남", 37.5, 126.9, 20, null)
-        } returns ApiEnvelope(
-            isSuccess = true,
-            code = "COMMON_200",
-            message = "성공",
-            data = CursorPagePlaceResponse(
-                items = listOf(
-                    PlaceListItemResponse(8, "COURSE", "강남 코스", "서울 강남구", 37.5, 126.9),
-                ),
-                totalCount = 1,
-            ),
-        )
+            api.getPlaces(
+                authorization = "Bearer access",
+                swLat = query.southWest.lat,
+                swLng = query.southWest.lng,
+                neLat = query.northEast.lat,
+                neLng = query.northEast.lng,
+                lat = query.origin.lat,
+                lng = query.origin.lng,
+                size = 20,
+                cursor = null,
+            )
+        } returns placePageEnvelope()
         val repository = PlaceRepositoryImpl(
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            authRepository,
+            mockk<AuthRepository>(),
         )
 
-        val page = repository.searchPlaces("강남", GeoPoint(37.5, 126.9), null, 20)
+        repository.getPlaces(query, cursor = null, size = 20)
 
-        assertEquals(listOf("강남 코스"), page.items.map { it.name })
-        coVerify { api.searchPlaces("Bearer access", "강남", 37.5, 126.9, 20, null) }
+        coVerify(exactly = 1) {
+            api.getPlaces(
+                authorization = "Bearer access",
+                swLat = query.southWest.lat,
+                swLng = query.southWest.lng,
+                neLat = query.northEast.lat,
+                neLng = query.northEast.lng,
+                lat = query.origin.lat,
+                lng = query.origin.lng,
+                size = 20,
+                cursor = null,
+            )
+        }
     }
 
     @Test
@@ -169,6 +180,19 @@ class PlaceRepositoryImplTest {
     }
 
     private fun tokens(access: String) = AuthTokens(access, "refresh", "kakao")
+
+    private fun viewportQuery() = com.dororong.rodi.core.domain.model.place.PlaceViewportQuery(
+        southWest = GeoPoint(37.4, 126.8),
+        northEast = GeoPoint(37.6, 127.0),
+        origin = GeoPoint(37.5, 126.9),
+    )
+
+    private fun placePageEnvelope() = ApiEnvelope(
+        isSuccess = true,
+        code = "COMMON_200",
+        message = "성공",
+        data = CursorPagePlaceResponse(),
+    )
 
     private fun detailEnvelope(id: Long) = ApiEnvelope(
         isSuccess = true,

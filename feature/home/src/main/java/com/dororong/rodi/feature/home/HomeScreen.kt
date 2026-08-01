@@ -11,11 +11,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +41,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
@@ -56,14 +59,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -95,6 +105,7 @@ import com.dororong.rodi.feature.home.components.NaviPickerSheet
 import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
+import com.dororong.rodi.feature.home.filter.FilterBottomSheet
 import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
@@ -134,8 +145,9 @@ import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
-import com.dororong.rodi.feature.home.map.boundsOrNull
+import com.dororong.rodi.feature.home.map.viewportAboveBottomInsetOrNull
 import com.dororong.rodi.feature.home.map.visibleViewportOrNull
+import com.dororong.rodi.feature.home.map.boundsOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -166,6 +178,7 @@ private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
 
 typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
@@ -331,10 +344,12 @@ fun HomeScreen(
     val sheetOffsetPx by remember {
         derivedStateOf { runCatching { sheetState.requireOffset() }.getOrDefault(scaffoldSize.height.toFloat()) }
     }
+    val visibleSheetHeightPx = BottomSheetViewportPolicy.bottomPaddingPx(
+        mapHeightPx = scaffoldSize.height,
+        sheetTopPx = sheetOffsetPx,
+    )
     val visibleSheetHeight = with(density) {
-        (scaffoldSize.height - sheetOffsetPx)
-            .coerceAtLeast(0f)
-            .toDp()
+        visibleSheetHeightPx.toDp()
     }
     val sheetExpansionProgress = with(density) {
         val partialSheetOffsetPx = (scaffoldSize.height - 380.dp.toPx()).coerceAtLeast(0f)
@@ -364,7 +379,8 @@ fun HomeScreen(
         visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
         ).coerceAtLeast(0.dp)
     val mapContentBottomPaddingPx = when {
-        state.surfaceState == HomeSurfaceState.PartialList -> with(density) { 380.dp.roundToPx() }
+        state.surfaceState == HomeSurfaceState.PartialList ||
+            state.surfaceState == HomeSurfaceState.FullList -> visibleSheetHeightPx
         state.surfaceState == HomeSurfaceState.Navigation -> bottomNavigationHeightPx
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
@@ -424,10 +440,14 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = state.surfaceState != HomeSurfaceState.Navigation) {
-        when (state.surfaceState) {
-            HomeSurfaceState.Detail -> dismissDetail()
-            else -> vm.onIntent(HomeIntent.OnListCollapse)
+    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        if (state.isFilterSheetVisible) {
+            if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
+        } else {
+            when (state.surfaceState) {
+                HomeSurfaceState.Detail -> dismissDetail()
+                else -> vm.onIntent(HomeIntent.OnListCollapse)
+            }
         }
     }
 
@@ -515,12 +535,10 @@ fun HomeScreen(
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
-        val visibleViewport = map.visibleViewportOrNull(mapViewSize)
-        val visibleGeoViewport = visibleViewport?.geo ?: searchedViewport
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { visibleGeoViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
@@ -533,7 +551,7 @@ fun HomeScreen(
                             ?: return@mapNotNull null
                         ProjectedMapItem(place.id, place.point, point.x, point.y)
                     },
-                    viewport = visibleViewport?.screen ?: return@LaunchedEffect,
+                    viewport = map.visibleViewportOrNull(mapViewSize)?.screen ?: return@LaunchedEffect,
                     minimumDistancePx = clusterDistancePx,
                     targetZoom = policy.targetZoom,
                 )
@@ -649,6 +667,7 @@ fun HomeScreen(
                                     expansionProgress = sheetExpansionProgress,
                                     onExpand = { vm.onIntent(HomeIntent.OnListExpand) },
                                     onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
+                                    onFilterClick = { vm.onIntent(HomeIntent.OnFilterOpen) },
                                 )
                             }
                             when {
@@ -665,20 +684,22 @@ fun HomeScreen(
                                     isInitialError = state.showInitialError,
                                     onHandleDragDown = { scope.launch { sheetState.hide() } },
                                 )
-                                else -> PlaceListContent(
-                                    places = state.places,
-                                    onPlaceClick = {
-                                        vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
-                                    },
-                                    onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
-                                    isNextPageLoading = state.isNextPageLoading,
-                                    topContentPadding = lerp(
-                                        0.dp,
-                                        FULL_LIST_CONTENT_TOP_PADDING,
-                                        sheetExpansionProgress,
-                                    ),
-                                    modifier = Modifier.height(listViewportHeight),
-                                )
+                                else -> key(state.placeListGeneration) {
+                                    PlaceListContent(
+                                        places = state.places,
+                                        onPlaceClick = {
+                                            vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
+                                        },
+                                        onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
+                                        isNextPageLoading = state.isNextPageLoading,
+                                        topContentPadding = lerp(
+                                            0.dp,
+                                            FULL_LIST_CONTENT_TOP_PADDING,
+                                            sheetExpansionProgress,
+                                        ),
+                                        modifier = Modifier.height(listViewportHeight),
+                                    )
+                                }
                             }
                         }
                     },
@@ -820,22 +841,46 @@ fun HomeScreen(
                             )
                         }
 
-                        HomeTopControls(
-                            showResearch = shouldShowResearch,
-                            onSearchClick = {
+                        HomeSearchBar(
+                            onClick = {
                                 vm.onIntent(
                                     HomeIntent.OnSearchClick(
                                         currentViewport?.toQuery(currentLocation)?.origin,
                                     ),
                                 )
                             },
-                            onResearchClick = {
-                                val viewport = currentViewport ?: return@HomeTopControls
-                                hasUserChosenMapViewport = true
-                                vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
-                            },
-                            modifier = Modifier.align(Alignment.TopCenter),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 5.dp),
                         )
+
+                        AnimatedVisibility(
+                            visible = shouldShowResearch,
+                            enter = fadeIn(tween(durationMillis = RESEARCH_BUTTON_FADE_IN_MILLIS)),
+                            exit = fadeOut(tween(durationMillis = RESEARCH_BUTTON_FADE_OUT_MILLIS)),
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(top = 63.dp),
+                        ) {
+                            MapResearchButton(
+                                onClick = {
+                                    val viewport = when (state.surfaceState) {
+                                        HomeSurfaceState.PartialList,
+                                        HomeSurfaceState.FullList,
+                                        -> kakaoMap?.viewportAboveBottomInsetOrNull(
+                                            size = mapViewSize,
+                                            bottomInsetPx = visibleSheetHeightPx,
+                                        )
+
+                                        else -> currentViewport
+                                    } ?: return@MapResearchButton
+                                    hasUserChosenMapViewport = true
+                                    vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
+                                },
+                            )
+                        }
 
                         AnimatedVisibility(
                             visible = state.surfaceState == HomeSurfaceState.Navigation,
@@ -1013,6 +1058,19 @@ fun HomeScreen(
         )
     }
 
+    if (state.isFilterSheetVisible) {
+        FilterBottomSheet(
+            activeCategory = state.activeFilterCategory,
+            selectedPracticeTypes = state.selectedFilterPracticeTypes,
+            onCategorySelect = { vm.onIntent(HomeIntent.OnFilterCategorySelect(it)) },
+            onPracticeOptionToggle = { vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(it)) },
+            onReset = { vm.onIntent(HomeIntent.OnFilterReset) },
+            onApply = { vm.onIntent(HomeIntent.OnFilterApply) },
+            onDismiss = { vm.onIntent(HomeIntent.OnFilterDismiss) },
+            isSaving = state.isFilterSaving,
+        )
+    }
+
     naviPlaceId?.let {
         NaviPickerSheet(
             onDismiss = { naviPlaceId = null },
@@ -1039,6 +1097,7 @@ private fun ListSheetHeader(
     expansionProgress: Float,
     onExpand: () -> Unit,
     onBack: () -> Unit,
+    onFilterClick: () -> Unit,
 ) {
     val density = LocalDensity.current
     var titleWidthPx by remember { mutableIntStateOf(0) }
@@ -1104,6 +1163,32 @@ private fun ListSheetHeader(
                 .graphicsLayer { alpha = titleCenteringProgress }
                 .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
         )
+        FilterHeaderIconButton(
+            painter = painterResource(R.drawable.ic_filter_top),
+            iconSize = 24.dp,
+            visualSize = 24.dp,
+            visualBottomInset = 0.dp,
+            backgroundColor = null,
+            onClick = onFilterClick,
+            enabled = titleCenteringProgress == 1f,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 4.dp, top = 16.dp)
+                .graphicsLayer { alpha = titleCenteringProgress }
+        )
+        FilterHeaderIconButton(
+            painter = painterResource(R.drawable.ic_filter),
+            iconSize = 16.dp,
+            visualSize = 23.dp,
+            visualBottomInset = 1.dp,
+            backgroundColor = RodiTheme.colors.gray100,
+            onClick = onFilterClick,
+            enabled = titleCenteringProgress == 0f,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(end = 4.dp)
+                .graphicsLayer { alpha = 1f - titleCenteringProgress }
+        )
         Text(
             text = "추천 목록",
             style = RodiTheme.typography.headline1,
@@ -1114,6 +1199,53 @@ private fun ListSheetHeader(
                 .padding(start = 16.dp, top = titleTopPadding)
                 .graphicsLayer { translationX = titleTranslation * titleCenteringProgress },
         )
+    }
+}
+
+@Composable
+private fun FilterHeaderIconButton(
+    painter: Painter,
+    iconSize: Dp,
+    visualSize: Dp,
+    visualBottomInset: Dp,
+    backgroundColor: Color?,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Box(
+        modifier = modifier
+            .size(FILTER_HEADER_ICON_TOUCH_SIZE)
+            .semantics { contentDescription = "필터" }
+            .clickable(
+                enabled = enabled,
+                role = Role.Button,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .offset(y = -visualBottomInset)
+                .size(visualSize)
+                .clip(CircleShape)
+                .then(backgroundColor?.let { Modifier.background(it, CircleShape) } ?: Modifier)
+                .indication(
+                    interactionSource = interactionSource,
+                    indication = ripple(bounded = true, radius = visualSize / 2),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painter,
+                contentDescription = null,
+                tint = RodiTheme.colors.black,
+                modifier = Modifier.size(iconSize),
+            )
+        }
     }
 }
 
@@ -1133,61 +1265,13 @@ private fun Context.isPackageInstalled(packageName: String): Boolean = runCatchi
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
 
+@Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
-private fun HomeTopControls(
-    showResearch: Boolean,
-    onSearchClick: () -> Unit,
-    onResearchClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .statusBarsPadding(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        HomeSearchBar(
-            onClick = onSearchClick,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
-        )
-
-        AnimatedVisibility(
-            visible = showResearch,
-            enter = fadeIn(tween(durationMillis = RESEARCH_BUTTON_FADE_IN_MILLIS)),
-            exit = fadeOut(tween(durationMillis = RESEARCH_BUTTON_FADE_OUT_MILLIS)),
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Spacer(Modifier.height(7.dp))
-                MapResearchButton(onClick = onResearchClick)
-            }
-        }
-    }
-}
-
-@Preview(name = "Home chrome - search", showBackground = true, widthDp = 375, heightDp = 812)
-@Composable
-private fun HomeChromeSearchPreview() {
-    HomeChromePreview(showResearch = false)
-}
-
-@Preview(name = "Home chrome - search with research", showBackground = true, widthDp = 375, heightDp = 812)
-@Composable
-private fun HomeChromeSearchWithResearchPreview() {
-    HomeChromePreview(showResearch = true)
-}
-
-@Composable
-private fun HomeChromePreview(showResearch: Boolean) {
+private fun HomeChromePreview() {
     RodiTheme {
         Box(Modifier
             .fillMaxSize()
             .background(RodiTheme.colors.gray100)) {
-            HomeTopControls(
-                showResearch = showResearch,
-                onSearchClick = {},
-                onResearchClick = {},
-                modifier = Modifier.align(Alignment.TopCenter),
-            )
             RodiBottomNavigation(
                 selectedDestination = RodiBottomNavigationDestination.Home,
                 onHomeClick = {},
@@ -1206,6 +1290,48 @@ private fun HomeChromePreview(showResearch: Boolean) {
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 12.dp, bottom = 78.dp),
+            )
+        }
+    }
+}
+
+@Preview(
+    name = "Home chrome - small large font",
+    showBackground = true,
+    widthDp = 320,
+    heightDp = 640,
+    fontScale = 1.3f,
+)
+@Composable
+private fun HomeChromeSmallPreview() {
+    HomeChromePreview()
+}
+
+@Preview(name = "List header - partial", showBackground = true, widthDp = 375, heightDp = 64)
+@Composable
+private fun PartialListHeaderPreview() {
+    RodiTheme {
+        Surface(color = RodiTheme.colors.white) {
+            ListSheetHeader(
+                expansionProgress = 0f,
+                onExpand = {},
+                onBack = {},
+                onFilterClick = {},
+            )
+        }
+    }
+}
+
+@Preview(name = "List header - full with filter", showBackground = true, widthDp = 375, heightDp = 80)
+@Composable
+private fun FullListHeaderPreview() {
+    RodiTheme {
+        Surface(color = RodiTheme.colors.white) {
+            ListSheetHeader(
+                expansionProgress = 1f,
+                onExpand = {},
+                onBack = {},
+                onFilterClick = {},
             )
         }
     }

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,8 +35,8 @@ fun PlaceListContent(
     isNextPageLoading: Boolean,
     topContentPadding: Dp,
     modifier: Modifier = Modifier,
-    listState: LazyListState = rememberLazyListState(),
 ) {
+    val listState = rememberLazyListState()
     val currentPlaces by rememberUpdatedState(places)
     val shouldLoadNext by remember(listState) {
         derivedStateOf {

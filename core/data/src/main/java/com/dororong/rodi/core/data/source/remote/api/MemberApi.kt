@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
+import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
@@ -9,6 +10,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+import retrofit2.http.PUT
 
 interface MemberApi {
     @GET("members/me")
@@ -18,6 +20,12 @@ interface MemberApi {
     suspend fun updateMe(
         @Header("Authorization") authorization: String,
         @Body request: MemberUpdateRequest,
+    ): ApiEnvelope<JsonObject>
+
+    @PUT("members/me/filter-tags")
+    suspend fun updateFilterTags(
+        @Header("Authorization") authorization: String,
+        @Body request: FilterTagsRequest,
     ): ApiEnvelope<JsonObject>
 
     @DELETE("members/me")

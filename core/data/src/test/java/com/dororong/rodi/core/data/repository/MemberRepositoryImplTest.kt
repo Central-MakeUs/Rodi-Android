@@ -4,10 +4,12 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
+import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -60,6 +62,31 @@ class MemberRepositoryImplTest {
         repository.updateDrivingGoal("   ")
 
         coVerify { memberApi.updateMe("Bearer access", MemberUpdateRequest("   ")) }
+    }
+
+    @Test
+    fun `filter tags send every selected practice type as wire values`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery {
+            memberApi.updateFilterTags(
+                "Bearer access",
+                FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
+            )
+        } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        repository.updateFilterTags(
+            listOf(PracticeType.STRAIGHT, PracticeType.PARKING, PracticeType.INTERSECTION),
+        )
+
+        coVerify {
+            memberApi.updateFilterTags(
+                "Bearer access",
+                FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
+            )
+        }
     }
 
     @Test

@@ -15,3 +15,8 @@ data class MyPageResponse(
 data class MemberUpdateRequest(
     val drivingGoal: String,
 )
+
+@Serializable
+data class FilterTagsRequest(
+    val filterTags: List<String>,
+)

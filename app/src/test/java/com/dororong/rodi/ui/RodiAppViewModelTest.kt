@@ -1,6 +1,7 @@
 package com.dororong.rodi.ui
 
 import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryCompletedUseCase
@@ -12,8 +13,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -54,7 +57,7 @@ class RodiAppViewModelTest {
             hasRecentKakaoLogin = true,
         )
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isReady)
@@ -72,7 +75,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(true)
         coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isReady)
@@ -90,7 +93,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
@@ -111,7 +114,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } throws IllegalStateException("token store unavailable")
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
 
@@ -138,7 +141,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         runCurrent()
 
         assertEquals(1, attempts)
@@ -170,7 +173,7 @@ class RodiAppViewModelTest {
             hasRecentKakaoLogin = true,
         )
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase())
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
         viewModel.onSessionEnded()
@@ -179,6 +182,58 @@ class RodiAppViewModelTest {
 
         assertFalse(viewModel.state.value.authSession.isLoggedIn)
         assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
+    }
+
+    @Test
+    fun `session expiration emits one login navigation and clears the authenticated state`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val expirations = MutableStateFlow(false)
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(expirations),
+        )
+        val effects = mutableListOf<RodiAppEffect>()
+        val effectCollection = launch { viewModel.effect.collect(effects::add) }
+        advanceUntilIdle()
+
+        expirations.value = true
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
+        effectCollection.cancel()
+    }
+
+    @Test
+    fun `expired session before ViewModel creation still navigates to login`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(MutableStateFlow(true)),
+        )
+        val effects = mutableListOf<RodiAppEffect>()
+        val effectCollection = launch { viewModel.effect.collect(effects::add) }
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
+        effectCollection.cancel()
     }
 
     @Test
@@ -191,7 +246,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } returns AuthSession(true, true)
 
-        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, sessionExpirationUseCase())
         advanceUntilIdle()
 
         coVerify(exactly = 1) { sync() }
@@ -207,7 +262,7 @@ class RodiAppViewModelTest {
         every { getGuestAccess() } returns flowOf(true)
         coEvery { getAuthSession() } returns AuthSession(false, true)
 
-        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, sessionExpirationUseCase())
         advanceUntilIdle()
 
         coVerify(exactly = 0) { sync() }
@@ -224,7 +279,7 @@ class RodiAppViewModelTest {
         coEvery { getAuthSession() } returns AuthSession(true, true)
         coEvery { sync() } throws IllegalStateException("offline")
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, sessionExpirationUseCase())
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isReady)
@@ -240,7 +295,7 @@ class RodiAppViewModelTest {
         every { getEntryCompleted() } returns flowOf(true)
         every { getGuestAccess() } returns flowOf(false)
         coEvery { getAuthSession() } returns AuthSession(false, true)
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, sessionExpirationUseCase())
         advanceUntilIdle()
         coEvery { getAuthSession() } returns AuthSession(true, true)
         coEvery { sync() } throws CancellationException("cancelled")
@@ -257,5 +312,11 @@ class RodiAppViewModelTest {
 
     private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {
         coEvery { this@mockk() } returns null
+    }
+
+    private fun sessionExpirationUseCase(
+        expirations: kotlinx.coroutines.flow.Flow<Boolean> = flowOf(false),
+    ): AuthRepository = mockk {
+        every { observeSessionExpiration() } returns expirations
     }
 }
