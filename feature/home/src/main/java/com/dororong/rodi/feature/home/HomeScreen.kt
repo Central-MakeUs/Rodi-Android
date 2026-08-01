@@ -506,6 +506,29 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(kakaoMap, state.regionSearchGeneration) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        val region = state.regionSearch ?: return@LaunchedEffect
+        if (state.regionSearchGeneration == 0L) return@LaunchedEffect
+        activeClusterMemberIds = null
+        hasUserChosenMapViewport = true
+        isAtCurrentLocation = false
+        mapSearchGeneration += 1
+        pendingMapSearch = PendingMapSearch(
+            generation = mapSearchGeneration,
+            target = region.point,
+            targetZoom = region.zoomLevel,
+            reason = MapSearchMoveReason.REGION,
+        )
+        map.moveCamera(
+            CameraUpdateFactory.newCenterPosition(
+                LatLng.from(region.point.lat, region.point.lng),
+                region.zoomLevel,
+            ),
+            CameraAnimation.from(300),
+        )
+    }
+
     LaunchedEffect(kakaoMap, permissionGranted, currentLocation, deviceHeading.value, currentLocationMarkerColor) {
         val map = kakaoMap ?: return@LaunchedEffect
         val location = currentLocation
@@ -849,6 +872,7 @@ fun HomeScreen(
                                     ),
                                 )
                             },
+                            searchKeyword = state.searchKeyword,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .statusBarsPadding()

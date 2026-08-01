@@ -25,6 +25,7 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
@@ -74,6 +75,21 @@ class HomeViewModelTest {
         assertEquals(page.items, vm.state.value.places)
         assertEquals(HomeListState.Content, vm.state.value.listState)
         coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
+    fun `region search opens partial list and retains the selected region`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+        val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
+
+        vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals("서울 중구", vm.state.value.searchKeyword)
+        assertEquals(region, vm.state.value.regionSearch)
+        assertEquals(1L, vm.state.value.regionSearchGeneration)
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(listOf(1L), vm.state.value.places.map(PlaceSummary::id))
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.search.RecentSearch
+import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
@@ -15,6 +16,8 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -78,6 +81,58 @@ class SearchViewModelTest {
 
         assertEquals(listOf(2L), viewModel.state.value.recentSearches.map { it.id })
         coVerify { dependencies.recentRepository.deleteRecentSearch(1) }
+    }
+
+    @Test
+    fun `recent searches are capped at fifteen`() = runTest(dispatcher) {
+        val dependencies = Dependencies(
+            recentSearches = List(16) { RecentSearch(it.toLong(), "검색어$it") },
+        )
+        val viewModel = dependencies.viewModel()
+
+        advanceUntilIdle()
+
+        assertEquals(15, viewModel.state.value.recentSearches.size)
+    }
+
+    @Test
+    fun `region suggestion with places navigates to its map result`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        val origin = GeoPoint(37.5, 126.9)
+        coEvery {
+            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
+        } returns CursorPage(listOf(place(1)), false, null, 1)
+        val viewModel = dependencies.viewModel()
+        viewModel.initialize(origin)
+        advanceUntilIdle()
+        val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
+        val effect = async { viewModel.effect.first() }
+
+        viewModel.onIntent(SearchIntent.OnRecentSearchClick(
+            RecentSearch(1, "서울 중구", SearchTargetType.REGION),
+        ))
+        advanceUntilIdle()
+
+        assertEquals(SearchEffect.NavigateRegion(region, listOf(place(1))), effect.await())
+    }
+
+    @Test
+    fun `region suggestion without places shows region empty state`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        val origin = GeoPoint(37.5, 126.9)
+        coEvery {
+            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
+        } returns CursorPage(emptyList(), false, null, 0)
+        val viewModel = dependencies.viewModel()
+        viewModel.initialize(origin)
+        advanceUntilIdle()
+
+        viewModel.onIntent(SearchIntent.OnRegionSuggestionClick(
+            requireNotNull(RegionOfficeLocationResolver.find("서울 중구")),
+        ))
+        advanceUntilIdle()
+
+        assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
     }
 
     private class Dependencies(

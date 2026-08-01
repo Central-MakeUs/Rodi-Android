@@ -25,6 +25,7 @@ import com.dororong.rodi.feature.home.R
 @Composable
 fun HomeSearchBar(
     onClick: () -> Unit,
+    searchKeyword: String? = null,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -49,9 +50,9 @@ fun HomeSearchBar(
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = "시/군/구로 검색하기",
+                text = searchKeyword ?: "시/군/구로 검색하기",
                 style = RodiTheme.typography.body2Medium,
-                color = RodiTheme.colors.gray500,
+                color = if (searchKeyword == null) RodiTheme.colors.gray500 else RodiTheme.colors.black,
             )
         }
     }
@@ -63,6 +64,18 @@ private fun HomeSearchBarPreview() {
     RodiTheme {
         HomeSearchBar(
             onClick = {},
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375)
+@Composable
+private fun HomeSearchBarResultPreview() {
+    RodiTheme {
+        HomeSearchBar(
+            onClick = {},
+            searchKeyword = "서울 중구",
             modifier = Modifier.padding(horizontal = 16.dp),
         )
     }

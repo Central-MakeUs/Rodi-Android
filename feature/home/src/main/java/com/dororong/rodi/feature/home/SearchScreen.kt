@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -27,12 +30,14 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -44,10 +49,15 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.search.RecentSearch
+import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.list.components.PlaceListContent
+import com.dororong.rodi.feature.home.search.RegionOfficeLocation
+import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.search.SearchEffect
 import com.dororong.rodi.feature.home.search.SearchIntent
 import com.dororong.rodi.feature.home.search.SearchResultState
@@ -59,6 +69,7 @@ fun SearchScreen(
     origin: GeoPoint,
     onBack: () -> Unit,
     onPlaceClick: (Long) -> Unit,
+    onRegionClick: (RegionOfficeLocation, List<PlaceSummary>) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -73,20 +84,21 @@ fun SearchScreen(
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             is SearchEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            is SearchEffect.NavigatePlace -> onPlaceClick(effect.placeId)
+            is SearchEffect.NavigateRegion -> onRegionClick(effect.region, effect.initialPlaces)
         }
     }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = RodiTheme.colors.white,
-    ) { innerPadding ->
+    ) {
         SearchScreenContent(
             state = state,
             focusRequester = focusRequester,
             onIntent = viewModel::onIntent,
             onBack = onBack,
-            onPlaceClick = onPlaceClick,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier,
         )
     }
 }
@@ -97,7 +109,6 @@ private fun SearchScreenContent(
     focusRequester: FocusRequester,
     onIntent: (SearchIntent) -> Unit,
     onBack: () -> Unit,
-    onPlaceClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -119,23 +130,25 @@ private fun SearchScreenContent(
                 isLoading = state.isRecentSearchesLoading,
                 isDeletingAll = state.isDeletingAllRecentSearches,
                 deletingIds = state.deletingRecentSearchIds,
-                onSearchClick = { onIntent(SearchIntent.OnQueryChange(it)) },
+                onSearchClick = { onIntent(SearchIntent.OnRecentSearchClick(it)) },
                 onDeleteAll = { onIntent(SearchIntent.OnDeleteAllRecentSearches) },
                 onDelete = { onIntent(SearchIntent.OnDeleteRecentSearch(it)) },
                 modifier = Modifier.weight(1f),
             )
 
             state.resultState == SearchResultState.Loading -> SearchLoadingContent(Modifier.weight(1f))
-            state.resultState == SearchResultState.Content -> PlaceListContent(
+            state.resultState == SearchResultState.Content -> SearchSuggestionList(
+                regions = state.regionSuggestions,
                 places = state.places,
-                onPlaceClick = onPlaceClick,
+                onRegionClick = { onIntent(SearchIntent.OnRegionSuggestionClick(it)) },
+                onPlaceClick = { onIntent(SearchIntent.OnPlaceSuggestionClick(it)) },
                 onLoadNextPage = { onIntent(SearchIntent.OnLoadNextPage) },
                 isNextPageLoading = state.isNextPageLoading,
-                topContentPadding = 0.dp,
                 modifier = Modifier.weight(1f),
             )
 
             state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim())
+            state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent()
             else -> Unit
         }
     }
@@ -197,43 +210,50 @@ private fun SearchInput(
 
 @Composable
 private fun RecentSearchList(
-    searches: List<com.dororong.rodi.core.domain.model.search.RecentSearch>,
+    searches: List<RecentSearch>,
     isLoading: Boolean,
     isDeletingAll: Boolean,
     deletingIds: Set<Long>,
-    onSearchClick: (String) -> Unit,
+    onSearchClick: (RecentSearch) -> Unit,
     onDeleteAll: () -> Unit,
     onDelete: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
-        isLoading -> SearchLoadingContent(modifier)
+        isLoading -> Unit
         searches.isEmpty() -> Unit
-        else -> Column(modifier = modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "최근 검색어",
-                    style = RodiTheme.typography.caption2Medium,
-                    color = RodiTheme.colors.gray700,
-                )
-                Text(
-                    text = "전체삭제",
-                    style = RodiTheme.typography.caption2Medium,
-                    color = RodiTheme.colors.gray500,
-                    modifier = Modifier.clickable(enabled = !isDeletingAll, onClick = onDeleteAll),
-                )
+        else -> LazyColumn(modifier = modifier.fillMaxWidth()) {
+            item(key = "recent_search_header") {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "최근 검색어",
+                        style = RodiTheme.typography.caption2Medium,
+                        color = RodiTheme.colors.gray700,
+                    )
+                    Text(
+                        text = "전체삭제",
+                        style = RodiTheme.typography.caption2Medium,
+                        color = RodiTheme.colors.gray500,
+                        modifier = Modifier.clickable(enabled = !isDeletingAll, onClick = onDeleteAll),
+                    )
+                }
             }
-            searches.forEach { search ->
+            items(searches, key = RecentSearch::id) { search ->
                 SearchRow(
                     text = search.keyword,
-                    onClick = { onSearchClick(search.keyword) },
+                    iconRes = if (search.type == SearchTargetType.PLACE || search.placeId != null) {
+                        R.drawable.ic_map_pin
+                    } else {
+                        R.drawable.ic_search
+                    },
+                    onClick = { onSearchClick(search) },
                     trailingContent = {
                         Icon(
                             painter = painterResource(R.drawable.ic_x),
@@ -256,6 +276,7 @@ private fun RecentSearchList(
 @Composable
 private fun SearchRow(
     text: String,
+    iconRes: Int,
     onClick: () -> Unit,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
@@ -266,17 +287,73 @@ private fun SearchRow(
                 .height(61.dp)
                 .clickable(onClick = onClick)
                 .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(20.dp),
+            )
             Text(
                 text = text,
                 style = RodiTheme.typography.body2Medium,
                 color = RodiTheme.colors.black,
+                modifier = Modifier.weight(1f),
             )
             trailingContent?.invoke()
         }
         HorizontalDivider(color = RodiTheme.colors.gray100)
+    }
+}
+
+@Composable
+private fun SearchSuggestionList(
+    regions: List<RegionOfficeLocation>,
+    places: List<PlaceSummary>,
+    onRegionClick: (RegionOfficeLocation) -> Unit,
+    onPlaceClick: (Long) -> Unit,
+    onLoadNextPage: () -> Unit,
+    isNextPageLoading: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val listState = rememberLazyListState()
+    val itemCount = regions.size + places.size + if (regions.isNotEmpty() && places.isNotEmpty()) 1 else 0
+    val lastItemIndex = itemCount - 1
+    val isAtListEnd by remember(listState, lastItemIndex) {
+        derivedStateOf {
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index == lastItemIndex
+        }
+    }
+    LaunchedEffect(isAtListEnd, isNextPageLoading, places.size) {
+        if (isAtListEnd && !isNextPageLoading && places.isNotEmpty()) onLoadNextPage()
+    }
+
+    LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        items(regions, key = RegionOfficeLocation::regionKey) { region ->
+            SearchRow(
+                text = region.displayName,
+                iconRes = R.drawable.ic_search,
+                onClick = { onRegionClick(region) },
+            )
+        }
+        if (regions.isNotEmpty() && places.isNotEmpty()) {
+            item { HorizontalDivider(color = RodiTheme.colors.gray200, thickness = 4.dp) }
+        }
+        items(places, key = PlaceSummary::id) { place ->
+            SearchRow(
+                text = place.name,
+                iconRes = R.drawable.ic_map_pin,
+                onClick = { onPlaceClick(place.id) },
+            )
+        }
+        if (isNextPageLoading) {
+            item { SearchLoadingContent(Modifier.fillParentMaxWidth().height(62.dp)) }
+        }
     }
 }
 
@@ -308,12 +385,41 @@ private fun SearchEmptyContent(query: String) {
         )
         Text(
             text = "‘$query’검색 결과가 없어요.",
-            style = RodiTheme.typography.body1SemiBold,
-            color = RodiTheme.colors.black,
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.gray600,
             modifier = Modifier.padding(top = 20.dp),
         )
         Text(
-            text = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구 또는 장소명으로 검색해주세요.",
+            text = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구/코스명으로 검색해주세요.",
+            style = RodiTheme.typography.body3Medium,
+            color = RodiTheme.colors.gray600,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun RegionSearchEmptyContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 129.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.illust_course_empty),
+            contentDescription = null,
+            modifier = Modifier.size(80.dp),
+        )
+        Text(
+            text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.gray600,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        Text(
+            text = "다른 지역의\n연습 코스를 둘러보세요.",
             style = RodiTheme.typography.body3Medium,
             color = RodiTheme.colors.gray600,
             textAlign = TextAlign.Center,
@@ -328,15 +434,23 @@ private fun SearchRecentPreview() {
     RodiTheme {
         SearchScreenContent(
             state = SearchUiState(
-                recentSearches = List(4) { index ->
-                    com.dororong.rodi.core.domain.model.search.RecentSearch(index.toLong(), "서울 중구")
+                recentSearches = List(15) { index ->
+                    if (index % 2 == 0) {
+                        RecentSearch(index.toLong(), "서울 중구", SearchTargetType.REGION)
+                    } else {
+                        RecentSearch(
+                            id = index.toLong(),
+                            keyword = "인천 미단시티 코스",
+                            type = SearchTargetType.PLACE,
+                            placeId = index.toLong(),
+                        )
+                    }
                 },
                 isRecentSearchesLoading = false,
             ),
             focusRequester = remember { FocusRequester() },
             onIntent = {},
             onBack = {},
-            onPlaceClick = {},
         )
     }
 }
@@ -350,7 +464,67 @@ private fun SearchEmptyPreview() {
             focusRequester = remember { FocusRequester() },
             onIntent = {},
             onBack = {},
-            onPlaceClick = {},
         )
     }
 }
+
+@Preview(name = "Search - suggestions", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SearchSuggestionPreview() {
+    RodiTheme {
+        SearchScreenContent(
+            state = SearchUiState(
+                query = "중구",
+                resultState = SearchResultState.Content,
+                regionSuggestions = RegionOfficeLocationResolver.suggestions(
+                    "중구",
+                    GeoPoint(37.5, 126.9),
+                ),
+                places = listOf(searchPreviewPlace()),
+            ),
+            focusRequester = remember { FocusRequester() },
+            onIntent = {},
+            onBack = {},
+        )
+    }
+}
+
+@Preview(name = "Search - no recent", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SearchNoRecentPreview() {
+    RodiTheme {
+        SearchScreenContent(
+            state = SearchUiState(isRecentSearchesLoading = false),
+            focusRequester = remember { FocusRequester() },
+            onIntent = {},
+            onBack = {},
+        )
+    }
+}
+
+@Preview(name = "Search - region empty", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SearchRegionEmptyPreview() {
+    RodiTheme {
+        SearchScreenContent(
+            state = SearchUiState(query = "서울 중구", resultState = SearchResultState.RegionEmpty),
+            focusRequester = remember { FocusRequester() },
+            onIntent = {},
+            onBack = {},
+        )
+    }
+}
+
+private fun searchPreviewPlace() = PlaceSummary(
+    id = 1L,
+    type = PlaceType.COURSE,
+    name = "중구 초보 운전 연습 코스",
+    address = "서울 중구",
+    point = GeoPoint(37.563654, 126.997510),
+    distanceFromMeMeters = 1_200L,
+    practiceTypes = emptyList(),
+    description = null,
+    distanceMeters = null,
+    capacity = null,
+    openTime = null,
+)

@@ -109,6 +109,10 @@ fun MainScreen(
                                 homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
+                            onRegionClick = { region, initialPlaces ->
+                                homeViewModel.onIntent(HomeIntent.OnRegionSearch(region, initialPlaces))
+                                if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                            },
                         )
                     }
                     MyPageRoute -> NavEntry(key) {

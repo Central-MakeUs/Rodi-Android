@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
+import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 
 enum class HomeSurfaceState {
     Navigation,
@@ -58,6 +59,9 @@ data class HomeUiState(
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
     val isFilterSaving: Boolean = false,
+    val searchKeyword: String? = null,
+    val regionSearch: RegionOfficeLocation? = null,
+    val regionSearchGeneration: Long = 0L,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -78,6 +82,10 @@ sealed interface HomeIntent {
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
+    data class OnRegionSearch(
+        val region: RegionOfficeLocation,
+        val initialPlaces: List<PlaceSummary>,
+    ) : HomeIntent
     data object OnFilterOpen : HomeIntent
     data class OnFilterCategorySelect(val category: FilterCategory) : HomeIntent
     data class OnFilterPracticeOptionToggle(val option: FilterPracticeOption) : HomeIntent
