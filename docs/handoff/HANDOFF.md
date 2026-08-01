@@ -486,3 +486,46 @@ Status: IMPL_DONE
 - Changed files: `feature/home/.../HomeScreen.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; `git diff --check` GREEN
 - Open questions: 바텀시트 partial/full 전환과 지도 이동 뒤 재검색의 실기기 최종 확인이 필요하다.
+
+## Follow-up — Secondary Gray 디자인 토큰
+
+Status: IMPL_DONE
+
+- Figma `2:157`의 Secondary Gray 50–900 팔레트를 `RodiTheme.colors.secondary50`부터 `secondary900`까지 추가했다.
+- 기존 `gray50`~`gray900` 토큰과 사용처는 하위 호환을 위해 변경하지 않았다.
+- Changed files: `core/ui/.../theme/RodiColors.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :core:ui:compileDebugKotlin` GREEN; `git diff --check` GREEN
+- Open questions: none
+
+## Follow-up — 홈 정렬 필터 카테고리 해제
+
+Status: IMPL_DONE
+
+- 필터 카테고리는 현재 연습유형을 여는 단일 nullable 컨텍스트로 분리했다. 활성 카테고리를 다시 누르면 해제되고 연습유형 영역이 숨겨진다.
+- 주차 선택은 `PARKING` 태그를 추가한 뒤 연습유형을 숨기며, 주차를 다시 누르면 태그와 활성 상태를 함께 해제한다. 다른 카테고리로 이동해도 저장할 태그는 유지하되 카테고리 칩은 하나만 활성 표시한다.
+- 부분·전체 목록 필터 아이콘은 48dp 터치 영역을 유지하면서 Figma visual 크기에 맞춘 원형 bounded ripple로 잘라 표시한다.
+- Changed files: `feature/home/.../{HomeContract,HomeScreen,HomeViewModel}.kt`, `filter/FilterBottomSheet.kt`, `HomeViewModelTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:testDebugUnitTest` GREEN; `./gradlew :app:assembleDebug` GREEN; emulator에서 기초 주행 재탭·주차 선택·도로 흐름 전환 GREEN
+- Open questions: none
+
+## Follow-up — 홈 필터 터치 영역·ripple 보정
+
+Status: IMPL_DONE
+
+- 전체 목록 필터 버튼은 Figma의 24dp 외형을 유지하면서, 헤더 안에서 잘리지 않는 실제 48×48dp 탭 영역으로 조정했다.
+- 부분 목록은 Figma 원본 `sliders-horizontal` 16dp 자산과 23dp 원형 Gray 100 배경을 유지하고, 동일한 48×48dp 탭 영역과 원형 bounded ripple을 적용했다.
+- 필터 바텀시트의 카테고리·연습유형 칩은 16dp 둥근 모서리로 ripple을 clip하도록 보정했다.
+- Changed files: `feature/home/.../HomeScreen.kt`, `feature/home/.../filter/FilterBottomSheet.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:testDebugUnitTest :app:assembleDebug` GREEN; `git diff --check` GREEN; emulator에서 부분·전체 목록 필터 탭 영역 48×48dp 및 필터 시트 열기 GREEN
+- Open questions: none
+
+## Follow-up — 홈 목록 재조회 스크롤 초기화
+
+Status: IMPL_DONE
+
+- 첫 페이지 요청 시작 시 기존 목록을 스크롤하던 방식을 제거하고, 캐시 또는 서버 첫 페이지가 실제 반영될 때만 목록 콘텐츠 세대를 갱신한다.
+- `PlaceListContent`를 콘텐츠 세대로 key 처리해 첫 페이지 교체마다 새 `LazyListState`를 만든다. 새 결과에도 기존 상단 장소 ID가 남아 있어도 해당 ID를 앵커로 보존하지 않고 첫 장소부터 표시한다.
+- 다음 페이지 추가는 콘텐츠 세대를 변경하지 않아 현재 스크롤을 유지한다. 실패·취소된 첫 페이지 요청도 목록과 스크롤 상태를 바꾸지 않는다.
+- Changed files: `feature/home/build.gradle.kts`, `feature/home/.../{HomeContract,HomeScreen,HomeViewModel}.kt`, `list/components/PlaceListContent.kt`, `HomeViewModelTest.kt`, `PlaceListContentTest.kt`, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN; 에뮬레이터 `PlaceListContentTest` GREEN; 최신 debug APK 실기기·에뮬레이터 설치 및 콜드 실행 GREEN; `git diff --check` GREEN
+- Open questions: 실제 서버 목록이 화면보다 긴 상태의 필터 적용·재검색은 사용자 기기에서 최종 확인한다.
