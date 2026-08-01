@@ -529,3 +529,14 @@ Status: IMPL_DONE
 - Changed files: `feature/home/build.gradle.kts`, `feature/home/.../{HomeContract,HomeScreen,HomeViewModel}.kt`, `list/components/PlaceListContent.kt`, `HomeViewModelTest.kt`, `PlaceListContentTest.kt`, `docs/handoff/HANDOFF.md`
 - Build/test: `./gradlew :feature:home:testDebugUnitTest assembleDebug` GREEN; 에뮬레이터 `PlaceListContentTest` GREEN; 최신 debug APK 실기기·에뮬레이터 설치 및 콜드 실행 GREEN; `git diff --check` GREEN
 - Open questions: 실제 서버 목록이 화면보다 긴 상태의 필터 적용·재검색은 사용자 기기에서 최종 확인한다.
+
+## Follow-up — PR #53 리뷰 반영
+
+Status: IMPL_DONE
+
+- 바텀시트 top 좌표가 음수여도 지도 bottom inset이 지도 높이를 넘지 않도록 상·하한을 보정했다.
+- 필터 저장 중에는 스크림·스와이프·시스템 뒤로가기와 초기화를 무시해 저장 요청의 태그와 화면 상태가 달라지지 않도록 했다.
+- 16dp 필터 vector에 Figma 원본과 동일한 2dp stroke를 명시했다.
+- Changed files: `feature/home/.../{BottomSheetViewportPolicy,HomeScreen,HomeViewModel}.kt`, `filter/FilterBottomSheet.kt`, `ic_filter.xml`, 관련 tests, `docs/handoff/HANDOFF.md`
+- Build/test: `./gradlew :feature:home:testDebugUnitTest :feature:home:assembleDebug` GREEN; `git diff --check` GREEN
+- Open questions: none

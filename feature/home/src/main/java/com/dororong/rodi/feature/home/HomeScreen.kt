@@ -440,7 +440,7 @@ fun HomeScreen(
 
     BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
         if (state.isFilterSheetVisible) {
-            vm.onIntent(HomeIntent.OnFilterDismiss)
+            if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
         } else {
             when (state.surfaceState) {
                 HomeSurfaceState.Detail -> dismissDetail()

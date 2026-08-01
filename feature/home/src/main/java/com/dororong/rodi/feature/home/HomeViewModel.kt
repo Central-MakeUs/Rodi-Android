@@ -102,11 +102,13 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
             is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
             is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
-            HomeIntent.OnFilterReset -> _state.update {
-                it.copy(
-                    activeFilterCategory = FilterCategory.BASIC_DRIVING,
-                    selectedFilterPracticeTypes = emptySet(),
-                )
+            HomeIntent.OnFilterReset -> if (!_state.value.isFilterSaving) {
+                _state.update {
+                    it.copy(
+                        activeFilterCategory = FilterCategory.BASIC_DRIVING,
+                        selectedFilterPracticeTypes = emptySet(),
+                    )
+                }
             }
             HomeIntent.OnFilterApply -> applyFilter()
             HomeIntent.OnFilterDismiss -> dismissFilter()

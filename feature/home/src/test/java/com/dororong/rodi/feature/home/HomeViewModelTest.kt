@@ -535,6 +535,22 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `reset is ignored while filter tags are saving`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val saveResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        runCurrent()
+        vm.onIntent(HomeIntent.OnFilterReset)
+
+        assertTrue(vm.state.value.isFilterSaving)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+    }
+
+    @Test
     fun `successful filter save reloads the current home viewport`() = runTest(dispatcher) {
         val deps = Dependencies()
         val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
