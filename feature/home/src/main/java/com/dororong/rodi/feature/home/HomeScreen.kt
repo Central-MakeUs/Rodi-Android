@@ -680,20 +680,22 @@ fun HomeScreen(
                                     isInitialError = state.showInitialError,
                                     onHandleDragDown = { scope.launch { sheetState.hide() } },
                                 )
-                                else -> PlaceListContent(
-                                    places = state.places,
-                                    onPlaceClick = {
-                                        vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
-                                    },
-                                    onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
-                                    isNextPageLoading = state.isNextPageLoading,
-                                    topContentPadding = lerp(
-                                        0.dp,
-                                        FULL_LIST_CONTENT_TOP_PADDING,
-                                        sheetExpansionProgress,
-                                    ),
-                                    modifier = Modifier.height(listViewportHeight),
-                                )
+                                else -> key(state.placeListGeneration) {
+                                    PlaceListContent(
+                                        places = state.places,
+                                        onPlaceClick = {
+                                            vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
+                                        },
+                                        onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
+                                        isNextPageLoading = state.isNextPageLoading,
+                                        topContentPadding = lerp(
+                                            0.dp,
+                                            FULL_LIST_CONTENT_TOP_PADDING,
+                                            sheetExpansionProgress,
+                                        ),
+                                        modifier = Modifier.height(listViewportHeight),
+                                    )
+                                }
                             }
                         }
                     },

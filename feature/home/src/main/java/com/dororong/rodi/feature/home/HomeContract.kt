@@ -47,6 +47,7 @@ data class HomeUiState(
     val nextCursor: String? = null,
     val totalCount: Long? = null,
     val searchedQuery: PlaceViewportQuery? = null,
+    val placeListGeneration: Long = 0,
     val isMapSearchDirty: Boolean = false,
     val pendingAction: PendingHomeAction? = null,
     val isLoginInProgress: Boolean = false,

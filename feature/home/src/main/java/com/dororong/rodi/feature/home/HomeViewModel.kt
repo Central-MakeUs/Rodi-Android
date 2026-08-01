@@ -208,7 +208,10 @@ class HomeViewModel @Inject constructor(
             }
     }
 
-    private fun applyFirstPage(query: PlaceViewportQuery, page: CursorPage<PlaceSummary>) {
+    private fun applyFirstPage(
+        query: PlaceViewportQuery,
+        page: CursorPage<PlaceSummary>,
+    ) {
         val uniqueItems = page.items.distinctBy(PlaceSummary::id)
         _state.update {
             it.copy(

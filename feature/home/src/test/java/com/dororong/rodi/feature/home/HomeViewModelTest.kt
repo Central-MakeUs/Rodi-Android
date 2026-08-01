@@ -96,6 +96,50 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `first page replacement advances the list generation but requesting and paging do not`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val initialPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, 3)
+        val cachedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val refreshedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val cachedPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, null)
+        val refreshedPage = CursorPage(listOf(summary(10), summary(11), summary(2)), true, "next", 4)
+        val nextPage = CursorPage(listOf(summary(12)), false, null, null)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(initialPage)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(initialPage)
+        coEvery { deps.getPlaces(query(2.0), null, 20) } coAnswers { cachedResult.await() }
+        coEvery { deps.refreshPlaces(query(2.0), null, 20) } coAnswers { refreshedResult.await() }
+        coEvery { deps.refreshPlaces(query(2.0), "next", 20) } returns Result.success(nextPage)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        val initialGeneration = vm.state.value.placeListGeneration
+
+        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        runCurrent()
+
+        assertEquals(initialGeneration, vm.state.value.placeListGeneration)
+
+        cachedResult.complete(Result.success(cachedPage))
+        runCurrent()
+
+        assertEquals(initialGeneration + 1, vm.state.value.placeListGeneration)
+        assertEquals(cachedPage.items, vm.state.value.places)
+
+        refreshedResult.complete(Result.success(refreshedPage))
+        advanceUntilIdle()
+
+        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
+        assertEquals(refreshedPage.items, vm.state.value.places)
+
+        vm.onIntent(HomeIntent.OnLoadNextPage)
+        advanceUntilIdle()
+
+        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
+        assertEquals(listOf(10L, 11L, 2L, 12L), vm.state.value.places.map(PlaceSummary::id))
+    }
+
+    @Test
     fun `new viewport result wins over an older in flight request`() = runTest(dispatcher) {
         val deps = Dependencies()
         val older = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
@@ -113,6 +157,7 @@ class HomeViewModelTest {
 
         assertEquals(listOf(2L), vm.state.value.places.map { it.id })
         assertEquals(query(2.0), vm.state.value.searchedQuery)
+        assertEquals(1, vm.state.value.placeListGeneration)
     }
 
     @Test
@@ -132,6 +177,7 @@ class HomeViewModelTest {
         failedVm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
         assertEquals(HomeListState.InitialError, failedVm.state.value.listState)
+        assertEquals(0, failedVm.state.value.placeListGeneration)
     }
 
     @Test
