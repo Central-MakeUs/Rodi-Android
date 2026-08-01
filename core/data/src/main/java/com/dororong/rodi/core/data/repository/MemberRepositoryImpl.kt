@@ -5,9 +5,11 @@ import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
+import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import javax.inject.Inject
@@ -29,6 +31,15 @@ class MemberRepositoryImpl @Inject constructor(
         require(drivingGoal.length <= 30) { "운전 목표는 30자 이하여야 합니다." }
         authenticatedRequest { authorization ->
             memberApi.updateMe(authorization, MemberUpdateRequest(drivingGoal)).requireSuccess()
+        }
+    }
+
+    override suspend fun updateFilterTags(filterTags: List<PracticeType>) {
+        authenticatedRequest { authorization ->
+            memberApi.updateFilterTags(
+                authorization = authorization,
+                request = FilterTagsRequest(filterTags.map(PracticeType::name)),
+            ).requireSuccess()
         }
     }
 

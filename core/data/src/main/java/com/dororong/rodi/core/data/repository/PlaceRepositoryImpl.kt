@@ -34,8 +34,9 @@ class PlaceRepositoryImpl @Inject constructor(
         query: PlaceViewportQuery,
         cursor: String?,
         size: Int,
-    ): CursorPage<PlaceSummary> = publicRequest {
+    ): CursorPage<PlaceSummary> = optionalAuthenticatedRequest { accessToken ->
         api.getPlaces(
+            authorization = accessToken?.let { "Bearer $it" },
             swLat = query.southWest.lat,
             swLng = query.southWest.lng,
             neLat = query.northEast.lat,
@@ -99,6 +100,13 @@ class PlaceRepositoryImpl @Inject constructor(
             throw PlaceException.AuthenticationRequired(error.message ?: "로그인이 필요합니다.", error)
         }
         return authenticatedRequest(canRefresh = false, block = block)
+    }
+
+    private suspend fun <T> optionalAuthenticatedRequest(block: suspend (String?) -> T): T {
+        if (tokenStore.getTokens()?.accessToken == null) {
+            return publicRequest { block(null) }
+        }
+        return authenticatedRequest { accessToken -> block(accessToken) }
     }
 
     private suspend fun <T> publicRequest(block: suspend () -> T): T = try {

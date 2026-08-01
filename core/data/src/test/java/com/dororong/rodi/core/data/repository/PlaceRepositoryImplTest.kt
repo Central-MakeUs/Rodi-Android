@@ -24,6 +24,49 @@ import org.junit.jupiter.api.Test
 
 class PlaceRepositoryImplTest {
     @Test
+    fun `places sends access token when a session exists`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val query = viewportQuery()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery {
+            api.getPlaces(
+                authorization = "Bearer access",
+                swLat = query.southWest.lat,
+                swLng = query.southWest.lng,
+                neLat = query.northEast.lat,
+                neLng = query.northEast.lng,
+                lat = query.origin.lat,
+                lng = query.origin.lng,
+                size = 20,
+                cursor = null,
+            )
+        } returns placePageEnvelope()
+        val repository = PlaceRepositoryImpl(
+            api,
+            mockk<SavedPlaceLocalDataSource>(relaxed = true),
+            tokenStore,
+            mockk<AuthRepository>(),
+        )
+
+        repository.getPlaces(query, cursor = null, size = 20)
+
+        coVerify(exactly = 1) {
+            api.getPlaces(
+                authorization = "Bearer access",
+                swLat = query.southWest.lat,
+                swLng = query.southWest.lng,
+                neLat = query.northEast.lat,
+                neLng = query.northEast.lng,
+                lat = query.origin.lat,
+                lng = query.origin.lng,
+                size = 20,
+                cursor = null,
+            )
+        }
+    }
+
+    @Test
     fun `saved places preserves nullable distance and cursor page metadata`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
@@ -137,6 +180,19 @@ class PlaceRepositoryImplTest {
     }
 
     private fun tokens(access: String) = AuthTokens(access, "refresh", "kakao")
+
+    private fun viewportQuery() = com.dororong.rodi.core.domain.model.place.PlaceViewportQuery(
+        southWest = GeoPoint(37.4, 126.8),
+        northEast = GeoPoint(37.6, 127.0),
+        origin = GeoPoint(37.5, 126.9),
+    )
+
+    private fun placePageEnvelope() = ApiEnvelope(
+        isSuccess = true,
+        code = "COMMON_200",
+        message = "성공",
+        data = CursorPagePlaceResponse(),
+    )
 
     private fun detailEnvelope(id: Long) = ApiEnvelope(
         isSuccess = true,

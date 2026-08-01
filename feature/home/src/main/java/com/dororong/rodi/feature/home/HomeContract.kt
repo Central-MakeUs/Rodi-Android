@@ -6,6 +6,9 @@ import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 
 enum class HomeSurfaceState {
     Navigation,
@@ -44,11 +47,16 @@ data class HomeUiState(
     val nextCursor: String? = null,
     val totalCount: Long? = null,
     val searchedQuery: PlaceViewportQuery? = null,
+    val placeListGeneration: Long = 0,
     val isMapSearchDirty: Boolean = false,
     val pendingAction: PendingHomeAction? = null,
     val isLoginInProgress: Boolean = false,
     val hasPendingRestore: Boolean = false,
     val isRestoreInProgress: Boolean = false,
+    val isFilterSheetVisible: Boolean = false,
+    val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
+    val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
+    val isFilterSaving: Boolean = false,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -68,6 +76,12 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
+    data object OnFilterOpen : HomeIntent
+    data class OnFilterCategorySelect(val category: FilterCategory) : HomeIntent
+    data class OnFilterPracticeOptionToggle(val option: FilterPracticeOption) : HomeIntent
+    data object OnFilterReset : HomeIntent
+    data object OnFilterApply : HomeIntent
+    data object OnFilterDismiss : HomeIntent
     data object OnDismissLogin : HomeIntent
     data class OnKakaoLoginCredential(val accessToken: String) : HomeIntent
     data class OnKakaoLoginFailed(val message: String) : HomeIntent
@@ -98,4 +112,5 @@ sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction
     data object ToggleBookmark : PendingHomeAction
     data object OpenMyPage : PendingHomeAction
+    data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }

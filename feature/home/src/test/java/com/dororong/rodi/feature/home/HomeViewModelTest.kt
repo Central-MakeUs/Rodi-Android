@@ -18,12 +18,15 @@ import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
+import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -93,6 +96,50 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `first page replacement advances the list generation but requesting and paging do not`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val initialPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, 3)
+        val cachedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val refreshedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val cachedPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, null)
+        val refreshedPage = CursorPage(listOf(summary(10), summary(11), summary(2)), true, "next", 4)
+        val nextPage = CursorPage(listOf(summary(12)), false, null, null)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(initialPage)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(initialPage)
+        coEvery { deps.getPlaces(query(2.0), null, 20) } coAnswers { cachedResult.await() }
+        coEvery { deps.refreshPlaces(query(2.0), null, 20) } coAnswers { refreshedResult.await() }
+        coEvery { deps.refreshPlaces(query(2.0), "next", 20) } returns Result.success(nextPage)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        val initialGeneration = vm.state.value.placeListGeneration
+
+        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        runCurrent()
+
+        assertEquals(initialGeneration, vm.state.value.placeListGeneration)
+
+        cachedResult.complete(Result.success(cachedPage))
+        runCurrent()
+
+        assertEquals(initialGeneration + 1, vm.state.value.placeListGeneration)
+        assertEquals(cachedPage.items, vm.state.value.places)
+
+        refreshedResult.complete(Result.success(refreshedPage))
+        advanceUntilIdle()
+
+        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
+        assertEquals(refreshedPage.items, vm.state.value.places)
+
+        vm.onIntent(HomeIntent.OnLoadNextPage)
+        advanceUntilIdle()
+
+        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
+        assertEquals(listOf(10L, 11L, 2L, 12L), vm.state.value.places.map(PlaceSummary::id))
+    }
+
+    @Test
     fun `new viewport result wins over an older in flight request`() = runTest(dispatcher) {
         val deps = Dependencies()
         val older = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
@@ -110,6 +157,7 @@ class HomeViewModelTest {
 
         assertEquals(listOf(2L), vm.state.value.places.map { it.id })
         assertEquals(query(2.0), vm.state.value.searchedQuery)
+        assertEquals(1, vm.state.value.placeListGeneration)
     }
 
     @Test
@@ -129,6 +177,7 @@ class HomeViewModelTest {
         failedVm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
         assertEquals(HomeListState.InitialError, failedVm.state.value.listState)
+        assertEquals(0, failedVm.state.value.placeListGeneration)
     }
 
     @Test
@@ -392,6 +441,159 @@ class HomeViewModelTest {
         assertFalse(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
         assertEquals(4, vm.state.value.selectedPlace?.bookmarkCount)
     }
+
+    @Test
+    fun `filter keeps mixed tags across categories and saves them together`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterOpen)
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.ALL))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+
+        assertEquals(
+            setOf(
+                PracticeType.STRAIGHT,
+                PracticeType.LEFT_RIGHT_TURN,
+                PracticeType.LANE_CHANGE,
+                PracticeType.INTERSECTION,
+                PracticeType.PARKING,
+            ),
+            vm.state.value.selectedFilterPracticeTypes,
+        )
+        assertFalse(vm.state.value.isFilterSheetVisible)
+        coVerify {
+            deps.updateFilterTags(
+                setOf(
+                    PracticeType.STRAIGHT,
+                    PracticeType.LEFT_RIGHT_TURN,
+                    PracticeType.LANE_CHANGE,
+                    PracticeType.INTERSECTION,
+                    PracticeType.PARKING,
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `tapping an active category clears it without clearing selected practice types`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.BASIC_DRIVING))
+
+        assertNull(vm.state.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+    }
+
+    @Test
+    fun `tapping parking twice removes its tag and clears the active category`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        assertEquals(FilterCategory.PARKING, vm.state.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.PARKING), vm.state.value.selectedFilterPracticeTypes)
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+
+        assertNull(vm.state.value.activeFilterCategory)
+        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+    }
+
+    @Test
+    fun `moving from parking keeps its tag but activates only the new category`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+
+        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.activeFilterCategory)
+        assertEquals(
+            setOf(PracticeType.PARKING, PracticeType.MERGING),
+            vm.state.value.selectedFilterPracticeTypes,
+        )
+    }
+
+    @Test
+    fun `reset activates basic driving and clears all filter tags`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.OnFilterReset)
+
+        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.activeFilterCategory)
+        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+    }
+
+    @Test
+    fun `reset is ignored while filter tags are saving`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val saveResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        runCurrent()
+        vm.onIntent(HomeIntent.OnFilterReset)
+
+        assertTrue(vm.state.value.isFilterSaving)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+    }
+
+    @Test
+    fun `successful filter save reloads the current home viewport`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
+        val filteredPage = CursorPage(listOf(summary(2)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
+            Result.success(initialPage),
+            Result.success(filteredPage),
+        )
+        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnFilterOpen)
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
+        coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
+    fun `guest filter save resumes after existing member login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.OnFilterApply)
+        advanceUntilIdle()
+        assertEquals(
+            PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
+            vm.state.value.pendingAction,
+        )
+
+        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        advanceUntilIdle()
+
+        coVerify { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) }
+    }
 }
 
 private class Dependencies(loggedIn: Boolean = true) {
@@ -407,6 +609,7 @@ private class Dependencies(loggedIn: Boolean = true) {
     val restoreWithKakao = mockk<RestoreWithKakaoUseCase>()
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
+    val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -430,6 +633,7 @@ private class Dependencies(loggedIn: Boolean = true) {
         restoreWithKakaoUseCase = restoreWithKakao,
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
+        updateFilterTagsUseCase = updateFilterTags,
     )
 }
 
