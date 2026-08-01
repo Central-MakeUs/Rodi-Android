@@ -145,6 +145,7 @@ import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.map.viewportAboveBottomInsetOrNull
+import com.dororong.rodi.feature.home.map.visibleViewportOrNull
 import com.dororong.rodi.feature.home.map.boundsOrNull
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
@@ -547,7 +548,7 @@ fun HomeScreen(
                             ?: return@mapNotNull null
                         ProjectedMapItem(place.id, place.point, point.x, point.y)
                     },
-                    viewport = currentViewport?.screen ?: return@LaunchedEffect,
+                    viewport = map.visibleViewportOrNull(mapViewSize)?.screen ?: return@LaunchedEffect,
                     minimumDistancePx = clusterDistancePx,
                     targetZoom = policy.targetZoom,
                 )
