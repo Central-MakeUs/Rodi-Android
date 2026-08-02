@@ -2,20 +2,25 @@ package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -131,17 +136,25 @@ private fun DrivingGoalLoadingContent() {
                 .height(20.dp),
         )
         Spacer(Modifier.height(16.dp))
-        RodiSkeleton(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp),
-        )
+                .height(52.dp)
+                .border(1.dp, RodiTheme.colors.gray300, RoundedCornerShape(8.dp)),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            RodiSkeleton(
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .fillMaxWidth(0.56f)
+                    .height(16.dp),
+            )
+        }
         Spacer(Modifier.height(4.dp))
-        RodiSkeleton(
-            modifier = Modifier
-                .fillMaxWidth(0.15f)
-                .height(12.dp),
-        )
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Spacer(Modifier.weight(1f))
+            RodiSkeleton(modifier = Modifier.width(34.dp).height(12.dp))
+        }
     }
 }
 

@@ -1,10 +1,18 @@
 package com.dororong.rodi.feature.home.detail.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -33,29 +41,40 @@ fun PlaceDetailLoading(
                 .weight(1f)
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            RodiSkeleton(
-                modifier = Modifier
-                    .fillMaxWidth(0.28f)
-                    .height(16.dp),
-            )
-            Spacer(Modifier.height(12.dp))
-            RodiSkeleton(
-                modifier = Modifier
-                    .fillMaxWidth(0.78f)
-                    .height(22.dp),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RodiSkeleton(modifier = Modifier.width(176.dp).height(24.dp))
+                Spacer(Modifier.width(4.dp))
+                RodiSkeleton(modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(2.dp))
+                RodiSkeleton(modifier = Modifier.width(20.dp).height(14.dp))
+                Spacer(Modifier.weight(1f))
+                RodiSkeleton(modifier = Modifier.size(20.dp))
+            }
             Spacer(Modifier.height(10.dp))
-            RodiSkeleton(
-                modifier = Modifier
-                    .fillMaxWidth(0.55f)
-                    .height(16.dp),
-            )
-            Spacer(Modifier.height(16.dp))
-            RodiSkeleton(
+            RodiSkeleton(modifier = Modifier.width(76.dp).height(18.dp))
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(4.dp)) {
+                RodiSkeleton(modifier = Modifier.width(42.dp).height(20.dp))
+                RodiSkeleton(modifier = Modifier.width(48.dp).height(20.dp))
+            }
+            Spacer(Modifier.height(8.dp))
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp),
-            )
+                    .height(37.dp)
+                    .background(RodiTheme.colors.gray100, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                RodiSkeleton(modifier = Modifier.fillMaxWidth(0.72f).height(14.dp))
+            }
+            Spacer(Modifier.height(10.dp))
+            HorizontalDivider(color = RodiTheme.colors.gray200)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp)) {
+                RodiSkeleton(modifier = Modifier.size(44.dp))
+                RodiSkeleton(modifier = Modifier.weight(1f).height(44.dp))
+            }
         }
     }
 }

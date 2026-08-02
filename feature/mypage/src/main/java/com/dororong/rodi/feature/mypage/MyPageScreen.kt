@@ -1,14 +1,21 @@
 package com.dororong.rodi.feature.mypage
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
@@ -18,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +34,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.components.MyPageTopBar
 import com.dororong.rodi.feature.mypage.components.ProfileCard
@@ -72,8 +81,7 @@ fun MyPageScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
-            uiState.isLoading && uiState.profile.nickname.isBlank() -> MyPageLoadingContent(
-            )
+            uiState.isLoading && uiState.profile.nickname.isBlank() -> MyPageLoadingContent()
             uiState.errorMessage != null && uiState.profile.nickname.isBlank() -> Box(
                 modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
                 contentAlignment = Alignment.Center,
@@ -114,37 +122,90 @@ private fun MyPageLoadingContent() {
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
-            RodiSkeleton(
-                modifier = Modifier
-                    .fillMaxWidth(0.18f)
-                    .height(20.dp),
+            Text(
+                text = "프로필",
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
             )
-            RodiSkeleton(
+            Icon(
+                painter = painterResource(CoreUiR.drawable.ic_settings),
+                contentDescription = null,
+                tint = RodiTheme.colors.black,
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .height(24.dp)
-                    .fillMaxWidth(0.07f),
+                    .size(24.dp),
             )
         }
-        RodiSkeleton(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 16.dp)
-                .fillMaxWidth()
-                .height(227.dp),
-        )
+        MyPageProfileCardLoadingContent()
         HorizontalDivider(color = RodiTheme.colors.gray100)
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             RodiSkeleton(
                 modifier = Modifier
-                    .fillMaxWidth(0.35f)
-                    .height(16.dp),
+                    .width(128.dp)
+                    .height(20.dp),
             )
+            Spacer(Modifier.weight(1f))
+            Icon(
+                painter = painterResource(CoreUiR.drawable.ic_chevron_right),
+                contentDescription = null,
+                tint = RodiTheme.colors.gray600,
+                modifier = Modifier
+                    .size(20.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MyPageProfileCardLoadingContent() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp)
+            .fillMaxWidth()
+            .height(227.dp)
+            .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
+            .border(1.dp, RodiTheme.colors.primary50, RoundedCornerShape(8.dp)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = 11.dp, top = 15.dp, end = 11.dp),
+        ) {
+            Row(modifier = Modifier.height(90.dp)) {
+                RodiSkeleton(modifier = Modifier.size(90.dp))
+                Column(
+                    modifier = Modifier.padding(start = 15.dp, top = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    RodiSkeleton(modifier = Modifier.width(92.dp).height(20.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        RodiSkeleton(modifier = Modifier.width(28.dp).height(12.dp))
+                        RodiSkeleton(modifier = Modifier.width(56.dp).height(16.dp))
+                    }
+                }
+            }
             Spacer(Modifier.height(12.dp))
-            RodiSkeleton(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp),
-            )
+            RodiSkeleton(modifier = Modifier.width(52.dp).height(12.dp))
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                RodiSkeleton(modifier = Modifier.width(40.dp).height(21.dp))
+                RodiSkeleton(modifier = Modifier.width(48.dp).height(21.dp))
+                RodiSkeleton(modifier = Modifier.width(44.dp).height(21.dp))
+            }
+            Spacer(Modifier.height(12.dp))
+            RodiSkeleton(modifier = Modifier.width(42.dp).height(12.dp))
+            Spacer(Modifier.height(4.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                RodiSkeleton(modifier = Modifier.width(188.dp).height(19.dp))
+                Spacer(Modifier.weight(1f))
+                RodiSkeleton(modifier = Modifier.size(12.dp))
+            }
         }
     }
 }
@@ -191,6 +252,14 @@ private fun MyPageContentPreview() {
             onGoalClick = {},
             onSavedCoursesClick = {},
         )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun MyPageLoadingPreview() {
+    RodiTheme {
+        MyPageLoadingContent()
     }
 }
 
