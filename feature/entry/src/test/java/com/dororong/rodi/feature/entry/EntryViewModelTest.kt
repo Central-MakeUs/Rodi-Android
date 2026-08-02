@@ -581,6 +581,57 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `onboarding analysis stays on the current step when initial filter tags fail`() = runTest(testDispatcher) {
+        val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTags,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } returns Result.failure(IllegalStateException("failed"))
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(
+                EntryEffect.ShowSubmissionError(
+                    message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                    canRetry = true,
+                ),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `onboarding analysis does not emit an error when initial filter tag application is cancelled`() = runTest(testDispatcher) {
+        val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTags,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } throws CancellationException("cancelled")
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `onboarding analysis shows input error without retry action`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
