@@ -31,7 +31,7 @@ Risk: LOW
 ## Expected Files
 
 - `feature/mypage/src/main/java/com/dororong/rodi/feature/mypage/components/ProfileCard.kt`
-- `docs/handoff/HANDOFF.md`
+- `docs/handoff/archive/20260802-mypage-profile-card-stamp-impact.md`
 
 ## Verification
 
@@ -48,7 +48,7 @@ Risk: LOW
 
 ## Implementation Result
 
-- Changed files: `feature/mypage/src/main/java/com/dororong/rodi/feature/mypage/components/ProfileCard.kt`, `docs/handoff/HANDOFF.md`
+- Changed files: `feature/mypage/src/main/java/com/dororong/rodi/feature/mypage/components/ProfileCard.kt`, `docs/handoff/archive/20260802-mypage-profile-card-stamp-impact.md`
 - `ProfileCard`의 기존 레이아웃과 콘텐츠를 유지한 채 outer layer에 카드 진입·미세 반동을, 기존 도장 `Image` layer에 지연된 스케일·회전·alpha 임팩트를 적용했다.
 - Preview에서는 최종 정지 상태를 제공해 기존 프로필 카드 Preview가 투명한 초기 프레임으로 보이지 않게 했다.
 - Verification: `./gradlew :feature:mypage:assembleDebug` PASS, `./gradlew assembleDebug` PASS, `./gradlew test` PASS.
