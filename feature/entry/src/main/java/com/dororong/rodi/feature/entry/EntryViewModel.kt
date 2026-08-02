@@ -19,6 +19,7 @@ import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
 import com.dororong.rodi.core.domain.model.onboarding.analysisCopy
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.ApplyInitialFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
 import com.dororong.rodi.core.domain.usecase.entry.SaveEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.SaveOnboardingProfileUseCase
@@ -48,6 +49,7 @@ class EntryViewModel @Inject constructor(
     private val getEntryProgressUseCase: GetEntryProgressUseCase,
     private val saveEntryProgressUseCase: SaveEntryProgressUseCase,
     private val getOnboardingProfileUseCase: GetOnboardingProfileUseCase,
+    private val applyInitialFilterTagsUseCase: ApplyInitialFilterTagsUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(EntryUiState())
@@ -261,6 +263,12 @@ class EntryViewModel @Inject constructor(
                 OnboardingSubmissionResult.Submitted,
                 OnboardingSubmissionResult.AlreadyCompleted,
                 -> {
+                    val filterResult = applyInitialFilterTagsUseCase(level)
+                    if (filterResult.isFailure) {
+                        _state.update { it.copy(onboardingAnalysisState = null) }
+                        _effect.send(EntryEffect.ShowSubmissionError(DEFAULT_SUBMISSION_ERROR_MESSAGE, canRetry = true))
+                        return@launch
+                    }
                     _state.update { it.copy(step = EntryStep.PRECAUTIONS) }
                     persistEntryProgressNow()
                     _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }

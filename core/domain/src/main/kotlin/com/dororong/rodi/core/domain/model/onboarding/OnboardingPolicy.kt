@@ -1,5 +1,7 @@
 package com.dororong.rodi.core.domain.model.onboarding
 
+import com.dororong.rodi.core.domain.model.place.PracticeType
+
 data class OnboardingAnalysisCopy(
     val distanceExpression: String?,
     val frequencyExpression: String?,
@@ -51,6 +53,32 @@ val OnboardingLevel.recommendations: List<String>
         OnboardingLevel.OWNER -> listOf("고속도로", "합류", "다차로주행")
         OnboardingLevel.EXPLORER -> listOf("비보호좌회전", "회전교차로", "좁은도로", "코너링")
         OnboardingLevel.NAVIGATOR -> listOf("코스 등록", "리뷰 작성", "추천 코스 공유")
+    }
+
+val OnboardingLevel.initialFilterTags: Set<PracticeType>
+    get() = when (this) {
+        OnboardingLevel.SEED -> setOf(
+            PracticeType.STRAIGHT,
+            PracticeType.LEFT_RIGHT_TURN,
+            PracticeType.LANE_CHANGE,
+        )
+        OnboardingLevel.ROOKIE -> setOf(
+            PracticeType.U_TURN,
+            PracticeType.INTERSECTION,
+            PracticeType.PARKING,
+        )
+        OnboardingLevel.OWNER -> setOf(
+            PracticeType.HIGHWAY_ENTRY,
+            PracticeType.MERGING,
+            PracticeType.MULTILANE,
+        )
+        OnboardingLevel.EXPLORER -> setOf(
+            PracticeType.UNPROTECTED_LEFT_TURN,
+            PracticeType.ROUNDABOUT,
+            PracticeType.NARROW_ROAD,
+            PracticeType.CORNERING,
+        )
+        OnboardingLevel.NAVIGATOR -> emptySet()
     }
 
 private val OnboardingLevel.stageSentence: String
