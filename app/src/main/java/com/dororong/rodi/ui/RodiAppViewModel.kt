@@ -2,10 +2,12 @@ package com.dororong.rodi.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
+import com.dororong.rodi.core.domain.usecase.auth.ReissueAuthTokenUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryCompletedUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.SyncPendingOnboardingUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +54,7 @@ class RodiAppViewModel @Inject constructor(
     private val getAuthSessionUseCase: GetAuthSessionUseCase,
     private val syncPendingOnboardingUseCase: SyncPendingOnboardingUseCase,
     private val authRepository: AuthRepository,
+    private val reissueAuthTokenUseCase: ReissueAuthTokenUseCase = ReissueAuthTokenUseCase(authRepository),
 ) : ViewModel() {
     private val _state = MutableStateFlow(RodiAppUiState())
     private val authSessionRefresh = MutableStateFlow(0)
@@ -109,18 +112,27 @@ class RodiAppViewModel @Inject constructor(
         authSessionRefresh.update { it + 1 }
     }
 
-    fun verifyAuthSession() {
+    fun onAppResumed() {
         if (sessionVerificationJob?.isActive == true || sessionEnded.value) return
         sessionVerificationJob = viewModelScope.launch {
-            try {
-                if (!getAuthSessionUseCase().isLoggedIn) return@launch
-                authRepository.reissueToken()
-                authSessionRefresh.update { it + 1 }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Throwable) {
+            if (verifyAuthSession()) {
+                syncPendingOnboardingIfAuthenticated()
             }
         }
+    }
+
+    private suspend fun verifyAuthSession(): Boolean {
+        if (!getAuthSessionUseCase().isLoggedIn) return true
+        return reissueAuthTokenUseCase().fold(
+            onSuccess = {
+                authSessionRefresh.update { it + 1 }
+                true
+            },
+            onFailure = { error ->
+                if (error is AuthException) return false
+                throw error
+            },
+        )
     }
 
     fun onSessionEnded() {

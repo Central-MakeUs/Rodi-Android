@@ -63,8 +63,7 @@ fun RodiApp(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.verifyAuthSession()
-                viewModel.retryPendingOnboardingSync()
+                viewModel.onAppResumed()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

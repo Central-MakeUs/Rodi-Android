@@ -1,6 +1,7 @@
 package com.dororong.rodi.ui
 
 import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetGuestAccessUseCase
@@ -11,6 +12,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -253,7 +255,7 @@ class RodiAppViewModelTest {
     }
 
     @Test
-    fun `proactively reissues an authenticated session on app start`() = runTest(dispatcher) {
+    fun `reissues an authenticated session before syncing on app resume`() = runTest(dispatcher) {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
         val getAuthSession = mockk<GetAuthSessionUseCase>()
@@ -264,14 +266,14 @@ class RodiAppViewModelTest {
         coEvery { authRepository.reissueToken() } returns Unit
 
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), authRepository)
-        viewModel.verifyAuthSession()
+        viewModel.onAppResumed()
         advanceUntilIdle()
 
         coVerify(exactly = 1) { authRepository.reissueToken() }
     }
 
     @Test
-    fun `does not reissue a signed out session on app start`() = runTest(dispatcher) {
+    fun `does not reissue a signed out session on app resume`() = runTest(dispatcher) {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
         val getAuthSession = mockk<GetAuthSessionUseCase>()
@@ -281,10 +283,87 @@ class RodiAppViewModelTest {
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
 
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), authRepository)
-        viewModel.verifyAuthSession()
+        viewModel.onAppResumed()
         advanceUntilIdle()
 
         coVerify(exactly = 0) { authRepository.reissueToken() }
+    }
+
+    @Test
+    fun `completes session verification before syncing pending onboarding on app resume`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        val authRepository = sessionExpirationUseCase()
+        val calls = mutableListOf<String>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
+        coEvery { sync() } answers {
+            calls += "sync"
+            null
+        }
+        coEvery { authRepository.reissueToken() } answers { calls += "reissue" }
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, authRepository)
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        viewModel.onAppResumed()
+        advanceUntilIdle()
+
+        assertEquals(listOf("reissue", "sync"), calls)
+    }
+
+    @Test
+    fun `does not sync pending onboarding when session reissue fails`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        val authRepository = sessionExpirationUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, authRepository)
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        coEvery { authRepository.reissueToken() } throws AuthException.SessionRevoked("revoked")
+        viewModel.onAppResumed()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.reissueToken() }
+        coVerify(exactly = 0) { sync() }
+    }
+
+    @Test
+    fun `does not run duplicate session verification while a reissue is active`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val authRepository = sessionExpirationUseCase()
+        val reissueStarted = CompletableDeferred<Unit>()
+        val allowReissueCompletion = CompletableDeferred<Unit>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), authRepository)
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        coEvery { authRepository.reissueToken() } coAnswers {
+            reissueStarted.complete(Unit)
+            allowReissueCompletion.await()
+        }
+        viewModel.onAppResumed()
+        runCurrent()
+        reissueStarted.await()
+        viewModel.onAppResumed()
+        allowReissueCompletion.complete(Unit)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.reissueToken() }
     }
 
     @Test
