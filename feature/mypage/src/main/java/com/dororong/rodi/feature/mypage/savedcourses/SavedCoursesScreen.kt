@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.savedcourses
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCourseRow
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCoursesEmpty
@@ -69,9 +71,7 @@ private fun SavedCoursesContent(
     ) {
         SavedCoursesTopBar(onBack = onBack)
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = RodiTheme.colors.primary600)
-            }
+            state.isLoading -> SavedCoursesLoadingContent()
             state.initialError != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -125,6 +125,41 @@ private fun SavedCoursesContent(
     }
 }
 
+@Composable
+private fun SavedCoursesLoadingContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        RodiSkeleton(
+            modifier = Modifier
+                .fillMaxWidth(0.2f)
+                .height(14.dp),
+        )
+        repeat(4) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                RodiSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth(0.72f)
+                        .height(20.dp),
+                )
+                RodiSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(16.dp),
+                )
+                RodiSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(37.dp),
+                )
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun SavedCoursesFilledPreview() {
@@ -149,6 +184,20 @@ private fun SavedCoursesFilledPreview() {
                 totalCount = 1,
                 isLoading = false,
             ),
+            onBack = {},
+            onPlaceClick = {},
+            onLoadNextPage = {},
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SavedCoursesLoadingPreview() {
+    RodiTheme {
+        SavedCoursesContent(
+            state = SavedCoursesUiState(),
             onBack = {},
             onPlaceClick = {},
             onLoadNextPage = {},

@@ -5,10 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ import com.dororong.rodi.feature.mypage.components.MyPageTopBar
 import com.dororong.rodi.feature.mypage.components.ProfileCard
 import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
@@ -70,10 +72,8 @@ fun MyPageScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         when {
-            uiState.isLoading && uiState.profile.nickname.isBlank() -> Box(
-                modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator(color = RodiTheme.colors.primary600) }
+            uiState.isLoading && uiState.profile.nickname.isBlank() -> MyPageLoadingContent(
+            )
             uiState.errorMessage != null && uiState.profile.nickname.isBlank() -> Box(
                 modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
                 contentAlignment = Alignment.Center,
@@ -96,6 +96,56 @@ fun MyPageScreen(
             )
         }
         RodiSnackbarHost(snackbarHostState)
+    }
+}
+
+@Composable
+private fun MyPageLoadingContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(RodiTheme.colors.white)
+            .statusBarsPadding(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            RodiSkeleton(
+                modifier = Modifier
+                    .fillMaxWidth(0.18f)
+                    .height(20.dp),
+            )
+            RodiSkeleton(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .height(24.dp)
+                    .fillMaxWidth(0.07f),
+            )
+        }
+        RodiSkeleton(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .fillMaxWidth()
+                .height(227.dp),
+        )
+        HorizontalDivider(color = RodiTheme.colors.gray100)
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp)) {
+            RodiSkeleton(
+                modifier = Modifier
+                    .fillMaxWidth(0.35f)
+                    .height(16.dp),
+            )
+            Spacer(Modifier.height(12.dp))
+            RodiSkeleton(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp),
+            )
+        }
     }
 }
 
