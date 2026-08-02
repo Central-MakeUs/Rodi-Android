@@ -51,11 +51,12 @@ class RodiAppViewModel @Inject constructor(
     getGuestAccessUseCase: GetGuestAccessUseCase,
     private val getAuthSessionUseCase: GetAuthSessionUseCase,
     private val syncPendingOnboardingUseCase: SyncPendingOnboardingUseCase,
-    authRepository: AuthRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(RodiAppUiState())
     private val authSessionRefresh = MutableStateFlow(0)
     private val sessionEnded = MutableStateFlow(false)
+    private var sessionVerificationJob: Job? = null
     private val _effect = Channel<RodiAppEffect>(Channel.BUFFERED)
     val effect: Flow<RodiAppEffect> = _effect.receiveAsFlow()
     val state: StateFlow<RodiAppUiState> = _state.asStateFlow()
@@ -106,6 +107,20 @@ class RodiAppViewModel @Inject constructor(
     fun onLoginSucceeded() {
         sessionEnded.value = false
         authSessionRefresh.update { it + 1 }
+    }
+
+    fun verifyAuthSession() {
+        if (sessionVerificationJob?.isActive == true || sessionEnded.value) return
+        sessionVerificationJob = viewModelScope.launch {
+            try {
+                if (!getAuthSessionUseCase().isLoggedIn) return@launch
+                authRepository.reissueToken()
+                authSessionRefresh.update { it + 1 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     fun onSessionEnded() {

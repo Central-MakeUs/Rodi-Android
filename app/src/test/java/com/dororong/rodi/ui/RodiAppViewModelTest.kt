@@ -253,6 +253,41 @@ class RodiAppViewModelTest {
     }
 
     @Test
+    fun `proactively reissues an authenticated session on app start`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val authRepository = sessionExpirationUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        coEvery { authRepository.reissueToken() } returns Unit
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), authRepository)
+        viewModel.verifyAuthSession()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.reissueToken() }
+    }
+
+    @Test
+    fun `does not reissue a signed out session on app start`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val authRepository = sessionExpirationUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
+
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), authRepository)
+        viewModel.verifyAuthSession()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { authRepository.reissueToken() }
+    }
+
+    @Test
     fun `does not sync pending onboarding when signed out`() = runTest(dispatcher) {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
