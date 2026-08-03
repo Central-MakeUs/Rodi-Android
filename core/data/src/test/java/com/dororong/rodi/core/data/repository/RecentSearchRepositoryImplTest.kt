@@ -4,8 +4,11 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
 import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchResponse
+import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchRegisterRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
+import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -64,5 +67,35 @@ class RecentSearchRepositoryImplTest {
 
         coVerify(exactly = 1) { authRepository.reissueToken() }
         coVerify(exactly = 1) { api.deleteRecentSearch("Bearer new", 7) }
+    }
+
+    @Test
+    fun `recent search registration sends the selected place id`() = runTest {
+        val api = mockk<RecentSearchApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery {
+            api.registerRecentSearch(
+                "Bearer access",
+                RecentSearchRegisterRequest("PLACE", "중구 연습 코스", 13),
+            )
+        } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = buildJsonObject { },
+        )
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), json)
+
+        repository.registerRecentSearch(
+            RecentSearchRegistration(SearchTargetType.PLACE, "중구 연습 코스", 13),
+        )
+
+        coVerify(exactly = 1) {
+            api.registerRecentSearch(
+                "Bearer access",
+                RecentSearchRegisterRequest("PLACE", "중구 연습 코스", 13),
+            )
+        }
     }
 }

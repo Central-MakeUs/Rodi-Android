@@ -3,9 +3,11 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
+import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchRegisterRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.search.RecentSearch
+import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
@@ -31,6 +33,19 @@ class RecentSearchRepositoryImpl @Inject constructor(
                 placeId = response.placeId,
                 regionKey = response.regionKey,
             )
+        }
+    }
+
+    override suspend fun registerRecentSearch(search: RecentSearchRegistration) {
+        authenticatedRequest { authorization ->
+            recentSearchApi.registerRecentSearch(
+                authorization = authorization,
+                request = RecentSearchRegisterRequest(
+                    type = search.type.name,
+                    keyword = search.keyword,
+                    placeId = search.placeId,
+                ),
+            ).requireSuccess()
         }
     }
 

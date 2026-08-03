@@ -7,6 +7,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -63,6 +64,12 @@ class CachedPlaceRepository @Inject constructor(
         cursor: String?,
         size: Int,
     ): CursorPage<PlaceSummary> = delegate.searchPlaces(keyword, origin, cursor, size)
+
+    override suspend fun relatedSearch(
+        keyword: String,
+        cursor: String?,
+        size: Int,
+    ): RelatedSearch = delegate.relatedSearch(keyword, cursor, size)
 
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = delegate.getPlaceDetail(placeId)
 

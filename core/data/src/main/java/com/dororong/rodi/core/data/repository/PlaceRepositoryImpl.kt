@@ -13,6 +13,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceException
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
+import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import java.io.IOException
@@ -63,6 +65,31 @@ class PlaceRepositoryImpl @Inject constructor(
             size = size,
             cursor = cursor,
         ).requireData().toDomain()
+    }
+
+    override suspend fun relatedSearch(
+        keyword: String,
+        cursor: String?,
+        size: Int,
+    ): RelatedSearch = authenticatedRequest { accessToken ->
+        api.relatedSearch(
+            authorization = "Bearer $accessToken",
+            keyword = keyword,
+            size = size,
+            cursor = cursor,
+        ).requireData().let { response ->
+            RelatedSearch(
+                regions = response.regions,
+                places = CursorPage(
+                    items = response.places.items.map {
+                        PlaceSuggestion(it.placeId, it.name, it.region)
+                    },
+                    hasNext = response.places.hasNext,
+                    nextCursor = response.places.nextCursor,
+                    totalCount = response.places.totalCount,
+                ),
+            )
+        }
     }
 
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = authenticatedRequest { accessToken ->

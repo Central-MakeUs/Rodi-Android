@@ -6,6 +6,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import kotlinx.coroutines.flow.Flow
 
 interface PlaceRepository {
@@ -13,6 +14,7 @@ interface PlaceRepository {
     suspend fun refreshCoordinates(): List<PlaceCoordinate> = getCoordinates()
     suspend fun getPlaces(query: PlaceViewportQuery, cursor: String?, size: Int): CursorPage<PlaceSummary>
     suspend fun searchPlaces(keyword: String, origin: GeoPoint, cursor: String?, size: Int): CursorPage<PlaceSummary>
+    suspend fun relatedSearch(keyword: String, cursor: String?, size: Int): RelatedSearch
     suspend fun refreshPlaces(
         query: PlaceViewportQuery,
         cursor: String?,
