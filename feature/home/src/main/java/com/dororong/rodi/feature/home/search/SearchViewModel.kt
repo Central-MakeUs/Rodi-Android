@@ -4,12 +4,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
+import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
+import com.dororong.rodi.core.domain.usecase.place.GetRelatedSearchUseCase
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteAllRecentSearchesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteRecentSearchUseCase
 import com.dororong.rodi.core.domain.usecase.search.GetRecentSearchesUseCase
+import com.dororong.rodi.core.domain.usecase.search.RegisterRecentSearchUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -41,7 +45,7 @@ data class SearchUiState(
     val isDeletingAllRecentSearches: Boolean = false,
     val deletingRecentSearchIds: Set<Long> = emptySet(),
     val resultState: SearchResultState = SearchResultState.Idle,
-    val places: List<PlaceSummary> = emptyList(),
+    val places: List<PlaceSuggestion> = emptyList(),
     val hasNextPage: Boolean = false,
     val nextCursor: String? = null,
     val isNextPageLoading: Boolean = false,
@@ -54,7 +58,7 @@ sealed interface SearchIntent {
     data object OnLoadNextPage : SearchIntent
     data class OnRecentSearchClick(val search: RecentSearch) : SearchIntent
     data class OnRegionSuggestionClick(val region: RegionOfficeLocation) : SearchIntent
-    data class OnPlaceSuggestionClick(val placeId: Long) : SearchIntent
+    data class OnPlaceSuggestionClick(val place: PlaceSuggestion) : SearchIntent
     data object OnDeleteAllRecentSearches : SearchIntent
     data class OnDeleteRecentSearch(val id: Long) : SearchIntent
 }
@@ -73,7 +77,9 @@ class SearchViewModel @Inject constructor(
     private val getRecentSearchesUseCase: GetRecentSearchesUseCase,
     private val deleteAllRecentSearchesUseCase: DeleteAllRecentSearchesUseCase,
     private val deleteRecentSearchUseCase: DeleteRecentSearchUseCase,
+    private val getRelatedSearchUseCase: GetRelatedSearchUseCase,
     private val searchPlacesUseCase: SearchPlacesUseCase,
+    private val registerRecentSearchUseCase: RegisterRecentSearchUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(SearchUiState())
     val state: StateFlow<SearchUiState> = _state.asStateFlow()
@@ -96,10 +102,13 @@ class SearchViewModel @Inject constructor(
             SearchIntent.OnImeSearch -> searchImmediately()
             SearchIntent.OnLoadNextPage -> loadNextPage()
             is SearchIntent.OnRecentSearchClick -> onRecentSearchClick(intent.search)
-            is SearchIntent.OnRegionSuggestionClick -> selectRegion(intent.region)
-            is SearchIntent.OnPlaceSuggestionClick -> viewModelScope.launch {
-                _effect.send(SearchEffect.NavigatePlace(intent.placeId))
+            is SearchIntent.OnRegionSuggestionClick -> {
+                registerRecentSearch(
+                    RecentSearchRegistration(SearchTargetType.REGION, intent.region.displayName),
+                )
+                selectRegion(intent.region)
             }
+            is SearchIntent.OnPlaceSuggestionClick -> onPlaceSuggestionClick(intent.place)
             SearchIntent.OnDeleteAllRecentSearches -> deleteAllRecentSearches()
             is SearchIntent.OnDeleteRecentSearch -> deleteRecentSearch(intent.id)
         }
@@ -133,14 +142,11 @@ class SearchViewModel @Inject constructor(
         searchJob?.cancel()
         nextPageJob?.cancel()
         val normalizedQuery = limitedQuery.trim()
-        val regionSuggestions = origin?.let {
-            RegionOfficeLocationResolver.suggestions(normalizedQuery, it)
-        }.orEmpty()
         _state.update {
             it.copy(
                 query = limitedQuery,
                 resultState = if (normalizedQuery.isBlank()) SearchResultState.Idle else SearchResultState.Loading,
-                regionSuggestions = regionSuggestions,
+                regionSuggestions = emptyList(),
                 places = emptyList(),
                 hasNextPage = false,
                 nextCursor = null,
@@ -158,6 +164,12 @@ class SearchViewModel @Inject constructor(
     private fun searchImmediately() {
         val normalizedQuery = _state.value.query.trim()
         if (normalizedQuery.isBlank()) return
+        registerRecentSearch(
+            RecentSearchRegistration(
+                type = SearchTargetType.REGION,
+                keyword = normalizedQuery,
+            ),
+        )
         searchGeneration += 1
         val generation = searchGeneration
         searchJob?.cancel()
@@ -175,20 +187,21 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun searchFirstPage(keyword: String, generation: Long) {
-        val origin = origin ?: return
-        searchPlacesUseCase(keyword, origin, cursor = null, size = SEARCH_PAGE_SIZE)
-            .onSuccess { page ->
+        getRelatedSearchUseCase(keyword, cursor = null, size = SEARCH_PAGE_SIZE)
+            .onSuccess { relatedSearch ->
                 if (generation != searchGeneration) return@onSuccess
+                val regions = relatedSearch.regions.mapNotNull(RegionOfficeLocationResolver::find)
                 _state.update {
                     it.copy(
-                        resultState = if (page.items.isEmpty() && it.regionSuggestions.isEmpty()) {
+                        resultState = if (relatedSearch.places.items.isEmpty() && regions.isEmpty()) {
                             SearchResultState.Empty
                         } else {
                             SearchResultState.Content
                         },
-                        places = page.items.distinctBy(PlaceSummary::id),
-                        hasNextPage = page.hasNext,
-                        nextCursor = page.nextCursor,
+                        regionSuggestions = regions,
+                        places = relatedSearch.places.items.distinctBy(PlaceSuggestion::placeId),
+                        hasNextPage = relatedSearch.places.hasNext,
+                        nextCursor = relatedSearch.places.nextCursor,
                     )
                 }
             }
@@ -205,10 +218,16 @@ class SearchViewModel @Inject constructor(
         val placeId = search.placeId
         when {
             search.type == SearchTargetType.PLACE && placeId != null -> {
+                registerRecentSearch(
+                    RecentSearchRegistration(SearchTargetType.PLACE, search.keyword, placeId),
+                )
                 viewModelScope.launch { _effect.send(SearchEffect.NavigatePlace(placeId)) }
             }
             search.type == SearchTargetType.REGION || region != null -> {
-                region?.let(::selectRegion) ?: viewModelScope.launch {
+                region?.let {
+                    registerRecentSearch(RecentSearchRegistration(SearchTargetType.REGION, search.keyword))
+                    selectRegion(it)
+                } ?: viewModelScope.launch {
                     _effect.send(SearchEffect.ShowSnackbar("지역 위치를 찾지 못했어요. 다시 검색해주세요."))
                 }
             }
@@ -217,6 +236,13 @@ class SearchViewModel @Inject constructor(
                 searchImmediately()
             }
         }
+    }
+
+    private fun onPlaceSuggestionClick(place: PlaceSuggestion) {
+        registerRecentSearch(
+            RecentSearchRegistration(SearchTargetType.PLACE, place.name, place.placeId),
+        )
+        viewModelScope.launch { _effect.send(SearchEffect.NavigatePlace(place.placeId)) }
     }
 
     private fun selectRegion(region: RegionOfficeLocation) {
@@ -261,18 +287,17 @@ class SearchViewModel @Inject constructor(
         val generation = searchGeneration
         val keyword = current.query.trim()
         if (keyword.isBlank()) return
-        val origin = origin ?: return
         nextPageJob = viewModelScope.launch {
             _state.update { it.copy(isNextPageLoading = true) }
-            searchPlacesUseCase(keyword, origin, cursor = cursor, size = SEARCH_PAGE_SIZE)
-                .onSuccess { page ->
+            getRelatedSearchUseCase(keyword, cursor = cursor, size = SEARCH_PAGE_SIZE)
+                .onSuccess { relatedSearch ->
                     if (generation != searchGeneration) return@onSuccess
                     _state.update {
-                        val places = (it.places + page.items).distinctBy(PlaceSummary::id)
+                        val places = (it.places + relatedSearch.places.items).distinctBy(PlaceSuggestion::placeId)
                         it.copy(
                             places = places,
-                            hasNextPage = page.hasNext,
-                            nextCursor = page.nextCursor,
+                            hasNextPage = relatedSearch.places.hasNext,
+                            nextCursor = relatedSearch.places.nextCursor,
                             isNextPageLoading = false,
                         )
                     }
@@ -282,6 +307,12 @@ class SearchViewModel @Inject constructor(
                     _state.update { it.copy(isNextPageLoading = false) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
+        }
+    }
+
+    private fun registerRecentSearch(search: RecentSearchRegistration) {
+        viewModelScope.launch {
+            registerRecentSearchUseCase(search)
         }
     }
 

@@ -50,7 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
-import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -311,9 +311,9 @@ private fun SearchRow(
 @Composable
 private fun SearchSuggestionList(
     regions: List<RegionOfficeLocation>,
-    places: List<PlaceSummary>,
+    places: List<PlaceSuggestion>,
     onRegionClick: (RegionOfficeLocation) -> Unit,
-    onPlaceClick: (Long) -> Unit,
+    onPlaceClick: (PlaceSuggestion) -> Unit,
     onLoadNextPage: () -> Unit,
     isNextPageLoading: Boolean,
     modifier: Modifier = Modifier,
@@ -344,11 +344,11 @@ private fun SearchSuggestionList(
         if (regions.isNotEmpty() && places.isNotEmpty()) {
             item { HorizontalDivider(color = RodiTheme.colors.gray200, thickness = 4.dp) }
         }
-        items(places, key = PlaceSummary::id) { place ->
+        items(places, key = PlaceSuggestion::placeId) { place ->
             SearchRow(
                 text = place.name,
                 iconRes = R.drawable.ic_map_pin,
-                onClick = { onPlaceClick(place.id) },
+                onClick = { onPlaceClick(place) },
             )
         }
         if (isNextPageLoading) {
@@ -476,9 +476,9 @@ private fun SearchSuggestionPreview() {
             state = SearchUiState(
                 query = "중구",
                 resultState = SearchResultState.Content,
-                regionSuggestions = RegionOfficeLocationResolver.suggestions(
-                    "중구",
-                    GeoPoint(37.5, 126.9),
+                regionSuggestions = listOfNotNull(
+                    RegionOfficeLocationResolver.find("서울 중구"),
+                    RegionOfficeLocationResolver.find("부산 중구"),
                 ),
                 places = listOf(searchPreviewPlace()),
             ),
@@ -515,16 +515,8 @@ private fun SearchRegionEmptyPreview() {
     }
 }
 
-private fun searchPreviewPlace() = PlaceSummary(
-    id = 1L,
-    type = PlaceType.COURSE,
+private fun searchPreviewPlace() = PlaceSuggestion(
+    placeId = 1L,
     name = "중구 초보 운전 연습 코스",
-    address = "서울 중구",
-    point = GeoPoint(37.563654, 126.997510),
-    distanceFromMeMeters = 1_200L,
-    practiceTypes = emptyList(),
-    description = null,
-    distanceMeters = null,
-    capacity = null,
-    openTime = null,
+    region = "서울 중구",
 )

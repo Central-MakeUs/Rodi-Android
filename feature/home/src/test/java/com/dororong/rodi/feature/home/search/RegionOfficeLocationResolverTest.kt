@@ -1,6 +1,5 @@
 package com.dororong.rodi.feature.home.search
 
-import com.dororong.rodi.core.domain.model.course.GeoPoint
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -10,14 +9,6 @@ class RegionOfficeLocationResolverTest {
     @Test
     fun `normalizes metropolitan region names before resolving`() {
         assertEquals("서울 중구", RegionOfficeLocationResolver.find("서울특별시   중구")?.regionKey)
-    }
-
-    @Test
-    fun `returns no more than four nearest matching regions`() {
-        val regions = RegionOfficeLocationResolver.suggestions("중구", GeoPoint(37.5, 126.9))
-
-        assertEquals(4, regions.size)
-        assertEquals("서울 중구", regions.first().regionKey)
     }
 
     @Test

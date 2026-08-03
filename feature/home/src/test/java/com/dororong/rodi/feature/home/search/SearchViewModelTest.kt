@@ -4,14 +4,19 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
+import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
+import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
+import com.dororong.rodi.core.domain.usecase.place.GetRelatedSearchUseCase
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteAllRecentSearchesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteRecentSearchUseCase
 import com.dororong.rodi.core.domain.usecase.search.GetRecentSearchesUseCase
+import com.dororong.rodi.core.domain.usecase.search.RegisterRecentSearchUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -41,14 +46,14 @@ class SearchViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `query searches after debounce and loads the next page`() = runTest(dispatcher) {
+    fun `query uses related search after debounce and loads the next place page`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery {
-            dependencies.placeRepository.searchPlaces("강남", GeoPoint(37.5, 126.9), null, 20)
-        } returns CursorPage(listOf(place(1)), true, "next", 2)
+            dependencies.placeRepository.relatedSearch("강남", null, 20)
+        } returns related(regions = listOf("서울 강남구"), places = listOf(suggestion(1)), hasNext = true, nextCursor = "next")
         coEvery {
-            dependencies.placeRepository.searchPlaces("강남", GeoPoint(37.5, 126.9), "next", 20)
-        } returns CursorPage(listOf(place(2)), false, null, null)
+            dependencies.placeRepository.relatedSearch("강남", "next", 20)
+        } returns related(places = listOf(suggestion(2)))
         val viewModel = dependencies.viewModel()
         viewModel.initialize(GeoPoint(37.5, 126.9))
         advanceUntilIdle()
@@ -58,12 +63,53 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
-        assertEquals(listOf(1L), viewModel.state.value.places.map { it.id })
+        assertEquals(listOf("서울 강남구"), viewModel.state.value.regionSuggestions.map { it.displayName })
+        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
         viewModel.onIntent(SearchIntent.OnLoadNextPage)
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L), viewModel.state.value.places.map { it.id })
+        assertEquals(listOf(1L, 2L), viewModel.state.value.places.map { it.placeId })
         assertEquals(false, viewModel.state.value.hasNextPage)
+    }
+
+    @Test
+    fun `typing does not register and ime search registers the entered keyword`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } returns related()
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
+        val viewModel = dependencies.viewModel()
+
+        viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
+        viewModel.onIntent(SearchIntent.OnImeSearch)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) {
+            dependencies.recentRepository.registerRecentSearch(
+                RecentSearchRegistration(SearchTargetType.REGION, "강남"),
+            )
+        }
+    }
+
+    @Test
+    fun `related search keeps the server region order instead of locally sorting it`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.placeRepository.relatedSearch("중구", null, 20) } returns related(
+            regions = listOf("부산 중구", "서울 중구"),
+        )
+        val viewModel = dependencies.viewModel()
+
+        viewModel.onIntent(SearchIntent.OnQueryChange("중구"))
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf("부산 중구", "서울 중구"),
+            viewModel.state.value.regionSuggestions.map { it.displayName },
+        )
     }
 
     @Test
@@ -102,6 +148,7 @@ class SearchViewModelTest {
         coEvery {
             dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
         } returns CursorPage(listOf(place(1)), false, null, 1)
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         val viewModel = dependencies.viewModel()
         viewModel.initialize(origin)
         advanceUntilIdle()
@@ -114,6 +161,11 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(SearchEffect.NavigateRegion(region, listOf(place(1))), effect.await())
+        coVerify {
+            dependencies.recentRepository.registerRecentSearch(
+                RecentSearchRegistration(SearchTargetType.REGION, "서울 중구"),
+            )
+        }
     }
 
     @Test
@@ -123,6 +175,7 @@ class SearchViewModelTest {
         coEvery {
             dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
         } returns CursorPage(emptyList(), false, null, 0)
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         val viewModel = dependencies.viewModel()
         viewModel.initialize(origin)
         advanceUntilIdle()
@@ -133,6 +186,24 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
+    }
+
+    @Test
+    fun `place suggestion registers place before navigating`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
+        val viewModel = dependencies.viewModel()
+        val effect = async { viewModel.effect.first() }
+
+        viewModel.onIntent(SearchIntent.OnPlaceSuggestionClick(suggestion(7)))
+        advanceUntilIdle()
+
+        assertEquals(SearchEffect.NavigatePlace(7), effect.await())
+        coVerify {
+            dependencies.recentRepository.registerRecentSearch(
+                RecentSearchRegistration(SearchTargetType.PLACE, "place-7", 7),
+            )
+        }
     }
 
     private class Dependencies(
@@ -149,10 +220,21 @@ class SearchViewModelTest {
             getRecentSearchesUseCase = GetRecentSearchesUseCase(recentRepository),
             deleteAllRecentSearchesUseCase = DeleteAllRecentSearchesUseCase(recentRepository),
             deleteRecentSearchUseCase = DeleteRecentSearchUseCase(recentRepository),
+            getRelatedSearchUseCase = GetRelatedSearchUseCase(placeRepository),
             searchPlacesUseCase = SearchPlacesUseCase(placeRepository),
+            registerRecentSearchUseCase = RegisterRecentSearchUseCase(recentRepository),
         )
     }
 }
+
+private fun related(
+    regions: List<String> = emptyList(),
+    places: List<PlaceSuggestion> = emptyList(),
+    hasNext: Boolean = false,
+    nextCursor: String? = null,
+) = RelatedSearch(regions, CursorPage(places, hasNext, nextCursor, null))
+
+private fun suggestion(id: Long) = PlaceSuggestion(id, "place-$id", "서울 중구")
 
 private fun place(id: Long) = PlaceSummary(
     id = id,

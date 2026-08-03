@@ -1,10 +1,10 @@
 # HANDOFF — Current Task
 
-Status: IMPL_DONE
+Status: REVISION_DONE
 Task: 검색어 연관·지역 결과 흐름
 Branch: feat/search
 Base: origin/develop
-Risk: 현재 장소 검색 API는 호출만으로 최근 검색어를 저장하며, 전국 시군구 구청 좌표 데이터는 아직 제공되지 않았다.
+Risk: 새 API의 지역 후보는 좌표 없이 지역명만 제공하므로, 지도 이동은 기존 정적 구청 좌표 resolver와의 정규화 일치에 의존한다.
 
 ## Context
 
@@ -48,6 +48,18 @@ Risk: 현재 장소 검색 API는 호출만으로 최근 검색어를 저장하�
 
 ## Revision Plan
 
+- `GET places/related-search` DTO·PlaceRepository·use case를 추가하고, SearchViewModel의 300ms 자동완성 및 다음 페이지 조회를 해당 API로 교체한다.
+- 서버 지역 후보의 관련도순을 보존해 화면에 표시하고, 선택 시에만 로컬 resolver로 구청 좌표를 해석한다.
+- 최근 검색어 POST DTO·repository·use case를 추가한다. IME는 입력어를 REGION으로, 지역/장소 후보 선택은 각각 REGION/PLACE와 placeId로 비차단 등록한다.
+- 입력만으로 등록하지 않는 규칙, 등록 실패 비차단, 페이지네이션·서버 지역 후보 표시를 단위 테스트로 검증한다.
+
 ## Revision Result
+
+- `PlaceApi`와 `PlaceRepository`에 `related-search` 경계를 추가했고, 검색 화면의 디바운스·페이지네이션은 서버 지역·장소 후보를 사용한다.
+- 로컬 resolver의 자동완성/거리 정렬을 제거하고, 서버 지역명에 대한 구청 좌표·줌 해석만 유지했다.
+- 최근 검색어 POST를 추가했다. 타이핑은 등록하지 않으며, IME 입력은 REGION, 지역 후보·최근 지역은 REGION, 장소 후보·최근 장소는 PLACE와 placeId로 비차단 등록한다.
+- 등록 실패는 이동/상세 진입을 막지 않는다.
+- 검증: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
+- 정적 검증: `git diff --check` GREEN.
 
 ## Final Review
