@@ -1,14 +1,13 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.mapper.toAuthException
+import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
 import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchRegisterRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
-import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
-import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import javax.inject.Inject
@@ -22,18 +21,8 @@ class RecentSearchRepositoryImpl @Inject constructor(
     private val authRepository: AuthRepository,
     private val json: Json,
 ) : RecentSearchRepository {
-    override suspend fun getRecentSearches(): List<RecentSearch> = authenticatedRequest { authorization ->
-        recentSearchApi.getRecentSearches(authorization).requireData().map { response ->
-            RecentSearch(
-                id = response.id,
-                keyword = response.keyword,
-                type = response.type?.let { type ->
-                    SearchTargetType.entries.firstOrNull { it.name == type }
-                },
-                placeId = response.placeId,
-                regionKey = response.regionKey,
-            )
-        }
+    override suspend fun getRecentSearches() = authenticatedRequest { authorization ->
+        recentSearchApi.getRecentSearches(authorization).requireData().map { it.toDomain() }
     }
 
     override suspend fun registerRecentSearch(search: RecentSearchRegistration) {

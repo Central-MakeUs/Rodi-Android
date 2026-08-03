@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.domain.usecase.place
 
 import com.dororong.rodi.core.common.runSuspendCatching
+import com.dororong.rodi.core.domain.model.search.normalizeSearchKeyword
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
 
@@ -12,8 +13,7 @@ class GetRelatedSearchUseCase @Inject constructor(
         cursor: String? = null,
         size: Int = 20,
     ) = runSuspendCatching {
-        val normalizedKeyword = keyword.trim()
-        require(normalizedKeyword.length in 1..50) { "검색어는 1~50자여야 합니다." }
+        val normalizedKeyword = keyword.normalizeSearchKeyword()
         repository.relatedSearch(normalizedKeyword, cursor, size)
     }
 }

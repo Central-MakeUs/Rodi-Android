@@ -8,6 +8,7 @@ import com.dororong.rodi.core.data.source.remote.model.place.ParkingDetailRespon
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceCoordinateResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceListItemResponse
+import com.dororong.rodi.core.data.source.remote.model.place.RelatedSearchResponse
 import com.dororong.rodi.core.data.source.remote.model.place.WaypointResponse
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CoursePlaceDetail
@@ -22,6 +23,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceWaypoint
 import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
+import com.dororong.rodi.core.domain.model.search.RelatedSearch
 
 fun PlaceCoordinateResponse.toDomain() = PlaceCoordinate(
     id = id,
@@ -36,6 +39,16 @@ fun CursorPagePlaceResponse.toDomain() = CursorPage(
     hasNext = hasNext,
     nextCursor = nextCursor,
     totalCount = totalCount,
+)
+
+fun RelatedSearchResponse.toDomain() = RelatedSearch(
+    regions = regions,
+    places = CursorPage(
+        items = places.items.map { PlaceSuggestion(it.placeId, it.name, it.region) },
+        hasNext = places.hasNext,
+        nextCursor = places.nextCursor,
+        totalCount = places.totalCount,
+    ),
 )
 
 fun PlaceListItemResponse.toDomain() = PlaceSummary(
