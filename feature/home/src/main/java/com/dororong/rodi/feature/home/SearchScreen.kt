@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -55,6 +56,7 @@ import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -138,7 +140,7 @@ private fun SearchScreenContent(
                 modifier = Modifier.weight(1f),
             )
 
-            state.resultState == SearchResultState.Loading -> SearchLoadingContent(Modifier.weight(1f))
+            state.resultState == SearchResultState.Loading -> SearchSuggestionSkeletonList(Modifier.weight(1f))
             state.resultState == SearchResultState.Content -> SearchSuggestionList(
                 regions = state.regionSuggestions,
                 places = state.places,
@@ -222,7 +224,7 @@ private fun RecentSearchList(
     modifier: Modifier = Modifier,
 ) {
     when {
-        isLoading -> Unit
+        isLoading -> RecentSearchSkeletonList(modifier)
         searches.isEmpty() -> Unit
         else -> LazyColumn(modifier = modifier.fillMaxWidth()) {
             item(key = "recent_search_header") {
@@ -272,6 +274,26 @@ private fun RecentSearchList(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun RecentSearchSkeletonList(modifier: Modifier = Modifier) {
+    LazyColumn(modifier = modifier.fillMaxWidth()) {
+        item(key = "recent_search_skeleton_header") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RodiSkeleton(Modifier.size(width = 52.dp, height = 12.dp))
+                RodiSkeleton(Modifier.size(width = 40.dp, height = 12.dp))
+            }
+        }
+        items(3) { SearchRowSkeleton(showTrailing = true) }
     }
 }
 
@@ -356,6 +378,44 @@ private fun SearchSuggestionList(
         if (isNextPageLoading) {
             item { SearchLoadingContent(Modifier.fillParentMaxWidth().height(62.dp)) }
         }
+    }
+}
+
+@Composable
+private fun SearchSuggestionSkeletonList(modifier: Modifier = Modifier) {
+    LazyColumn(modifier = modifier.fillMaxWidth()) {
+        items(6) { SearchRowSkeleton() }
+    }
+}
+
+@Composable
+private fun SearchRowSkeleton(showTrailing: Boolean = false) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(61.dp)
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            RodiSkeleton(
+                modifier = Modifier.size(20.dp),
+                shape = CircleShape,
+            )
+            RodiSkeleton(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(16.dp),
+            )
+            if (showTrailing) {
+                RodiSkeleton(
+                    modifier = Modifier.size(20.dp),
+                    shape = CircleShape,
+                )
+            }
+        }
+        HorizontalDivider(color = RodiTheme.colors.gray100)
     }
 }
 
@@ -450,6 +510,32 @@ private fun SearchRecentPreview() {
                 },
                 isRecentSearchesLoading = false,
             ),
+            focusRequester = remember { FocusRequester() },
+            onIntent = {},
+            onBack = {},
+        )
+    }
+}
+
+@Preview(name = "Search - loading", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SearchLoadingPreview() {
+    RodiTheme {
+        SearchScreenContent(
+            state = SearchUiState(query = "중구", resultState = SearchResultState.Loading),
+            focusRequester = remember { FocusRequester() },
+            onIntent = {},
+            onBack = {},
+        )
+    }
+}
+
+@Preview(name = "Search - recent loading", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SearchRecentLoadingPreview() {
+    RodiTheme {
+        SearchScreenContent(
+            state = SearchUiState(isRecentSearchesLoading = true),
             focusRequester = remember { FocusRequester() },
             onIntent = {},
             onBack = {},
