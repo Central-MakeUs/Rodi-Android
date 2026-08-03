@@ -176,6 +176,10 @@ class SearchViewModelTest {
             dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
         } returns CursorPage(emptyList(), false, null, 0)
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
+        coEvery { dependencies.recentRepository.getRecentSearches() } returnsMany listOf(
+            emptyList(),
+            listOf(RecentSearch(7, "서울 중구", SearchTargetType.REGION)),
+        )
         val viewModel = dependencies.viewModel()
         viewModel.initialize(origin)
         advanceUntilIdle()
@@ -186,6 +190,7 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
+        assertEquals(listOf("서울 중구"), viewModel.state.value.recentSearches.map { it.keyword })
     }
 
     @Test

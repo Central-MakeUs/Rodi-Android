@@ -118,7 +118,7 @@ class SearchViewModel @Inject constructor(
         this.origin = origin
     }
 
-    private fun loadRecentSearches() {
+    private fun loadRecentSearches(showError: Boolean = true) {
         viewModelScope.launch {
             getRecentSearchesUseCase()
                 .onSuccess { searches ->
@@ -131,7 +131,7 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _state.update { it.copy(isRecentSearchesLoading = false) }
-                    _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
+                    if (showError) _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }
     }
@@ -312,7 +312,9 @@ class SearchViewModel @Inject constructor(
 
     private fun registerRecentSearch(search: RecentSearchRegistration) {
         viewModelScope.launch {
-            registerRecentSearchUseCase(search)
+            registerRecentSearchUseCase(search).onSuccess {
+                loadRecentSearches(showError = false)
+            }
         }
     }
 

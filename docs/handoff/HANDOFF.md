@@ -52,6 +52,7 @@ Risk: 새 API의 지역 후보는 좌표 없이 지역명만 제공하므로, �
 - 서버 지역 후보의 관련도순을 보존해 화면에 표시하고, 선택 시에만 로컬 resolver로 구청 좌표를 해석한다.
 - 최근 검색어 POST DTO·repository·use case를 추가한다. IME는 입력어를 REGION으로, 지역/장소 후보 선택은 각각 REGION/PLACE와 placeId로 비차단 등록한다.
 - 입력만으로 등록하지 않는 규칙, 등록 실패 비차단, 페이지네이션·서버 지역 후보 표시를 단위 테스트로 검증한다.
+- 최근 검색어 등록 성공 뒤 목록을 조용히 다시 조회해, 지역 결과 Empty에서 입력을 지운 즉시 새 항목이 보이도록 한다.
 
 ## Revision Result
 
@@ -59,7 +60,9 @@ Risk: 새 API의 지역 후보는 좌표 없이 지역명만 제공하므로, �
 - 로컬 resolver의 자동완성/거리 정렬을 제거하고, 서버 지역명에 대한 구청 좌표·줌 해석만 유지했다.
 - 최근 검색어 POST를 추가했다. 타이핑은 등록하지 않으며, IME 입력은 REGION, 지역 후보·최근 지역은 REGION, 장소 후보·최근 장소는 PLACE와 placeId로 비차단 등록한다.
 - 등록 실패는 이동/상세 진입을 막지 않는다.
+- 등록 성공 뒤 최근 검색어를 다시 조회해, 지역 결과 Empty에서 입력을 지우면 방금 선택한 지역이 즉시 표시된다.
 - 검증: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
+- 회귀 검증: `./gradlew --no-daemon :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
 - 정적 검증: `git diff --check` GREEN.
 
 ## Final Review
