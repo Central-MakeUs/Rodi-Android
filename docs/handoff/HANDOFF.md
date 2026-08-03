@@ -46,6 +46,10 @@ Risk: 새 API의 지역 후보는 좌표 없이 지역명만 제공하므로, �
 
 ## Review Triage
 
+- 수용: 연관검색·최근검색 DTO mapper 분리, 최근검색 인증 예외 경로 테스트, 검색 실패 뒤 non-blank Idle 화면 fallback, 지역 resolver Map 조회와 미매핑 테스트, 검색 이동 effect 단일 발생 테스트, 등록 실패 비차단 이동 테스트.
+- 보류: 서버 지역명이 resolver 정규화와 다르다는 실제 계약·응답 근거가 없어 축약형 변환은 추가하지 않는다. 현재 OpenAPI 예시의 `서울특별시`는 정규화 처리한다.
+- 기각: `REVISION_DONE`은 이 프로젝트의 AGENTS 상태 전이에 정의된 값이므로 외부 리뷰의 `IN_REVIEW`/`Claude Review` 형식 요구는 적용하지 않는다.
+
 ## Revision Plan
 
 - `GET places/related-search` DTO·PlaceRepository·use case를 추가하고, SearchViewModel의 300ms 자동완성 및 다음 페이지 조회를 해당 API로 교체한다.
@@ -63,6 +67,7 @@ Risk: 새 API의 지역 후보는 좌표 없이 지역명만 제공하므로, �
 - 등록 성공 뒤 최근 검색어를 다시 조회해, 지역 결과 Empty에서 입력을 지우면 방금 선택한 지역이 즉시 표시된다.
 - 검증: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
 - 회귀 검증: `./gradlew --no-daemon :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
+- 리뷰 수정 검증: `./gradlew --no-daemon :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:assembleDebug --console=plain` BUILD SUCCESSFUL.
 - 정적 검증: `git diff --check` GREEN.
 
 ## Final Review

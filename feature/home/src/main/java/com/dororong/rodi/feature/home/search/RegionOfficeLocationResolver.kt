@@ -10,10 +10,11 @@ data class RegionOfficeLocation(
 )
 
 object RegionOfficeLocationResolver {
-    private val locations by lazy {
-        regionNames.map { displayName ->
-            RegionOfficeLocation(
-                regionKey = normalize(displayName),
+    private val locationsByKey by lazy {
+        regionNames.associate { displayName ->
+            val key = normalize(displayName)
+            key to RegionOfficeLocation(
+                regionKey = key,
                 displayName = displayName,
                 point = regionCenter(displayName),
                 zoomLevel = regionZoomLevels.getValue(displayName),
@@ -22,7 +23,7 @@ object RegionOfficeLocationResolver {
     }
 
     fun find(regionKey: String): RegionOfficeLocation? =
-        locations.firstOrNull { it.regionKey == normalize(regionKey) }
+        locationsByKey[normalize(regionKey)]
 
     fun normalize(regionKey: String): String = regionKey
         .trim()

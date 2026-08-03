@@ -3,12 +3,18 @@ package com.dororong.rodi.feature.home.search
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class RegionOfficeLocationResolverTest {
     @Test
     fun `normalizes metropolitan region names before resolving`() {
         assertEquals("서울 중구", RegionOfficeLocationResolver.find("서울특별시   중구")?.regionKey)
+    }
+
+    @Test
+    fun `returns null for an unresolvable region key`() {
+        assertNull(RegionOfficeLocationResolver.find("존재하지 않는 동네"))
     }
 
     @Test

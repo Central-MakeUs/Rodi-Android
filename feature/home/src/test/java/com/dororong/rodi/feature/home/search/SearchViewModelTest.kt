@@ -211,6 +211,19 @@ class SearchViewModelTest {
         }
     }
 
+    @Test
+    fun `place navigation continues when recent search registration fails`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } throws IllegalStateException()
+        val viewModel = dependencies.viewModel()
+        val effect = async { viewModel.effect.first() }
+
+        viewModel.onIntent(SearchIntent.OnPlaceSuggestionClick(suggestion(7)))
+        advanceUntilIdle()
+
+        assertEquals(SearchEffect.NavigatePlace(7), effect.await())
+    }
+
     private class Dependencies(
         recentSearches: List<RecentSearch> = emptyList(),
     ) {

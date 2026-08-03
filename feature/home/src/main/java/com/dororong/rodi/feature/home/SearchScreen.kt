@@ -149,7 +149,7 @@ private fun SearchScreenContent(
 
             state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim())
             state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent()
-            else -> Unit
+            state.resultState == SearchResultState.Idle -> SearchEmptyContent(state.query.trim())
         }
     }
 }

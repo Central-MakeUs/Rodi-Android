@@ -290,6 +290,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             assertEquals(HomeEffect.NavigateSearch(origin), awaitItem())
+            expectNoEvents()
         }
     }
 
