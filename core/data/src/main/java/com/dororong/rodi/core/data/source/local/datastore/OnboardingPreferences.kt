@@ -73,6 +73,13 @@ class OnboardingPreferences @Inject constructor(
             }
             .map { it[KEY_SYNC_AUTHORIZED] ?: false }
 
+    val isInitialFilterTagsApplied: Flow<Boolean> =
+        context.onboardingDataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .map { it[KEY_INITIAL_FILTER_TAGS_APPLIED] ?: false }
+
     suspend fun saveProfile(profile: OnboardingProfile) {
         context.onboardingDataStore.edit { it.writeProfile(profile) }
     }
@@ -97,6 +104,10 @@ class OnboardingPreferences @Inject constructor(
 
     suspend fun authorizeSync() {
         context.onboardingDataStore.edit { it[KEY_SYNC_AUTHORIZED] = true }
+    }
+
+    suspend fun markInitialFilterTagsApplied() {
+        context.onboardingDataStore.edit { it[KEY_INITIAL_FILTER_TAGS_APPLIED] = true }
     }
 
     private fun MutablePreferences.writeProfile(profile: OnboardingProfile) {
@@ -125,6 +136,7 @@ class OnboardingPreferences @Inject constructor(
         val KEY_GOAL = stringPreferencesKey("goal")
         val KEY_SYNC_PENDING = booleanPreferencesKey("onboarding_sync_pending")
         val KEY_SYNC_AUTHORIZED = booleanPreferencesKey("onboarding_sync_authorized")
+        val KEY_INITIAL_FILTER_TAGS_APPLIED = booleanPreferencesKey("initial_filter_tags_applied")
 
         const val LEGACY_ROAD_EXPERIENCE_KEY = "road_experience"
         const val LEGACY_PRACTICE_SITUATIONS_KEY = "practice_situations"

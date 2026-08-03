@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.ApplyInitialFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
 import com.dororong.rodi.core.domain.usecase.entry.SaveEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.SaveOnboardingProfileUseCase
@@ -561,6 +562,76 @@ class EntryViewModelTest {
     }
 
     @Test
+    fun `onboarding analysis applies initial filter tags from calculated level`() = runTest(testDispatcher) {
+        val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTags,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } returns Result.success(Unit)
+        advanceUntilIdle()
+
+        viewModel.startOnboardingAnalysis()
+        advanceTimeBy(3_000)
+        runCurrent()
+
+        coVerify(exactly = 1) { applyInitialFilterTags(OnboardingLevel.SEED) }
+    }
+
+    @Test
+    fun `onboarding analysis stays on the current step when initial filter tags fail`() = runTest(testDispatcher) {
+        val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTags,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } returns Result.failure(IllegalStateException("failed"))
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(
+                EntryEffect.ShowSubmissionError(
+                    message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                    canRetry = true,
+                ),
+                awaitItem(),
+            )
+        }
+    }
+
+    @Test
+    fun `onboarding analysis does not emit an error when initial filter tag application is cancelled`() = runTest(testDispatcher) {
+        val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
+        val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTags,
+        )
+        coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
+        coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } throws CancellationException("cancelled")
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.startOnboardingAnalysis()
+            advanceTimeBy(3_000)
+            runCurrent()
+
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `onboarding analysis shows input error without retry action`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
@@ -686,6 +757,7 @@ class EntryViewModelTest {
         getEntryProgressUseCase: GetEntryProgressUseCase = testGetEntryProgressUseCase(),
         saveEntryProgressUseCase: SaveEntryProgressUseCase = testSaveEntryProgressUseCase(),
         getOnboardingProfileUseCase: GetOnboardingProfileUseCase = testGetOnboardingProfileUseCase(),
+        applyInitialFilterTagsUseCase: ApplyInitialFilterTagsUseCase = testApplyInitialFilterTagsUseCase(),
         savedProgress: EntryProgress = EntryProgress(),
         savedProfile: OnboardingProfile = OnboardingProfile(),
         mode: EntryMode = EntryMode.AUTHENTICATED,
@@ -693,6 +765,7 @@ class EntryViewModelTest {
         coEvery { setEntryCompletedUseCase() } returns Unit
         coEvery { saveOnboardingProfileUseCase(any()) } returns Unit
         coEvery { saveOnboardingProfileUseCase.saveForSubmission(any()) } returns Unit
+        coEvery { applyInitialFilterTagsUseCase(any()) } returns Result.success(Unit)
         val progressWithMode = savedProgress.copy(mode = mode)
         every { getEntryProgressUseCase() } returns flowOf(progressWithMode)
         coEvery { saveEntryProgressUseCase(any()) } returns Unit
@@ -703,6 +776,7 @@ class EntryViewModelTest {
             getEntryProgressUseCase = getEntryProgressUseCase,
             saveEntryProgressUseCase = saveEntryProgressUseCase,
             getOnboardingProfileUseCase = getOnboardingProfileUseCase,
+            applyInitialFilterTagsUseCase = applyInitialFilterTagsUseCase,
         )
     }
 
@@ -719,6 +793,9 @@ class EntryViewModelTest {
         mockk()
 
     private fun testGetOnboardingProfileUseCase(): GetOnboardingProfileUseCase =
+        mockk()
+
+    private fun testApplyInitialFilterTagsUseCase(): ApplyInitialFilterTagsUseCase =
         mockk()
 
 }
