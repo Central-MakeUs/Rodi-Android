@@ -94,6 +94,7 @@ import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
+import com.dororong.rodi.feature.home.components.HomeSearchBar
 import com.dororong.rodi.feature.home.components.MapListButton
 import com.dororong.rodi.feature.home.components.MapLoadingScreen
 import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
@@ -188,6 +189,7 @@ typealias KakaoLoginRequest = (
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
+    onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     bottomNavigation: @Composable () -> Unit = {},
@@ -461,6 +463,7 @@ fun HomeScreen(
             }
 
             is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
         }
@@ -501,6 +504,29 @@ fun HomeScreen(
                 CameraAnimation.from(300),
             )
         }
+    }
+
+    LaunchedEffect(kakaoMap, state.regionSearchGeneration) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        val region = state.regionSearch ?: return@LaunchedEffect
+        if (state.regionSearchGeneration == 0L) return@LaunchedEffect
+        activeClusterMemberIds = null
+        hasUserChosenMapViewport = true
+        isAtCurrentLocation = false
+        mapSearchGeneration += 1
+        pendingMapSearch = PendingMapSearch(
+            generation = mapSearchGeneration,
+            target = region.point,
+            targetZoom = region.zoomLevel,
+            reason = MapSearchMoveReason.REGION,
+        )
+        map.moveCamera(
+            CameraUpdateFactory.newCenterPosition(
+                LatLng.from(region.point.lat, region.point.lng),
+                region.zoomLevel,
+            ),
+            CameraAnimation.from(300),
+        )
     }
 
     LaunchedEffect(kakaoMap, permissionGranted, currentLocation, deviceHeading.value, currentLocationMarkerColor) {
@@ -837,6 +863,21 @@ fun HomeScreen(
                                 },
                             )
                         }
+
+                        HomeSearchBar(
+                            onClick = {
+                                vm.onIntent(
+                                    HomeIntent.OnSearchClick(
+                                        currentViewport?.toQuery(currentLocation)?.origin,
+                                    ),
+                                )
+                            },
+                            searchKeyword = state.searchKeyword,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .statusBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 5.dp),
+                        )
 
                         AnimatedVisibility(
                             visible = shouldShowResearch,

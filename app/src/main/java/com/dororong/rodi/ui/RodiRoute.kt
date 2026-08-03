@@ -16,6 +16,12 @@ data object MainRoute : NavKey
 data object HomeRoute : NavKey
 
 @Serializable
+data class SearchRoute(
+    val latitude: Double,
+    val longitude: Double,
+) : NavKey
+
+@Serializable
 data object MyPageRoute : NavKey
 
 @Serializable

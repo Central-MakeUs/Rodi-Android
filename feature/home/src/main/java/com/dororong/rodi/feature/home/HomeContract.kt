@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home
 
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -9,6 +10,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
+import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 
 enum class HomeSurfaceState {
     Navigation,
@@ -57,6 +59,9 @@ data class HomeUiState(
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
     val isFilterSaving: Boolean = false,
+    val searchKeyword: String? = null,
+    val regionSearch: RegionOfficeLocation? = null,
+    val regionSearchGeneration: Long = 0L,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -76,6 +81,11 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
+    data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
+    data class OnRegionSearch(
+        val region: RegionOfficeLocation,
+        val initialPlaces: List<PlaceSummary>,
+    ) : HomeIntent
     data object OnFilterOpen : HomeIntent
     data class OnFilterCategorySelect(val category: FilterCategory) : HomeIntent
     data class OnFilterPracticeOptionToggle(val option: FilterPracticeOption) : HomeIntent
@@ -104,6 +114,7 @@ sealed interface HomeEffect {
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
+    data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
 }
@@ -112,5 +123,6 @@ sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction
     data object ToggleBookmark : PendingHomeAction
     data object OpenMyPage : PendingHomeAction
+    data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
     data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }

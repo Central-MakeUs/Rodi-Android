@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -23,6 +24,7 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.filter.practiceTypes
@@ -99,6 +101,8 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
+            is HomeIntent.OnSearchClick -> openSearch(intent.origin)
+            is HomeIntent.OnRegionSearch -> prepareRegionSearch(intent.region, intent.initialPlaces)
             HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
             is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
             is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
@@ -140,6 +144,36 @@ class HomeViewModel @Inject constructor(
                 .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
             refreshPlaceCoordinatesUseCase()
                 .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
+        }
+    }
+
+    private fun prepareRegionSearch(
+        region: RegionOfficeLocation,
+        initialPlaces: List<PlaceSummary>,
+    ) {
+        requestGeneration += 1
+        firstPageJob?.cancel()
+        nextPageJob?.cancel()
+        lastFirstPageKey = null
+        _state.update {
+            it.copy(
+                surfaceState = HomeSurfaceState.PartialList,
+                searchKeyword = region.displayName,
+                regionSearch = region,
+                regionSearchGeneration = it.regionSearchGeneration + 1,
+                places = initialPlaces.distinctBy(PlaceSummary::id),
+                listState = HomeListState.Content,
+                hasNextPage = false,
+                nextCursor = null,
+                totalCount = initialPlaces.size.toLong(),
+                searchedQuery = null,
+                isNextPageLoading = false,
+                selectedPlaceId = null,
+                selectedPlace = null,
+                detailOrigin = null,
+                isDetailLoading = false,
+                isMapSearchDirty = false,
+            )
         }
     }
 
@@ -313,6 +347,7 @@ class HomeViewModel @Inject constructor(
             is PendingHomeAction.OpenDetail -> openPlace(action.placeId, action.origin)
             PendingHomeAction.ToggleBookmark -> toggleBookmark()
             PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
+            is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
             is PendingHomeAction.SaveFilterTags -> saveFilterTags(action.filterTags)
         }
     }
@@ -406,6 +441,18 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateMyPage)
             } else {
                 requireLogin(PendingHomeAction.OpenMyPage)
+            }
+        }
+    }
+
+    private fun openSearch(origin: GeoPoint?) {
+        viewModelScope.launch {
+            if (origin == null) {
+                _effect.send(HomeEffect.ShowSnackbar("지도 위치를 준비 중이에요. 잠시 후 다시 시도해주세요."))
+            } else if (isLoggedIn()) {
+                _effect.send(HomeEffect.NavigateSearch(origin))
+            } else {
+                requireLogin(PendingHomeAction.OpenSearch(origin))
             }
         }
     }

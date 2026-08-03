@@ -25,6 +25,7 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
@@ -74,6 +75,21 @@ class HomeViewModelTest {
         assertEquals(page.items, vm.state.value.places)
         assertEquals(HomeListState.Content, vm.state.value.listState)
         coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
+    fun `region search opens partial list and retains the selected region`() = runTest(dispatcher) {
+        val vm = Dependencies().viewModel()
+        val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
+
+        vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals("서울 중구", vm.state.value.searchKeyword)
+        assertEquals(region, vm.state.value.regionSearch)
+        assertEquals(1L, vm.state.value.regionSearchGeneration)
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(listOf(1L), vm.state.value.places.map(PlaceSummary::id))
     }
 
     @Test
@@ -256,6 +272,26 @@ class HomeViewModelTest {
         assertNull(vm.state.value.pendingAction)
         assertEquals(10L, vm.state.value.selectedPlaceId)
         coVerify(exactly = 1) { deps.getDetail(10L) }
+    }
+
+    @Test
+    fun `search opens login flow and navigates after existing member login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        val vm = deps.viewModel()
+        val origin = GeoPoint(37.5, 126.9)
+
+        vm.onIntent(HomeIntent.OnSearchClick(origin))
+        advanceUntilIdle()
+        assertEquals(PendingHomeAction.OpenSearch(origin), vm.state.value.pendingAction)
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateSearch(origin), awaitItem())
+            expectNoEvents()
+        }
     }
 
     @Test

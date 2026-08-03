@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.source.remote.api
 import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceCoordinateResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
+import com.dororong.rodi.core.data.source.remote.model.place.RelatedSearchResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.DELETE
@@ -35,6 +36,24 @@ interface PlaceApi {
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPagePlaceResponse>
+
+    @GET("places/search")
+    suspend fun searchPlaces(
+        @Header("Authorization") authorization: String,
+        @Query("keyword") keyword: String,
+        @Query("lat") lat: Double,
+        @Query("lng") lng: Double,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPagePlaceResponse>
+
+    @GET("places/related-search")
+    suspend fun relatedSearch(
+        @Header("Authorization") authorization: String,
+        @Query("keyword") keyword: String,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<RelatedSearchResponse>
 
     @GET("places/{placeId}")
     suspend fun getPlaceDetail(

@@ -7,6 +7,9 @@ import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceListItemResponse
+import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceSuggestionResponse
+import com.dororong.rodi.core.data.source.remote.model.place.PlaceSuggestionResponse
+import com.dororong.rodi.core.data.source.remote.model.place.RelatedSearchResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.course.GeoPoint
@@ -23,6 +26,40 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class PlaceRepositoryImplTest {
+    @Test
+    fun `related search maps server regions and place cursor`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery { api.relatedSearch("Bearer access", "중구", 20, null) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = RelatedSearchResponse(
+                regions = listOf("부산 중구", "서울 중구"),
+                places = CursorPagePlaceSuggestionResponse(
+                    items = listOf(PlaceSuggestionResponse(7, "중구 연습 코스", "서울 중구")),
+                    hasNext = true,
+                    nextCursor = "next-7",
+                    totalCount = 21,
+                ),
+            ),
+        )
+        val repository = PlaceRepositoryImpl(
+            api,
+            mockk<SavedPlaceLocalDataSource>(relaxed = true),
+            tokenStore,
+            mockk<AuthRepository>(),
+        )
+
+        val result = repository.relatedSearch("중구", cursor = null, size = 20)
+
+        assertEquals(listOf("부산 중구", "서울 중구"), result.regions)
+        assertEquals(7L, result.places.items.single().placeId)
+        assertEquals("next-7", result.places.nextCursor)
+        coVerify(exactly = 1) { api.relatedSearch("Bearer access", "중구", 20, null) }
+    }
+
     @Test
     fun `places sends access token when a session exists`() = runTest {
         val api = mockk<PlaceApi>()

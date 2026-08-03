@@ -7,6 +7,7 @@ internal enum class MapSearchMoveReason {
     INITIAL_LOCATION,
     CURRENT_LOCATION,
     CLUSTER,
+    REGION,
 }
 
 internal data class PendingMapSearch(

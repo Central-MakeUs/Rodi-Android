@@ -22,6 +22,8 @@ import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.home.HomeViewModel
+import com.dororong.rodi.feature.home.SearchScreen
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
 import com.dororong.rodi.feature.mypage.MyPageScreen
 import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
@@ -83,6 +85,9 @@ fun MainScreen(
                             onMyPageClick = {
                                 backStack[backStack.lastIndex] = MyPageRoute
                             },
+                            onSearchClick = { origin ->
+                                backStack.add(SearchRoute(origin.lat, origin.lng))
+                            },
                             onGuestSignUp = onGuestSignUp,
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
@@ -92,6 +97,22 @@ fun MainScreen(
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()
                             },
                             vm = homeViewModel,
+                        )
+                    }
+                    is SearchRoute -> NavEntry(key) {
+                        SearchScreen(
+                            origin = GeoPoint(key.latitude, key.longitude),
+                            onBack = {
+                                if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                            },
+                            onPlaceClick = { placeId ->
+                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
+                                if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                            },
+                            onRegionClick = { region, initialPlaces ->
+                                homeViewModel.onIntent(HomeIntent.OnRegionSearch(region, initialPlaces))
+                                if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
+                            },
                         )
                     }
                     MyPageRoute -> NavEntry(key) {
