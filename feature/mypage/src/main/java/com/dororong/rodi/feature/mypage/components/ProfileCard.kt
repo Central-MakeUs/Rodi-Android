@@ -4,12 +4,17 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RadialGradient
 import android.graphics.Shader
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,15 +30,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,6 +52,8 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.feature.mypage.MyPageProfile
 import com.dororong.rodi.feature.mypage.R
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private object ProfileCardLayout {
     val height = 227.dp
@@ -58,12 +69,61 @@ private object ProfileCardLayout {
     val stampTopOffset = (-16).dp
 }
 
+private const val CardEntranceDurationMillis = 340
+private const val CardFlickDurationMillis = 900
+private const val StampDelayMillis = 200
+private const val StampImpactDurationMillis = 700
+private val CubicEaseOut = CubicBezierEasing(0.33f, 1f, 0.68f, 1f)
+private val QuadraticEaseOut = Easing { fraction -> 1f - (1f - fraction) * (1f - fraction) }
+
 @Composable
 internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     val colors = RodiTheme.colors
     val practiceTitle = if (profile.level == OnboardingLevel.NAVIGATOR) "추천 활동" else "추천 연습 유형"
     val drivingGoal = profile.drivingGoal.ifBlank { "ex) 나만의 운전 목표를 입력해보세요 !" }
     val drivingGoalColor = if (profile.drivingGoal.isBlank()) RodiTheme.colors.gray500 else RodiTheme.colors.black
+    val density = LocalDensity.current
+    val isInPreview = LocalInspectionMode.current
+    val initialCardTranslationY = with(density) { if (isInPreview) 0f else 16.dp.toPx() }
+    val cardAlpha = remember(isInPreview) { Animatable(if (isInPreview) 1f else 0f) }
+    val cardTranslationY = remember(initialCardTranslationY) { Animatable(initialCardTranslationY) }
+    val cardScale = remember { Animatable(1f) }
+    val stampAlpha = remember(isInPreview) { Animatable(if (isInPreview) 0.2f else 0f) }
+    val stampScale = remember(isInPreview) { Animatable(if (isInPreview) 1f else 1.8f) }
+    val stampRotation = remember(isInPreview) { Animatable(if (isInPreview) 0f else -18f) }
+
+    LaunchedEffect(isInPreview) {
+        if (isInPreview) return@LaunchedEffect
+        launch {
+            cardAlpha.animateTo(1f, tween(CardEntranceDurationMillis, easing = CubicEaseOut))
+        }
+        launch {
+            cardTranslationY.animateTo(0f, tween(CardEntranceDurationMillis, easing = CubicEaseOut))
+        }
+        launch {
+            cardScale.animateTo(1f, tween(CardFlickDurationMillis * 60 / 100))
+            cardScale.animateTo(1.012f, tween(CardFlickDurationMillis * 8 / 100, easing = QuadraticEaseOut))
+            cardScale.animateTo(1f, tween(CardFlickDurationMillis * 32 / 100, easing = QuadraticEaseOut))
+        }
+        launch {
+            delay(StampDelayMillis.toLong())
+            stampAlpha.animateTo(0.28f, tween(StampImpactDurationMillis * 55 / 100, easing = CubicEaseOut))
+            stampAlpha.animateTo(0.16f, tween(StampImpactDurationMillis * 20 / 100))
+            stampAlpha.animateTo(0.2f, tween(StampImpactDurationMillis * 25 / 100))
+        }
+        launch {
+            delay(StampDelayMillis.toLong())
+            stampScale.animateTo(0.97f, tween(StampImpactDurationMillis * 55 / 100, easing = CubicEaseOut))
+            stampScale.animateTo(1.02f, tween(StampImpactDurationMillis * 20 / 100))
+            stampScale.animateTo(1f, tween(StampImpactDurationMillis * 25 / 100))
+        }
+        launch {
+            delay(StampDelayMillis.toLong())
+            stampRotation.animateTo(3f, tween(StampImpactDurationMillis * 55 / 100, easing = CubicEaseOut))
+            stampRotation.animateTo(-2f, tween(StampImpactDurationMillis * 20 / 100))
+            stampRotation.animateTo(0f, tween(StampImpactDurationMillis * 25 / 100))
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -108,7 +168,13 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                     )
                 }
             }
-            .border(BorderStroke(1.dp, RodiTheme.colors.primary50), RoundedCornerShape(8.dp)),
+            .border(BorderStroke(1.dp, RodiTheme.colors.primary50), RoundedCornerShape(8.dp))
+            .graphicsLayer {
+                alpha = cardAlpha.value
+                translationY = cardTranslationY.value
+                scaleX = cardScale.value
+                scaleY = cardScale.value
+            },
     ) {
         Box(
             modifier = Modifier
@@ -118,14 +184,19 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
             Image(
                 painter = painterResource(R.drawable.img_rodi_stamp),
                 contentDescription = null,
-                alpha = 0.2f,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(
                         x = ProfileCardLayout.stampRightCrop,
                         y = ProfileCardLayout.stampTopOffset,
                     )
-                    .size(ProfileCardLayout.stampSize),
+                    .size(ProfileCardLayout.stampSize)
+                    .graphicsLayer {
+                        alpha = stampAlpha.value
+                        scaleX = stampScale.value
+                        scaleY = stampScale.value
+                        rotationZ = stampRotation.value
+                    },
             )
         }
         Column(
