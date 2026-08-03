@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.domain.model.onboarding
 
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -67,6 +68,32 @@ class OnboardingPolicyTest {
         assertEquals(listOf("유턴", "교차로", "주차"), OnboardingLevel.ROOKIE.recommendations)
         assertEquals(listOf("고속도로", "합류", "다차로주행"), OnboardingLevel.OWNER.recommendations)
         assertEquals(listOf("비보호좌회전", "회전교차로", "좁은도로", "코너링"), OnboardingLevel.EXPLORER.recommendations)
+    }
+
+    @Test
+    fun `initial filter tags follow canonical level policy`() {
+        assertEquals(
+            setOf(PracticeType.STRAIGHT, PracticeType.LEFT_RIGHT_TURN, PracticeType.LANE_CHANGE),
+            OnboardingLevel.SEED.initialFilterTags,
+        )
+        assertEquals(
+            setOf(PracticeType.U_TURN, PracticeType.INTERSECTION, PracticeType.PARKING),
+            OnboardingLevel.ROOKIE.initialFilterTags,
+        )
+        assertEquals(
+            setOf(PracticeType.HIGHWAY_ENTRY, PracticeType.MERGING, PracticeType.MULTILANE),
+            OnboardingLevel.OWNER.initialFilterTags,
+        )
+        assertEquals(
+            setOf(
+                PracticeType.UNPROTECTED_LEFT_TURN,
+                PracticeType.ROUNDABOUT,
+                PracticeType.NARROW_ROAD,
+                PracticeType.CORNERING,
+            ),
+            OnboardingLevel.EXPLORER.initialFilterTags,
+        )
+        assertEquals(emptySet<PracticeType>(), OnboardingLevel.NAVIGATOR.initialFilterTags)
     }
 
     private fun soloProfile(range: SoloDrivingRange) = OnboardingProfile(
