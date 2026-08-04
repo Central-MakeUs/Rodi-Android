@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.bundles.compose)
+    implementation(libs.compose.shimmer)
     implementation(libs.timber)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
