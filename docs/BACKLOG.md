@@ -4,11 +4,7 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **장소 상세 조회 실패 시 에러 피드백 부재** — `HomeViewModel.openPlace()`(`feature/home/.../HomeViewModel.kt`)가
-  `getPlaceDetailUseCase` 실패 시 스낵바 없이 조용히 리스트/지도로 되돌아간다. 네트워크가 불안정한
-  기기에서는 "장소를 탭해도 반응이 없다"처럼 보인다(2026-08-08 QA 중 발견). 캐시와는 무관 —
-  `PlaceRepositoryImpl.getPlaceDetail`은 로컬 캐시 없이 매번 네트워크 호출한다. 다른 `onFailure`
-  분기들처럼 `HomeEffect.ShowSnackbar(error.userMessage())`를 보내도록 보강 필요.
+- [ ] **장소 상세 조회 실패 시 에러 피드백 부재** — `HomeViewModel.openPlace()`가 `getPlaceDetailUseCase` 실패 시 조용히 리스트/지도로 되돌아가므로 `HomeEffect.ShowSnackbar(error.userMessage())`를 보내도록 보강 필요.
 - [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
   API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, `OnboardingRepositoryImpl`/
   `MemberRepositoryImpl`/`PlaceRepositoryImpl`(+`ReviewRepositoryImpl`) 각각이 401을 잡아
