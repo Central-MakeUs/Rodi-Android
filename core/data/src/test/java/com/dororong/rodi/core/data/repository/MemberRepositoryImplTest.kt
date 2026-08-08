@@ -17,6 +17,7 @@ import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -87,6 +88,47 @@ class MemberRepositoryImplTest {
                 FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
             )
         }
+    }
+
+    @Test
+    fun `block and unblock member send authenticated requests`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.blockMember("Bearer access", 7) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = buildJsonObject { },
+        )
+        coEvery { memberApi.unblockMember("Bearer access", 7) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = buildJsonObject { },
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        repository.blockMember(7)
+        repository.unblockMember(7)
+
+        coVerify(exactly = 1) { memberApi.blockMember("Bearer access", 7) }
+        coVerify(exactly = 1) { memberApi.unblockMember("Bearer access", 7) }
+    }
+
+    @Test
+    fun `blocking self maps bad request to invalid request`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.blockMember("Bearer access", 7) } returns ApiEnvelope(
+            isSuccess = false,
+            code = "COMMON_400",
+            message = "자기 자신은 차단할 수 없습니다.",
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        assertThrowsSuspend<AuthException.InvalidRequest> { repository.blockMember(7) }
     }
 
     @Test

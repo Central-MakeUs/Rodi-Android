@@ -43,6 +43,14 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun blockMember(memberId: Long) {
+        authenticatedRequest { authorization -> memberApi.blockMember(authorization, memberId).requireSuccess() }
+    }
+
+    override suspend fun unblockMember(memberId: Long) {
+        authenticatedRequest { authorization -> memberApi.unblockMember(authorization, memberId).requireSuccess() }
+    }
+
     override suspend fun withdraw() {
         authenticatedRequest { authorization -> memberApi.withdraw(authorization).requireSuccess() }
         if (!tokenStore.clear()) {
