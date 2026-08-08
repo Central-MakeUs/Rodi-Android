@@ -17,6 +17,9 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -29,10 +32,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
@@ -91,6 +94,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
@@ -694,14 +698,11 @@ fun HomeScreen(
                                 )
                             }
                             when {
-                                state.listState == HomeListState.Loading -> Box(
+                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(listViewportHeight),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator(color = RodiTheme.colors.primary600)
-                                }
+                                )
 
                                 state.showEmpty || state.showInitialError -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
@@ -1113,6 +1114,59 @@ fun HomeScreen(
                 installNaviPlaceId = null
             },
         )
+    }
+}
+
+@Composable
+private fun PlaceListLoadingContent(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        PlaceListCourseLoadingItem()
+        PlaceListCourseLoadingItem()
+        PlaceListParkingLoadingItem()
+    }
+}
+
+@Composable
+private fun PlaceListCourseLoadingItem() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RodiSkeleton(modifier = Modifier.width(170.dp).height(20.dp))
+            Spacer(Modifier.weight(1f))
+            RodiSkeleton(modifier = Modifier.width(46.dp).height(16.dp))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            RodiSkeleton(modifier = Modifier.width(42.dp).height(20.dp))
+            RodiSkeleton(modifier = Modifier.width(48.dp).height(20.dp))
+            RodiSkeleton(modifier = Modifier.width(40.dp).height(20.dp))
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(37.dp)
+                .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            RodiSkeleton(modifier = Modifier.fillMaxWidth(0.76f).height(14.dp))
+        }
+    }
+}
+
+@Composable
+private fun PlaceListParkingLoadingItem() {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        RodiSkeleton(modifier = Modifier.width(188.dp).height(20.dp))
+        RodiSkeleton(modifier = Modifier.width(132.dp).height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            RodiSkeleton(modifier = Modifier.width(42.dp).height(20.dp))
+            RodiSkeleton(modifier = Modifier.width(116.dp).height(16.dp))
+        }
+        RodiSkeleton(modifier = Modifier.width(144.dp).height(16.dp))
     }
 }
 

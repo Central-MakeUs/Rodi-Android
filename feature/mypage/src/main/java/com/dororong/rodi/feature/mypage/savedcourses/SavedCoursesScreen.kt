@@ -2,14 +2,19 @@ package com.dororong.rodi.feature.mypage.savedcourses
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.CircularProgressIndicator
@@ -28,6 +33,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCourseRow
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCoursesEmpty
@@ -69,9 +75,7 @@ private fun SavedCoursesContent(
     ) {
         SavedCoursesTopBar(onBack = onBack)
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = RodiTheme.colors.primary600)
-            }
+            state.isLoading -> SavedCoursesLoadingContent()
             state.initialError != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
@@ -125,6 +129,45 @@ private fun SavedCoursesContent(
     }
 }
 
+@Composable
+private fun SavedCoursesLoadingContent() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+    ) {
+        repeat(4) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RodiSkeleton(modifier = Modifier.width(182.dp).height(20.dp))
+                    RodiSkeleton(modifier = Modifier.width(28.dp).height(16.dp))
+                }
+                RodiSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth(0.48f)
+                        .height(14.dp),
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    RodiSkeleton(modifier = Modifier.width(40.dp).height(20.dp))
+                    RodiSkeleton(modifier = Modifier.width(48.dp).height(20.dp))
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                        .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                ) {
+                    RodiSkeleton(modifier = Modifier.fillMaxWidth(0.76f).height(14.dp))
+                }
+                Spacer(Modifier.height(4.dp))
+                HorizontalDivider(color = RodiTheme.colors.primary100)
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun SavedCoursesFilledPreview() {
@@ -149,6 +192,20 @@ private fun SavedCoursesFilledPreview() {
                 totalCount = 1,
                 isLoading = false,
             ),
+            onBack = {},
+            onPlaceClick = {},
+            onLoadNextPage = {},
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun SavedCoursesLoadingPreview() {
+    RodiTheme {
+        SavedCoursesContent(
+            state = SavedCoursesUiState(),
             onBack = {},
             onPlaceClick = {},
             onLoadNextPage = {},
