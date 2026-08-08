@@ -4,19 +4,18 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator) — 시급** — `MemberApi`/`OnboardingApi`/`PlaceApi`
-  등 `Authorization` 헤더가 필요한 보호 API가 이미 다수 존재하는데(예전엔 "생기면 구현" 조건부였음),
-  `NetworkModule`엔 아직 `Authenticator`가 없다. 대신 `OnboardingRepositoryImpl`/`MemberRepositoryImpl`/
-  `PlaceRepositoryImpl` 세 곳이 각자 401을 잡아서 `authRepository.reissueToken()`을 개별 호출하는
-  임시방편으로 되어 있다. **문제**: 여러 요청이 동시에 401을 맞으면 각자 재발급을 부르는데, 서버
-  정책상 이미 폐기된(재발급에 쓴) refreshToken을 다시 제출하면 재사용 탐지로 해당 회원의
-  **모든 세션이 폐기**된다(`AUTH_401_4`). 지금 구조는 이 레이스를 실제로 유발할 수 있는 상태.
-  `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해 401(`AUTH_401_6`) 응답 시
-  `/auth/token/refresh`로 재발급 후 재시도하도록 중앙화하고, 세 Repository의 중복 로직을 제거할 것.
-  "요청 시점에 쓰인 accessToken과 현재 `AuthTokenStore`에 저장된 값이 다르면(이미 다른 스레드가
-  갱신함) 재발급을 다시 호출하지 않고 저장된 값으로만 재시도"하는 single-flight 락을 반드시 넣을 것.
+- [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
+  API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, `OnboardingRepositoryImpl`/
+  `MemberRepositoryImpl`/`PlaceRepositoryImpl`(+`ReviewRepositoryImpl`) 각각이 401을 잡아
+  `authRepository.reissueToken()`을 호출하는 `authenticatedRequest` 헬퍼를 **거의 동일하게 복사**해
+  들고 있다. 남은 문제는 **중복뿐**이다.
+  **refreshToken 재사용으로 전 세션이 폐기되는(`AUTH_401_4`) 레이스는 이미 막혀 있다** — 2026-08-08
+  확인: `AuthRepositoryImpl`이 `@Singleton`이고 `reissueToken()`이 인스턴스 `refreshMutex`로 감싼 뒤
+  "요청 시점 refreshToken ≠ 현재 저장된 refreshToken이면 재발급하지 않고 return"하는 single-flight
+  가드를 이미 구현하고 있다. 따라서 이 항목은 데이터 손실 위험이 아니라 **리팩터링 우선순위**다.
+  중앙화 시: `OkHttpClient`에 `Authenticator`를 추가하고 각 Repository의 중복 헬퍼를 제거한다.
   순환 의존(OkHttpClient → AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용
-  Retrofit/OkHttpClient 인스턴스를 따로 구성해야 함.
+  Retrofit/OkHttpClient 인스턴스를 따로 구성해야 하고, 위 single-flight 가드는 그대로 유지해야 한다.
 - [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
