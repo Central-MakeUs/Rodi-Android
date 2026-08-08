@@ -226,9 +226,6 @@ class SearchViewModel @Inject constructor(
                 }
             }
             else -> {
-                registerRecentSearch(
-                    RecentSearchRegistration(SearchTargetType.REGION, search.keyword),
-                )
                 onQueryChange(search.keyword)
                 searchImmediately()
             }
