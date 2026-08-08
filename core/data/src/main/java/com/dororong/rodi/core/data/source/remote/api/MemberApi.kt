@@ -10,6 +10,8 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
+import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.PUT
 
 interface MemberApi {
@@ -26,6 +28,18 @@ interface MemberApi {
     suspend fun updateFilterTags(
         @Header("Authorization") authorization: String,
         @Body request: FilterTagsRequest,
+    ): ApiEnvelope<JsonObject>
+
+    @POST("members/{memberId}/block")
+    suspend fun blockMember(
+        @Header("Authorization") authorization: String,
+        @Path("memberId") memberId: Long,
+    ): ApiEnvelope<JsonObject>
+
+    @DELETE("members/{memberId}/block")
+    suspend fun unblockMember(
+        @Header("Authorization") authorization: String,
+        @Path("memberId") memberId: Long,
     ): ApiEnvelope<JsonObject>
 
     @DELETE("members/me")

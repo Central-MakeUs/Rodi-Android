@@ -7,5 +7,7 @@ interface MemberRepository {
     suspend fun getMyPage(): MyPage
     suspend fun updateDrivingGoal(drivingGoal: String)
     suspend fun updateFilterTags(filterTags: List<PracticeType>)
+    suspend fun blockMember(memberId: Long)
+    suspend fun unblockMember(memberId: Long)
     suspend fun withdraw()
 }
