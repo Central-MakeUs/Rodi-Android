@@ -23,7 +23,6 @@ import kotlinx.coroutines.delay
 
 private const val AUTO_DISMISS_MILLIS = 3_500L
 
-/** 온보딩 재진입 시 로컬에 저장된 이전 입력을 이어서 복원했음을 알리는 배너. 일정 시간 후 자동으로 사라진다. */
 @Composable
 fun EntryResumeBanner(
     visible: Boolean,

@@ -13,6 +13,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +58,7 @@ fun EntryFlow(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val networkErrorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
     val stepProgressAnimationState = rememberStepProgressAnimationState()
-    var showResumeBanner by remember { mutableStateOf(state.didResumeProgress) }
+    var showResumeBanner by rememberSaveable { mutableStateOf(state.didResumeProgress) }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
