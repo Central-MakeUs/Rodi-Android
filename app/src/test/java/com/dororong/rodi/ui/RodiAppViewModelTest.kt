@@ -338,6 +338,28 @@ class RodiAppViewModelTest {
     }
 
     @Test
+    fun `network failure during reissue on app resume does not crash or sync`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val sync = syncUseCase()
+        val authRepository = sessionExpirationUseCase()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, authRepository)
+        advanceUntilIdle()
+
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        coEvery { authRepository.reissueToken() } throws java.io.IOException("network unavailable")
+        viewModel.onAppResumed()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { authRepository.reissueToken() }
+        coVerify(exactly = 0) { sync() }
+    }
+
+    @Test
     fun `does not run duplicate session verification while a reissue is active`() = runTest(dispatcher) {
         val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
         val getGuestAccess = mockk<GetGuestAccessUseCase>()
