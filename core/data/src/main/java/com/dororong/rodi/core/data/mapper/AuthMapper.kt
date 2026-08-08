@@ -1,27 +1,12 @@
 package com.dororong.rodi.core.data.mapper
 
-import com.dororong.rodi.core.data.source.remote.model.auth.OAuthOnboardingProfileRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.AuthTokenResponse
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginResponse
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
-import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
-
-fun OnboardingProfile.toOAuthRequest(): OAuthOnboardingProfileRequest =
-    OAuthOnboardingProfileRequest(
-        nickname = nickname.ifBlank { null },
-        drivingPeriod = drivingPeriod?.name,
-        recentFrequency = recentFrequency?.name,
-        roadExperiences = roadExperiences.map { it.name },
-        soloDrivingRange = soloDrivingRange?.name,
-        soloParkingLevel = soloParkingLevel?.name,
-        practiceSituations = practiceSituations.map { it.name },
-        vehicleType = vehicleType?.name,
-        goal = goal.ifBlank { null },
-    )
 
 fun SocialLoginResponse.toAccountRestoreResult(): AccountRestoreResult = when (status) {
     STATUS_SUCCESS -> AccountRestoreResult.Restored(

@@ -4,47 +4,33 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator) — 시급** — `MemberApi`/`OnboardingApi`/`PlaceApi`
+  등 `Authorization` 헤더가 필요한 보호 API가 이미 다수 존재하는데(예전엔 "생기면 구현" 조건부였음),
+  `NetworkModule`엔 아직 `Authenticator`가 없다. 대신 `OnboardingRepositoryImpl`/`MemberRepositoryImpl`/
+  `PlaceRepositoryImpl` 세 곳이 각자 401을 잡아서 `authRepository.reissueToken()`을 개별 호출하는
+  임시방편으로 되어 있다. **문제**: 여러 요청이 동시에 401을 맞으면 각자 재발급을 부르는데, 서버
+  정책상 이미 폐기된(재발급에 쓴) refreshToken을 다시 제출하면 재사용 탐지로 해당 회원의
+  **모든 세션이 폐기**된다(`AUTH_401_4`). 지금 구조는 이 레이스를 실제로 유발할 수 있는 상태.
+  `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해 401(`AUTH_401_6`) 응답 시
+  `/auth/token/refresh`로 재발급 후 재시도하도록 중앙화하고, 세 Repository의 중복 로직을 제거할 것.
+  "요청 시점에 쓰인 accessToken과 현재 `AuthTokenStore`에 저장된 값이 다르면(이미 다른 스레드가
+  갱신함) 재발급을 다시 호출하지 않고 저장된 값으로만 재시도"하는 single-flight 락을 반드시 넣을 것.
+  순환 의존(OkHttpClient → AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용
+  Retrofit/OkHttpClient 인스턴스를 따로 구성해야 함.
 - [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
   릴리스가 나오면 버전 교체.
-- [ ] **온보딩 설문(닉네임/경력/선호) 서버 API 연동** — 지금은 `core:data`의 `OnboardingPreferences`
-  (DataStore)에 로컬 저장만 한다. 닉네임도 서버 랜덤 생성이 최종 목표이나 백엔드 API가 없어
-  `core:common`의 `NicknameGenerator`(로컬 단어 조합)로 대체했다. 백엔드 API 확정되면 Retrofit
-  연동으로 교체하고 로컬 저장 로직은 제거/폴백으로 전환할 것.
-- [ ] **온보딩 설문 점수 배점 확정** — Figma 코멘트("레벨 관련 정보 적어주기")는 온보딩 답변마다
-  점수를 매겨 클라이언트에서 합산 후 서버로 전송하는 방식인데, 2026-07-04 기준 배점 자체가
-  미확정이라 이번 구현(`feature/onboarding-profile-survey`)에서는 점수 계산 로직을 아예 넣지 않았다.
-  배점 확정되면 `core:domain`에 점수 계산 UseCase 추가.
-- [ ] **닉네임 마이페이지 수정 기능** — 온보딩에서 자동 배정된 닉네임은 이번 스코프에서 수정 UI가
-  없다(사용자 확인: "닉네임 수정은 나중에 마이페이지에서"). 마이페이지 화면 작업 시 함께 고려.
+- [ ] **닉네임 마이페이지 수정 기능** — 온보딩에서 서버가 배정한 닉네임(로그인 응답 `nickname`,
+  게스트는 로컬 `NicknameGenerator` 폴백)은 이번 스코프에서 수정 UI가 없다(사용자 확인: "닉네임
+  수정은 나중에 마이페이지에서"). 마이페이지 화면 작업 시 함께 고려.
 - [ ] **`NicknameGenerator` 단어 리스트 PM 검수** — 형용사구/동물 각 10개씩 임시로 채워 넣었다
-  (`core/common/.../NicknameGenerator.kt`). 실제 서비스에 쓸 최종 리스트는 PM 검수 필요.
+  (`core/common/.../NicknameGenerator.kt`). 로그인 계정은 서버 닉네임을 쓰므로 이 목록은 게스트
+  전용 폴백에만 쓰인다. 실제 서비스에 쓸 최종 리스트는 PM 검수 필요.
 - [ ] **`PracticeSituation`(온보딩 선호 상황) ↔ `PracticeTag`(Course 특징) 통합 검토** — 두 enum이
   라벨 상당수 겹치지만(유턴/좌우회전/주차/차선변경/교차로/회전교차로/고속진입/직선주행 등) 완전히
   같지 않아 이번엔 별도 enum으로 분리했다. 코스 추천 매칭 로직을 설계할 때 두 개념을 어떻게
   연결할지(혹은 통합할지) 재검토할 것.
-- [ ] **보호 API 자동 토큰 갱신(OkHttp Authenticator)** — 현재는 로그인(`/auth/oauth/kakao`)만
-  연동돼 있고 `Authorization` 헤더가 필요한 보호 API가 아직 하나도 없어 자동 갱신 로직을 미룸.
-  실제 보호 API가 생기면 `NetworkModule`의 `OkHttpClient`에 `Authenticator`를 추가해
-  401(`AUTH_401_6`) 응답 시 `/auth/token/refresh`로 재발급 후 재시도하도록 구현.
-  **주의**: 서버 정책상 이미 폐기된(재발급에 쓴) refreshToken을 다시 제출하면 재사용 탐지로
-  해당 회원의 **모든 세션이 폐기**된다(`AUTH_401_4`). 여러 요청이 동시에 401을 맞아 각자
-  재발급을 호출하면 이 상황이 발생하므로, "요청 시점에 쓰인 accessToken과 현재
-  `AuthTokenStore`에 저장된 값이 다르면(이미 다른 스레드가 갱신함) 재발급을 다시 호출하지
-  않고 저장된 값으로만 재시도"하는 single-flight 락을 반드시 넣을 것. 순환 의존(OkHttpClient →
-  AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용 Retrofit/OkHttpClient
-  인스턴스를 따로 구성해야 함.
-- [ ] **로그아웃 API(`POST /auth/logout`) 연동** — 프로필/설정 화면이 생기면
-  `AuthRepository.logout()`/`LogoutUseCase`를 추가하고 `AuthTokenStore.clear()` 호출.
-- [ ] **`isNewMember` 기반 온보딩 분기** — `LoginWithKakaoUseCase`가 이미 로그인 응답의
-  `isNewMember`를 반환하지만 사용하는 곳이 없음(온보딩/닉네임 설정 화면 부재). 해당 화면이
-  생기면 `LoginViewModel.onKakaoLoginResult`에서 이 값으로 `NavigateToOnboarding` vs
-  `NavigateNext`를 분기.
-- [ ] **Pretendard ExtraBold 폰트 파일 확보** — Figma Typography 시스템(`price 2/bold`, 14px)이
-  Pretendard ExtraBold(800)을 쓰는데 `core/ui/src/main/res/font/`에 Regular/Medium/SemiBold/Bold
-  4개만 있음. `RodiTypography.price2`는 임시로 Bold(700)로 대체 구현했으니, ExtraBold ttf를
-  받으면 `RodiFontFamily`에 추가하고 `price2`를 `FontWeight.ExtraBold`로 교체할 것.
 - [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
   AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
@@ -52,22 +38,6 @@
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
 - [ ] **Nav3 도입 + 하드코딩 축소** — Navigation 3(`androidx.navigation3`)로 전환하고
   `kotlinx.serialization`으로 라우트를 타입-세이프하게 정의해 문자열 하드코딩 제거.
-- [ ] **EntryRepository/NaviPreferenceRepository UseCase 래핑** — `feat/domain-usecases`(PR #15)에서
-  `CourseRepository`만 UseCase로 감쌌다. 같은 패턴으로 `EntryRepository`(isCompleted/setCompleted),
-  `NaviPreferenceRepository`(getAlways/setAlways)도 UseCase로 감싸 `EntryViewModel`/`HomeViewModel`이
-  Repository 대신 UseCase를 주입받도록 정리(원래 도메인 UseCase 작업의 Out of scope 항목).
-- [ ] **커스텀 스낵바 도입 — PR #18 진행 중** — `/Users/uihyeon/StudioProjects/dnd-14th-2-android`의
-  `designsystem/components/snackbar/`(PickleSnackbar/SnackbarHost/SnackbarState)를 참고해
-  `core:ui`에 Rodi판 Snackbar를 만든다. 단순 이식이 아니라 Rodi 토큰으로 재설계하되, 다음
-  요소들은 구조적으로 참고할 가치가 있음:
-  - `ArrayDeque` 기반 큐잉으로 여러 스낵바 순차 표시 (`show()`/`showImmediately()`)
-  - Icon 타입을 sealed interface로(Success/Error/None/Custom) — Material 아이콘 금지 컨벤션과
-    맞물려 Figma 아이콘 리소스로 대체
-  - 위치(`SnackbarPosition`: BelowStatusBar/BelowTopAppBar/AboveSystemNavigation/
-    AboveBottomContents/Custom)와 지속시간(`SnackbarDuration`: TOAST_SHORT~SNACKBAR_INDEFINITE)을
-    독립된 enum/sealed로 분리해 조합 가능하게
-  - `AnimatedVisibility` + `AnimatedContent`(fade + slideInVertically/slideOutVertically, 300ms)
-  - `toastSuccess()`/`toastError()` 같은 호출부 편의 헬퍼 함수
 - [ ] **테마 시스템 고도화** — 마찬가지로 `dnd-14th-2-android`의 `designsystem/theme/`
   (Theme.kt/Color.kt/Typography.kt/Dimensions.kt)를 참고해 `RodiTheme`을 확장.
   **목표: 이 참고 프로젝트와 같거나 더 나은 완성도로, Rodi가 앞으로의 모든 프로젝트에서 기준이
@@ -83,6 +53,29 @@
   - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
 
 ## 완료 (이력)
+- [x] **온보딩 서버 API 연동 + 점수 배점** — `OnboardingApi.submit()`이 `/members/me/onboarding`에
+  실제 연동됐고(`OnboardingRepositoryImpl`), 요청 페이로드가 최신 서버 스펙(2026-08-08 확인,
+  OpenAPI)과 필드·enum 값까지 정확히 일치함(`OnboardingMapper.toApiValue()` 전수 대조 완료).
+  점수 계산도 `core:domain`의 `OnboardingProfile.calculateAssessment()`로 이미 구현되어 있고,
+  스펙대로 점수는 서버에 보내지 않고 클라이언트가 변환한 `level`만 전송한다. 닉네임은 로그인
+  응답의 `nickname`(서버 값)을 그대로 저장하고, `NicknameGenerator`는 게스트(로그인 없는 둘러보기)
+  전용 로컬 폴백으로만 쓰여 원래 설계대로 동작 중.
+- [x] **레거시 `OAuthOnboardingProfileRequest` 죽은 코드 제거** — 온보딩 데이터를 로그인 요청에
+  같이 보내던 구 설계의 잔재(`AuthMapper.toOAuthRequest()` 포함, 호출부 없음)를 삭제.
+  `fix/typography-and-onboarding-cleanup` 브랜치, 2026-08-08.
+- [x] **Pretendard ExtraBold 폰트 적용** — ttf는 이미 확보돼 있었으나 `RodiTypography.price2`가
+  여전히 `FontWeight.Bold`로 남아있던 것을 `FontWeight.ExtraBold`로 교체하고 `RodiFontFamily`에
+  등록. `fix/typography-and-onboarding-cleanup` 브랜치, 2026-08-08.
+- [x] **로그아웃 API(`POST /auth/logout`) 연동** — `LogoutUseCase`/`AuthRepositoryImpl`이
+  `AccountSettingsViewModel`에 연결되어 동작 중.
+- [x] **`isNewMember` 기반 온보딩 분기** — `LoginWithKakaoUseCase`가 `isNewMember`로 온보딩 진입
+  여부를 분기하고 `LoginContract`/`LoginViewModel`/`LoginScreen`이 이를 소비.
+- [x] **EntryRepository/NaviPreferenceRepository UseCase 래핑** (커밋 `290fdd4f`) —
+  `EntryViewModel`/`HomeViewModel`이 Repository 대신 UseCase(`GetEntryProgressUseCase` 등)를 주입받음.
+- [x] **커스텀 스낵바 도입 (PR #18)** — `core:ui/components/snackbar/`에 `RodiSnackbar`/
+  `RodiSnackbarHost`/`RodiSnackbarHostState`/`RodiSnackbarData` 구현·병합 완료(`ArrayDeque` 큐잉,
+  `RodiSnackbarDuration`, `AnimatedVisibility` 전환 포함). 참고 프로젝트의 `SnackbarPosition` enum·
+  `toastSuccess()/toastError()` 헬퍼는 이식하지 않았음(필요해지면 별도 항목으로 재검토).
 - [x] Routi → Rodi 브랜드 식별자 정리 (PR #8)
 - [x] 단위 테스트 + 테스트 자동화/CI 검증 (PR #17) — JUnit5 + MockK로 UseCase/ViewModel 핵심
   로직 테스트 작성, GitHub Actions에 테스트 게이트 추가. `docs/TESTING.md`에 컨벤션 정리.
