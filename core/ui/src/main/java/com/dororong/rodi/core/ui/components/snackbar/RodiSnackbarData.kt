@@ -9,6 +9,7 @@ enum class RodiSnackbarDuration(val millis: Long) {
 }
 
 data class RodiSnackbarData(
+    val id: String? = null,
     val message: String,
     val icon: Painter? = null,
     val duration: RodiSnackbarDuration = RodiSnackbarDuration.Short,

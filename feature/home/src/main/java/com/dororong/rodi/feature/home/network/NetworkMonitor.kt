@@ -19,8 +19,11 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 fun networkAvailabilityFlow(context: Context): Flow<Boolean> = callbackFlow {
     val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
     val callback = object : ConnectivityManager.NetworkCallback() {
-        override fun onAvailable(network: Network) {
-            trySend(true)
+        override fun onCapabilitiesChanged(
+            network: Network,
+            networkCapabilities: NetworkCapabilities,
+        ) {
+            trySend(networkCapabilities.hasValidatedInternet())
         }
 
         override fun onLost(network: Network) {
@@ -28,6 +31,7 @@ fun networkAvailabilityFlow(context: Context): Flow<Boolean> = callbackFlow {
         }
     }
     connectivityManager.registerDefaultNetworkCallback(callback)
+    trySend(context.isNetworkAvailable())
     awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
 }.distinctUntilChanged()
 
@@ -37,6 +41,9 @@ fun Context.isNetworkAvailable(): Boolean {
     val connectivityManager = getSystemService(ConnectivityManager::class.java) ?: return true
     val network = connectivityManager.activeNetwork ?: return false
     val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-    return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-        capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    return capabilities.hasValidatedInternet()
 }
+
+private fun NetworkCapabilities.hasValidatedInternet(): Boolean =
+    hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+        hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)

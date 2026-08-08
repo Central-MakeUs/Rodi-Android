@@ -17,4 +17,6 @@ dependencies {
     implementation(libs.compose.shimmer)
     implementation(libs.timber)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.bundles.unit.test)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

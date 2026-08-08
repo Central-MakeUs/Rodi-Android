@@ -186,6 +186,7 @@ private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
+private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
 private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
@@ -226,11 +227,7 @@ fun HomeScreen(
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var lastMapRetryAtMillis by remember { mutableLongStateOf(0L) }
     var showMapNetworkSnackbar by remember { mutableStateOf(false) }
-    // 이번 진입에서 지도가 실제로 떴는지. 영구 저장값(hasLoadedMapBefore)과 달리 진입마다 초기화되며,
-    // 이 값으로 "진입 실패(전체 화면)"와 "사용 중 끊김(스낵바)"을 가른다.
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
-    // 카카오맵 SDK는 오프라인이어도 onMapError를 부르지 않고 빈 타일만 그린 뒤 onMapReady를 호출한다.
-    // 그래서 SDK 콜백이 아니라 실제 네트워크 상태를 기준으로 지도 화면 상태를 판단한다.
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
     var mapScreenState by remember {
         mutableStateOf(
@@ -491,11 +488,14 @@ fun HomeScreen(
     }
 
     fun retryMap() {
+        if (!isOnline) {
+            if (!hasMapLoadedThisEntry) mapScreenState = MapScreenState.NetworkError
+            return
+        }
+
         val now = System.currentTimeMillis()
         if (now - lastMapRetryAtMillis < MAP_RETRY_DEBOUNCE_MILLIS) return
         lastMapRetryAtMillis = now
-        // 이미 한 번이라도 지도를 띄운 세션이면 화면은 그대로 두고 지도만 재연결한다.
-        // 최초 로딩 실패일 때만 MapLoadingScreen으로 전환한다(1번 디자인).
         if (mapScreenState != MapScreenState.Ready) mapScreenState = MapScreenState.Loading
         kakaoMap = null
         mapRetryKey += 1
@@ -506,6 +506,7 @@ fun HomeScreen(
         if (showMapNetworkSnackbar) {
             snackbarHostState.showImmediately(
                 RodiSnackbarData(
+                    id = MAP_NETWORK_SNACKBAR_ID,
                     message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
                     icon = networkErrorSnackbarIcon,
                     duration = RodiSnackbarDuration.Indefinite,
@@ -514,7 +515,7 @@ fun HomeScreen(
                 ),
             )
         } else {
-            snackbarHostState.dismiss()
+            snackbarHostState.dismiss(MAP_NETWORK_SNACKBAR_ID)
         }
     }
 
@@ -539,7 +540,6 @@ fun HomeScreen(
         when {
             isOnline ->
                 if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
-            // 지도를 이미 띄운 뒤 끊긴 경우엔 화면을 유지한 채 스낵바만 얹는다.
             hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
             else -> {
                 showMapNetworkSnackbar = false
@@ -585,8 +585,6 @@ fun HomeScreen(
         }
     }
 
-    // regionSearch는 state에 계속 남아 있어, 지도 재생성으로 kakaoMap이 바뀌면 이 effect가 다시 돌면서
-    // 카메라가 예전 지역으로 되돌아간다. 이미 처리한 generation은 소비 표시해 재이동을 막는다.
     var consumedRegionSearchGeneration by remember { mutableStateOf(0L) }
     LaunchedEffect(kakaoMap, state.regionSearchGeneration) {
         val map = kakaoMap ?: return@LaunchedEffect
@@ -821,9 +819,6 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                // 이번 진입에서 지도를 이미 띄웠다면 사용 중 끊김이므로 화면은
-                                                // 그대로 두고 스낵바만 얹는다. 진입 자체가 실패했다면 조작을
-                                                // 전부 막는 전체 화면 에러로 안내한다.
                                                 if (hasMapLoadedThisEntry) {
                                                     showMapNetworkSnackbar = true
                                                 } else {
@@ -875,8 +870,6 @@ fun HomeScreen(
                                                             pending != null &&
                                                             pending.generation != mapSearchGeneration
                                                         ) {
-                                                            // 다음 이동으로 대체된 pending은 매칭되지 않아도 버린다.
-                                                            // 그대로 두면 이후 자동 검색이 영구히 막힌다.
                                                             pendingMapSearch = null
                                                         } else if (
                                                             pending == null &&
@@ -894,8 +887,6 @@ fun HomeScreen(
                                                             )
                                                         }
                                                     }
-                                                    // 오프라인에서도 SDK는 빈 타일로 onMapReady까지 진행하므로
-                                                    // 네트워크가 살아 있을 때만 Ready로 전환한다.
                                                     if (isOnline) {
                                                         hasLoadedMapInSession = true
                                                         hasMapLoadedThisEntry = true
