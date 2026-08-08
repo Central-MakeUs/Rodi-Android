@@ -164,12 +164,6 @@ class SearchViewModel @Inject constructor(
     private fun searchImmediately() {
         val normalizedQuery = _state.value.query.trim()
         if (normalizedQuery.isBlank()) return
-        registerRecentSearch(
-            RecentSearchRegistration(
-                type = SearchTargetType.REGION,
-                keyword = normalizedQuery,
-            ),
-        )
         searchGeneration += 1
         val generation = searchGeneration
         searchJob?.cancel()
@@ -232,6 +226,9 @@ class SearchViewModel @Inject constructor(
                 }
             }
             else -> {
+                registerRecentSearch(
+                    RecentSearchRegistration(SearchTargetType.REGION, search.keyword),
+                )
                 onQueryChange(search.keyword)
                 searchImmediately()
             }

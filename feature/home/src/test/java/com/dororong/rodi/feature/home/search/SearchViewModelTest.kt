@@ -73,7 +73,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `typing does not register and ime search registers the entered keyword`() = runTest(dispatcher) {
+    fun `typing and ime search do not register recent search`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } returns related()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
@@ -87,11 +87,7 @@ class SearchViewModelTest {
         viewModel.onIntent(SearchIntent.OnImeSearch)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) {
-            dependencies.recentRepository.registerRecentSearch(
-                RecentSearchRegistration(SearchTargetType.REGION, "강남"),
-            )
-        }
+        coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
     }
 
     @Test
