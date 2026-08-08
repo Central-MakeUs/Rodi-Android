@@ -34,8 +34,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.place.PlaceCard
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCourseRow
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCoursesEmpty
 import com.dororong.rodi.feature.mypage.savedcourses.components.SavedCoursesTopBar
 
@@ -100,7 +100,13 @@ private fun SavedCoursesContent(
                         items = state.places,
                         key = { _, place -> "${place.type}:${place.id}" },
                     ) { index, place ->
-                        SavedCourseRow(place = place, onClick = { onPlaceClick(place.id) })
+                        PlaceCard(place = place, onClick = { onPlaceClick(place.id) })
+                        if (index != state.places.lastIndex) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                color = RodiTheme.colors.gray100,
+                            )
+                        }
                         if (index == state.places.lastIndex && state.hasNext) {
                             LaunchedEffect(place.id, state.nextCursor) { onLoadNextPage() }
                         }

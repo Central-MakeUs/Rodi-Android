@@ -1,7 +1,7 @@
-package com.dororong.rodi.feature.home.list.components
+package com.dororong.rodi.core.ui.components.place
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,10 +17,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.HomePreviewData
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -182,20 +183,54 @@ private fun String.toDistrictAddress(): String {
     }
 }
 
-@Preview(name = "Place card - course", showBackground = true, widthDp = 375)
+private val previewCourseSummary = PlaceSummary(
+    id = 9_223_372_036L,
+    type = PlaceType.COURSE,
+    name = "한강공원 순환 코스",
+    address = "서울특별시 마포구",
+    point = GeoPoint(37.5563, 126.9220),
+    distanceFromMeMeters = 1_240,
+    practiceTypes = listOf(PracticeType.LANE_CHANGE, PracticeType.LEFT_RIGHT_TURN),
+    description = "초보 운전자가 도심 주행과 차선 변경을 함께 연습하기 좋은 코스입니다.",
+    distanceMeters = 12_400,
+    capacity = null,
+    openTime = null,
+)
+
+private val previewLongCourseSummary = previewCourseSummary.copy(
+    id = 9_223_372_037L,
+    name = "성수동에서 한강을 지나 도심 교차로까지 이어지는 아주 긴 연습 코스 이름",
+    practiceTypes = PracticeType.entries.toList(),
+)
+
+private val previewParkingSummary = PlaceSummary(
+    id = 9_223_372_038L,
+    type = PlaceType.PARKING,
+    name = "망원 한강공원 공영주차장",
+    address = "서울특별시 마포구",
+    point = GeoPoint(37.5568, 126.9190),
+    distanceFromMeMeters = 850,
+    practiceTypes = listOf(PracticeType.PARKING),
+    description = null,
+    distanceMeters = null,
+    capacity = 128,
+    openTime = "06:00",
+)
+
+@Preview(name = "Place card - course", showBackground = true, widthDp = 360)
 @Composable
 private fun PlaceCardCoursePreview() {
-    RodiTheme { PlaceCard(HomePreviewData.courseSummary, {}) }
+    RodiTheme { PlaceCard(previewCourseSummary, {}) }
 }
 
-@Preview(name = "Place card - parking", showBackground = true, widthDp = 375)
+@Preview(name = "Place card - parking", showBackground = true, widthDp = 360)
 @Composable
 private fun PlaceCardParkingPreview() {
-    RodiTheme { PlaceCard(HomePreviewData.parkingSummary, {}) }
+    RodiTheme { PlaceCard(previewParkingSummary, {}) }
 }
 
 @Preview(name = "Place card - long", showBackground = true, widthDp = 320, fontScale = 1.3f)
 @Composable
 private fun PlaceCardLongPreview() {
-    RodiTheme { PlaceCard(HomePreviewData.longCourseSummary, {}) }
+    RodiTheme { PlaceCard(previewLongCourseSummary, {}) }
 }

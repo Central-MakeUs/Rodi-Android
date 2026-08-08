@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.list.components
+package com.dororong.rodi.core.ui.components.place
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,13 +33,13 @@ fun PracticeTagRow(
     }
 }
 
-@Preview(name = "Practice tags - short", showBackground = true)
+@Preview(name = "Practice tags - short", showBackground = true, widthDp = 360)
 @Composable
 private fun PracticeTagRowShortPreview() {
     RodiTheme { PracticeTagRow(listOf(PracticeType.PARKING)) }
 }
 
-@Preview(name = "Practice tags - overflow", showBackground = true, widthDp = 260)
+@Preview(name = "Practice tags - overflow", showBackground = true, widthDp = 360)
 @Composable
 private fun PracticeTagRowOverflowPreview() {
     RodiTheme { PracticeTagRow(PracticeType.entries.toList()) }
