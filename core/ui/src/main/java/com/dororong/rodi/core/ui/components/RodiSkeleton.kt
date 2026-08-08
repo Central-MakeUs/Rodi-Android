@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -19,12 +20,13 @@ import com.valentinilk.shimmer.shimmer
 fun RodiSkeleton(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(8.dp),
+    color: Color = RodiTheme.colors.gray100,
 ) {
     Box(
         modifier = modifier
             .clip(shape)
             .shimmer()
-            .background(RodiTheme.colors.gray100),
+            .background(color),
     )
 }
 
