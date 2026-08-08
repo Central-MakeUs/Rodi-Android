@@ -13,9 +13,9 @@ import org.junit.jupiter.api.Test
 class ReviewMapperTest {
     @Test
     fun `unknown difficulty maps to null without throwing`() {
-        val result = reviewResponse(difficulty = "UNKNOWN_DIFFICULTY").toDomain()
+        val result = checkNotNull(reviewResponse(difficulty = "UNKNOWN_DIFFICULTY").toDomain())
 
-        assertNull(result?.difficulty)
+        assertNull(result.difficulty)
     }
 
     @Test
