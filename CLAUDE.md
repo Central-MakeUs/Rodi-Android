@@ -35,6 +35,7 @@
 ## Skills
 - 기능 개발(설계→구현→검증): `/maintainable-android-delivery`
 - 디자인 → Compose 변환: `/design-to-compose`
+- 구현 결과를 Figma·기기에서 자가 검증: `/figma-device-verify`
 - Compose 성능(recomposition/stability): `/recomposition_optimization`
 - 의존성 버전 관리: `/version_control_wisdom`
 - 커밋/릴리스: `/smart-commit`, `/git-release-publish`
