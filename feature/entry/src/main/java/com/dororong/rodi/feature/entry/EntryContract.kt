@@ -18,6 +18,7 @@ enum class OnboardingAnalysisState { ANALYZING, RESULT }
 
 data class EntryUiState(
     val isRestored: Boolean = false,
+    val didResumeProgress: Boolean = false,
     val mode: EntryMode = EntryMode.AUTHENTICATED,
     val step: EntryStep = EntryStep.TERMS,
     val webViewUrl: String = "",
