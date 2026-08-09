@@ -217,7 +217,7 @@ private fun ReviewReportContent(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         form.options.forEach { option ->
                             ReportReasonRow(
-                                option = option,
+                                label = option.label,
                                 selected = option.code == selectedOptionCode,
                                 onClick = { onSelectOption(option) },
                             )
@@ -248,8 +248,8 @@ private fun ReviewReportContent(
 }
 
 @Composable
-private fun ReportReasonRow(
-    option: ReportFormOption,
+internal fun ReportReasonRow(
+    label: String,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -271,7 +271,7 @@ private fun ReportReasonRow(
             modifier = Modifier.size(24.dp),
         )
         Text(
-            text = option.label,
+            text = label,
             style = RodiTheme.typography.body1Medium,
             color = RodiTheme.colors.black,
         )
@@ -279,7 +279,7 @@ private fun ReportReasonRow(
 }
 
 @Composable
-private fun ReportDetailInput(
+internal fun ReportDetailInput(
     value: String,
     placeholder: String,
     onValueChange: (String) -> Unit,
