@@ -12,6 +12,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeSession
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
@@ -25,6 +26,9 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ClearPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.GetCompletedPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.StartPracticeSessionUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
@@ -630,6 +634,90 @@ class HomeViewModelTest {
 
         coVerify { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) }
     }
+
+    @Test
+    fun `resuming after a completed practice shows its review prompt for a member`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val session = PracticeSession(19L, "강남역 주변 코스", Instant.EPOCH)
+        coEvery { deps.getCompletedPracticeSession() } returns Result.success(session)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertEquals(session, vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.getCompletedPracticeSession() }
+    }
+
+    @Test
+    fun `guest resume does not request a practice prompt`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 0) { deps.getCompletedPracticeSession() }
+    }
+
+    @Test
+    fun `responding to a practice prompt clears the stored session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val session = PracticeSession(19L, "강남역 주변 코스", Instant.EPOCH)
+        coEvery { deps.getCompletedPracticeSession() } returns Result.success(session)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.clearPracticeSession() }
+    }
+
+    @Test
+    fun `launching an installed navigation app starts a practice session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { deps.startPracticeSession(19L, "테스트 연습장") }
+    }
+
+    @Test
+    fun `install picker does not start a practice session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { deps.startPracticeSession(any(), any()) }
+    }
+
+    @Test
+    fun `launching navigation for a parking place does not start a practice session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getDetail(19L) } returns Result.success(parkingNavigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { deps.startPracticeSession(any(), any()) }
+    }
 }
 
 private class Dependencies(loggedIn: Boolean = true) {
@@ -646,6 +734,9 @@ private class Dependencies(loggedIn: Boolean = true) {
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
     val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
+    val startPracticeSession = mockk<StartPracticeSessionUseCase>()
+    val getCompletedPracticeSession = mockk<GetCompletedPracticeSessionUseCase>()
+    val clearPracticeSession = mockk<ClearPracticeSessionUseCase>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -654,6 +745,9 @@ private class Dependencies(loggedIn: Boolean = true) {
         coEvery { authSession() } returns AuthSession(loggedIn, false)
         coEvery { getNaviAlways() } returns null
         coEvery { setNaviAlways(any()) } returns Unit
+        coEvery { startPracticeSession(any(), any()) } returns Result.success(Unit)
+        coEvery { getCompletedPracticeSession() } returns Result.success(null)
+        coEvery { clearPracticeSession() } returns Result.success(Unit)
     }
 
     fun viewModel() = HomeViewModel(
@@ -670,6 +764,9 @@ private class Dependencies(loggedIn: Boolean = true) {
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
         updateFilterTagsUseCase = updateFilterTags,
+        startPracticeSessionUseCase = startPracticeSession,
+        getCompletedPracticeSessionUseCase = getCompletedPracticeSession,
+        clearPracticeSessionUseCase = clearPracticeSession,
     )
 }
 
@@ -691,4 +788,22 @@ private fun summary(id: Long) = PlaceSummary(
     distanceMeters = 1_000,
     capacity = null,
     openTime = null,
+)
+
+private fun navigationPlace() = PlaceDetail(
+    id = 19L,
+    type = PlaceType.COURSE,
+    name = "테스트 연습장",
+    address = "서울",
+    point = GeoPoint(37.5, 126.5),
+    practiceTypes = listOf(PracticeType.STRAIGHT),
+    bookmarkCount = 0,
+    isBookmarked = false,
+    course = null,
+    parking = null,
+)
+
+private fun parkingNavigationPlace() = navigationPlace().copy(
+    type = PlaceType.PARKING,
+    practiceTypes = listOf(PracticeType.PARKING),
 )

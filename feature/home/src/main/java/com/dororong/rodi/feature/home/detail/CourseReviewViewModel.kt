@@ -27,8 +27,8 @@ class CourseReviewViewModel @Inject constructor(
     val state: StateFlow<CourseReviewUiState> = _state.asStateFlow()
     private var loadJob: Job? = null
 
-    fun load(placeId: Long) {
-        if (_state.value.placeId == placeId) return
+    fun load(placeId: Long, force: Boolean = false) {
+        if (!force && _state.value.placeId == placeId) return
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _state.value = CourseReviewUiState(placeId = placeId, isLoading = true)
@@ -103,6 +103,19 @@ class CourseReviewViewModel @Inject constructor(
                 reviews = it.reviews.filterNot { review -> review.memberId == memberId },
             )
         }
+    }
+
+    fun removeReview(reviewId: Long) {
+        _state.update {
+            it.copy(
+                latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
+                reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
+            )
+        }
+    }
+
+    fun refresh() {
+        _state.value.placeId?.let { load(it, force = true) }
     }
 
     companion object { private const val PAGE_SIZE = 10 }

@@ -9,6 +9,7 @@ import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.data.repository.MemberRepositoryImpl
 import com.dororong.rodi.core.data.repository.RecentSearchRepositoryImpl
 import com.dororong.rodi.core.data.repository.ReviewRepositoryImpl
+import com.dororong.rodi.core.data.repository.PracticeSessionRepositoryImpl
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
@@ -18,11 +19,14 @@ import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.repository.ReviewRepository
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import dagger.Provides
+import java.time.Clock
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -54,4 +58,13 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindReviewRepository(impl: ReviewRepositoryImpl): ReviewRepository
+
+    @Binds
+    abstract fun bindPracticeSessionRepository(impl: PracticeSessionRepositoryImpl): PracticeSessionRepository
+
+    companion object {
+        @Provides
+        @Singleton
+        fun provideClock(): Clock = Clock.systemDefaultZone()
+    }
 }

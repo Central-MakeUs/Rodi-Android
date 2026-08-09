@@ -114,6 +114,9 @@ import com.dororong.rodi.feature.home.detail.CourseDetailSheet
 import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
+import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.PracticePromptDialog
+import com.dororong.rodi.feature.home.review.notvisited.NotVisitedReasonScreen
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -203,6 +206,12 @@ typealias KakaoLoginRequest = (
     onFailure: (String) -> Unit,
 ) -> Unit
 
+private data class ReviewWriteTarget(
+    val placeId: Long,
+    val placeName: String,
+    val review: Review?,
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -260,6 +269,8 @@ fun HomeScreen(
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
     var reviewToReport by remember { mutableStateOf<Review?>(null) }
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
+    var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
+    var isNotVisitedReasonVisible by remember { mutableStateOf(false) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -300,6 +311,7 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
+                vm.onIntent(HomeIntent.OnAppResumed)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1112,9 +1124,9 @@ fun HomeScreen(
                                         review = reviewState.latestReviews.firstOrNull(),
                                         onSelectLevel = reviewVm::selectLevel,
                                         onAllClick = { vm.onIntent(HomeIntent.OnLevelReviewsOpen) },
-                                        onWriteReviewClick = {},
-                                        onEditReviewClick = {},
-                                        onDeleteReviewClick = {},
+                                        onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
+                                        onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
+                                        onDeleteReviewClick = { reviewActionsVm.deleteReview(it.reviewId) },
                                         onReportReviewClick = { reviewToReport = it },
                                         onBlockMemberClick = { reviewToBlock = it },
                                         scrollState = sheetScrollState,
@@ -1219,8 +1231,8 @@ fun HomeScreen(
                     ),
                 )
             },
-            onEditReviewClick = {},
-            onDeleteReviewClick = {},
+            onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
+            onDeleteReviewClick = { reviewActionsVm.deleteReview(it.reviewId) },
             onReportReviewClick = { reviewToReport = it },
             onBlockMemberClick = { reviewToBlock = it },
         )
@@ -1231,6 +1243,36 @@ fun HomeScreen(
             onClose = { reviewToReport = null },
             modifier = Modifier.fillMaxSize(),
         )
+    }
+    reviewToWrite?.let { target ->
+        ReviewWriteScreen(
+            placeId = target.placeId,
+            placeName = target.placeName,
+            editing = target.review,
+            onClose = { reviewToWrite = null },
+            onCompleted = {
+                reviewToWrite = null
+                reviewVm.refresh()
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+    state.practicePrompt?.let { session ->
+        PracticePromptDialog(
+            session = session,
+            onVisited = {
+                vm.onIntent(HomeIntent.OnPracticePromptVisited)
+                reviewToWrite = ReviewWriteTarget(session.placeId, session.placeName, null)
+            },
+            onNotVisited = {
+                vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+                isNotVisitedReasonVisible = true
+            },
+            onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
+        )
+    }
+    if (isNotVisitedReasonVisible) {
+        NotVisitedReasonScreen(onClose = { isNotVisitedReasonVisible = false })
     }
     reviewToBlock?.let { review ->
         BlockMemberDialog(
@@ -1256,6 +1298,19 @@ fun HomeScreen(
                     ),
                 )
                 reviewActionsVm.consumeBlockResult()
+            }
+        }
+    }
+    LaunchedEffect(reviewActionsState.deletedReviewId, reviewActionsState.deleteErrorMessage) {
+        when {
+            reviewActionsState.deletedReviewId != null -> {
+                reviewVm.removeReview(reviewActionsState.deletedReviewId ?: return@LaunchedEffect)
+                snackbarHostState.show(RodiSnackbarData(message = "후기를 삭제했습니다."))
+                reviewActionsVm.consumeDeleteResult()
+            }
+            reviewActionsState.deleteErrorMessage != null -> {
+                snackbarHostState.show(RodiSnackbarData(message = reviewActionsState.deleteErrorMessage ?: "후기를 삭제할 수 없습니다."))
+                reviewActionsVm.consumeDeleteResult()
             }
         }
     }

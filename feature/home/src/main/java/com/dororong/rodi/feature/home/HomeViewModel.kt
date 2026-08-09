@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
+import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
@@ -24,6 +25,9 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ClearPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.GetCompletedPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.StartPracticeSessionUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
@@ -58,6 +62,9 @@ class HomeViewModel @Inject constructor(
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
     private val updateFilterTagsUseCase: UpdateFilterTagsUseCase,
+    private val startPracticeSessionUseCase: StartPracticeSessionUseCase,
+    private val getCompletedPracticeSessionUseCase: GetCompletedPracticeSessionUseCase,
+    private val clearPracticeSessionUseCase: ClearPracticeSessionUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -105,6 +112,11 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
             HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
+            HomeIntent.OnAppResumed -> loadCompletedPracticeSession()
+            HomeIntent.OnPracticePromptVisited,
+            HomeIntent.OnPracticePromptNotVisited,
+            HomeIntent.OnPracticePromptDismiss,
+            -> clearPracticePrompt()
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
@@ -644,14 +656,12 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val savedApp = getNaviAlwaysUseCase()
             when {
-                savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
-                    _effect.send(HomeEffect.LaunchKakaoMap(place))
-                savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
-                    _effect.send(HomeEffect.LaunchKakaoNavi(place))
+                savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled -> launchPractice(place, HomeEffect.LaunchKakaoMap(place))
+                savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled -> launchPractice(place, HomeEffect.LaunchKakaoNavi(place))
                 intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
                     _effect.send(HomeEffect.ShowNaviPicker(place))
-                intent.kakaoMapInstalled -> _effect.send(HomeEffect.LaunchKakaoMap(place))
-                intent.kakaoNaviInstalled -> _effect.send(HomeEffect.LaunchKakaoNavi(place))
+                intent.kakaoMapInstalled -> launchPractice(place, HomeEffect.LaunchKakaoMap(place))
+                intent.kakaoNaviInstalled -> launchPractice(place, HomeEffect.LaunchKakaoNavi(place))
                 else -> _effect.send(HomeEffect.ShowInstallNaviPicker(place))
             }
         }
@@ -662,14 +672,37 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
             when (intent.app) {
-                NaviApp.KAKAOMAP -> _effect.send(HomeEffect.LaunchKakaoMap(place))
-                NaviApp.KAKAONAVI -> _effect.send(HomeEffect.LaunchKakaoNavi(place))
+                NaviApp.KAKAOMAP -> launchPractice(place, HomeEffect.LaunchKakaoMap(place))
+                NaviApp.KAKAONAVI -> launchPractice(place, HomeEffect.LaunchKakaoNavi(place))
             }
         }
     }
 
     private fun onInstallNaviAppSelected(intent: HomeIntent.OnInstallNaviAppSelected) {
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
+    }
+
+    private suspend fun launchPractice(place: PlaceDetail, effect: HomeEffect) {
+        if (place.type == PlaceType.COURSE) {
+            startPracticeSessionUseCase(place.id, place.name)
+        }
+        _effect.send(effect)
+    }
+
+    private fun loadCompletedPracticeSession() {
+        viewModelScope.launch {
+            if (!isLoggedIn()) return@launch
+            getCompletedPracticeSessionUseCase().onSuccess { session ->
+                _state.update { it.copy(practicePrompt = session) }
+            }
+        }
+    }
+
+    private fun clearPracticePrompt() {
+        _state.update { it.copy(practicePrompt = null) }
+        viewModelScope.launch {
+            clearPracticeSessionUseCase()
+        }
     }
 
     private suspend fun isLoggedIn(): Boolean = try {

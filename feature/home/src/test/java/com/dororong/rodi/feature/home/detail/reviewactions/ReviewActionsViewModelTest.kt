@@ -5,6 +5,7 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.usecase.member.BlockMemberUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReportFormUseCase
+import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.ReportReviewUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -28,6 +29,7 @@ class ReviewActionsViewModelTest {
     private val getReportForm = mockk<GetReportFormUseCase>()
     private val reportReview = mockk<ReportReviewUseCase>()
     private val blockMember = mockk<BlockMemberUseCase>()
+    private val deleteReview = mockk<DeleteReviewUseCase>()
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -100,7 +102,19 @@ class ReviewActionsViewModelTest {
         coVerify(exactly = 1) { blockMember(MEMBER_ID) }
     }
 
-    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember)
+    @Test
+    fun `delete review exposes the deleted review id`() = runTest(dispatcher) {
+        coEvery { deleteReview(REVIEW_ID) } returns Result.success(Unit)
+
+        val viewModel = viewModel()
+        viewModel.deleteReview(REVIEW_ID)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.deletedReviewId == REVIEW_ID)
+        coVerify(exactly = 1) { deleteReview(REVIEW_ID) }
+    }
+
+    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember, deleteReview)
 
     private fun reportForm() = ReportForm(
         questionId = "review-report",

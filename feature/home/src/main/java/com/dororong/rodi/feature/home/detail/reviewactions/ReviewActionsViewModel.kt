@@ -8,6 +8,7 @@ import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.usecase.member.BlockMemberUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReportFormUseCase
 import com.dororong.rodi.core.domain.usecase.review.ReportReviewUseCase
+import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -28,6 +29,9 @@ data class ReviewActionsUiState(
     val isBlocking: Boolean = false,
     val blockedMemberId: Long? = null,
     val blockErrorMessage: String? = null,
+    val isDeleting: Boolean = false,
+    val deletedReviewId: Long? = null,
+    val deleteErrorMessage: String? = null,
 )
 
 @HiltViewModel
@@ -35,6 +39,7 @@ class ReviewActionsViewModel @Inject constructor(
     private val getReportForm: GetReportFormUseCase,
     private val reportReview: ReportReviewUseCase,
     private val blockMemberUseCase: BlockMemberUseCase,
+    private val deleteReviewUseCase: DeleteReviewUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReviewActionsUiState())
     val state: StateFlow<ReviewActionsUiState> = _state.asStateFlow()
@@ -156,6 +161,22 @@ class ReviewActionsViewModel @Inject constructor(
 
     fun consumeBlockResult() {
         _state.update { it.copy(blockedMemberId = null, blockErrorMessage = null) }
+    }
+
+    fun deleteReview(reviewId: Long) {
+        if (_state.value.isDeleting) return
+        viewModelScope.launch {
+            _state.update { it.copy(isDeleting = true, deleteErrorMessage = null) }
+            deleteReviewUseCase(reviewId).onSuccess {
+                _state.update { it.copy(isDeleting = false, deletedReviewId = reviewId) }
+            }.onFailure { error ->
+                _state.update { it.copy(isDeleting = false, deleteErrorMessage = error.message) }
+            }
+        }
+    }
+
+    fun consumeDeleteResult() {
+        _state.update { it.copy(deletedReviewId = null, deleteErrorMessage = null) }
     }
 
     private fun ReviewActionsUiState.selectedOption(): ReportFormOption? =
