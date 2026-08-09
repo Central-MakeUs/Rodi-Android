@@ -96,5 +96,14 @@ class CourseReviewViewModel @Inject constructor(
         }
     }
 
+    fun excludeMemberReviews(memberId: Long) {
+        _state.update {
+            it.copy(
+                latestReviews = it.latestReviews.filterNot { review -> review.memberId == memberId },
+                reviews = it.reviews.filterNot { review -> review.memberId == memberId },
+            )
+        }
+    }
+
     companion object { private const val PAGE_SIZE = 10 }
 }

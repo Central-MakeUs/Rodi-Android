@@ -90,6 +90,7 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
@@ -113,6 +114,9 @@ import com.dororong.rodi.feature.home.detail.CourseDetailSheet
 import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
+import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
+import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
+import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
 import com.dororong.rodi.feature.home.filter.FilterBottomSheet
@@ -210,10 +214,12 @@ fun HomeScreen(
     vm: HomeViewModel = hiltViewModel(),
 ) {
     val reviewVm: CourseReviewViewModel = hiltViewModel()
+    val reviewActionsVm: ReviewActionsViewModel = hiltViewModel()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by vm.state.collectAsStateWithLifecycle()
     val reviewState by reviewVm.state.collectAsStateWithLifecycle()
+    val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val density = LocalDensity.current
@@ -252,6 +258,8 @@ fun HomeScreen(
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
+    var reviewToReport by remember { mutableStateOf<Review?>(null) }
+    var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -1107,8 +1115,8 @@ fun HomeScreen(
                                         onWriteReviewClick = {},
                                         onEditReviewClick = {},
                                         onDeleteReviewClick = {},
-                                        onReportReviewClick = {},
-                                        onBlockMemberClick = {},
+                                        onReportReviewClick = { reviewToReport = it },
+                                        onBlockMemberClick = { reviewToBlock = it },
                                         scrollState = sheetScrollState,
                                     )
                                 }
@@ -1213,9 +1221,43 @@ fun HomeScreen(
             },
             onEditReviewClick = {},
             onDeleteReviewClick = {},
-            onReportReviewClick = {},
-            onBlockMemberClick = {},
+            onReportReviewClick = { reviewToReport = it },
+            onBlockMemberClick = { reviewToBlock = it },
         )
+    }
+    reviewToReport?.let { review ->
+        ReviewReportScreen(
+            reviewId = review.reviewId,
+            onClose = { reviewToReport = null },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+    reviewToBlock?.let { review ->
+        BlockMemberDialog(
+            isBlocking = reviewActionsState.isBlocking,
+            onConfirm = { reviewActionsVm.blockMember(review.memberId) },
+            onDismiss = { reviewToBlock = null },
+        )
+    }
+    LaunchedEffect(reviewActionsState.blockedMemberId, reviewActionsState.blockErrorMessage) {
+        when {
+            reviewActionsState.blockedMemberId != null -> {
+                reviewVm.excludeMemberReviews(reviewActionsState.blockedMemberId ?: return@LaunchedEffect)
+                reviewToBlock = null
+                snackbarHostState.show(RodiSnackbarData(message = "사용자를 차단했습니다."))
+                reviewActionsVm.consumeBlockResult()
+            }
+
+            reviewActionsState.blockErrorMessage != null -> {
+                reviewToBlock = null
+                snackbarHostState.show(
+                    RodiSnackbarData(
+                        message = reviewActionsState.blockErrorMessage ?: "사용자를 차단할 수 없습니다.",
+                    ),
+                )
+                reviewActionsVm.consumeBlockResult()
+            }
+        }
     }
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(
