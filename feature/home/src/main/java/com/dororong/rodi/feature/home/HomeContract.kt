@@ -62,6 +62,7 @@ data class HomeUiState(
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
+    val isLevelReviewsVisible: Boolean = false,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -79,6 +80,8 @@ sealed interface HomeIntent {
     data class OnPlaceClick(val id: Long, val origin: HomeDetailOrigin) : HomeIntent
     data object OnDismissDetail : HomeIntent
     data object OnDragDismissDetail : HomeIntent
+    data object OnLevelReviewsOpen : HomeIntent
+    data object OnLevelReviewsClose : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
