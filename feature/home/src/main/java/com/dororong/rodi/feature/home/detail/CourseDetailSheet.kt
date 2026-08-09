@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -152,25 +153,35 @@ fun CourseDetailSheet(
                         onSummaryHeightChanged = { summaryHeightPx = it },
                     )
                 }
-                Row(
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .onSizeChanged { bottomBarHeightPx = it.height }
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                        .onSizeChanged { bottomBarHeightPx = it.height },
+                    color = RodiTheme.colors.white,
+                    shadowElevation = 4.dp,
                 ) {
-                    BookmarkButton(
-                        isBookmarked = place.isBookmarked,
-                        onClick = onBookmarkClick,
-                        enabled = !isBookmarkUpdating,
-                    )
-                    RodiButton(
-                        text = "연습하러 가기",
-                        onClick = onNavigate,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Column {
+                        HorizontalDivider(color = RodiTheme.colors.gray200)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BookmarkButton(
+                                isBookmarked = place.isBookmarked,
+                                onClick = onBookmarkClick,
+                                enabled = !isBookmarkUpdating,
+                            )
+                            RodiButton(
+                                text = "연습하러 가기",
+                                onClick = onNavigate,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
                 }
             }
         }

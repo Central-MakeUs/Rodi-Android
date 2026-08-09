@@ -58,15 +58,17 @@ fun LevelReviewSection(
     scrollState: ScrollableState? = null,
 ) {
     val topDifficulty = difficultyCounts.topDifficulty()
+    val isEmpty = totalCount == 0L
+    val hasReview = review != null
 
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier) {
         Column(
             modifier = Modifier.padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
             SectionHeader(showAllLink = totalCount > 0, onAllClick = onAllClick)
 
-            if (topDifficulty != null) {
+            if (hasReview && topDifficulty != null) {
                 SummaryRow(
                     recommendCount = recommendCount,
                     selectedLevel = selectedLevel,
@@ -78,12 +80,14 @@ fun LevelReviewSection(
             }
         }
 
-        // 요약이 없으면 타이틀 바로 아래에 선만 남아 어색하다. 요약이 있을 때만 긋는다.
-        if (topDifficulty != null) {
+        if (!hasReview) {
+            Spacer(Modifier.height(12.dp))
+            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
+        } else {
+            Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
-        }
 
-        if (review != null) {
+            Spacer(Modifier.height(12.dp))
             ReviewCard(
                 review = review,
                 onEditReviewClick = onEditReviewClick,
@@ -93,10 +97,11 @@ fun LevelReviewSection(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 scrollState = scrollState,
             )
+            Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
+            Spacer(Modifier.height(12.dp))
+            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
         }
-
-        WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
 
         Spacer(
             Modifier
@@ -272,19 +277,20 @@ private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 99.dp, vertical = 32.dp),
+            .padding(vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
             text = "여러분의 연습 경험을 공유해주세요!",
+            modifier = Modifier.width(177.dp),
             style = RodiTheme.typography.caption1Medium,
             color = RodiTheme.colors.gray600,
             textAlign = TextAlign.Center,
         )
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .width(177.dp)
                 .border(1.dp, RodiTheme.colors.primary600, RoundedCornerShape(8.dp))
                 .clickable(onClick = onWriteReviewClick)
                 .padding(horizontal = 20.dp, vertical = 7.dp),
@@ -359,18 +365,9 @@ private fun LevelReviewSectionEmptyPreview() = PreviewSection(
     review = null,
 )
 
-@Preview(name = "레벨별 후기 - 내 레벨만 없음", showBackground = true, widthDp = 375)
+@Preview(name = "레벨별 후기 - 내 레벨 없음(요약 데이터 있음)", showBackground = true, widthDp = 375)
 @Composable
-private fun LevelReviewSectionOtherLevelOnlyPreview() = PreviewSection(
-    totalCount = 30,
-    recommendCount = 15,
-    difficultyCounts = emptyMap(),
-    review = null,
-)
-
-@Preview(name = "레벨별 후기 - 요약만(목록 비어있음)", showBackground = true, widthDp = 375)
-@Composable
-private fun LevelReviewSectionSummaryOnlyPreview() = PreviewSection(
+private fun LevelReviewSectionNoReviewWithSummaryDataPreview() = PreviewSection(
     totalCount = 30,
     recommendCount = 15,
     difficultyCounts = mapOf(ReviewDifficulty.NORMAL to 8L, ReviewDifficulty.HARD to 3L),

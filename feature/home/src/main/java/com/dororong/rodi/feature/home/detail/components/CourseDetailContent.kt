@@ -150,7 +150,10 @@ fun CourseDetailContent(
 
         RouteInfoSection(course.waypoints)
         Spacer(Modifier.height(16.dp))
-        HorizontalDivider(color = RodiTheme.colors.gray100)
+        HorizontalDivider(
+            thickness = 2.dp,
+            color = RodiTheme.colors.gray100,
+        )
         Spacer(Modifier.height(16.dp))
         reviewContent()
     }
