@@ -1,8 +1,7 @@
 # Design Assumptions
 
-| ID | 대상 | 가정 | 근거 | 신뢰도 |
-| --- | --- | --- | --- | --- |
-| D-001 | 검색 초기 로딩 | 최근 검색어는 제목·3개 행, 연관검색은 6개 행의 세부 스켈레톤으로 표시한다. | `SearchRow`의 61dp 행, 16dp 좌우 여백, 아이콘·텍스트·삭제 영역 구조 | HIGH |
-| D-002 | 검색 다음 페이지 로딩 | 기존 결과가 보이는 다음 페이지 요청은 행 단위 원형 인디케이터를 유지한다. | 기존 `SearchLoadingContent`가 62dp 행으로 구현되어 있고 목록 연속성이 중요함 | HIGH |
-| D-003 | 네트워크 로딩 스켈레톤(마이페이지·홈) | 각 로딩 화면의 기존 레이아웃 간격을 유지하고 `gray100` 표면과 기존 corner radius를 그대로 사용한다(새 시각 토큰 도입 없음). | 기존 Compose 레이아웃과 `RodiTheme` 토큰 | MEDIUM |
-| D-004 | 콘텐츠 단위 로딩 세부화 | 이미지·텍스트·태그·설명·액션 placeholder를 카드/행 전체 대체가 아니라 기존 로드된 컴포넌트 구조를 따라 개별로 분리한다. 프로필 카드 바탕은 white로 유지해 `gray100` 로딩 요소가 구별되게 한다. | `ProfileCard`, `SavedCourseRow`, `PlaceCard`, 장소 상세 Compose 레이아웃 | HIGH |
+| ID | Area | Evidence | Assumption | Confidence | Impact | Follow-up |
+|---|---|---|---|---|---|---|
+| D-001 | 후기 선택 버튼 | RV-01 handoff 실측과 기존 Rodi 토큰 | 선택 시 primary600/흰 글자, 기본 시 흰 배경·gray300 보더·8dp radius를 사용한다. | High | ChoicePairRow | Figma `2951:115653`의 세부 값을 다시 확인한다. |
+| D-002 | 후기 눈금 선택 | RV-01 handoff 실측 | 48dp 터치 영역과 RadioButton 접근성 의미를 유지하고, 선택 상태는 primary600으로 표시한다. | High | ScalePicker | Figma MCP 사용 가능 시 선택 라벨 색을 대조한다. |
+| D-003 | 미방문 사유 | RV-01 handoff 화면명과 API 부재 | 미방문 사유 제출은 완료 다이얼로그로 끝나는 로컬 스텁으로 둔다. | High | NotVisitedReasonScreen | 서버 제출 API가 제공되면 Domain/Data 계층으로 승격한다. |
