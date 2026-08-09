@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.detail.levelreviews
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,12 +90,11 @@ fun LevelReviewsOverlay(
 
     Surface(modifier.fillMaxSize(), color = RodiTheme.colors.white) {
         Column(Modifier.statusBarsPadding()) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
                     .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
             ) {
                 RodiIconButton(
                     painter = painterResource(com.dororong.rodi.core.ui.R.drawable.ic_chevron_left),
@@ -102,12 +102,13 @@ fun LevelReviewsOverlay(
                     iconSize = 20.dp,
                     contentDescription = "뒤로가기",
                     tint = RodiTheme.colors.black,
+                    modifier = Modifier.align(Alignment.CenterStart),
                 )
                 Text(
                     text = "레벨별 후기",
-                    style = RodiTheme.typography.body1SemiBold,
+                    style = RodiTheme.typography.headline1,
                     color = RodiTheme.colors.black,
-                    modifier = Modifier.padding(start = 4.dp),
+                    modifier = Modifier.align(Alignment.Center),
                 )
             }
 
@@ -115,34 +116,39 @@ fun LevelReviewsOverlay(
                 item {
                     RecommendBlock(
                         recommendCount = recommendCount,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
                     )
-                    HorizontalDivider(color = RodiTheme.colors.gray100)
+                    HorizontalDivider(
+                        thickness = 2.dp,
+                        color = RodiTheme.colors.gray100,
+                    )
                 }
-                item {
-                    Column(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                if (difficultyCounts.isNotEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(26.dp),
                         ) {
-                            Text(
-                                text = "난이도",
-                                style = RodiTheme.typography.body1SemiBold,
-                                color = RodiTheme.colors.black,
-                            )
-                            LevelDropdown(
-                                selectedLevel = selectedLevel,
-                                onSelectLevel = onSelectLevel,
-                                scrollState = listState,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "난이도",
+                                    style = RodiTheme.typography.body1SemiBold,
+                                    color = RodiTheme.colors.black,
+                                )
+                                LevelDropdown(
+                                    selectedLevel = selectedLevel,
+                                    onSelectLevel = onSelectLevel,
+                                    scrollState = listState,
+                                )
+                            }
+                            DifficultyBarChart(difficultyCounts)
                         }
-                        DifficultyBarChart(difficultyCounts)
+                        HorizontalDivider(color = RodiTheme.colors.gray100)
                     }
-                    HorizontalDivider(color = RodiTheme.colors.gray100)
                 }
                 items(reviews, key = { it.reviewId }) { review ->
                     ReviewCard(
@@ -157,7 +163,7 @@ fun LevelReviewsOverlay(
                 }
             }
 
-            HorizontalDivider(color = RodiTheme.colors.gray100)
+            HorizontalDivider(color = RodiTheme.colors.gray200)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

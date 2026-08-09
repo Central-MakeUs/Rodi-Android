@@ -63,7 +63,12 @@ fun ReviewCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(Modifier.size(30.dp).background(RodiTheme.colors.gray200, CircleShape))
+                Box(
+                    Modifier
+                        .size(30.dp)
+                        .background(RodiTheme.colors.white, CircleShape)
+                        .border(1.dp, RodiTheme.colors.primary600, CircleShape),
+                )
                 Text(
                     text = review.nickname,
                     style = RodiTheme.typography.body1SemiBold,

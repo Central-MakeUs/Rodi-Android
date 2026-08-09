@@ -26,8 +26,8 @@ fun DifficultyBarChart(
     counts: Map<ReviewDifficulty, Long>,
     modifier: Modifier = Modifier,
 ) {
-    val top = counts.topDifficulty()
-    val max = counts.values.maxOrNull()?.coerceAtLeast(1L) ?: 1L
+    val topCount = counts.values.maxOrNull()?.takeIf { it > 0L }
+    val max = topCount ?: 1L
 
     Column(modifier, verticalArrangement = Arrangement.spacedBy(20.dp)) {
         ReviewDifficulty.entries.forEach { difficulty ->
@@ -36,7 +36,7 @@ fun DifficultyBarChart(
                 difficulty = difficulty,
                 count = count,
                 fraction = count.toFloat() / max.toFloat(),
-                emphasized = difficulty == top,
+                emphasized = count == topCount,
             )
         }
     }

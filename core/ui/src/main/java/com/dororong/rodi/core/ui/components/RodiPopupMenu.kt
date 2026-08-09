@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -107,32 +108,54 @@ private class BelowAnchorEndAlignedPositionProvider : PopupPositionProvider {
     }
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 220)
+@Preview(name = "레벨 선택 툴팁 - 열림", showBackground = true, widthDp = 360, heightDp = 300)
 @Composable
 private fun RodiPopupMenuLevelPreview() {
     RodiTheme {
-        Box(Modifier.padding(16.dp)) {
-            RodiPopupMenu(
-                expanded = true,
-                items = listOf("Seed", "Rookie", "Owner", "Explorer", "Navigator"),
-                onSelect = {},
-                onDismissRequest = {},
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Box(Modifier.align(Alignment.TopEnd)) {
+                Text(
+                    text = "Rookie  ▾",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray700,
+                )
+                RodiPopupMenu(
+                    expanded = true,
+                    items = listOf("Seed", "Rookie", "Owner", "Explorer", "Navigator"),
+                    onSelect = {},
+                    onDismissRequest = {},
+                )
+            }
         }
     }
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 120)
+@Preview(name = "후기 더보기 툴팁 - 열림", showBackground = true, widthDp = 360, heightDp = 150)
 @Composable
 private fun RodiPopupMenuReviewPreview() {
     RodiTheme {
-        Box(Modifier.padding(16.dp)) {
-            RodiPopupMenu(
-                expanded = true,
-                items = listOf("신고하기", "차단"),
-                onSelect = {},
-                onDismissRequest = {},
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+        ) {
+            Box(Modifier.align(Alignment.TopEnd)) {
+                Text(
+                    text = "···",
+                    style = RodiTheme.typography.body1SemiBold,
+                    color = RodiTheme.colors.gray800,
+                )
+                RodiPopupMenu(
+                    expanded = true,
+                    items = listOf("신고하기", "차단"),
+                    onSelect = {},
+                    onDismissRequest = {},
+                )
+            }
         }
     }
 }
