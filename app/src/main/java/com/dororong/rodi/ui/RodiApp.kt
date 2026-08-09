@@ -102,6 +102,9 @@ fun RodiApp(
             rememberSaveableStateHolderNavEntryDecorator(),
             rememberViewModelStoreNavEntryDecorator(),
         ),
+        transitionSpec = { ROUTE_FADE },
+        popTransitionSpec = { ROUTE_FADE },
+        predictivePopTransitionSpec = { ROUTE_FADE },
         entryProvider = { key ->
             when (key) {
                 LoginRoute -> NavEntry(key) {

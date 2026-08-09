@@ -8,19 +8,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,13 +23,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
@@ -112,15 +106,13 @@ fun MapNetworkErrorScreen(
                 color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
             )
+            Spacer(modifier = Modifier.height(20.dp))
+            RodiButton(
+                text = "새로고침",
+                onClick = onRetry,
+                fillMaxWidth = false,
+            )
         }
-
-        RodiNetworkSnackbar(
-            onRetry = onRetry,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 106.dp),
-        )
     }
 }
 
@@ -170,69 +162,6 @@ private fun RodiLoadingIndicator(modifier: Modifier = Modifier) {
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun RodiNetworkSnackbar(
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(68.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = RodiTheme.colors.gray800,
-        shadowElevation = 0.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            SnackbarAlertIcon()
-            Text(
-                text = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.white,
-                modifier = Modifier.weight(1f),
-            )
-            Surface(
-                onClick = onRetry,
-                shape = RoundedCornerShape(8.dp),
-                color = RodiTheme.colors.primary600,
-            ) {
-                Text(
-                    text = "새로고침",
-                    style = RodiTheme.typography.caption2SemiBold,
-                    color = RodiTheme.colors.white,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SnackbarAlertIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(24.dp)) {
-        val color = Color.White
-        val center = Offset(size.width / 2f, size.height / 2f)
-        drawCircle(
-            color = color,
-            radius = 9.5.dp.toPx(),
-            center = center,
-            style = Stroke(width = 2.dp.toPx()),
-        )
-        drawLine(
-            color = color,
-            start = Offset(center.x, center.y - 5.dp.toPx()),
-            end = Offset(center.x, center.y + 2.dp.toPx()),
-            strokeWidth = 2.dp.toPx(),
-            cap = StrokeCap.Round,
-        )
-        drawCircle(color = color, radius = 1.3.dp.toPx(), center = Offset(center.x, center.y + 6.dp.toPx()))
     }
 }
 

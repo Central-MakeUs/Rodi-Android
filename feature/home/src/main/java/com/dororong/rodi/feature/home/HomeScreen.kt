@@ -40,8 +40,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -54,6 +52,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,6 +94,10 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
@@ -117,6 +120,8 @@ import com.dororong.rodi.feature.home.location.currentLocationUpdates
 import com.dororong.rodi.feature.home.location.hasLocationPermission
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
+import com.dororong.rodi.feature.home.network.isNetworkAvailable
+import com.dororong.rodi.feature.home.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
@@ -180,6 +185,8 @@ private val FULL_LIST_HEADER_HEIGHT = 64.dp
 private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
+private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
+private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
 private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
 private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
@@ -203,7 +210,7 @@ fun HomeScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by vm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarHostState = remember { RodiSnackbarHostState() }
     val density = LocalDensity.current
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
@@ -218,10 +225,17 @@ fun HomeScreen(
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
     var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
+    var lastMapRetryAtMillis by remember { mutableLongStateOf(0L) }
+    var showMapNetworkSnackbar by remember { mutableStateOf(false) }
+    var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
+    var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
     var mapScreenState by remember {
         mutableStateOf(
-            if (hasLoadedMapInSession || context.hasLoadedMapBefore()) MapScreenState.Ready
-            else MapScreenState.Loading,
+            when {
+                !isOnline -> MapScreenState.NetworkError
+                hasLoadedMapInSession || context.hasLoadedMapBefore() -> MapScreenState.Ready
+                else -> MapScreenState.Loading
+            },
         )
     }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
@@ -466,10 +480,71 @@ fun HomeScreen(
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
             }
 
-            is HomeEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            is HomeEffect.ShowSnackbar -> snackbarHostState.show(RodiSnackbarData(message = effect.message))
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
+        }
+    }
+
+    fun retryMap() {
+        if (!isOnline) {
+            if (!hasMapLoadedThisEntry) mapScreenState = MapScreenState.NetworkError
+            return
+        }
+
+        val now = System.currentTimeMillis()
+        if (now - lastMapRetryAtMillis < MAP_RETRY_DEBOUNCE_MILLIS) return
+        lastMapRetryAtMillis = now
+        if (mapScreenState != MapScreenState.Ready) mapScreenState = MapScreenState.Loading
+        kakaoMap = null
+        mapRetryKey += 1
+    }
+
+    val networkErrorSnackbarIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
+    LaunchedEffect(showMapNetworkSnackbar) {
+        if (showMapNetworkSnackbar) {
+            snackbarHostState.showImmediately(
+                RodiSnackbarData(
+                    id = MAP_NETWORK_SNACKBAR_ID,
+                    message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                    icon = networkErrorSnackbarIcon,
+                    duration = RodiSnackbarDuration.Indefinite,
+                    actionLabel = "새로고침",
+                    onAction = ::retryMap,
+                ),
+            )
+        } else {
+            snackbarHostState.dismiss(MAP_NETWORK_SNACKBAR_ID)
+        }
+    }
+
+    // 상세 진입 때 카메라가 그 장소로 옮겨가므로, 상세를 닫으면 옮겨간 위치 기준으로 목록·마커를 다시 받는다.
+    // 사용자가 손으로 지도를 끄는 경우는 여기 해당하지 않아 "재검색" 버튼 UX가 유지된다.
+    var wasDetailSurface by remember { mutableStateOf(false) }
+    LaunchedEffect(state.surfaceState, currentViewport) {
+        val isDetail = state.surfaceState == HomeSurfaceState.Detail
+        if (wasDetailSurface && !isDetail) {
+            currentViewport?.let { viewport ->
+                vm.onIntent(HomeIntent.OnProgrammaticSearch(viewport.toQuery(currentLocation)))
+            }
+        }
+        wasDetailSurface = isDetail
+    }
+
+    LaunchedEffect(Unit) {
+        networkAvailabilityFlow(context).collect { isOnline = it }
+    }
+
+    LaunchedEffect(isOnline) {
+        when {
+            isOnline ->
+                if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
+            hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
+            else -> {
+                showMapNetworkSnackbar = false
+                mapScreenState = MapScreenState.NetworkError
+            }
         }
     }
 
@@ -510,10 +585,13 @@ fun HomeScreen(
         }
     }
 
+    var consumedRegionSearchGeneration by remember { mutableStateOf(0L) }
     LaunchedEffect(kakaoMap, state.regionSearchGeneration) {
         val map = kakaoMap ?: return@LaunchedEffect
         val region = state.regionSearch ?: return@LaunchedEffect
         if (state.regionSearchGeneration == 0L) return@LaunchedEffect
+        if (state.regionSearchGeneration == consumedRegionSearchGeneration) return@LaunchedEffect
+        consumedRegionSearchGeneration = state.regionSearchGeneration
         activeClusterMemberIds = null
         hasUserChosenMapViewport = true
         isAtCurrentLocation = false
@@ -664,7 +742,7 @@ fun HomeScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { RodiSnackbarHost(snackbarHostState) },
         content = { contentPadding ->
             Box(
                 modifier = Modifier
@@ -741,7 +819,12 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                mapScreenState = MapScreenState.NetworkError
+                                                if (hasMapLoadedThisEntry) {
+                                                    showMapNetworkSnackbar = true
+                                                } else {
+                                                    showMapNetworkSnackbar = false
+                                                    mapScreenState = MapScreenState.NetworkError
+                                                }
                                             }
                                         },
                                         object : KakaoMapReadyCallback() {
@@ -784,6 +867,11 @@ fun HomeScreen(
                                                                 ),
                                                             )
                                                         } else if (
+                                                            pending != null &&
+                                                            pending.generation != mapSearchGeneration
+                                                        ) {
+                                                            pendingMapSearch = null
+                                                        } else if (
                                                             pending == null &&
                                                             InitialViewportSearchPolicy.canDispatch(
                                                                 locationState = initialLocationState,
@@ -799,9 +887,13 @@ fun HomeScreen(
                                                             )
                                                         }
                                                     }
-                                                    hasLoadedMapInSession = true
-                                                    context.markMapLoaded()
-                                                    mapScreenState = MapScreenState.Ready
+                                                    if (isOnline) {
+                                                        hasLoadedMapInSession = true
+                                                        hasMapLoadedThisEntry = true
+                                                        context.markMapLoaded()
+                                                        mapScreenState = MapScreenState.Ready
+                                                        showMapNetworkSnackbar = false
+                                                    }
                                                 }
                                                 map.setOnLabelClickListener { _, _, label ->
                                                     when (val tag = label.tag) {
@@ -1046,14 +1138,7 @@ fun HomeScreen(
 
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
-                    MapScreenState.NetworkError -> MapNetworkErrorScreen(
-                        onRetry = {
-                            mapScreenState = MapScreenState.Loading
-                            kakaoMap = null
-                            mapRetryKey += 1
-                        },
-                    )
-
+                    MapScreenState.NetworkError -> MapNetworkErrorScreen(onRetry = ::retryMap)
                     MapScreenState.Ready -> Unit
                 }
             }

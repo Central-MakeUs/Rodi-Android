@@ -1,7 +1,6 @@
 package com.dororong.rodi.feature.mypage
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -137,6 +136,7 @@ private fun MyPageLoadingContent() {
             )
         }
         MyPageProfileCardLoadingContent()
+        Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = RodiTheme.colors.gray100)
         Row(
             modifier = Modifier
@@ -169,8 +169,7 @@ private fun MyPageProfileCardLoadingContent() {
             .padding(top = 16.dp)
             .fillMaxWidth()
             .height(227.dp)
-            .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
-            .border(1.dp, RodiTheme.colors.primary50, RoundedCornerShape(8.dp)),
+            .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp)),
     ) {
         Column(
             modifier = Modifier
@@ -178,33 +177,33 @@ private fun MyPageProfileCardLoadingContent() {
                 .padding(start = 11.dp, top = 15.dp, end = 11.dp),
         ) {
             Row(modifier = Modifier.height(90.dp)) {
-                RodiSkeleton(modifier = Modifier.size(90.dp))
+                RodiSkeleton(modifier = Modifier.size(90.dp), color = RodiTheme.colors.gray200)
                 Column(
                     modifier = Modifier.padding(start = 15.dp, top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    RodiSkeleton(modifier = Modifier.width(92.dp).height(20.dp))
+                    RodiSkeleton(modifier = Modifier.width(92.dp).height(20.dp), color = RodiTheme.colors.gray200)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        RodiSkeleton(modifier = Modifier.width(28.dp).height(12.dp))
-                        RodiSkeleton(modifier = Modifier.width(56.dp).height(16.dp))
+                        RodiSkeleton(modifier = Modifier.width(28.dp).height(12.dp), color = RodiTheme.colors.gray200)
+                        RodiSkeleton(modifier = Modifier.width(56.dp).height(16.dp), color = RodiTheme.colors.gray200)
                     }
                 }
             }
             Spacer(Modifier.height(12.dp))
-            RodiSkeleton(modifier = Modifier.width(52.dp).height(12.dp))
+            RodiSkeleton(modifier = Modifier.width(52.dp).height(12.dp), color = RodiTheme.colors.gray200)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                RodiSkeleton(modifier = Modifier.width(40.dp).height(21.dp))
-                RodiSkeleton(modifier = Modifier.width(48.dp).height(21.dp))
-                RodiSkeleton(modifier = Modifier.width(44.dp).height(21.dp))
+                RodiSkeleton(modifier = Modifier.width(40.dp).height(21.dp), color = RodiTheme.colors.gray200)
+                RodiSkeleton(modifier = Modifier.width(48.dp).height(21.dp), color = RodiTheme.colors.gray200)
+                RodiSkeleton(modifier = Modifier.width(44.dp).height(21.dp), color = RodiTheme.colors.gray200)
             }
             Spacer(Modifier.height(12.dp))
-            RodiSkeleton(modifier = Modifier.width(42.dp).height(12.dp))
+            RodiSkeleton(modifier = Modifier.width(42.dp).height(12.dp), color = RodiTheme.colors.gray200)
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                RodiSkeleton(modifier = Modifier.width(188.dp).height(19.dp))
+                RodiSkeleton(modifier = Modifier.width(188.dp).height(19.dp), color = RodiTheme.colors.gray200)
                 Spacer(Modifier.weight(1f))
-                RodiSkeleton(modifier = Modifier.size(12.dp))
+                RodiSkeleton(modifier = Modifier.size(12.dp), color = RodiTheme.colors.gray200)
             }
         }
     }

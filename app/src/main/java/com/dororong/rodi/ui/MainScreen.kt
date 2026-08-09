@@ -78,6 +78,9 @@ fun MainScreen(
                 rememberSaveableStateHolderNavEntryDecorator(),
                 rememberViewModelStoreNavEntryDecorator(),
             ),
+            transitionSpec = { ROUTE_FADE },
+            popTransitionSpec = { ROUTE_FADE },
+            predictivePopTransitionSpec = { ROUTE_FADE },
             entryProvider = { key ->
                 when (key) {
                     HomeRoute -> NavEntry(key) {

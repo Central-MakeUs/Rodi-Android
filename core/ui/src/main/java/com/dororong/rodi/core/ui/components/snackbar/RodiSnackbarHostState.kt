@@ -25,6 +25,11 @@ class RodiSnackbarHostState {
         current = null
     }
 
+    fun dismiss(id: String) {
+        queue.removeAll { it.id == id }
+        if (current?.id == id) current = null
+    }
+
     /** 표시 중이거나 대기 중인 스낵바를 전부 비운다(화면 이탈 시 등). */
     fun clear() {
         queue.clear()

@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.search
 
+import app.cash.turbine.test
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -22,6 +23,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -73,7 +75,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `typing does not register and ime search registers the entered keyword`() = runTest(dispatcher) {
+    fun `typing and ime search do not register recent search`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } returns related()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
@@ -87,10 +89,27 @@ class SearchViewModelTest {
         viewModel.onIntent(SearchIntent.OnImeSearch)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) {
-            dependencies.recentRepository.registerRecentSearch(
-                RecentSearchRegistration(SearchTargetType.REGION, "강남"),
-            )
+        coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
+    }
+
+    @Test
+    fun `ime search cancellation does not emit error snackbar`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } coAnswers {
+            awaitCancellation()
+        }
+        coEvery { dependencies.placeRepository.relatedSearch("서초", null, 20) } returns related()
+        val viewModel = dependencies.viewModel()
+
+        viewModel.effect.test {
+            viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+            advanceTimeBy(300)
+            viewModel.onIntent(SearchIntent.OnQueryChange("서초"))
+            viewModel.onIntent(SearchIntent.OnImeSearch)
+            advanceUntilIdle()
+
+            assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+            expectNoEvents()
         }
     }
 
@@ -191,6 +210,26 @@ class SearchViewModelTest {
 
         assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
         assertEquals(listOf("서울 중구"), viewModel.state.value.recentSearches.map { it.keyword })
+    }
+
+    @Test
+    fun `untyped recent search runs again without registering it as region`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.placeRepository.relatedSearch("알 수 없는 장소", null, 20) } returns related()
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
+        val viewModel = dependencies.viewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(
+            SearchIntent.OnRecentSearchClick(RecentSearch(1, "알 수 없는 장소")),
+        )
+        advanceUntilIdle()
+
+        assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+        coVerify(exactly = 1) {
+            dependencies.placeRepository.relatedSearch("알 수 없는 장소", null, 20)
+        }
+        coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
     }
 
     @Test

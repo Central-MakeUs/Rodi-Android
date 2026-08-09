@@ -86,7 +86,11 @@ class HomeViewModel @Inject constructor(
                 _state.update { it.copy(isMapSearchDirty = true) }
             }
             is HomeIntent.OnViewportSettled -> loadInitialViewport(intent.query)
-            is HomeIntent.OnProgrammaticSearch -> loadFirstPage(intent.query, force = true)
+            is HomeIntent.OnProgrammaticSearch -> loadFirstPage(
+                query = intent.query,
+                force = true,
+                clearMapMovementGeneration = mapMovementGeneration,
+            )
             is HomeIntent.OnResearch -> loadFirstPage(
                 query = intent.query,
                 force = true,
@@ -316,7 +320,9 @@ class HomeViewModel @Inject constructor(
             getPlaceDetailUseCase(placeId)
                 .onSuccess { detail ->
                     if (_state.value.selectedPlaceId == placeId) {
-                        _state.update { it.copy(selectedPlace = detail, isDetailLoading = false) }
+                        _state.update {
+                            it.copy(selectedPlace = detail, isDetailLoading = false, searchKeyword = detail.name)
+                        }
                         loadRoute(detail)
                     }
                 }
@@ -329,6 +335,7 @@ class HomeViewModel @Inject constructor(
                                 selectedRoute = null,
                                 detailOrigin = null,
                                 isDetailLoading = false,
+                                searchKeyword = null,
                                 surfaceState = if (origin == HomeDetailOrigin.List) {
                                     HomeSurfaceState.PartialList
                                 } else {
@@ -373,6 +380,7 @@ class HomeViewModel @Inject constructor(
                 isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
+                searchKeyword = null,
                 surfaceState = destination,
             )
         }

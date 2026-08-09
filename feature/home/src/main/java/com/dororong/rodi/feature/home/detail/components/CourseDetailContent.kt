@@ -27,11 +27,11 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
+import com.dororong.rodi.core.ui.components.place.PracticeTagRow
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
-import com.dororong.rodi.feature.home.list.components.PracticeTagRow
 import java.util.Locale
 
 @Composable
@@ -131,7 +131,7 @@ fun CourseDetailContent(
                     Text(
                         text = cautionText,
                         style = RodiTheme.typography.caption1Medium,
-                        color = RodiTheme.colors.primary600,
+                        color = RodiTheme.colors.secondary400,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

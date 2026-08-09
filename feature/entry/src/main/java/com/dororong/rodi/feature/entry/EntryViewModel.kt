@@ -317,6 +317,7 @@ class EntryViewModel @Inject constructor(
         _state.update {
             it.copy(
                 step = progress.step.toEntryStep(),
+                didResumeProgress = progress.step != EntryProgressStep.TERMS,
                 webViewUrl = progress.webViewUrl,
                 serviceTermsChecked = progress.serviceTermsChecked,
                 privacyTermsChecked = progress.privacyTermsChecked,

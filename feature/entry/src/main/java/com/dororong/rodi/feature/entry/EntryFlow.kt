@@ -11,7 +11,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,6 +27,7 @@ import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.entry.EntryMode
+import com.dororong.rodi.feature.entry.component.EntryResumeBanner
 import com.dororong.rodi.feature.entry.component.OnboardingAnalysisDialog
 import com.dororong.rodi.feature.entry.component.LocalStepProgressAnimationState
 import com.dororong.rodi.feature.entry.component.rememberStepProgressAnimationState
@@ -53,6 +58,7 @@ fun EntryFlow(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val networkErrorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
     val stepProgressAnimationState = rememberStepProgressAnimationState()
+    var showResumeBanner by rememberSaveable { mutableStateOf(state.didResumeProgress) }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
@@ -168,6 +174,11 @@ fun EntryFlow(
                 }
             }
             RodiSnackbarHost(snackbarHostState)
+            EntryResumeBanner(
+                visible = showResumeBanner,
+                onDismiss = { showResumeBanner = false },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 }

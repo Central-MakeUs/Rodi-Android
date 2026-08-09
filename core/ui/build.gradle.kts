@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(project(":core:common"))
+    api(project(":core:domain"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -16,4 +17,6 @@ dependencies {
     implementation(libs.compose.shimmer)
     implementation(libs.timber)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    testImplementation(libs.bundles.unit.test)
+    testRuntimeOnly(libs.junit.platform.launcher)
 }

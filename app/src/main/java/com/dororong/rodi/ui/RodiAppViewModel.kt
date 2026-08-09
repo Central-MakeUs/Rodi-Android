@@ -2,7 +2,6 @@ package com.dororong.rodi.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
@@ -128,10 +127,10 @@ class RodiAppViewModel @Inject constructor(
                 authSessionRefresh.update { it + 1 }
                 true
             },
-            onFailure = { error ->
-                if (error is AuthException) return false
-                throw error
-            },
+            // 세션 만료(AuthException.SessionRevoked)는 AuthRepository의 sessionExpired 플로우가
+            // 별도로 감지해 로그아웃을 트리거한다. 여기서는 재발급 실패(네트워크 오류 포함) 시
+            // 이번 resume에서의 보류 온보딩 동기화만 건너뛰고, 예외를 앱 밖으로 던지지 않는다.
+            onFailure = { false },
         )
     }
 
