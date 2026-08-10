@@ -73,6 +73,11 @@ fun CourseDetailSheet(
     reviewContent: @Composable (ScrollState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (place.course == null) {
+        LaunchedEffect(place.id) { onDismiss() }
+        return
+    }
+
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
