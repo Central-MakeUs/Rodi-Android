@@ -103,6 +103,8 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
             HomeIntent.OnDismissDetail -> dismissDetail()
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
+            HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
+            HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
@@ -312,6 +314,7 @@ class HomeViewModel @Inject constructor(
                     selectedRoute = null,
                     isRouting = false,
                     isBookmarkUpdating = false,
+                    isLevelReviewsVisible = false,
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
@@ -380,6 +383,7 @@ class HomeViewModel @Inject constructor(
                 isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
+                isLevelReviewsVisible = false,
                 searchKeyword = null,
                 surfaceState = destination,
             )

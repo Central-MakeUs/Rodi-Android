@@ -90,6 +90,7 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
@@ -109,7 +110,13 @@ import com.dororong.rodi.feature.home.components.MapResearchButton
 import com.dororong.rodi.feature.home.components.MyLocationButton
 import com.dororong.rodi.feature.home.components.NaviPickerMode
 import com.dororong.rodi.feature.home.components.NaviPickerSheet
-import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
+import com.dororong.rodi.feature.home.detail.CourseDetailSheet
+import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
+import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
+import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
+import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
+import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
+import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
 import com.dororong.rodi.feature.home.filter.FilterBottomSheet
@@ -206,9 +213,13 @@ fun HomeScreen(
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
+    val reviewVm: CourseReviewViewModel = hiltViewModel()
+    val reviewActionsVm: ReviewActionsViewModel = hiltViewModel()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val state by vm.state.collectAsStateWithLifecycle()
+    val reviewState by reviewVm.state.collectAsStateWithLifecycle()
+    val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val density = LocalDensity.current
@@ -247,6 +258,8 @@ fun HomeScreen(
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
+    var reviewToReport by remember { mutableStateOf<Review?>(null) }
+    var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -1071,51 +1084,73 @@ fun HomeScreen(
                 }
 
                 if (state.surfaceState == HomeSurfaceState.Detail) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .then(
-                                when (state.selectedPlace?.type) {
-                                    PlaceType.COURSE -> Modifier.onSizeChanged {
-                                        courseDetailSheetHeightPx = it.height
-                                    }
-                                    PlaceType.PARKING -> Modifier
-                                        .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
-                                        .onSizeChanged { size ->
-                                            selectedDetailPlaceId?.let { placeId ->
-                                                parkingSheetLayout = parkingSheetLayout
-                                                    .forPlace(placeId)
-                                                    .onMeasured(placeId, size.height)
-                                            }
-                                        }
-                                    null -> Modifier
-                                },
-                            ),
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                        color = RodiTheme.colors.white,
-                        shadowElevation = 8.dp,
-                    ) {
-                        val selectedPlace = state.selectedPlace
-                        when {
-                            state.isDetailLoading -> PlaceDetailLoading(
-                                onHandleDragDown = dragDismissDetail,
-                            )
-                            selectedPlace?.type == PlaceType.COURSE -> CourseDetailContent(
-                                place = selectedPlace,
-                                isBookmarkUpdating = state.isBookmarkUpdating,
-                                onDismiss = dismissDetail,
-                                onHandleDragDown = dragDismissDetail,
-                                onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-                                onNavigate = {
-                                    vm.onIntent(
-                                        HomeIntent.OnNavigateClick(
-                                            kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
-                                            kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
-                                        ),
+                    val selectedPlace = state.selectedPlace
+                    if (!state.isDetailLoading && selectedPlace?.type == PlaceType.COURSE) {
+                        // 전체화면까지 확장되려면 화면 높이를 써야 해서 wrap-height Surface 밖에서 직접 그린다.
+                        CourseDetailSheet(
+                            place = selectedPlace,
+                            isBookmarkUpdating = state.isBookmarkUpdating,
+                            onDismiss = dismissDetail,
+                            onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
+                            onNavigate = {
+                                vm.onIntent(
+                                    HomeIntent.OnNavigateClick(
+                                        kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
+                                        kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                    ),
+                                )
+                            },
+                            onSheetHeightChanged = { height -> courseDetailSheetHeightPx = height },
+                            reviewContent = { sheetScrollState ->
+                                LaunchedEffect(selectedPlace.id) { reviewVm.load(selectedPlace.id) }
+                                if (!reviewState.isGuest) {
+                                    LevelReviewSection(
+                                        totalCount = reviewState.totalCount,
+                                        recommendCount = reviewState.recommendCount,
+                                        selectedLevel = reviewState.selectedLevel,
+                                        difficultyCounts = reviewState.difficultyCounts,
+                                        review = reviewState.latestReviews.firstOrNull(),
+                                        onSelectLevel = reviewVm::selectLevel,
+                                        onAllClick = { vm.onIntent(HomeIntent.OnLevelReviewsOpen) },
+                                        onWriteReviewClick = {},
+                                        onEditReviewClick = {},
+                                        onDeleteReviewClick = {},
+                                        onReportReviewClick = { reviewToReport = it },
+                                        onBlockMemberClick = { reviewToBlock = it },
+                                        scrollState = sheetScrollState,
                                     )
-                                },
-                            )
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .then(
+                                    if (selectedPlace?.type == PlaceType.PARKING) {
+                                        Modifier
+                                            .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                            .onSizeChanged { size ->
+                                                selectedDetailPlaceId?.let { placeId ->
+                                                    parkingSheetLayout = parkingSheetLayout
+                                                        .forPlace(placeId)
+                                                        .onMeasured(placeId, size.height)
+                                                }
+                                            }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
+                            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                            color = RodiTheme.colors.white,
+                            shadowElevation = 8.dp,
+                        ) {
+                            when {
+                                state.isDetailLoading -> PlaceDetailLoading(
+                                    onHandleDragDown = dragDismissDetail,
+                                )
 
                             selectedPlace?.type == PlaceType.PARKING -> ParkingDetailContent(
                                 place = selectedPlace,
@@ -1132,6 +1167,7 @@ fun HomeScreen(
                                     )
                                 },
                             )
+                            }
                         }
                     }
                 }
@@ -1159,6 +1195,69 @@ fun HomeScreen(
                 )
             },
         )
+    }
+
+    val levelReviewsPlace = state.selectedPlace
+    if (state.isLevelReviewsVisible && levelReviewsPlace?.type == PlaceType.COURSE) {
+        LevelReviewsOverlay(
+            recommendCount = reviewState.recommendCount,
+            selectedLevel = reviewState.selectedLevel,
+            difficultyCounts = reviewState.difficultyCounts,
+            reviews = reviewState.reviews,
+            isBookmarked = levelReviewsPlace.isBookmarked,
+            isBookmarkUpdating = state.isBookmarkUpdating,
+            onClose = { vm.onIntent(HomeIntent.OnLevelReviewsClose) },
+            onSelectLevel = reviewVm::selectLevelAndLoadReviews,
+            onLoadInitial = reviewVm::loadInitialReviews,
+            onLoadNext = reviewVm::loadNextPage,
+            onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
+            onNavigate = {
+                vm.onIntent(
+                    HomeIntent.OnNavigateClick(
+                        kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
+                        kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                    ),
+                )
+            },
+            onEditReviewClick = {},
+            onDeleteReviewClick = {},
+            onReportReviewClick = { reviewToReport = it },
+            onBlockMemberClick = { reviewToBlock = it },
+        )
+    }
+    reviewToReport?.let { review ->
+        ReviewReportScreen(
+            reviewId = review.reviewId,
+            onClose = { reviewToReport = null },
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+    reviewToBlock?.let { review ->
+        BlockMemberDialog(
+            isBlocking = reviewActionsState.isBlocking,
+            onConfirm = { reviewActionsVm.blockMember(review.memberId) },
+            onDismiss = { reviewToBlock = null },
+        )
+    }
+    LaunchedEffect(reviewActionsState.blockedMemberId, reviewActionsState.blockErrorMessage) {
+        when {
+            reviewActionsState.blockedMemberId != null -> {
+                reviewVm.excludeMemberReviews(reviewActionsState.blockedMemberId ?: return@LaunchedEffect)
+                reviewToBlock = null
+                snackbarHostState.show(RodiSnackbarData(message = "사용자를 차단했습니다."))
+                reviewActionsVm.consumeBlockResult()
+            }
+
+            reviewActionsState.blockErrorMessage != null -> {
+                reviewToBlock = null
+                snackbarHostState.show(
+                    RodiSnackbarData(
+                        message = reviewActionsState.blockErrorMessage ?: "사용자를 차단할 수 없습니다.",
+                    ),
+                )
+                reviewActionsVm.consumeBlockResult()
+            }
+        }
     }
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(

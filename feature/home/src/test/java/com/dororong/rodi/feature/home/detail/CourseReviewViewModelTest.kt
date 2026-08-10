@@ -1,0 +1,304 @@
+package com.dororong.rodi.feature.home.detail
+
+import com.dororong.rodi.core.domain.model.auth.AuthSession
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.place.CursorPage
+import com.dororong.rodi.core.domain.model.review.PracticeMethod
+import com.dororong.rodi.core.domain.model.review.Review
+import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
+import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
+import com.dororong.rodi.core.domain.model.review.ReviewSummary
+import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReviewSummaryUseCase
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.mockk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
+import java.time.Instant
+
+@OptIn(ExperimentalCoroutinesApi::class)
+class CourseReviewViewModelTest {
+    private val dispatcher = StandardTestDispatcher()
+
+    private val getReviewSummary = mockk<GetReviewSummaryUseCase>()
+    private val getPlaceReviews = mockk<GetPlaceReviewsUseCase>()
+    private val getAuthSession = mockk<GetAuthSessionUseCase>()
+
+    @BeforeEach
+    fun setUp() = Dispatchers.setMain(dispatcher)
+
+    @AfterEach
+    fun tearDown() = Dispatchers.resetMain()
+
+    private fun viewModel() = CourseReviewViewModel(getReviewSummary, getPlaceReviews, getAuthSession)
+
+    private fun loggedIn() {
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = false)
+    }
+
+    @Test
+    fun `load reads recommend count from the ALL summary and difficulty from my level`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 61, recommend = 15))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(
+                summary(
+                    level = OnboardingLevel.ROOKIE,
+                    total = 30,
+                    recommend = 9,
+                    difficulty = mapOf(ReviewDifficulty.VERY_EASY to 30L),
+                ),
+            )
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        val state = vm.state.value
+        assertEquals(15L, state.recommendCount)
+        assertEquals(61L, state.totalCount)
+        assertEquals(OnboardingLevel.ROOKIE, state.selectedLevel)
+        assertEquals(mapOf(ReviewDifficulty.VERY_EASY to 30L), state.difficultyCounts)
+        assertEquals(1, state.latestReviews.size)
+
+        coVerify(exactly = 1) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
+        coVerify(exactly = 1) { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) }
+    }
+
+    @Test
+    fun `selectLevel keeps the recommend count and does not refetch the ALL summary`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 61, recommend = 15))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 10, recommend = 4))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+
+        val target = ReviewLevelFilter.Of(OnboardingLevel.OWNER)
+        coEvery { getReviewSummary(PLACE_ID, target) } returns
+            Result.success(
+                summary(
+                    level = OnboardingLevel.OWNER,
+                    total = 7,
+                    recommend = 2,
+                    difficulty = mapOf(ReviewDifficulty.HARD to 7L),
+                ),
+            )
+        coEvery { getPlaceReviews(PLACE_ID, target, null, 1) } returns Result.success(page(emptyList()))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.selectLevel(OnboardingLevel.OWNER)
+        advanceUntilIdle()
+
+        val state = vm.state.value
+        assertEquals(15L, state.recommendCount)
+        assertEquals(OnboardingLevel.OWNER, state.selectedLevel)
+        assertEquals(mapOf(ReviewDifficulty.HARD to 7L), state.difficultyCounts)
+
+        coVerify(exactly = 1) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
+    }
+
+    @Test
+    fun `loadNextPage appends items and drops duplicates`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, any()) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 4, recommend = 1))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+
+        val level = ReviewLevelFilter.Of(OnboardingLevel.SEED)
+        coEvery { getPlaceReviews(PLACE_ID, level, null, 10) } returns
+            Result.success(page(listOf(review(1L), review(2L)), hasNext = true, nextCursor = "c1"))
+        coEvery { getPlaceReviews(PLACE_ID, level, "c1", 10) } returns
+            Result.success(page(listOf(review(2L), review(3L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.loadInitialReviews()
+        advanceUntilIdle()
+        vm.loadNextPage()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L, 2L, 3L), vm.state.value.reviews.map { it.reviewId })
+    }
+
+    @Test
+    fun `guest skips every review request`() = runTest(dispatcher) {
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.isGuest)
+        coVerify(exactly = 0) { getReviewSummary(any(), any()) }
+        coVerify(exactly = 0) { getPlaceReviews(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `failure surfaces an error message without clearing the place`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.failure(IllegalStateException("후기를 불러오지 못했어요."))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        val state = vm.state.value
+        assertEquals("후기를 불러오지 못했어요.", state.errorMessage)
+        assertEquals(PLACE_ID, state.placeId)
+    }
+
+    @Test
+    fun `load can retry the same place after a failed request`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.failure(IllegalStateException("후기를 불러오지 못했어요."))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isLoading)
+        coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
+    }
+
+    @Test
+    fun `load clears loading state when auth session lookup throws`() = runTest(dispatcher) {
+        coEvery { getAuthSession() } throws IllegalStateException("세션을 불러오지 못했어요.")
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isLoading)
+        assertEquals("세션을 불러오지 못했어요.", vm.state.value.errorMessage)
+    }
+
+    @Test
+    fun `selectLevelAndLoadReviews replaces the previous level page`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 2, recommend = 1))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 1))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L))))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Of(OnboardingLevel.SEED), null, 10) } returns
+            Result.success(page(listOf(review(1L)), hasNext = true, nextCursor = "seed"))
+
+        val target = ReviewLevelFilter.Of(OnboardingLevel.OWNER)
+        coEvery { getReviewSummary(PLACE_ID, target) } returns
+            Result.success(summary(level = OnboardingLevel.OWNER, total = 1, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, target, null, 1) } returns Result.success(page(listOf(review(2L))))
+        coEvery { getPlaceReviews(PLACE_ID, target, null, 10) } returns Result.success(page(listOf(review(2L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.loadInitialReviews()
+        advanceUntilIdle()
+        vm.selectLevelAndLoadReviews(OnboardingLevel.OWNER)
+        advanceUntilIdle()
+
+        assertEquals(OnboardingLevel.OWNER, vm.state.value.selectedLevel)
+        assertEquals(listOf(2L), vm.state.value.reviews.map { it.reviewId })
+        assertEquals(null, vm.state.value.nextCursor)
+        assertFalse(vm.state.value.hasNext)
+    }
+
+    @Test
+    fun `excludeMemberReviews removes the member from summary and full lists`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, any()) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 2, recommend = 1))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L))))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Of(OnboardingLevel.SEED), null, 10) } returns
+            Result.success(page(listOf(review(1L), review(2L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.loadInitialReviews()
+        advanceUntilIdle()
+        vm.excludeMemberReviews(1L)
+
+        assertTrue(vm.state.value.latestReviews.none { it.memberId == 1L })
+        assertTrue(vm.state.value.reviews.none { it.memberId == 1L })
+    }
+
+    private fun summary(
+        level: OnboardingLevel?,
+        total: Long,
+        recommend: Long,
+        difficulty: Map<ReviewDifficulty, Long> = emptyMap(),
+    ) = ReviewSummary(
+        level = level,
+        totalCount = total,
+        recommendCount = recommend,
+        notRecommendCount = 0,
+        difficultyCounts = difficulty,
+        congestionCounts = emptyMap(),
+        levelCounts = emptyMap(),
+    )
+
+    private fun page(
+        items: List<Review>,
+        hasNext: Boolean = false,
+        nextCursor: String? = null,
+    ) = CursorPage(items = items, hasNext = hasNext, nextCursor = nextCursor, totalCount = items.size.toLong())
+
+    private fun review(id: Long) = Review(
+        reviewId = id,
+        memberId = id,
+        nickname = "초보초보",
+        memberLevel = OnboardingLevel.SEED,
+        isRecommended = true,
+        difficulty = ReviewDifficulty.VERY_EASY,
+        congestion = ReviewCongestion.QUIET,
+        practiceMethod = PracticeMethod.SOLO,
+        content = "자전거 타기 좋은 곳",
+        caution = null,
+        isMine = false,
+        isEditable = false,
+        isHidden = false,
+        createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    )
+
+    private companion object {
+        const val PLACE_ID = 42L
+    }
+}
