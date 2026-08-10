@@ -6,6 +6,9 @@ import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
+import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -72,10 +75,32 @@ class ReviewMapperTest {
         assertEquals(listOf("FIRST", "SECOND", "THIRD"), result.options.map { it.code })
     }
 
+    @Test
+    fun `accompanied practice method maps to server enum`() {
+        val request = ReviewDraft(
+            isRecommended = true,
+            difficulty = ReviewDifficulty.EASY,
+            congestion = ReviewCongestion.QUIET,
+            practiceMethod = PracticeMethod.WITH_COMPANION,
+            content = "내용",
+            caution = null,
+        ).toRequest()
+
+        assertEquals("ACCOMPANIED", request.practiceMethod)
+    }
+
+    @Test
+    fun `accompanied practice method maps from server enum`() {
+        val result = checkNotNull(reviewResponse(practiceMethod = "ACCOMPANIED").toDomain())
+
+        assertEquals(PracticeMethod.WITH_COMPANION, result.practiceMethod)
+    }
+
     private fun reviewResponse(
         reviewId: Long = 1,
         memberLevel: String = "ROOKIE",
         difficulty: String? = "VERY_EASY",
+        practiceMethod: String? = "SOLO",
     ) = ReviewResponse(
         reviewId = reviewId,
         memberId = 10,
@@ -84,7 +109,7 @@ class ReviewMapperTest {
         isRecommended = true,
         difficulty = difficulty,
         congestion = "QUIET",
-        practiceMethod = "SOLO",
+        practiceMethod = practiceMethod,
         isMine = false,
         isEditable = false,
         isHidden = false,
