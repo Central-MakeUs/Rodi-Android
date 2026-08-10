@@ -102,7 +102,7 @@ class ReviewWriteViewModelTest {
 
     @Test
     fun `selecting recommend sends true to the server`() = runTest(dispatcher) {
-        val expected = draft().copy(content = null, caution = null)
+        val expected = draft().copy(caution = null)
         coEvery { createReview(PLACE_ID, expected) } returns Result.success(31L)
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -111,6 +111,7 @@ class ReviewWriteViewModelTest {
         viewModel.selectCongestion(ReviewCongestion.QUIET)
         viewModel.next()
         viewModel.selectPracticeMethod(PracticeMethod.SOLO)
+        viewModel.updateContent("좋은 코스예요")
 
         viewModel.submit()
         advanceUntilIdle()
@@ -119,13 +120,13 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `blank optional fields are sent as null`() = runTest(dispatcher) {
+    fun `blank caution is sent as null`() = runTest(dispatcher) {
         val expected = ReviewDraft(
             isRecommended = true,
             difficulty = ReviewDifficulty.NORMAL,
             congestion = ReviewCongestion.QUIET,
             practiceMethod = PracticeMethod.SOLO,
-            content = null,
+            content = "좋은 코스예요",
             caution = null,
         )
         coEvery { createReview(PLACE_ID, expected) } returns Result.success(31L)
@@ -134,6 +135,7 @@ class ReviewWriteViewModelTest {
         completeBasics(viewModel)
         viewModel.next()
         viewModel.selectPracticeMethod(PracticeMethod.SOLO)
+        viewModel.updateContent("좋은 코스예요")
 
         viewModel.submit()
         advanceUntilIdle()
@@ -154,6 +156,9 @@ class ReviewWriteViewModelTest {
         coVerify(exactly = 0) { createReview(any(), any()) }
 
         viewModel.selectPracticeMethod(PracticeMethod.SOLO)
+        assertFalse(viewModel.state.value.canSubmit)
+
+        viewModel.updateContent("좋은 코스예요")
         assertTrue(viewModel.state.value.canSubmit)
     }
 
