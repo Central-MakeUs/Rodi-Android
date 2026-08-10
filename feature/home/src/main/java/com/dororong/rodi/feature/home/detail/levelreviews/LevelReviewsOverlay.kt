@@ -124,8 +124,7 @@ fun LevelReviewsOverlay(
                         color = RodiTheme.colors.gray100,
                     )
                 }
-                if (difficultyCounts.isNotEmpty()) {
-                    item {
+                item {
                         Column(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(26.dp),
@@ -146,10 +145,11 @@ fun LevelReviewsOverlay(
                                     scrollState = listState,
                                 )
                             }
-                            DifficultyBarChart(difficultyCounts)
+                            if (difficultyCounts.isNotEmpty()) {
+                                DifficultyBarChart(difficultyCounts)
+                            }
                         }
                         HorizontalDivider(color = RodiTheme.colors.gray100)
-                    }
                 }
                 items(reviews, key = { it.reviewId }) { review ->
                     ReviewCard(

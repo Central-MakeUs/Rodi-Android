@@ -81,7 +81,7 @@ fun CourseDetailSheet(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
-    val sheetState = remember { AnchoredDraggableState(CourseSheetAnchor.Collapsed) }
+    val sheetState = remember(place.id) { AnchoredDraggableState(CourseSheetAnchor.Collapsed) }
 
     var containerHeightPx by remember { mutableIntStateOf(0) }
     var summaryHeightPx by remember { mutableIntStateOf(0) }

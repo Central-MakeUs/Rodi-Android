@@ -8,6 +8,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeSession
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -63,6 +64,7 @@ data class HomeUiState(
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
+    val practicePrompt: PracticeSession? = null,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -82,6 +84,10 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnLevelReviewsOpen : HomeIntent
     data object OnLevelReviewsClose : HomeIntent
+    data object OnAppResumed : HomeIntent
+    data object OnPracticePromptVisited : HomeIntent
+    data object OnPracticePromptNotVisited : HomeIntent
+    data object OnPracticePromptDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent

@@ -4,6 +4,22 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
+  `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
+  같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
+  `feature/home/.../reviewactions/ReviewReportScreen.kt`의 `BlockMemberDialog`·`ReportSubmittedDialog`를
+  이관하고, 거기 있는 사설 `DialogButton`(116×42)을 제거한다. 당시엔 diff를 작게 유지하려고 미뤘다.
+- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`와
+  `SearchViewModel.kt`에 같은 파일-private 확장이 복사돼 있다. `core:common`으로 올리고 두 복사본 제거.
+- [ ] **미방문 사유 제출 API 연동** — RV-01의 "안 했어요" → 미방문 사유 화면은 만들어뒀지만
+  **서버에 제출 API가 없어 제출이 스텁**이다(`feature/home/.../review/notvisited/`).
+  사유 5종도 서버 계약이 없어 클라이언트 enum(`NotVisitedReason`)으로 두었다.
+  API가 나오면 enum을 `core:domain`으로 승격하고 UseCase를 배선한다.
+- [ ] **연습 방문 감지를 서버/지오펜싱 기반으로 교체** — 현재 RV-01 트리거는 "내비 실행 시각을
+  로컬에 저장(`PracticeSessionPreference`) → 앱 재진입 시 10분 경과 판정" 휴리스틱이다.
+  내비를 띄우고 실제로는 안 갔거나, 앱을 아예 안 열면 감지되지 않는다.
+  서버 방문 인증 API 또는 Geofencing+WorkManager가 준비되면 교체한다.
+  (목록 API에 `isVerifiedVisit`가 생기면 후기 카드의 방문인증 칩도 함께.)
 - [ ] **장소 상세 조회 실패 시 에러 피드백 부재** — `HomeViewModel.openPlace()`가 `getPlaceDetailUseCase` 실패 시 조용히 리스트/지도로 되돌아가므로 `HomeEffect.ShowSnackbar(error.userMessage())`를 보내도록 보강 필요.
 - [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
   API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, `OnboardingRepositoryImpl`/

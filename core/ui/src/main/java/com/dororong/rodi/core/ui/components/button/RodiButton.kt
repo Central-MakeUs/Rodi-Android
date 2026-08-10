@@ -14,7 +14,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -64,6 +66,7 @@ fun RodiButton(
     variant: RodiButtonVariant = RodiButtonVariant.Primary,
     enabled: Boolean = true,
     fillMaxWidth: Boolean = true,
+    height: Dp = RodiButtonDefaults.Height,
     shape: Shape = RodiButtonDefaults.shape(),
 ) {
     Button(
@@ -71,12 +74,18 @@ fun RodiButton(
         enabled = enabled,
         modifier = modifier
             .let { if (fillMaxWidth) it.fillMaxWidth() else it }
-            .height(RodiButtonDefaults.Height),
+            .height(height),
         shape = shape,
         colors = RodiButtonDefaults.colors(variant),
         border = RodiButtonDefaults.border(variant),
     ) {
-        Text(text, style = RodiTheme.typography.button1)
+        Text(
+            text = text,
+            style = RodiTheme.typography.button1,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+        )
     }
 }
 
