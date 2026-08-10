@@ -27,6 +27,7 @@ data class ReviewWriteUiState(
     val caution: String = "",
     val practiceMethod: PracticeMethod? = null,
     val content: String = "",
+    val isInitializing: Boolean = false,
     val isSubmitting: Boolean = false,
     val isSubmitted: Boolean = false,
     val errorMessage: String? = null,

@@ -9,7 +9,9 @@ import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
+import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ import kotlinx.coroutines.launch
 class ReviewWriteViewModel @Inject constructor(
     private val createReview: CreateReviewUseCase,
     private val updateReview: UpdateReviewUseCase,
+    private val getPlaceReviews: GetPlaceReviewsUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReviewWriteUiState())
     val state: StateFlow<ReviewWriteUiState> = _state.asStateFlow()
@@ -40,6 +43,51 @@ class ReviewWriteViewModel @Inject constructor(
             practiceMethod = initial?.practiceMethod,
             content = initial?.content.orEmpty(),
         )
+    }
+
+    fun startForReviewId(placeId: Long, placeName: String, reviewId: Long) {
+        _state.value = ReviewWriteUiState(
+            placeId = placeId,
+            placeName = placeName,
+            editingReviewId = reviewId,
+            isInitializing = true,
+        )
+        viewModelScope.launch {
+            getPlaceReviews(placeId, ReviewLevelFilter.All, size = 50)
+                .onSuccess { page ->
+                    val review = page.items.firstOrNull { it.reviewId == reviewId }
+                    if (review == null) {
+                        _state.update {
+                            it.copy(
+                                isInitializing = false,
+                                errorMessage = "수정할 후기를 불러오지 못했어요.",
+                            )
+                        }
+                    } else {
+                        val initial = review.toInitialValues()
+                        _state.update {
+                            it.copy(
+                                original = initial,
+                                isRecommended = initial.isRecommended,
+                                difficulty = initial.difficulty,
+                                congestion = initial.congestion,
+                                caution = initial.caution.orEmpty(),
+                                practiceMethod = initial.practiceMethod,
+                                content = initial.content.orEmpty(),
+                                isInitializing = false,
+                            )
+                        }
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isInitializing = false,
+                            errorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
+                        )
+                    }
+                }
+        }
     }
     fun selectRecommend(value: Boolean) = _state.update { it.copy(isRecommended = value) }
     fun selectDifficulty(value: ReviewDifficulty) = _state.update { it.copy(difficulty = value) }

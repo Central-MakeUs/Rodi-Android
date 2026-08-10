@@ -43,4 +43,5 @@ data object MyPostsRoute : NavKey
 data class ReviewWriteRoute(
     val placeId: Long,
     val placeName: String,
+    val reviewId: Long? = null,
 ) : NavKey

@@ -26,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,7 +40,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
@@ -66,12 +70,26 @@ fun MyPostsScreen(
     viewModel: MyPostsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasResumed by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (hasResumed) viewModel.loadInitial()
+                hasResumed = true
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     MyPostsContent(
         state = state,
         onBack = onBack,
         onPracticeRecordsClick = onPracticeRecordsClick,
         onEditReviewClick = onEditReviewClick,
+        onLoadInitial = viewModel::loadInitial,
         onLoadNext = viewModel::loadNextPage,
+        onClearError = viewModel::clearError,
         onDelete = viewModel::delete,
         modifier = modifier,
     )
@@ -83,7 +101,9 @@ private fun MyPostsContent(
     onBack: () -> Unit,
     onPracticeRecordsClick: () -> Unit,
     onEditReviewClick: (MyPost) -> Unit,
+    onLoadInitial: () -> Unit,
     onLoadNext: () -> Unit,
+    onClearError: () -> Unit,
     onDelete: (MyPost) -> Unit,
     modifier: Modifier = Modifier,
     initialMenuPostId: Long? = null,
@@ -102,6 +122,10 @@ private fun MyPostsContent(
             PostsTopBar(onBack = onBack)
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("불러오는 중…", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600) }
+                state.errorMessage != null && state.posts.isEmpty() -> MyPostsError(
+                    message = state.errorMessage,
+                    onRetry = { onClearError(); onLoadInitial() },
+                )
                 state.posts.isEmpty() -> MyPostsEmpty(onPracticeRecordsClick)
                 else -> LazyColumn(
                     state = scrollState,
@@ -119,6 +143,14 @@ private fun MyPostsContent(
                             scrollState = scrollState,
                         )
                     }
+                    if (state.errorMessage != null) {
+                        item(key = "error") {
+                            MyPostsNextPageError(
+                                message = state.errorMessage,
+                                onRetry = { onClearError(); onLoadNext() },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -127,11 +159,42 @@ private fun MyPostsContent(
         RodiAlertDialog(
             title = "정말 삭제하시겠습니까?",
             description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.",
-            dismissText = "삭제하기",
-            confirmText = "취소",
-            onDismiss = { deleteTarget = null; onDelete(target) },
-            onConfirm = { deleteTarget = null },
+            dismissText = "취소",
+            confirmText = "삭제하기",
+            onDismiss = { deleteTarget = null },
+            onConfirm = { deleteTarget = null; onDelete(target) },
             onDismissRequest = { deleteTarget = null },
+        )
+    }
+}
+
+@Composable
+private fun MyPostsError(message: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
+            RodiButton(
+                text = "다시 시도",
+                onClick = onRetry,
+                fillMaxWidth = false,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun MyPostsNextPageError(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(message, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
+        RodiButton(
+            text = "다시 시도",
+            onClick = onRetry,
+            fillMaxWidth = false,
+            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
@@ -220,23 +283,51 @@ private val PreviewPosts = listOf(
 @Preview(name = "내 게시글 목록", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsListPreview() = RodiTheme {
-    MyPostsContent(MyPostsUiState(posts = PreviewPosts), {}, {}, {}, {}, {}, Modifier)
+    MyPostsContent(
+        state = MyPostsUiState(posts = PreviewPosts),
+        onBack = {},
+        onPracticeRecordsClick = {},
+        onEditReviewClick = {},
+        onLoadInitial = {},
+        onLoadNext = {},
+        onClearError = {},
+        onDelete = {},
+    )
 }
 
 @Preview(name = "내 게시글 메뉴", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsMenuPreview() = RodiTheme {
-    MyPostsContent(MyPostsUiState(posts = PreviewPosts), {}, {}, {}, {}, {}, Modifier, initialMenuPostId = 1L)
+    MyPostsContent(
+        state = MyPostsUiState(posts = PreviewPosts),
+        onBack = {},
+        onPracticeRecordsClick = {},
+        onEditReviewClick = {},
+        onLoadInitial = {},
+        onLoadNext = {},
+        onClearError = {},
+        onDelete = {},
+        initialMenuPostId = 1L,
+    )
 }
 
 @Preview(name = "내 게시글 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsDeletePreview() = RodiTheme {
-    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "삭제하기", confirmText = "취소", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
+    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "취소", confirmText = "삭제하기", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
 }
 
 @Preview(name = "내 게시글 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsEmptyPreview() = RodiTheme {
-    MyPostsContent(MyPostsUiState(), {}, {}, {}, {}, {}, Modifier)
+    MyPostsContent(
+        state = MyPostsUiState(),
+        onBack = {},
+        onPracticeRecordsClick = {},
+        onEditReviewClick = {},
+        onLoadInitial = {},
+        onLoadNext = {},
+        onClearError = {},
+        onDelete = {},
+    )
 }

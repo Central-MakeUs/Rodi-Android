@@ -96,6 +96,13 @@ class ReviewMapperTest {
         assertEquals(PracticeMethod.WITH_COMPANION, result.practiceMethod)
     }
 
+    @Test
+    fun `unknown practice method maps to null`() {
+        val result = checkNotNull(reviewResponse(practiceMethod = "UNKNOWN").toDomain())
+
+        assertNull(result.practiceMethod)
+    }
+
     private fun reviewResponse(
         reviewId: Long = 1,
         memberLevel: String = "ROOKIE",

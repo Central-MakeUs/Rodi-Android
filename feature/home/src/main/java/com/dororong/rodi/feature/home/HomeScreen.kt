@@ -1250,7 +1250,7 @@ fun HomeScreen(
         ReviewWriteScreen(
             placeId = target.placeId,
             placeName = target.placeName,
-            editing = target.review,
+            editingReviewId = target.review?.reviewId,
             onClose = { reviewToWrite = null },
             onCompleted = {
                 reviewToWrite = null

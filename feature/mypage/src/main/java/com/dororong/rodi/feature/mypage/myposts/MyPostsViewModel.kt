@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
-import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -14,21 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-
-data class MyPost(
-    val placeId: Long,
-    val placeName: String,
-    val review: Review,
-)
-
-data class MyPostsUiState(
-    val posts: List<MyPost> = emptyList(),
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val nextCursor: String? = null,
-    val hasNext: Boolean = false,
-    val isLoadingMore: Boolean = false,
-)
 
 @HiltViewModel
 class MyPostsViewModel @Inject constructor(

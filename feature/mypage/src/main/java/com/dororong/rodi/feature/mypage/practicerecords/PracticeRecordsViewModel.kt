@@ -92,19 +92,19 @@ class PracticeRecordsViewModel @Inject constructor(
         }
     }
 
-    fun setInitialLoading() {
+    private fun setInitialLoading() {
         _uiState.update { it.copy(isLoading = true, initialError = null) }
     }
 
-    fun setInitialError(message: String) {
+    private fun setInitialError(message: String) {
         _uiState.update { it.copy(isLoading = false, initialError = message) }
     }
 
-    fun setNextPageError(message: String) {
+    private fun setNextPageError(message: String) {
         _uiState.update { it.copy(isLoadingMore = false, nextPageError = message) }
     }
 
-    fun appendPage(page: List<PracticeRecord>, hasNextPage: Boolean, initial: Boolean) {
+    private fun appendPage(page: List<PracticeRecord>, hasNextPage: Boolean, initial: Boolean) {
         if (initial) loadJob?.cancel()
         _uiState.update { current ->
             val records = if (initial) page.distinctBy(PracticeRecord::practiceId)

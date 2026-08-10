@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
 import java.time.Instant
 import java.time.ZoneId
@@ -41,6 +42,8 @@ internal fun PracticeRecordSection(
     records: List<PracticeRecord>,
     onAllClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
+    errorMessage: String? = null,
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -79,7 +82,24 @@ internal fun PracticeRecordSection(
             }
         }
 
-        if (records.isEmpty()) {
+        if (errorMessage != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(141.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(errorMessage, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
+                    RodiButton(
+                        text = "다시 시도",
+                        onClick = onRetry,
+                        fillMaxWidth = false,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
+        } else if (records.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

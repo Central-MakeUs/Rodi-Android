@@ -111,7 +111,18 @@ fun PermissionSettingsScreen(
             }
         },
         onNotificationClick = {
-            when (resolvePermissionAction(isNotificationGranted, hasRequestedNotificationPermission, false)) {
+            when (
+                resolvePermissionAction(
+                    isGranted = isNotificationGranted,
+                    hasRequestedPermission = hasRequestedNotificationPermission,
+                    shouldShowRationale = activity?.let {
+                        ActivityCompat.shouldShowRequestPermissionRationale(
+                            it,
+                            Manifest.permission.POST_NOTIFICATIONS,
+                        )
+                    } ?: false,
+                )
+            ) {
                 PermissionAction.RequestSystemPermission -> {
                     viewModel.markNotificationPermissionRequested()
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

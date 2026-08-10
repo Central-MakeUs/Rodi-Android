@@ -24,6 +24,7 @@ data class MyPageUiState(
     val isLoading: Boolean = true,
     val errorMessage: String? = null,
     val practiceRecords: List<PracticeRecord> = emptyList(),
+    val practiceRecordsErrorMessage: String? = null,
 )
 
 @HiltViewModel
@@ -42,13 +43,18 @@ class MyPageViewModel @Inject constructor(
             coroutineScope {
                 val profileDeferred = async { getMyPage() }
                 val recordsDeferred = async { getPracticeRecords(size = 4) }
-                val records = recordsDeferred.await().getOrNull()?.items.orEmpty().map { it.toFeatureModel() }
+                val recordsResult = recordsDeferred.await()
+                val records = recordsResult.getOrNull()?.items.orEmpty().map { it.toFeatureModel() }
+                val recordsErrorMessage = recordsResult.exceptionOrNull()?.let {
+                    it.message ?: "연습기록을 불러오지 못했어요."
+                }
                 profileDeferred.await()
                     .onSuccess { page ->
                         _uiState.value = MyPageUiState(
                             profile = page.toUiProfile(),
                             practiceRecords = records,
                             isLoading = false,
+                            practiceRecordsErrorMessage = recordsErrorMessage,
                         )
                     }
                     .onFailure { error ->
@@ -57,6 +63,7 @@ class MyPageViewModel @Inject constructor(
                                 isLoading = false,
                                 practiceRecords = records,
                                 errorMessage = error.message ?: "마이페이지를 불러오지 못했어요.",
+                                practiceRecordsErrorMessage = recordsErrorMessage,
                             )
                         }
                     }

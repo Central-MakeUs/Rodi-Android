@@ -48,6 +48,23 @@ class MyPageViewModelTest {
     }
 
     @Test
+    fun `practice record failure is preserved separately from profile state`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.failure(IllegalStateException("기록 조회 실패"))
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), "골목길", 7),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals("서버 닉네임", viewModel.uiState.value.profile.nickname)
+        assertEquals("기록 조회 실패", viewModel.uiState.value.practiceRecordsErrorMessage)
+    }
+
+    @Test
     fun `refresh failure preserves loaded profile and exposes the error`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()

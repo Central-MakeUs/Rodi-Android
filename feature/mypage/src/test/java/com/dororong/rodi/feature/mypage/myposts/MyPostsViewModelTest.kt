@@ -9,6 +9,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -51,5 +52,21 @@ class MyPostsViewModelTest {
         advanceUntilIdle()
         assertEquals(listOf(post), viewModel.uiState.value.posts)
         assertEquals("실패", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `cancellation during deletion is not exposed as an error`() = runTest(dispatcher) {
+        coEvery { deleteReview(1) } coAnswers { throw CancellationException("취소") }
+        coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews)
+        viewModel.replacePosts(listOf(post))
+
+        viewModel.delete(post)
+        try {
+            advanceUntilIdle()
+        } catch (_: CancellationException) {
+        }
+
+        assertEquals(null, viewModel.uiState.value.errorMessage)
     }
 }

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -96,6 +97,15 @@ private fun PracticeRecordsContent(
                 ) {
                     items(state.records, key = PracticeRecord::practiceId) { record ->
                         PracticeRecordListItem(record, onWriteReviewClick)
+                    }
+                    if (state.isLoadingMore || state.nextPageError != null) {
+                        item(key = "next-page-status") {
+                            PracticeRecordsNextPageFooter(
+                                isLoading = state.isLoadingMore,
+                                errorMessage = state.nextPageError,
+                                onRetry = onLoadNext,
+                            )
+                        }
                     }
                 }
             }
@@ -204,6 +214,34 @@ private fun PracticeRecordsError(message: String, onRetry: () -> Unit) {
             Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
             Spacer(Modifier.height(16.dp))
             RodiButton(text = "다시 시도", onClick = onRetry, fillMaxWidth = false)
+        }
+    }
+}
+
+@Composable
+private fun PracticeRecordsNextPageFooter(
+    isLoading: Boolean,
+    errorMessage: String?,
+    onRetry: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (isLoading) {
+            RodiSkeleton(Modifier.width(96.dp).height(20.dp))
+        } else if (errorMessage != null) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(errorMessage, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
+                RodiButton(
+                    text = "다시 시도",
+                    onClick = onRetry,
+                    fillMaxWidth = false,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
         }
     }
 }

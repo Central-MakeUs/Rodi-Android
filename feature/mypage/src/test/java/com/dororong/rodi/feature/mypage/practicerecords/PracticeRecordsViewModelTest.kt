@@ -7,6 +7,7 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -40,21 +41,39 @@ class PracticeRecordsViewModelTest {
     }
 
     @Test
-    fun `paging accumulates records and removes duplicate ids`() {
+    fun `paging accumulates records and removes duplicate ids`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.success(
+            CursorPage(listOf(first), true, "next", 2),
+        )
+        coEvery { getPracticeRecords("next", 20) } returns Result.success(
+            CursorPage(listOf(first, first.copy(practiceId = 2)), false, null, 2),
+        )
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
-        viewModel.appendPage(listOf(first), hasNextPage = true, initial = true)
-        viewModel.appendPage(listOf(first, first.copy(practiceId = 2)), hasNextPage = false, initial = false)
+        advanceUntilIdle()
+        viewModel.loadNextPage()
+        advanceUntilIdle()
+
         assertEquals(listOf(1L, 2L), viewModel.uiState.value.records.map { it.practiceId })
     }
 
     @Test
-    fun `initial and next page errors are kept separate`() {
+    fun `initial load errors are kept in state`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.failure(IllegalStateException("처음 오류"))
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
-        viewModel.setInitialError("처음 오류")
+        advanceUntilIdle()
         assertEquals("처음 오류", viewModel.uiState.value.initialError)
-        viewModel.appendPage(listOf(first), true, true)
-        viewModel.setNextPageError("추가 오류")
+    }
+
+    @Test
+    fun `cancellation during initial load is not exposed as an error`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } coAnswers { throw CancellationException("취소") }
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+
+        try {
+            advanceUntilIdle()
+        } catch (_: CancellationException) {
+        }
+
         assertEquals(null, viewModel.uiState.value.initialError)
-        assertEquals("추가 오류", viewModel.uiState.value.nextPageError)
     }
 }

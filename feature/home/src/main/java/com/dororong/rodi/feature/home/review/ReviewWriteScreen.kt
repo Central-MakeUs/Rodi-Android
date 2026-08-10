@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,7 +30,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
@@ -44,7 +44,7 @@ import com.dororong.rodi.feature.home.review.components.ReviewWriteDetail
 fun ReviewWriteScreen(
     placeId: Long,
     placeName: String,
-    editing: Review? = null,
+    editingReviewId: Long? = null,
     onClose: () -> Unit,
     onCompleted: () -> Unit,
     modifier: Modifier = Modifier,
@@ -52,27 +52,39 @@ fun ReviewWriteScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmExit by remember { mutableStateOf(false) }
-    LaunchedEffect(placeId, editing?.reviewId) { viewModel.start(placeId, placeName, editing) }
+    LaunchedEffect(placeId, editingReviewId) {
+        if (editingReviewId == null) {
+            viewModel.start(placeId, placeName)
+        } else {
+            viewModel.startForReviewId(placeId, placeName, editingReviewId)
+        }
+    }
     val requestClose = { if (state.isDirty) confirmExit = true else onClose() }
     BackHandler {
         if (state.step == ReviewWriteStep.Detail) viewModel.back() else requestClose()
     }
 
-    ReviewWriteContent(
-        state = state,
-        onBack = viewModel::back,
-        onClose = requestClose,
-        onRecommend = viewModel::selectRecommend,
-        onDifficulty = viewModel::selectDifficulty,
-        onCongestion = viewModel::selectCongestion,
-        onCaution = viewModel::updateCaution,
-        onPracticeMethod = viewModel::selectPracticeMethod,
-        onContent = viewModel::updateContent,
-        onNext = viewModel::next,
-        onSubmit = viewModel::submit,
-        isEditing = editing != null,
-        modifier = modifier,
-    )
+    if (state.isInitializing) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = RodiTheme.colors.primary600)
+        }
+    } else {
+        ReviewWriteContent(
+            state = state,
+            onBack = viewModel::back,
+            onClose = requestClose,
+            onRecommend = viewModel::selectRecommend,
+            onDifficulty = viewModel::selectDifficulty,
+            onCongestion = viewModel::selectCongestion,
+            onCaution = viewModel::updateCaution,
+            onPracticeMethod = viewModel::selectPracticeMethod,
+            onContent = viewModel::updateContent,
+            onNext = viewModel::next,
+            onSubmit = viewModel::submit,
+            isEditing = editingReviewId != null,
+            modifier = modifier,
+        )
+    }
 
     if (confirmExit) {
         RodiUnsavedChangesDialog(

@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.map
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.feature.settings.SettingsTopBar
 
 @Composable
@@ -40,7 +41,7 @@ fun BlockedMembersScreen(
     viewModel: BlockedMembersViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    BlockedMembersContent(state, onBack, viewModel::unblock, viewModel::loadNextPage, modifier)
+    BlockedMembersContent(state, onBack, viewModel::unblock, viewModel::loadInitial, viewModel::loadNextPage, modifier)
 }
 
 @Composable
@@ -48,6 +49,7 @@ private fun BlockedMembersContent(
     state: BlockedMembersUiState,
     onBack: () -> Unit,
     onUnblock: (BlockedMember) -> Unit,
+    onLoadInitial: () -> Unit,
     onLoadNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -66,30 +68,70 @@ private fun BlockedMembersContent(
                         .distinctUntilChanged()
                         .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
                 }
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(bottom = 16.dp),
-                ) {
-                    items(state.members, key = BlockedMember::memberId) { member ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(member.nickname.orEmpty(), style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
-                            Surface(
-                                onClick = { onUnblock(member) },
-                                color = RodiTheme.colors.pointRed.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(100),
-                                modifier = Modifier.clip(RoundedCornerShape(100)),
+                if (state.members.isEmpty() && state.initialError != null) {
+                    BlockedMembersError(state.initialError, onLoadInitial)
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                    ) {
+                        items(state.members, key = BlockedMember::memberId) { member ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("차단해제", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.pointRed, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                                Text(member.nickname.orEmpty(), style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
+                                Surface(
+                                    onClick = { onUnblock(member) },
+                                    color = RodiTheme.colors.pointRed.copy(alpha = 0.08f),
+                                    shape = RoundedCornerShape(100),
+                                    modifier = Modifier.clip(RoundedCornerShape(100)),
+                                ) {
+                                    Text("차단해제", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.pointRed, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                                }
+                            }
+                        }
+                        if (state.nextPageError != null) {
+                            item(key = "next-page-error") {
+                                BlockedMembersNextPageError(state.nextPageError, onLoadNext)
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BlockedMembersError(message: String, onRetry: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
+            RodiButton(
+                text = "다시 시도",
+                onClick = onRetry,
+                fillMaxWidth = false,
+                modifier = Modifier.padding(top = 16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BlockedMembersNextPageError(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(message, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
+        RodiButton(
+            text = "다시 시도",
+            onClick = onRetry,
+            fillMaxWidth = false,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 
@@ -101,11 +143,11 @@ private val PreviewBlockedMembers = listOf(
 @Preview(name = "차단목록 항목 있음", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun BlockedMembersListPreview() = RodiTheme {
-    BlockedMembersContent(BlockedMembersUiState(members = PreviewBlockedMembers), {}, {}, {})
+    BlockedMembersContent(BlockedMembersUiState(members = PreviewBlockedMembers), {}, {}, {}, {})
 }
 
 @Preview(name = "차단목록 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun BlockedMembersEmptyPreview() = RodiTheme {
-    BlockedMembersContent(BlockedMembersUiState(), {}, {}, {})
+    BlockedMembersContent(BlockedMembersUiState(), {}, {}, {}, {})
 }

@@ -117,6 +117,8 @@ fun MyPageScreen(
                 onMyPostsClick = onMyPostsClick,
                 onWriteReviewClick = onWriteReviewClick,
                 practiceRecords = uiState.practiceRecords,
+                practiceRecordsErrorMessage = uiState.practiceRecordsErrorMessage,
+                onPracticeRecordsRetry = viewModel::refresh,
             )
         }
         RodiSnackbarHost(snackbarHostState)
@@ -236,6 +238,8 @@ private fun MyPageContent(
     onMyPostsClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
     practiceRecords: List<PracticeRecord> = emptyList(),
+    practiceRecordsErrorMessage: String? = null,
+    onPracticeRecordsRetry: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -251,8 +255,10 @@ private fun MyPageContent(
         HorizontalDivider(color = RodiTheme.colors.gray100)
         PracticeRecordSection(
             records = practiceRecords,
+            errorMessage = practiceRecordsErrorMessage,
             onAllClick = onPracticeRecordsClick,
             onWriteReviewClick = onWriteReviewClick,
+            onRetry = onPracticeRecordsRetry,
         )
         HorizontalDivider(color = RodiTheme.colors.gray100)
         SavedCoursesRow(

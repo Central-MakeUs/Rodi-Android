@@ -20,6 +20,8 @@ data class BlockedMembersUiState(
     val members: List<BlockedMember> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val initialError: String? = null,
+    val nextPageError: String? = null,
     val nextCursor: String? = null,
     val hasNext: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -33,6 +35,7 @@ class BlockedMembersViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(BlockedMembersUiState())
     val uiState: StateFlow<BlockedMembersUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private val excludedMemberIds = mutableSetOf<Long>()
 
     init { loadInitial() }
 
@@ -49,7 +52,12 @@ class BlockedMembersViewModel @Inject constructor(
                         hasNext = page.hasNext,
                     )
                 }
-                .onFailure { error -> _uiState.value = BlockedMembersUiState(isLoading = false, errorMessage = error.message ?: "차단목록을 불러오지 못했어요.") }
+                .onFailure { error ->
+                    _uiState.value = BlockedMembersUiState(
+                        isLoading = false,
+                        initialError = error.message ?: "차단목록을 불러오지 못했어요.",
+                    )
+                }
         }
     }
 
@@ -58,19 +66,20 @@ class BlockedMembersViewModel @Inject constructor(
         val cursor = current.nextCursor ?: return
         if (!current.hasNext || current.isLoadingMore || loadJob?.isActive == true) return
         loadJob = viewModelScope.launch {
-            _uiState.update { it.copy(isLoadingMore = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoadingMore = true, nextPageError = null) }
             getBlockedMembers(cursor = cursor, size = PAGE_SIZE)
                 .onSuccess { page ->
                     _uiState.update { latest ->
+                        val visibleItems = page.items.filterNot { it.memberId in excludedMemberIds }
                         latest.copy(
-                            members = (latest.members + page.items).distinctBy(BlockedMember::memberId),
+                            members = (latest.members + visibleItems).distinctBy(BlockedMember::memberId),
                             nextCursor = page.nextCursor,
                             hasNext = page.hasNext,
                             isLoadingMore = false,
                         )
                     }
                 }
-                .onFailure { error -> _uiState.update { it.copy(isLoadingMore = false, errorMessage = error.message ?: "다음 차단목록을 불러오지 못했어요.") } }
+                .onFailure { error -> _uiState.update { it.copy(isLoadingMore = false, nextPageError = error.message ?: "다음 차단목록을 불러오지 못했어요.") } }
         }
     }
 
@@ -80,10 +89,14 @@ class BlockedMembersViewModel @Inject constructor(
     }
 
     fun unblock(member: BlockedMember) {
+        excludedMemberIds += member.memberId
         viewModelScope.launch {
             unblockMember(member.memberId)
                 .onSuccess { _uiState.update { state -> state.copy(members = state.members.filterNot { it.memberId == member.memberId }) } }
-                .onFailure { error -> _uiState.update { it.copy(errorMessage = error.message ?: "차단을 해제하지 못했어요.") } }
+                .onFailure { error ->
+                    excludedMemberIds -= member.memberId
+                    _uiState.update { it.copy(errorMessage = error.message ?: "차단을 해제하지 못했어요.") }
+                }
         }
     }
 }
