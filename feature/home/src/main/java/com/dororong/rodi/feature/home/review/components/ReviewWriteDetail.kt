@@ -21,6 +21,7 @@ fun ReviewWriteDetail(
     state: ReviewWriteUiState,
     onPracticeMethod: (PracticeMethod) -> Unit,
     onContent: (String) -> Unit,
+    isEditing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -28,7 +29,7 @@ fun ReviewWriteDetail(
         verticalArrangement = Arrangement.spacedBy(40.dp),
     ) {
         PracticeMethodBlock(state.practiceMethod, onPracticeMethod)
-        ReviewContentBlock(state.content, onContent)
+        ReviewContentBlock(state.content, onContent, isEditing)
     }
 }
 
@@ -63,6 +64,7 @@ private fun PracticeMethodBlock(
 private fun ReviewContentBlock(
     content: String,
     onContent: (String) -> Unit,
+    isEditing: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("후기 작성", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
@@ -87,6 +89,14 @@ private fun ReviewContentBlock(
                     text = "/150",
                     style = RodiTheme.typography.body3Medium,
                     color = RodiTheme.colors.gray600,
+                )
+            }
+            if (isEditing) {
+                Text(
+                    text = "레벨이 변경되면 후기를 수정할 수 없으며, 수정 시 기존 좋아요가 초기화돼요.",
+                    style = RodiTheme.typography.caption1Medium,
+                    color = RodiTheme.colors.gray600,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }

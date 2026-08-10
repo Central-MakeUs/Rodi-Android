@@ -70,6 +70,7 @@ fun ReviewWriteScreen(
         onContent = viewModel::updateContent,
         onNext = viewModel::next,
         onSubmit = viewModel::submit,
+        isEditing = editing != null,
         modifier = modifier,
     )
 
@@ -113,6 +114,7 @@ private fun ReviewWriteContent(
     onContent: (String) -> Unit,
     onNext: () -> Unit,
     onSubmit: () -> Unit,
+    isEditing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val ctaDividerColor = RodiTheme.colors.gray200
@@ -125,6 +127,7 @@ private fun ReviewWriteContent(
     ) {
         ReviewWriteTopBar(
             isDetail = state.step == ReviewWriteStep.Detail,
+            isEditing = isEditing,
             onBack = onBack,
             onClose = onClose,
         )
@@ -137,7 +140,7 @@ private fun ReviewWriteContent(
             if (state.step == ReviewWriteStep.Basics) {
                 ReviewWriteBasics(state, onRecommend, onDifficulty, onCongestion, onCaution)
             } else {
-                ReviewWriteDetail(state, onPracticeMethod, onContent)
+                ReviewWriteDetail(state, onPracticeMethod, onContent, isEditing = isEditing)
             }
         }
         Column(
@@ -166,6 +169,7 @@ private fun ReviewWriteContent(
 @Composable
 private fun ReviewWriteTopBar(
     isDetail: Boolean,
+    isEditing: Boolean,
     onBack: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -186,7 +190,7 @@ private fun ReviewWriteTopBar(
             )
         }
         Text(
-            text = "후기 남기기",
+            text = if (isEditing) "후기 수정" else "후기 남기기",
             modifier = Modifier.align(Alignment.Center),
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,

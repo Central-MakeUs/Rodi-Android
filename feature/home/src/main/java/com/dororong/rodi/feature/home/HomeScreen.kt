@@ -128,7 +128,7 @@ import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.currentLocationUpdates
-import com.dororong.rodi.feature.home.location.hasLocationPermission
+import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.network.isNetworkAvailable
@@ -1493,6 +1493,7 @@ private fun ListSheetHeader(
                 .align(Alignment.TopStart)
                 .padding(start = 16.dp, top = 40.dp)
                 .size(24.dp)
+                .clip(CircleShape)
                 .graphicsLayer { alpha = titleCenteringProgress }
                 .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
         )

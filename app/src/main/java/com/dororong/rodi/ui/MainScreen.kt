@@ -6,6 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.LocalActivity
@@ -28,6 +31,10 @@ import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
 import com.dororong.rodi.feature.mypage.MyPageScreen
 import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
+import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecordsScreen
+import com.dororong.rodi.feature.mypage.myposts.MyPostsScreen
+import com.dororong.rodi.core.domain.model.review.Review
+import com.dororong.rodi.feature.home.review.ReviewWriteScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 import dagger.hilt.android.EntryPointAccessors
 
@@ -39,6 +46,7 @@ fun MainScreen(
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
     val currentRouteState = rememberUpdatedState(currentRoute)
+    var pendingReviewEdit by remember { mutableStateOf<Review?>(null) }
     val homeViewModel: HomeViewModel = hiltViewModel()
     val activity = LocalActivity.current
     val kakaoLoginManager = remember(activity) {
@@ -123,6 +131,40 @@ fun MainScreen(
                             onSettingsClick = { backStack.add(SettingsRoute) },
                             onGoalClick = { backStack.add(DrivingGoalRoute) },
                             onSavedCoursesClick = { backStack.add(SavedCoursesRoute) },
+                            onPracticeRecordsClick = { backStack.add(PracticeRecordsRoute) },
+                            onMyPostsClick = { backStack.add(MyPostsRoute) },
+                            onWriteReviewClick = { placeId, placeName ->
+                                pendingReviewEdit = null
+                                backStack.add(ReviewWriteRoute(placeId, placeName))
+                            },
+                        )
+                    }
+                    PracticeRecordsRoute -> NavEntry(key) {
+                        PracticeRecordsScreen(
+                            onBack = { backStack.removeAt(backStack.lastIndex) },
+                            onWriteReviewClick = { placeId, placeName ->
+                                pendingReviewEdit = null
+                                backStack.add(ReviewWriteRoute(placeId, placeName))
+                            },
+                        )
+                    }
+                    MyPostsRoute -> NavEntry(key) {
+                        MyPostsScreen(
+                            onBack = { backStack.removeAt(backStack.lastIndex) },
+                            onPracticeRecordsClick = { backStack.add(PracticeRecordsRoute) },
+                            onEditReviewClick = { post ->
+                                pendingReviewEdit = post.review
+                                backStack.add(ReviewWriteRoute(post.placeId, post.placeName))
+                            },
+                        )
+                    }
+                    is ReviewWriteRoute -> NavEntry(key) {
+                        ReviewWriteScreen(
+                            placeId = key.placeId,
+                            placeName = key.placeName,
+                            editing = pendingReviewEdit,
+                            onClose = { backStack.removeAt(backStack.lastIndex); pendingReviewEdit = null },
+                            onCompleted = { backStack.removeAt(backStack.lastIndex); pendingReviewEdit = null },
                         )
                     }
                     DrivingGoalRoute -> NavEntry(key) {

@@ -35,6 +35,7 @@ import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.account.AccountSettingsScreen
 import com.dororong.rodi.feature.settings.account.InquiryScreen
+import com.dororong.rodi.feature.settings.blocked.BlockedMembersScreen
 import com.dororong.rodi.feature.settings.licenses.OpenSourceLicensesScreen
 import com.dororong.rodi.feature.settings.permission.PermissionSettingsScreen
 import com.dororong.rodi.feature.settings.terms.TermsReviewScreen
@@ -47,6 +48,7 @@ private enum class SettingsDestination {
     DataSource,
     Account,
     Inquiry,
+    Blocked,
 }
 
 @Composable
@@ -101,6 +103,10 @@ fun SettingsScreen(
             onBack = { destinationName = SettingsDestination.Account.name },
         )
 
+        destination == SettingsDestination.Blocked -> BlockedMembersScreen(
+            onBack = { destinationName = SettingsDestination.Menu.name },
+        )
+
         else -> SettingsContent(
             appVersion = appVersion,
             onBack = onBack,
@@ -109,6 +115,7 @@ fun SettingsScreen(
             onLicensesClick = { destinationName = SettingsDestination.Licenses.name },
             onDataSourceClick = { destinationName = SettingsDestination.DataSource.name },
             onAccountClick = { destinationName = SettingsDestination.Account.name },
+            onBlockedClick = { destinationName = SettingsDestination.Blocked.name },
         )
     }
 }
@@ -122,6 +129,7 @@ private fun SettingsContent(
     onLicensesClick: () -> Unit,
     onDataSourceClick: () -> Unit,
     onAccountClick: () -> Unit,
+    onBlockedClick: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -140,6 +148,7 @@ private fun SettingsContent(
             SettingsMenuItem(text = "오픈소스 라이센스", onClick = onLicensesClick)
             SettingsMenuItem(text = "데이터 출처", onClick = onDataSourceClick)
             SettingsMenuItem(text = "계정정보 관리", onClick = onAccountClick)
+            SettingsMenuItem(text = "차단목록", onClick = onBlockedClick)
             SettingsVersionItem(appVersion = appVersion)
         }
     }
@@ -241,6 +250,7 @@ private fun SettingsContentPreview() {
             onLicensesClick = {},
             onDataSourceClick = {},
             onAccountClick = {},
+            onBlockedClick = {},
         )
     }
 }

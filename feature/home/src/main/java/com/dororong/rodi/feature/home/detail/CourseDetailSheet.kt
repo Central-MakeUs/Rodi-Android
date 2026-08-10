@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -142,7 +143,11 @@ fun CourseDetailSheet(
                 SheetTopBar(
                     isExpanded = isExpanded,
                     onCollapse = { scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) } },
-                    modifier = Modifier.anchoredDraggable(sheetState, Orientation.Vertical),
+                    modifier = Modifier.anchoredDraggable(
+                        state = sheetState,
+                        orientation = Orientation.Vertical,
+                        enabled = !isExpanded,
+                    ),
                 )
                 Column(
                     modifier = Modifier
@@ -200,20 +205,26 @@ private fun SheetTopBar(
     modifier: Modifier = Modifier,
 ) {
     if (isExpanded) {
-        Row(
+        Column(
             modifier = modifier
                 .fillMaxWidth()
-                .height(TopBarHeight)
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .statusBarsPadding(),
         ) {
-            RodiIconButton(
-                painter = painterResource(com.dororong.rodi.core.ui.R.drawable.ic_chevron_left),
-                onClick = onCollapse,
-                iconSize = 20.dp,
-                contentDescription = "접기",
-                tint = RodiTheme.colors.black,
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(TopBarHeight)
+                    .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RodiIconButton(
+                    painter = painterResource(com.dororong.rodi.core.ui.R.drawable.ic_chevron_left),
+                    onClick = onCollapse,
+                    iconSize = 20.dp,
+                    contentDescription = "접기",
+                    tint = RodiTheme.colors.black,
+                )
+            }
         }
     } else {
         Box(

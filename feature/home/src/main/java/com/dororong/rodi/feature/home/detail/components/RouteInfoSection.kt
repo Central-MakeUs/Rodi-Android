@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
@@ -87,10 +88,12 @@ fun RouteInfoSection(
         }
 
         if (allRows.size > 1) {
+            val buttonShape = RoundedCornerShape(8.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, RodiTheme.colors.gray300, RoundedCornerShape(8.dp))
+                    .clip(buttonShape)
+                    .border(1.dp, RodiTheme.colors.gray300, buttonShape)
                     .clickable { expanded = !expanded }
                     .padding(horizontal = 20.dp, vertical = 7.dp),
                 horizontalArrangement = Arrangement.Center,

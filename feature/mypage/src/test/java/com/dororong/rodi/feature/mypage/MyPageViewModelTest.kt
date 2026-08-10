@@ -3,6 +3,8 @@ package com.dororong.rodi.feature.mypage
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
@@ -28,11 +30,13 @@ class MyPageViewModelTest {
     @Test
     fun `server my page is rendered with canonical recommendations`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { getMyPage() } returns Result.success(
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, listOf("OUTDATED"), "골목길", 7),
         )
 
-        val viewModel = MyPageViewModel(getMyPage)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -46,11 +50,13 @@ class MyPageViewModelTest {
     @Test
     fun `refresh failure preserves loaded profile and exposes the error`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { getMyPage() } returnsMany listOf(
             Result.success(MyPage("서버 닉네임", OnboardingLevel.SEED, emptyList(), null, 3)),
             Result.failure(IllegalStateException("새로고침 실패")),
         )
-        val viewModel = MyPageViewModel(getMyPage)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
 
         viewModel.refresh()
         advanceUntilIdle()
