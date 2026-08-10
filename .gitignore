@@ -31,6 +31,8 @@ captures/
 # Signing and secrets
 *.jks
 *.keystore
+# debug.keystore는 시크릿이 아니라 팀이 공유하는 고정 디버그 서명 키(카카오 키해시 등록용) — 커밋 대상
+!debug.keystore
 *.p12
 *.pem
 *.key

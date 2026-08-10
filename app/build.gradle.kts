@@ -47,6 +47,12 @@ android {
     }
 
     signingConfigs {
+        getByName("debug") {
+            storeFile = rootProject.file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
         if (hasLocalReleaseSigning) {
             create("release") {
                 storeFile = rootProject.file(
@@ -61,6 +67,7 @@ android {
 
     buildTypes {
         debug {
+            applicationIdSuffix = ".dev"
             buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuel7v1h92\"")
         }
         release {
