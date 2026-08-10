@@ -1207,7 +1207,7 @@ fun HomeScreen(
             isBookmarked = levelReviewsPlace.isBookmarked,
             isBookmarkUpdating = state.isBookmarkUpdating,
             onClose = { vm.onIntent(HomeIntent.OnLevelReviewsClose) },
-            onSelectLevel = reviewVm::selectLevel,
+            onSelectLevel = reviewVm::selectLevelAndLoadReviews,
             onLoadInitial = reviewVm::loadInitialReviews,
             onLoadNext = reviewVm::loadNextPage,
             onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },

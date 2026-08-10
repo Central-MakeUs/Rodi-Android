@@ -314,6 +314,7 @@ class HomeViewModel @Inject constructor(
                     selectedRoute = null,
                     isRouting = false,
                     isBookmarkUpdating = false,
+                    isLevelReviewsVisible = false,
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
@@ -382,6 +383,7 @@ class HomeViewModel @Inject constructor(
                 isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
+                isLevelReviewsVisible = false,
                 searchKeyword = null,
                 surfaceState = destination,
             )
