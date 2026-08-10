@@ -169,6 +169,21 @@ class CourseReviewViewModel @Inject constructor(
         }
     }
 
+    fun removeReview(reviewId: Long) {
+        _state.update {
+            it.copy(
+                latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
+                reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
+            )
+        }
+    }
+
+    fun refresh() {
+        val placeId = _state.value.placeId ?: return
+        _state.update { it.copy(placeId = null) }
+        load(placeId)
+    }
+
     private fun cancelReviewPageLoads() {
         initialReviewsJob?.cancel()
         nextPageJob?.cancel()

@@ -260,8 +260,15 @@ private fun ReviewReportContent(
 }
 
 @Composable
-private fun ReportReasonRow(
+internal fun ReportReasonRow(
     option: ReportFormOption,
+    selected: Boolean,
+    onClick: () -> Unit,
+) = ReportReasonRow(option.label, selected, onClick)
+
+@Composable
+internal fun ReportReasonRow(
+    label: String,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -283,7 +290,7 @@ private fun ReportReasonRow(
             modifier = Modifier.size(24.dp),
         )
         Text(
-            text = option.label,
+            text = label,
             style = RodiTheme.typography.body1Medium,
             color = RodiTheme.colors.black,
         )
