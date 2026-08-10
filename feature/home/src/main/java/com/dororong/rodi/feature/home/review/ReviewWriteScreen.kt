@@ -84,7 +84,7 @@ fun ReviewWriteScreen(
             confirmText = "확인",
             onConfirm = onCompleted,
             onDismissRequest = onCompleted,
-            title = "후기 등록을 완료했어요!",
+            title = if (state.editingReviewId == null) "후기 등록을 완료했어요!" else "후기 수정을 완료했어요!",
             description = "오늘 남긴 기록이 나의 운전 여정에도,\n" +
                 "다른 운전자에게도 도움이 돼요.",
         )

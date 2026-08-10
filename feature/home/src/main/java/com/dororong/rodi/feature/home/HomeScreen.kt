@@ -95,6 +95,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -269,6 +270,7 @@ fun HomeScreen(
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
     var reviewToReport by remember { mutableStateOf<Review?>(null) }
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
+    var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
     var isNotVisitedReasonVisible by remember { mutableStateOf(false) }
     val deviceHeading = rememberDeviceHeading()
@@ -1126,7 +1128,7 @@ fun HomeScreen(
                                         onAllClick = { vm.onIntent(HomeIntent.OnLevelReviewsOpen) },
                                         onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
                                         onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
-                                        onDeleteReviewClick = { reviewActionsVm.deleteReview(it.reviewId) },
+                                        onDeleteReviewClick = { reviewToDelete = it },
                                         onReportReviewClick = { reviewToReport = it },
                                         onBlockMemberClick = { reviewToBlock = it },
                                         scrollState = sheetScrollState,
@@ -1219,7 +1221,7 @@ fun HomeScreen(
             isBookmarked = levelReviewsPlace.isBookmarked,
             isBookmarkUpdating = state.isBookmarkUpdating,
             onClose = { vm.onIntent(HomeIntent.OnLevelReviewsClose) },
-            onSelectLevel = reviewVm::selectLevel,
+            onSelectLevel = reviewVm::selectLevelAndLoadReviews,
             onLoadInitial = reviewVm::loadInitialReviews,
             onLoadNext = reviewVm::loadNextPage,
             onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
@@ -1232,7 +1234,7 @@ fun HomeScreen(
                 )
             },
             onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
-            onDeleteReviewClick = { reviewActionsVm.deleteReview(it.reviewId) },
+            onDeleteReviewClick = { reviewToDelete = it },
             onReportReviewClick = { reviewToReport = it },
             onBlockMemberClick = { reviewToBlock = it },
         )
@@ -1281,6 +1283,19 @@ fun HomeScreen(
             onDismiss = { reviewToBlock = null },
         )
     }
+    reviewToDelete?.let { review ->
+        RodiAlertDialog(
+            title = "후기를 삭제할까요?",
+            description = "삭제한 후기는 되돌릴 수 없어요.",
+            confirmText = if (reviewActionsState.isDeleting) "삭제 중" else "삭제",
+            dismissText = "취소",
+            enabled = !reviewActionsState.isDeleting,
+            dismissible = !reviewActionsState.isDeleting,
+            onConfirm = { reviewActionsVm.deleteReview(review.reviewId) },
+            onDismiss = { reviewToDelete = null },
+            onDismissRequest = { if (!reviewActionsState.isDeleting) reviewToDelete = null },
+        )
+    }
     LaunchedEffect(reviewActionsState.blockedMemberId, reviewActionsState.blockErrorMessage) {
         when {
             reviewActionsState.blockedMemberId != null -> {
@@ -1305,6 +1320,7 @@ fun HomeScreen(
         when {
             reviewActionsState.deletedReviewId != null -> {
                 reviewVm.removeReview(reviewActionsState.deletedReviewId ?: return@LaunchedEffect)
+                reviewToDelete = null
                 snackbarHostState.show(RodiSnackbarData(message = "후기를 삭제했습니다."))
                 reviewActionsVm.consumeDeleteResult()
             }

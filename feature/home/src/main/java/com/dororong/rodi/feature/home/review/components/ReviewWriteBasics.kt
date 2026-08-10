@@ -78,7 +78,7 @@ private fun ReviewChoiceBlock(
             style = RodiTheme.typography.body1SemiBold,
             color = RodiTheme.colors.black,
         )
-        ChoicePairRow("별로에요", "추천해요", selected, onSelect)
+        ChoicePairRow("별로예요", "추천해요", selected, onSelect)
     }
 }
 

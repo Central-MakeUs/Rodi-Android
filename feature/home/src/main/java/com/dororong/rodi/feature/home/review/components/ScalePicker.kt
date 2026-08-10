@@ -2,7 +2,8 @@ package com.dororong.rodi.feature.home.review.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -16,8 +17,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
@@ -44,6 +43,7 @@ fun <T> ScalePicker(
     Layout(
         modifier = modifier
             .fillMaxWidth()
+            .selectableGroup()
             .drawBehind {
                 val pitchPx = pitch.toPx()
                 val circleSizePx = circleSize.toPx()
@@ -114,10 +114,9 @@ private fun ScaleTouchTarget(
     Box(
         modifier = Modifier
             .size(ScaleTouchSize)
-            .clickable(onClick = onClick)
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
             .semantics {
                 contentDescription = label
-                role = Role.RadioButton
             },
         contentAlignment = Alignment.Center,
     ) {

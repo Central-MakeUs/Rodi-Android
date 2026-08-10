@@ -89,6 +89,8 @@ fun CourseDetailContent(
                         contentDescription = "닫기",
                         tint = RodiTheme.colors.black,
                     )
+                } else {
+                    Spacer(Modifier.size(48.dp))
                 }
             }
 

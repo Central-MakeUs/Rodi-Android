@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,7 +55,9 @@ fun RouteInfoSection(
     val arrivalColor = RodiTheme.semantic.pinArrival
     val viaColor = RodiTheme.colors.gray800
 
-    val allRows = buildRouteRows(waypoints, startColor, viaColor, arrivalColor)
+    val allRows = remember(waypoints, startColor, viaColor, arrivalColor) {
+        buildRouteRows(waypoints, startColor, viaColor, arrivalColor)
+    }
     if (allRows.isEmpty()) return
     val rows = if (expanded) allRows else allRows.take(1)
 
@@ -114,7 +117,10 @@ fun RouteInfoSection(
 
 @Composable
 private fun RouteRow(row: RouteRowItem) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Row(
             modifier = Modifier.width(85.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -135,6 +141,7 @@ private fun RouteRow(row: RouteRowItem) {
             color = RodiTheme.colors.gray800,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
         )
     }
 }
@@ -145,15 +152,17 @@ private fun buildRouteRows(
     viaColor: Color,
     arrivalColor: Color,
 ): List<RouteRowItem> {
-    var viaNumber = 0
-    return waypoints
+    val sortedWaypoints = waypoints
         .filter { !it.name.isNullOrBlank() }
         .sortedBy { it.sequence }
-        .map { waypoint ->
+    return sortedWaypoints.mapIndexed { index, waypoint ->
             val (label, color) = when (waypoint.type) {
                 PlaceWaypointType.START -> "출발지" to startColor
                 PlaceWaypointType.DESTINATION -> "도착지" to arrivalColor
-                PlaceWaypointType.VIA -> "경유지 ${++viaNumber}" to viaColor
+                PlaceWaypointType.VIA -> {
+                    val viaNumber = sortedWaypoints.take(index + 1).count { it.type == PlaceWaypointType.VIA }
+                    "경유지 $viaNumber" to viaColor
+                }
             }
             RouteRowItem(label = label, name = waypoint.name.orEmpty(), color = color)
         }

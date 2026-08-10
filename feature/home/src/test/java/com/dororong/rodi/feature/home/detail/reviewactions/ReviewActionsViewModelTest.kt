@@ -5,7 +5,6 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.usecase.member.BlockMemberUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReportFormUseCase
-import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.ReportReviewUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -18,7 +17,9 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -29,7 +30,6 @@ class ReviewActionsViewModelTest {
     private val getReportForm = mockk<GetReportFormUseCase>()
     private val reportReview = mockk<ReportReviewUseCase>()
     private val blockMember = mockk<BlockMemberUseCase>()
-    private val deleteReview = mockk<DeleteReviewUseCase>()
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -103,18 +103,63 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `delete review exposes the deleted review id`() = runTest(dispatcher) {
-        coEvery { deleteReview(REVIEW_ID) } returns Result.success(Unit)
+    fun `report form failure shows an error and finishes loading`() = runTest(dispatcher) {
+        coEvery { getReportForm() } returns Result.failure(IllegalStateException("신고 사유를 불러오지 못했어요."))
 
         val viewModel = viewModel()
-        viewModel.deleteReview(REVIEW_ID)
+        viewModel.loadReportForm(REVIEW_ID)
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.deletedReviewId == REVIEW_ID)
-        coVerify(exactly = 1) { deleteReview(REVIEW_ID) }
+        assertFalse(viewModel.state.value.isReportFormLoading)
+        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.state.value.reportErrorMessage)
     }
 
-    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember, deleteReview)
+    @Test
+    fun `report submission failure restores the submit state`() = runTest(dispatcher) {
+        coEvery { getReportForm() } returns Result.success(reportForm())
+        coEvery { reportReview(any(), any()) } returns Result.failure(IllegalStateException("신고하지 못했어요."))
+
+        val viewModel = viewModel()
+        viewModel.loadReportForm(REVIEW_ID)
+        advanceUntilIdle()
+        viewModel.selectReportOption(reportForm().options[1])
+        viewModel.submitReport()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isReportSubmitting)
+        assertFalse(viewModel.state.value.isReportSubmitted)
+        assertEquals("신고하지 못했어요.", viewModel.state.value.reportErrorMessage)
+    }
+
+    @Test
+    fun `block failure leaves no blocked member and exposes an error`() = runTest(dispatcher) {
+        coEvery { blockMember(MEMBER_ID) } returns Result.failure(IllegalStateException("차단하지 못했어요."))
+
+        val viewModel = viewModel()
+        viewModel.blockMember(MEMBER_ID)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isBlocking)
+        assertNull(viewModel.state.value.blockedMemberId)
+        assertEquals("차단하지 못했어요.", viewModel.state.value.blockErrorMessage)
+    }
+
+    @Test
+    fun `selecting a shorter text option truncates the previous detail`() = runTest(dispatcher) {
+        val form = reportForm()
+        coEvery { getReportForm() } returns Result.success(form)
+
+        val viewModel = viewModel()
+        viewModel.loadReportForm(REVIEW_ID)
+        advanceUntilIdle()
+        viewModel.selectReportOption(form.options[2])
+        viewModel.updateReportDetail("긴사유")
+        viewModel.selectReportOption(form.options[3])
+
+        assertEquals("긴사", viewModel.state.value.reportDetail)
+    }
+
+    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember)
 
     private fun reportForm() = ReportForm(
         questionId = "review-report",
@@ -125,6 +170,7 @@ class ReviewActionsViewModelTest {
             ReportFormOption("SPAM", "스팸/광고", 1, false, null, null),
             ReportFormOption("ABUSE", "욕설, 음란성, 혐오 표현", 2, false, null, null),
             ReportFormOption("OTHER", "기타", 3, true, "이유를 작성해주세요", 100),
+            ReportFormOption("SHORT_OTHER", "짧은 기타", 4, true, "이유를 작성해주세요", 2),
         ),
     )
 

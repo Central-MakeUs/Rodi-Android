@@ -77,8 +77,9 @@ fun LevelReviewsOverlay(
 
     // 목록 끝에 다가가면 다음 페이지. 커서가 없으면 ViewModel이 무시하므로 여기서 따로 막지 않는다.
     val currentOnLoadNext by rememberUpdatedState(onLoadNext)
-    val shouldLoadMore by remember {
+    val shouldLoadMore by remember(reviews.size) {
         derivedStateOf {
+            if (reviews.isEmpty()) return@derivedStateOf false
             val info = listState.layoutInfo
             val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: return@derivedStateOf false
             lastVisible >= info.totalItemsCount - LoadMoreThreshold
@@ -123,8 +124,7 @@ fun LevelReviewsOverlay(
                         color = RodiTheme.colors.gray100,
                     )
                 }
-                if (difficultyCounts.isNotEmpty()) {
-                    item {
+                item {
                         Column(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(26.dp),
@@ -145,10 +145,11 @@ fun LevelReviewsOverlay(
                                     scrollState = listState,
                                 )
                             }
-                            DifficultyBarChart(difficultyCounts)
+                            if (difficultyCounts.isNotEmpty()) {
+                                DifficultyBarChart(difficultyCounts)
+                            }
                         }
                         HorizontalDivider(color = RodiTheme.colors.gray100)
-                    }
                 }
                 items(reviews, key = { it.reviewId }) { review ->
                     ReviewCard(

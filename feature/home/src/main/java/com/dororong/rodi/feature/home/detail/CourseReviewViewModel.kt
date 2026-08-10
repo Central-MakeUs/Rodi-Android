@@ -9,6 +9,7 @@ import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,43 +26,78 @@ class CourseReviewViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(CourseReviewUiState())
     val state: StateFlow<CourseReviewUiState> = _state.asStateFlow()
-    private var loadJob: Job? = null
+    private var summaryJob: Job? = null
+    private var initialReviewsJob: Job? = null
+    private var nextPageJob: Job? = null
 
-    fun load(placeId: Long, force: Boolean = false) {
-        if (!force && _state.value.placeId == placeId) return
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
+    fun load(placeId: Long) {
+        val current = _state.value
+        if (current.placeId == placeId && !current.isLoading && current.errorMessage == null) return
+
+        summaryJob?.cancel()
+        cancelReviewPageLoads()
+        summaryJob = viewModelScope.launch {
             _state.value = CourseReviewUiState(placeId = placeId, isLoading = true)
-            if (!getAuthSession().isLoggedIn) {
-                _state.value = CourseReviewUiState(placeId = placeId, isGuest = true)
-                return@launch
+            try {
+                if (!getAuthSession().isLoggedIn) {
+                    _state.value = CourseReviewUiState(placeId = placeId, isGuest = true)
+                    return@launch
+                }
+                val all = async { getReviewSummary(placeId, ReviewLevelFilter.All) }
+                val mine = async { getReviewSummary(placeId, ReviewLevelFilter.Mine) }
+                val mineSummary = mine.await()
+                val selectedLevel = mineSummary.getOrNull()?.level ?: OnboardingLevel.SEED
+                val allSummary = all.await()
+                val latest = getPlaceReviews(placeId, ReviewLevelFilter.Mine, size = 1)
+                val error = allSummary.exceptionOrNull() ?: mineSummary.exceptionOrNull() ?: latest.exceptionOrNull()
+                _state.value = CourseReviewUiState(
+                    placeId = placeId,
+                    selectedLevel = selectedLevel,
+                    totalCount = allSummary.getOrNull()?.totalCount ?: 0,
+                    recommendCount = allSummary.getOrNull()?.recommendCount ?: 0,
+                    difficultyCounts = mineSummary.getOrNull()?.difficultyCounts.orEmpty(),
+                    latestReviews = latest.getOrNull()?.items.orEmpty(),
+                    errorMessage = error?.message,
+                )
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (_state.value.placeId == placeId) {
+                    _state.update { it.copy(isLoading = false, errorMessage = error.message) }
+                }
             }
-            val all = async { getReviewSummary(placeId, ReviewLevelFilter.All) }
-            val mine = async { getReviewSummary(placeId, ReviewLevelFilter.Mine) }
-            val mineSummary = mine.await()
-            val selectedLevel = mineSummary.getOrNull()?.level ?: OnboardingLevel.SEED
-            val allSummary = all.await()
-            val latest = getPlaceReviews(placeId, ReviewLevelFilter.Mine, size = 1)
-            val error = allSummary.exceptionOrNull() ?: mineSummary.exceptionOrNull() ?: latest.exceptionOrNull()
-            _state.value = CourseReviewUiState(
-                placeId = placeId,
-                selectedLevel = selectedLevel,
-                totalCount = allSummary.getOrNull()?.totalCount ?: 0,
-                recommendCount = allSummary.getOrNull()?.recommendCount ?: 0,
-                difficultyCounts = mineSummary.getOrNull()?.difficultyCounts.orEmpty(),
-                latestReviews = latest.getOrNull()?.items.orEmpty(),
-                errorMessage = error?.message,
-            )
         }
     }
 
     fun selectLevel(level: OnboardingLevel) {
+        selectLevel(level, loadReviews = false)
+    }
+
+    fun selectLevelAndLoadReviews(level: OnboardingLevel) {
+        selectLevel(level, loadReviews = true)
+    }
+
+    private fun selectLevel(level: OnboardingLevel, loadReviews: Boolean) {
         val placeId = _state.value.placeId ?: return
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, selectedLevel = level, errorMessage = null) }
+        summaryJob?.cancel()
+        cancelReviewPageLoads()
+        _state.update {
+            it.copy(
+                isLoading = true,
+                selectedLevel = level,
+                difficultyCounts = emptyMap(),
+                latestReviews = emptyList(),
+                reviews = emptyList(),
+                nextCursor = null,
+                hasNext = false,
+                isNextPageLoading = false,
+                errorMessage = null,
+            )
+        }
+        summaryJob = viewModelScope.launch {
             val summary = getReviewSummary(placeId, ReviewLevelFilter.Of(level))
             val latest = getPlaceReviews(placeId, ReviewLevelFilter.Of(level), size = 1)
+            if (_state.value.placeId != placeId || _state.value.selectedLevel != level) return@launch
             _state.update {
                 it.copy(
                     isLoading = false,
@@ -71,14 +107,31 @@ class CourseReviewViewModel @Inject constructor(
                 )
             }
         }
+        if (loadReviews) loadInitialReviews(placeId, level)
     }
 
     fun loadInitialReviews() {
         val placeId = _state.value.placeId ?: return
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch {
-            val result = getPlaceReviews(placeId, ReviewLevelFilter.Of(_state.value.selectedLevel), size = PAGE_SIZE)
-            result.onSuccess { page -> _state.update { it.copy(reviews = page.items.distinctBy { review -> review.reviewId }, nextCursor = page.nextCursor, hasNext = page.hasNext) } }
+        loadInitialReviews(placeId, _state.value.selectedLevel)
+    }
+
+    private fun loadInitialReviews(placeId: Long, level: OnboardingLevel) {
+        initialReviewsJob?.cancel()
+        nextPageJob?.cancel()
+        _state.update { it.copy(isNextPageLoading = false) }
+        initialReviewsJob = viewModelScope.launch {
+            val result = getPlaceReviews(placeId, ReviewLevelFilter.Of(level), size = PAGE_SIZE)
+            if (_state.value.placeId != placeId || _state.value.selectedLevel != level) return@launch
+            result
+                .onSuccess { page ->
+                    _state.update {
+                        it.copy(
+                            reviews = page.items.distinctBy { review -> review.reviewId },
+                            nextCursor = page.nextCursor,
+                            hasNext = page.hasNext,
+                        )
+                    }
+                }
                 .onFailure { error -> _state.update { it.copy(errorMessage = error.message) } }
         }
     }
@@ -87,11 +140,22 @@ class CourseReviewViewModel @Inject constructor(
         val current = _state.value
         val placeId = current.placeId ?: return
         val cursor = current.nextCursor ?: return
-        if (!current.hasNext || current.isNextPageLoading || loadJob?.isActive == true) return
-        loadJob = viewModelScope.launch {
+        if (!current.hasNext || current.isNextPageLoading || initialReviewsJob?.isActive == true || nextPageJob?.isActive == true) return
+        nextPageJob = viewModelScope.launch {
             _state.update { it.copy(isNextPageLoading = true) }
             getPlaceReviews(placeId, ReviewLevelFilter.Of(current.selectedLevel), cursor, PAGE_SIZE)
-                .onSuccess { page -> _state.update { it.copy(reviews = (it.reviews + page.items).distinctBy { review -> review.reviewId }, nextCursor = page.nextCursor, hasNext = page.hasNext, isNextPageLoading = false) } }
+                .onSuccess { page ->
+                    if (_state.value.placeId == placeId && _state.value.selectedLevel == current.selectedLevel) {
+                        _state.update {
+                            it.copy(
+                                reviews = (it.reviews + page.items).distinctBy { review -> review.reviewId },
+                                nextCursor = page.nextCursor,
+                                hasNext = page.hasNext,
+                                isNextPageLoading = false,
+                            )
+                        }
+                    }
+                }
                 .onFailure { error -> _state.update { it.copy(isNextPageLoading = false, errorMessage = error.message) } }
         }
     }
@@ -105,17 +169,9 @@ class CourseReviewViewModel @Inject constructor(
         }
     }
 
-    fun removeReview(reviewId: Long) {
-        _state.update {
-            it.copy(
-                latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
-                reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
-            )
-        }
-    }
-
-    fun refresh() {
-        _state.value.placeId?.let { load(it, force = true) }
+    private fun cancelReviewPageLoads() {
+        initialReviewsJob?.cancel()
+        nextPageJob?.cancel()
     }
 
     companion object { private const val PAGE_SIZE = 10 }

@@ -73,10 +73,15 @@ fun CourseDetailSheet(
     reviewContent: @Composable (ScrollState) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (place.course == null) {
+        LaunchedEffect(place.id) { onDismiss() }
+        return
+    }
+
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
-    val sheetState = remember { AnchoredDraggableState(CourseSheetAnchor.Collapsed) }
+    val sheetState = remember(place.id) { AnchoredDraggableState(CourseSheetAnchor.Collapsed) }
 
     var containerHeightPx by remember { mutableIntStateOf(0) }
     var summaryHeightPx by remember { mutableIntStateOf(0) }

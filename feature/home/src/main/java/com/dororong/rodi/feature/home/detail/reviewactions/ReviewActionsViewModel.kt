@@ -80,7 +80,11 @@ class ReviewActionsViewModel @Inject constructor(
         _state.update { current ->
             current.copy(
                 selectedOptionCode = option.code,
-                reportDetail = if (option.requiresTextInput) current.reportDetail else "",
+                reportDetail = if (option.requiresTextInput) {
+                    current.reportDetail.take(option.textInputMaxLength ?: current.reportDetail.length)
+                } else {
+                    ""
+                },
                 reportErrorMessage = null,
             )
         }
@@ -161,6 +165,10 @@ class ReviewActionsViewModel @Inject constructor(
 
     fun consumeBlockResult() {
         _state.update { it.copy(blockedMemberId = null, blockErrorMessage = null) }
+    }
+
+    fun consumeReportError() {
+        _state.update { it.copy(reportErrorMessage = null) }
     }
 
     fun deleteReview(reviewId: Long) {

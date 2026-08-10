@@ -2,7 +2,8 @@ package com.dororong.rodi.feature.home.review.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -28,7 +30,7 @@ fun ChoicePairRow(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Choice(label = startLabel, selected = selected == false) { onSelect(false) }
@@ -51,7 +53,7 @@ private fun RowScope.Choice(label: String, selected: Boolean, onClick: () -> Uni
                 color = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
                 shape = RoundedCornerShape(8.dp),
             )
-            .clickable(onClick = onClick),
+            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
         contentAlignment = Alignment.Center,
     ) {
         Text(

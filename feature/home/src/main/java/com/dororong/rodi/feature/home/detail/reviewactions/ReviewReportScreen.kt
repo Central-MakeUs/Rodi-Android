@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
@@ -45,6 +46,9 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
@@ -55,8 +59,15 @@ fun ReviewReportScreen(
     viewModel: ReviewActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { RodiSnackbarHostState() }
 
     LaunchedEffect(reviewId) { viewModel.loadReportForm(reviewId) }
+    LaunchedEffect(state.reportErrorMessage) {
+        state.reportErrorMessage?.let { message ->
+            snackbarHostState.show(RodiSnackbarData(message = message))
+            viewModel.consumeReportError()
+        }
+    }
     BackHandler {
         if (!state.isReportSubmitting) {
             viewModel.closeReport()
@@ -64,23 +75,25 @@ fun ReviewReportScreen(
         }
     }
 
-    ReviewReportContent(
-        form = state.reportForm,
-        selectedOptionCode = state.selectedOptionCode,
-        detail = state.reportDetail,
-        isLoading = state.isReportFormLoading,
-        isSubmitting = state.isReportSubmitting,
-        onBack = {
-            if (!state.isReportSubmitting) {
-                viewModel.closeReport()
-                onClose()
-            }
-        },
-        onSelectOption = viewModel::selectReportOption,
-        onDetailChange = viewModel::updateReportDetail,
-        onSubmit = viewModel::submitReport,
-        modifier = modifier,
-    )
+    Box(modifier.fillMaxSize()) {
+        ReviewReportContent(
+            form = state.reportForm,
+            selectedOptionCode = state.selectedOptionCode,
+            detail = state.reportDetail,
+            isLoading = state.isReportFormLoading,
+            isSubmitting = state.isReportSubmitting,
+            onBack = {
+                if (!state.isReportSubmitting) {
+                    viewModel.closeReport()
+                    onClose()
+                }
+            },
+            onSelectOption = viewModel::selectReportOption,
+            onDetailChange = viewModel::updateReportDetail,
+            onSubmit = viewModel::submitReport,
+        )
+        RodiSnackbarHost(snackbarHostState)
+    }
 
     if (state.isReportSubmitted) {
         ReportSubmittedDialog(
@@ -168,7 +181,6 @@ private fun ReviewReportContent(
     onSelectOption: (ReportFormOption) -> Unit,
     onDetailChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
     val selectedOption = form?.options?.firstOrNull { it.code == selectedOptionCode }
     val canSubmit = selectedOption != null &&
@@ -176,7 +188,7 @@ private fun ReviewReportContent(
         !isLoading &&
         !isSubmitting
 
-    Surface(modifier.fillMaxSize(), color = RodiTheme.colors.white) {
+    Surface(Modifier.fillMaxSize(), color = RodiTheme.colors.white) {
         Column(Modifier.statusBarsPadding()) {
             Box(
                 modifier = Modifier
@@ -217,7 +229,7 @@ private fun ReviewReportContent(
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         form.options.forEach { option ->
                             ReportReasonRow(
-                                label = option.label,
+                                option = option,
                                 selected = option.code == selectedOptionCode,
                                 onClick = { onSelectOption(option) },
                             )
@@ -248,8 +260,8 @@ private fun ReviewReportContent(
 }
 
 @Composable
-internal fun ReportReasonRow(
-    label: String,
+private fun ReportReasonRow(
+    option: ReportFormOption,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
@@ -271,7 +283,7 @@ internal fun ReportReasonRow(
             modifier = Modifier.size(24.dp),
         )
         Text(
-            text = label,
+            text = option.label,
             style = RodiTheme.typography.body1Medium,
             color = RodiTheme.colors.black,
         )
@@ -279,7 +291,7 @@ internal fun ReportReasonRow(
 }
 
 @Composable
-internal fun ReportDetailInput(
+private fun ReportDetailInput(
     value: String,
     placeholder: String,
     onValueChange: (String) -> Unit,

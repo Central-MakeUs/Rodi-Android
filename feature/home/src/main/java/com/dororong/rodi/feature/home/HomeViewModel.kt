@@ -326,6 +326,7 @@ class HomeViewModel @Inject constructor(
                     selectedRoute = null,
                     isRouting = false,
                     isBookmarkUpdating = false,
+                    isLevelReviewsVisible = false,
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
@@ -394,6 +395,7 @@ class HomeViewModel @Inject constructor(
                 isBookmarkUpdating = false,
                 detailOrigin = null,
                 isDetailLoading = false,
+                isLevelReviewsVisible = false,
                 searchKeyword = null,
                 surfaceState = destination,
             )
@@ -685,6 +687,9 @@ class HomeViewModel @Inject constructor(
     private suspend fun launchPractice(place: PlaceDetail, effect: HomeEffect) {
         if (place.type == PlaceType.COURSE) {
             startPracticeSessionUseCase(place.id, place.name)
+                .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
+                .onSuccess { _effect.send(effect) }
+            return
         }
         _effect.send(effect)
     }
@@ -701,7 +706,7 @@ class HomeViewModel @Inject constructor(
     private fun clearPracticePrompt() {
         _state.update { it.copy(practicePrompt = null) }
         viewModelScope.launch {
-            clearPracticeSessionUseCase()
+            clearPracticeSessionUseCase().onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
         }
     }
 
