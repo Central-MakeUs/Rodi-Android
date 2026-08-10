@@ -32,3 +32,16 @@ data object SavedCoursesRoute : NavKey
 
 @Serializable
 data object SettingsRoute : NavKey
+
+internal fun NavKey.toClarityScreenName(): String? = when (this) {
+    LoginRoute -> "Login"
+    EntryRoute -> "Onboarding"
+    MainRoute -> null
+    HomeRoute -> "Home"
+    is SearchRoute -> "Search"
+    MyPageRoute -> "MyPage"
+    DrivingGoalRoute -> "DrivingGoal"
+    SavedCoursesRoute -> "SavedCourses"
+    SettingsRoute -> "Settings"
+    else -> null
+}

@@ -47,6 +47,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.microsoft.clarity.modifiers.clarityMask
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
@@ -219,6 +220,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                     Column(modifier = Modifier.padding(start = 15.dp, top = 12.dp)) {
                         Text(
                             text = profile.nickname,
+                            modifier = Modifier.clarityMask(),
                             style = RodiTheme.typography.body1SemiBold,
                             color = RodiTheme.colors.black,
                             maxLines = 1,

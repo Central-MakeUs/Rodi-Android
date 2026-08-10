@@ -15,6 +15,8 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import androidx.compose.runtime.LaunchedEffect
+import com.microsoft.clarity.Clarity
 import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
@@ -38,6 +40,9 @@ fun MainScreen(
 ) {
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
+    LaunchedEffect(currentRoute) {
+        currentRoute?.toClarityScreenName()?.let(Clarity::setCurrentScreenName)
+    }
     val currentRouteState = rememberUpdatedState(currentRoute)
     val homeViewModel: HomeViewModel = hiltViewModel()
     val activity = LocalActivity.current

@@ -51,6 +51,9 @@ turbine = "1.2.0"
 kakaoMap = "2.11.9"
 kakaoSdk = "2.20.6"
 
+# Microsoft Clarity
+clarity = "3.8.3"
+
 # Google Play Services
 playServicesLocation = "21.4.0"
 
@@ -129,6 +132,9 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 kakao-maps = { group = "com.kakao.maps.open", name = "android", version.ref = "kakaoMap" }
 kakao-navi = { group = "com.kakao.sdk", name = "v2-navi", version.ref = "kakaoSdk" }
 kakao-user = { group = "com.kakao.sdk", name = "v2-user", version.ref = "kakaoSdk" }
+
+# Microsoft Clarity
+clarity-compose = { group = "com.microsoft.clarity", name = "clarity-compose", version.ref = "clarity" }
 
 # Google Play Services
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }

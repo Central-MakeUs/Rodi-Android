@@ -13,6 +13,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.compose)
+    implementation(libs.clarity.compose)
     implementation(libs.bundles.hilt.compose)
     implementation(libs.bundles.lifecycle.compose)
     ksp(libs.hilt.compiler)

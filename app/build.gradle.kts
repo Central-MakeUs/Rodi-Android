@@ -42,6 +42,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoNativeAppKey\"")
+        buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
     }
 
@@ -59,6 +60,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuel7v1h92\"")
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
@@ -67,12 +71,15 @@ android {
                 debugSymbolLevel = "SYMBOL_TABLE"
             }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuepsqfoyk\"")
         }
         create("benchmark") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
             isDebuggable = false
+            // release의 prod Clarity ID를 그대로 물려받으면 자동화된 벤치마크 실행까지 prod 세션으로 잡힌다.
+            buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
         }
     }
     compileOptions {
@@ -104,6 +111,7 @@ dependencies {
     implementation(libs.androidx.profileinstaller)
     implementation(libs.bundles.hilt.compose)
     implementation(libs.bundles.kakao.navigation)
+    implementation(libs.clarity.compose)
     // AndroidManifest.xml이 이 라이브러리의 AuthCodeHandlerActivity를 직접 참조한다.
     // feature:auth를 통해 transitive로 포함돼 런타임엔 문제없지만, lint의 MissingClass
     // 검사는 app 모듈의 직접 의존성만 보므로 명시적으로 추가한다.
