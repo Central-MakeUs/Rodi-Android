@@ -4,6 +4,7 @@ import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.usecase.member.BlockMemberUseCase
+import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReportFormUseCase
 import com.dororong.rodi.core.domain.usecase.review.ReportReviewUseCase
 import io.mockk.coEvery
@@ -30,6 +31,7 @@ class ReviewActionsViewModelTest {
     private val getReportForm = mockk<GetReportFormUseCase>()
     private val reportReview = mockk<ReportReviewUseCase>()
     private val blockMember = mockk<BlockMemberUseCase>()
+    private val deleteReview = mockk<DeleteReviewUseCase>()
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -159,7 +161,7 @@ class ReviewActionsViewModelTest {
         assertEquals("긴사", viewModel.state.value.reportDetail)
     }
 
-    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember)
+    private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember, deleteReview)
 
     private fun reportForm() = ReportForm(
         questionId = "review-report",
