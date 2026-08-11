@@ -1,10 +1,13 @@
 package com.dororong.rodi.feature.home.review
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -32,6 +35,7 @@ fun PracticePromptDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "'${session.placeName}'",
+                    modifier = Modifier.fillMaxWidth(),
                     style = RodiTheme.typography.headline1,
                     color = RodiTheme.colors.primary600,
                     maxLines = 1,
@@ -54,12 +58,17 @@ fun PracticePromptDialog(
 @Composable
 private fun PracticePromptShortPreview() {
     RodiTheme {
-        PracticePromptDialog(
-            session = PracticeSession(1L, "강남역 코스", Instant.EPOCH),
-            onVisited = {},
-            onNotVisited = {},
-            onDismiss = {},
-        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            PracticePromptDialog(
+                session = PracticeSession(1L, "강남역 코스", Instant.EPOCH),
+                onVisited = {},
+                onNotVisited = {},
+                onDismiss = {},
+            )
+        }
     }
 }
 
@@ -67,15 +76,20 @@ private fun PracticePromptShortPreview() {
 @Composable
 private fun PracticePromptLongPreview() {
     RodiTheme {
-        PracticePromptDialog(
-            session = PracticeSession(
-                placeId = 1L,
-                placeName = "서울특별시 강남구 테헤란로 초보 운전 연습 코스",
-                startedAt = Instant.EPOCH,
-            ),
-            onVisited = {},
-            onNotVisited = {},
-            onDismiss = {},
-        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            PracticePromptDialog(
+                session = PracticeSession(
+                    placeId = 1L,
+                    placeName = "서울특별시 강남구 테헤란로 초보 운전 연습 코스",
+                    startedAt = Instant.EPOCH,
+                ),
+                onVisited = {},
+                onNotVisited = {},
+                onDismiss = {},
+            )
+        }
     }
 }

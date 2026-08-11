@@ -4,6 +4,9 @@ import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
+import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.CursorPageMyReviewItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.CursorPageBlockedMemberItemResponse
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -13,10 +16,32 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.PUT
+import retrofit2.http.Query
 
 interface MemberApi {
     @GET("members/me")
     suspend fun getMyPage(@Header("Authorization") authorization: String): ApiEnvelope<MyPageResponse>
+
+    @GET("members/me/practices")
+    suspend fun getPracticeRecords(
+        @Header("Authorization") authorization: String,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPagePracticeItemResponse>
+
+    @GET("members/me/reviews")
+    suspend fun getMyReviews(
+        @Header("Authorization") authorization: String,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPageMyReviewItemResponse>
+
+    @GET("members/me/blocks")
+    suspend fun getBlockedMembers(
+        @Header("Authorization") authorization: String,
+        @Query("size") size: Int,
+        @Query("cursor") cursor: String?,
+    ): ApiEnvelope<CursorPageBlockedMemberItemResponse>
 
     @PATCH("members/me")
     suspend fun updateMe(

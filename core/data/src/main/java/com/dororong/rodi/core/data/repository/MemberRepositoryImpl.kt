@@ -9,6 +9,10 @@ import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
+import com.dororong.rodi.core.domain.model.member.MyReview
+import com.dororong.rodi.core.domain.model.member.BlockedMember
+import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
@@ -25,6 +29,18 @@ class MemberRepositoryImpl @Inject constructor(
 ) : MemberRepository {
     override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
         memberApi.getMyPage(authorization).requireData().toDomain()
+    }
+
+    override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
+        memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+    }
+
+    override suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview> = authenticatedRequest { authorization ->
+        memberApi.getMyReviews(authorization, size, cursor).requireData().toDomain()
+    }
+
+    override suspend fun getBlockedMembers(cursor: String?, size: Int): CursorPage<BlockedMember> = authenticatedRequest { authorization ->
+        memberApi.getBlockedMembers(authorization, size, cursor).requireData().toDomain()
     }
 
     override suspend fun updateDrivingGoal(drivingGoal: String) {

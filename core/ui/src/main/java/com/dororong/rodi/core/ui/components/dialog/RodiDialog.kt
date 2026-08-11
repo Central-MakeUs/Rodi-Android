@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,37 +42,64 @@ fun RodiDialog(
     showCloseButton: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(
-            dismissOnBackPress = dismissible,
-            dismissOnClickOutside = dismissible,
-        ),
-    ) {
-        val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
-        SideEffect { dialogWindowProvider?.window?.setDimAmount(0.5f) }
-        Surface(
+    if (LocalInspectionMode.current) {
+        RodiDialogSurface(
             modifier = modifier,
-            shape = RoundedCornerShape(12.dp),
-            color = RodiTheme.colors.white,
+            contentPadding = contentPadding,
+            showCloseButton = showCloseButton,
+            onDismissRequest = onDismissRequest,
+            content = content,
+        )
+    } else {
+        Dialog(
+            onDismissRequest = onDismissRequest,
+            properties = DialogProperties(
+                dismissOnBackPress = dismissible,
+                dismissOnClickOutside = dismissible,
+            ),
         ) {
-            Column(
-                modifier = Modifier.padding(contentPadding),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                if (showCloseButton) {
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        RodiIconButton(
-                            painter = painterResource(R.drawable.ic_x),
-                            onClick = onDismissRequest,
-                            contentDescription = "닫기",
-                            tint = RodiTheme.colors.gray600,
-                            modifier = Modifier.align(Alignment.CenterEnd),
-                        )
-                    }
+            val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
+            SideEffect { dialogWindowProvider?.window?.setDimAmount(0.5f) }
+            RodiDialogSurface(
+                modifier = modifier,
+                contentPadding = contentPadding,
+                showCloseButton = showCloseButton,
+                onDismissRequest = onDismissRequest,
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RodiDialogSurface(
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    showCloseButton: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = RodiTheme.colors.white,
+    ) {
+        Column(
+            modifier = Modifier.padding(contentPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (showCloseButton) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    RodiIconButton(
+                        painter = painterResource(R.drawable.ic_x),
+                        onClick = onDismissRequest,
+                        contentDescription = "닫기",
+                        tint = RodiTheme.colors.gray600,
+                        modifier = Modifier.align(Alignment.CenterEnd),
+                    )
                 }
-                content()
             }
+            content()
         }
     }
 }

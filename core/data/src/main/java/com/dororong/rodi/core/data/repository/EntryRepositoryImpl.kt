@@ -13,11 +13,13 @@ class EntryRepositoryImpl @Inject constructor(
     override val isCompleted: Flow<Boolean?> = prefs.isCompleted
     override val hasGuestAccess: Flow<Boolean> = prefs.hasGuestAccess
     override val hasRequestedLocationPermission: Flow<Boolean> = prefs.hasRequestedLocationPermission
+    override val hasRequestedNotificationPermission: Flow<Boolean> = prefs.hasRequestedNotificationPermission
     override val progress: Flow<EntryProgress> = prefs.progress
 
     override suspend fun setCompleted() = prefs.setCompleted()
     override suspend fun start(mode: EntryMode) = prefs.start(mode)
     override suspend fun markLocationPermissionRequested() = prefs.markLocationPermissionRequested()
+    override suspend fun markNotificationPermissionRequested() = prefs.markNotificationPermissionRequested()
     override suspend fun grantGuestAccess() = prefs.grantGuestAccess()
     override suspend fun clearGuestAccess() = prefs.clearGuestAccess()
     override suspend fun clear() = prefs.clear()

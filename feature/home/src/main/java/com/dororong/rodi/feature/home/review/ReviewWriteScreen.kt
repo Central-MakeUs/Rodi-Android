@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,7 +30,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
@@ -44,7 +44,7 @@ import com.dororong.rodi.feature.home.review.components.ReviewWriteDetail
 fun ReviewWriteScreen(
     placeId: Long,
     placeName: String,
-    editing: Review? = null,
+    editingReviewId: Long? = null,
     onClose: () -> Unit,
     onCompleted: () -> Unit,
     modifier: Modifier = Modifier,
@@ -52,26 +52,55 @@ fun ReviewWriteScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var confirmExit by remember { mutableStateOf(false) }
-    LaunchedEffect(placeId, editing?.reviewId) { viewModel.start(placeId, placeName, editing) }
+    LaunchedEffect(placeId, editingReviewId) {
+        if (editingReviewId == null) {
+            viewModel.start(placeId, placeName)
+        } else {
+            viewModel.startForReviewId(placeId, placeName, editingReviewId)
+        }
+    }
     val requestClose = { if (state.isDirty) confirmExit = true else onClose() }
     BackHandler {
         if (state.step == ReviewWriteStep.Detail) viewModel.back() else requestClose()
     }
 
-    ReviewWriteContent(
-        state = state,
-        onBack = viewModel::back,
-        onClose = requestClose,
-        onRecommend = viewModel::selectRecommend,
-        onDifficulty = viewModel::selectDifficulty,
-        onCongestion = viewModel::selectCongestion,
-        onCaution = viewModel::updateCaution,
-        onPracticeMethod = viewModel::selectPracticeMethod,
-        onContent = viewModel::updateContent,
-        onNext = viewModel::next,
-        onSubmit = viewModel::submit,
-        modifier = modifier,
-    )
+    when {
+        state.isInitializing -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = RodiTheme.colors.primary600)
+            }
+        }
+        state.initializationErrorMessage != null -> {
+            RodiAlertDialog(
+                confirmText = "다시 시도",
+                onConfirm = {
+                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) } ?: onClose()
+                },
+                dismissText = "닫기",
+                onDismiss = onClose,
+                onDismissRequest = onClose,
+                title = "후기를 불러오지 못했어요",
+                description = state.initializationErrorMessage,
+            )
+        }
+        else -> {
+            ReviewWriteContent(
+                state = state,
+                onBack = viewModel::back,
+                onClose = requestClose,
+                onRecommend = viewModel::selectRecommend,
+                onDifficulty = viewModel::selectDifficulty,
+                onCongestion = viewModel::selectCongestion,
+                onCaution = viewModel::updateCaution,
+                onPracticeMethod = viewModel::selectPracticeMethod,
+                onContent = viewModel::updateContent,
+                onNext = viewModel::next,
+                onSubmit = viewModel::submit,
+                isEditing = editingReviewId != null,
+                modifier = modifier,
+            )
+        }
+    }
 
     if (confirmExit) {
         RodiUnsavedChangesDialog(
@@ -113,6 +142,7 @@ private fun ReviewWriteContent(
     onContent: (String) -> Unit,
     onNext: () -> Unit,
     onSubmit: () -> Unit,
+    isEditing: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val ctaDividerColor = RodiTheme.colors.gray200
@@ -125,6 +155,7 @@ private fun ReviewWriteContent(
     ) {
         ReviewWriteTopBar(
             isDetail = state.step == ReviewWriteStep.Detail,
+            isEditing = isEditing,
             onBack = onBack,
             onClose = onClose,
         )
@@ -137,7 +168,7 @@ private fun ReviewWriteContent(
             if (state.step == ReviewWriteStep.Basics) {
                 ReviewWriteBasics(state, onRecommend, onDifficulty, onCongestion, onCaution)
             } else {
-                ReviewWriteDetail(state, onPracticeMethod, onContent)
+                ReviewWriteDetail(state, onPracticeMethod, onContent, isEditing = isEditing)
             }
         }
         Column(
@@ -166,6 +197,7 @@ private fun ReviewWriteContent(
 @Composable
 private fun ReviewWriteTopBar(
     isDetail: Boolean,
+    isEditing: Boolean,
     onBack: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -186,7 +218,7 @@ private fun ReviewWriteTopBar(
             )
         }
         Text(
-            text = "후기 남기기",
+            text = if (isEditing) "후기 수정" else "후기 남기기",
             modifier = Modifier.align(Alignment.Center),
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,

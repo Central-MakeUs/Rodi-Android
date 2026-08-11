@@ -14,7 +14,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -82,9 +81,6 @@ fun RodiButton(
         Text(
             text = text,
             style = RodiTheme.typography.button1,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
         )
     }
 }
