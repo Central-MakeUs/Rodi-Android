@@ -16,8 +16,21 @@
   같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
   `feature/home/.../reviewactions/ReviewReportScreen.kt`의 `BlockMemberDialog`·`ReportSubmittedDialog`를
   이관하고, 거기 있는 사설 `DialogButton`(116×42)을 제거한다. 당시엔 diff를 작게 유지하려고 미뤘다.
-- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`와
-  `SearchViewModel.kt`에 같은 파일-private 확장이 복사돼 있다. `core:common`으로 올리고 두 복사본 제거.
+- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`,
+  `SearchViewModel.kt`, `MyPageViewModel.kt`에 같은 파일-private 확장이 복사돼 있다(3곳).
+  `core:common`으로 올리고 복사본을 제거한다. 세 번째 복사본은 마이페이지가 역직렬화 예외
+  원문을 화면에 그대로 노출하던 걸 막으면서 생겼다 — 규칙이 코드가 아니라 관습으로만 있으니
+  같은 것이 계속 복제된다.
+
+- [ ] **재가입 가능 시각(`rejoinableAt`) 서버 필드 요청됨 (백엔드 대기)** — 탈퇴 정책은
+  유예 3일(복구 가능) → 이후 총 10일까지 재가입 불가 → 그 뒤 재가입 가능, 3구간이다.
+  가운데 구간(탈퇴+3일 ~ +10일)에서 서버는 `MEMBER_409_1`을 주는데 본문이 `code`/`message`뿐이라
+  **안내에 쓸 기준 날짜가 오지 않는다.** 그래서 MY-06-R "0월 0일 이후 재가입 가능해요." 다이얼로그를
+  구현할 수 없다. 주의: `recoverableUntil`은 탈퇴+3일이라 이 문구에 쓰면 7일 어긋난다.
+  서버가 `rejoinableAt`을 `200 WITHDRAWAL_PENDING`과 `MEMBER_409_1` 양쪽에 실어주면
+  앱이 정책 상수를 하드코딩하지 않아도 된다(`ApiEnvelope`에 `data` 필드가 이미 있다).
+  그때까지 이 구간은 디자인의 "재가입 가능 날짜를 불러오지 못했어요." 토스트 + 새로고침으로 폴백.
+  요청은 넣어둔 상태(2026-08-12).
 - [ ] **미방문 사유 제출 API 연동** — RV-01의 "안 했어요" → 미방문 사유 화면은 만들어뒀지만
   **서버에 제출 API가 없어 제출이 스텁**이다(`feature/home/.../review/notvisited/`).
   사유 5종도 서버 계약이 없어 클라이언트 enum(`NotVisitedReason`)으로 두었다.
