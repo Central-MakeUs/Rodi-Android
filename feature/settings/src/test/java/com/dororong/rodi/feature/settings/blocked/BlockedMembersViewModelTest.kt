@@ -4,6 +4,7 @@ import com.dororong.rodi.core.domain.usecase.member.UnblockMemberUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetBlockedMembersUseCase
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -66,6 +67,24 @@ class BlockedMembersViewModelTest {
         }
 
         assertEquals(null, viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `duplicate unblock taps share one in-flight request`() = runTest(dispatcher) {
+        val completion = CompletableDeferred<Result<Unit>>()
+        coEvery { unblock(1) } coAnswers { completion.await() }
+        coEvery { getBlocked(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        val viewModel = BlockedMembersViewModel(unblock, getBlocked)
+        viewModel.replaceMembers(listOf(member))
+
+        viewModel.unblock(member)
+        viewModel.unblock(member)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { unblock(1) }
+        completion.complete(Result.success(Unit))
+        advanceUntilIdle()
+        assertEquals(emptyList<BlockedMember>(), viewModel.uiState.value.members)
     }
 
     @Test

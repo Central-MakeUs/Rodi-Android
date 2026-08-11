@@ -28,12 +28,13 @@ data class ReviewWriteUiState(
     val practiceMethod: PracticeMethod? = null,
     val content: String = "",
     val isInitializing: Boolean = false,
+    val initializationErrorMessage: String? = null,
     val isSubmitting: Boolean = false,
     val isSubmitted: Boolean = false,
     val errorMessage: String? = null,
 ) {
     val canGoNext get() = isRecommended != null && difficulty != null && congestion != null
-    val canSubmit get() = canGoNext && practiceMethod != null && content.isNotBlank() && !isSubmitting
+    val canSubmit get() = initializationErrorMessage == null && canGoNext && practiceMethod != null && content.isNotBlank() && !isSubmitting
     val isDirty: Boolean
         get() {
             val initial = original

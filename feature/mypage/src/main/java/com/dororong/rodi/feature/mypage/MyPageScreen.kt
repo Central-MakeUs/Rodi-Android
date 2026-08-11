@@ -239,7 +239,7 @@ private fun MyPageContent(
     onWriteReviewClick: (Long, String) -> Unit,
     practiceRecords: List<PracticeRecord> = emptyList(),
     practiceRecordsErrorMessage: String? = null,
-    onPracticeRecordsRetry: () -> Unit = {},
+    onPracticeRecordsRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -308,6 +308,7 @@ private fun MyPageContentPreview() {
             onPracticeRecordsClick = {},
             onMyPostsClick = {},
             onWriteReviewClick = { _, _ -> },
+            onPracticeRecordsRetry = {},
             practiceRecords = listOf(
                 PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
                 PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
@@ -339,6 +340,7 @@ private fun MyPageIncompleteProfilePreview() {
             onPracticeRecordsClick = {},
             onMyPostsClick = {},
             onWriteReviewClick = { _, _ -> },
+            onPracticeRecordsRetry = {},
         )
     }
 }

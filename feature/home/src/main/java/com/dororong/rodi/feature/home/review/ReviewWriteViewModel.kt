@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -53,40 +54,63 @@ class ReviewWriteViewModel @Inject constructor(
             isInitializing = true,
         )
         viewModelScope.launch {
-            getPlaceReviews(placeId, ReviewLevelFilter.All, size = 50)
-                .onSuccess { page ->
-                    val review = page.items.firstOrNull { it.reviewId == reviewId }
-                    if (review == null) {
+            try {
+                findReview(placeId, reviewId)
+                    .onSuccess { review ->
+                        if (review == null) {
+                            _state.update {
+                                it.copy(
+                                    isInitializing = false,
+                                    initializationErrorMessage = "수정할 후기를 불러오지 못했어요.",
+                                )
+                            }
+                        } else {
+                            val initial = review.toInitialValues()
+                            _state.update {
+                                it.copy(
+                                    original = initial,
+                                    isRecommended = initial.isRecommended,
+                                    difficulty = initial.difficulty,
+                                    congestion = initial.congestion,
+                                    caution = initial.caution.orEmpty(),
+                                    practiceMethod = initial.practiceMethod,
+                                    content = initial.content.orEmpty(),
+                                    isInitializing = false,
+                                    initializationErrorMessage = null,
+                                )
+                            }
+                        }
+                    }
+                    .onFailure { error ->
                         _state.update {
                             it.copy(
                                 isInitializing = false,
-                                errorMessage = "수정할 후기를 불러오지 못했어요.",
-                            )
-                        }
-                    } else {
-                        val initial = review.toInitialValues()
-                        _state.update {
-                            it.copy(
-                                original = initial,
-                                isRecommended = initial.isRecommended,
-                                difficulty = initial.difficulty,
-                                congestion = initial.congestion,
-                                caution = initial.caution.orEmpty(),
-                                practiceMethod = initial.practiceMethod,
-                                content = initial.content.orEmpty(),
-                                isInitializing = false,
+                                initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
                             )
                         }
                     }
+            } catch (error: CancellationException) {
+                _state.update {
+                    it.copy(
+                        isInitializing = false,
+                        initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
+                    )
                 }
-                .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isInitializing = false,
-                            errorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
-                        )
-                    }
-                }
+                throw error
+            }
+        }
+    }
+
+    private suspend fun findReview(placeId: Long, reviewId: Long): Result<Review?> {
+        var cursor: String? = null
+        while (true) {
+            val page = getPlaceReviews(placeId, ReviewLevelFilter.All, cursor, PAGE_SIZE)
+                .getOrElse { return Result.failure(it) }
+            page.items.firstOrNull { it.reviewId == reviewId }?.let { return Result.success(it) }
+            if (!page.hasNext || page.nextCursor == null || page.nextCursor == cursor) {
+                return Result.success(null)
+            }
+            cursor = page.nextCursor
         }
     }
     fun selectRecommend(value: Boolean) = _state.update { it.copy(isRecommended = value) }
@@ -135,3 +159,5 @@ class ReviewWriteViewModel @Inject constructor(
             ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."
     }
 }
+
+private const val PAGE_SIZE = 50

@@ -36,6 +36,7 @@ class BlockedMembersViewModel @Inject constructor(
     val uiState: StateFlow<BlockedMembersUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
     private val excludedMemberIds = mutableSetOf<Long>()
+    private val unblockInFlightIds = mutableSetOf<Long>()
 
     init { loadInitial() }
 
@@ -89,14 +90,24 @@ class BlockedMembersViewModel @Inject constructor(
     }
 
     fun unblock(member: BlockedMember) {
+        if (!unblockInFlightIds.add(member.memberId)) return
         excludedMemberIds += member.memberId
         viewModelScope.launch {
-            unblockMember(member.memberId)
-                .onSuccess { _uiState.update { state -> state.copy(members = state.members.filterNot { it.memberId == member.memberId }) } }
-                .onFailure { error ->
-                    excludedMemberIds -= member.memberId
-                    _uiState.update { it.copy(errorMessage = error.message ?: "차단을 해제하지 못했어요.") }
-                }
+            var succeeded = false
+            try {
+                unblockMember(member.memberId)
+                    .onSuccess {
+                        succeeded = true
+                        _uiState.update { state -> state.copy(members = state.members.filterNot { it.memberId == member.memberId }) }
+                    }
+                    .onFailure { error ->
+                        excludedMemberIds -= member.memberId
+                        _uiState.update { it.copy(errorMessage = error.message ?: "차단을 해제하지 못했어요.") }
+                    }
+            } finally {
+                unblockInFlightIds -= member.memberId
+                if (!succeeded) excludedMemberIds -= member.memberId
+            }
         }
     }
 }

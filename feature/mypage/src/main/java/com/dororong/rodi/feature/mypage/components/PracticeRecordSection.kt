@@ -43,7 +43,7 @@ internal fun PracticeRecordSection(
     onAllClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
     errorMessage: String? = null,
-    onRetry: () -> Unit = {},
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -228,17 +228,17 @@ private val PreviewRecords = listOf(
 @Preview(name = "연습기록 - 빈 상태", showBackground = true, widthDp = 375)
 @Composable
 private fun PracticeRecordSectionEmptyPreview() = RodiTheme {
-    PracticeRecordSection(emptyList(), {}, { _, _ -> })
+    PracticeRecordSection(emptyList(), {}, { _, _ -> }, onRetry = {})
 }
 
 @Preview(name = "연습기록 - 카드 1개", showBackground = true, widthDp = 375)
 @Composable
 private fun PracticeRecordSectionSinglePreview() = RodiTheme {
-    PracticeRecordSection(PreviewRecords.take(1), {}, { _, _ -> })
+    PracticeRecordSection(PreviewRecords.take(1), {}, { _, _ -> }, onRetry = {})
 }
 
 @Preview(name = "연습기록 - 카드 여러 개", showBackground = true, widthDp = 375)
 @Composable
 private fun PracticeRecordSectionMultiplePreview() = RodiTheme {
-    PracticeRecordSection(PreviewRecords, {}, { _, _ -> })
+    PracticeRecordSection(PreviewRecords, {}, { _, _ -> }, onRetry = {})
 }

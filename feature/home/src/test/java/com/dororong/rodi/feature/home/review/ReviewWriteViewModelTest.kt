@@ -17,6 +17,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -27,6 +28,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -191,6 +193,71 @@ class ReviewWriteViewModelTest {
         assertEquals(REVIEW_ID, viewModel.state.value.editingReviewId)
         assertEquals("좋은 코스예요", viewModel.state.value.content)
         assertFalse(viewModel.state.value.isDirty)
+    }
+
+    @Test
+    fun `review id lookup follows the next cursor page`() = runTest(dispatcher) {
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.success(
+            CursorPage(emptyList(), true, "next", 2),
+        )
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, "next", 50) } returns Result.success(
+            CursorPage(listOf(review()), false, null, 2),
+        )
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isInitializing)
+        assertEquals("좋은 코스예요", viewModel.state.value.content)
+        coVerify(exactly = 1) { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, "next", 50) }
+    }
+
+    @Test
+    fun `missing review id exposes initialization error`() = runTest(dispatcher) {
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.success(
+            CursorPage(emptyList(), false, null, 0),
+        )
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isInitializing)
+        assertNotNull(viewModel.state.value.initializationErrorMessage)
+        assertFalse(viewModel.state.value.canSubmit)
+    }
+
+    @Test
+    fun `review lookup failure exposes initialization error`() = runTest(dispatcher) {
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.failure(
+            IllegalStateException("offline"),
+        )
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isInitializing)
+        assertEquals("offline", viewModel.state.value.initializationErrorMessage)
+        assertFalse(viewModel.state.value.canSubmit)
+    }
+
+    @Test
+    fun `review lookup cancellation propagates after initialization stops`() = runTest(dispatcher) {
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } coAnswers {
+            throw CancellationException("취소")
+        }
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        try {
+            advanceUntilIdle()
+        } catch (_: CancellationException) {
+        }
+
+        assertFalse(viewModel.state.value.isInitializing)
+        assertNotNull(viewModel.state.value.initializationErrorMessage)
     }
 
     @Test

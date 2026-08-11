@@ -64,26 +64,42 @@ fun ReviewWriteScreen(
         if (state.step == ReviewWriteStep.Detail) viewModel.back() else requestClose()
     }
 
-    if (state.isInitializing) {
-        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = RodiTheme.colors.primary600)
+    when {
+        state.isInitializing -> {
+            Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = RodiTheme.colors.primary600)
+            }
         }
-    } else {
-        ReviewWriteContent(
-            state = state,
-            onBack = viewModel::back,
-            onClose = requestClose,
-            onRecommend = viewModel::selectRecommend,
-            onDifficulty = viewModel::selectDifficulty,
-            onCongestion = viewModel::selectCongestion,
-            onCaution = viewModel::updateCaution,
-            onPracticeMethod = viewModel::selectPracticeMethod,
-            onContent = viewModel::updateContent,
-            onNext = viewModel::next,
-            onSubmit = viewModel::submit,
-            isEditing = editingReviewId != null,
-            modifier = modifier,
-        )
+        state.initializationErrorMessage != null -> {
+            RodiAlertDialog(
+                confirmText = "다시 시도",
+                onConfirm = {
+                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) } ?: onClose()
+                },
+                dismissText = "닫기",
+                onDismiss = onClose,
+                onDismissRequest = onClose,
+                title = "후기를 불러오지 못했어요",
+                description = state.initializationErrorMessage,
+            )
+        }
+        else -> {
+            ReviewWriteContent(
+                state = state,
+                onBack = viewModel::back,
+                onClose = requestClose,
+                onRecommend = viewModel::selectRecommend,
+                onDifficulty = viewModel::selectDifficulty,
+                onCongestion = viewModel::selectCongestion,
+                onCaution = viewModel::updateCaution,
+                onPracticeMethod = viewModel::selectPracticeMethod,
+                onContent = viewModel::updateContent,
+                onNext = viewModel::next,
+                onSubmit = viewModel::submit,
+                isEditing = editingReviewId != null,
+                modifier = modifier,
+            )
+        }
     }
 
     if (confirmExit) {
