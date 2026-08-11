@@ -32,6 +32,7 @@ import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
+import com.microsoft.clarity.Clarity
 import com.dororong.rodi.R
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -94,6 +95,10 @@ fun RodiApp(
     if (backStack.isEmpty()) {
         SplashScreen()
         return
+    }
+
+    LaunchedEffect(backStack.lastOrNull()) {
+        backStack.lastOrNull()?.toClarityScreenName()?.let(Clarity::setCurrentScreenName)
     }
 
     NavDisplay(
