@@ -9,7 +9,7 @@ sealed interface AccountRestoreResult {
     ) : AccountRestoreResult
 
     data class WithdrawalPending(
-        val withdrawalRequestedAt: Instant,
-        val recoverableUntil: Instant,
+        val withdrawalRequestedAt: Instant?,
+        val recoverableUntil: Instant?,
     ) : AccountRestoreResult
 }

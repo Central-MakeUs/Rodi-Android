@@ -46,13 +46,13 @@ fun AccountRecoveryDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "탈퇴 요청한 계정이에요",
+                    text = "탈퇴 처리 중 계정",
                     style = RodiTheme.typography.headline1,
                     color = RodiTheme.colors.black,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = "탈퇴 유예 기간이 끝나기 전까지\n기존 계정을 복구할 수 있어요.",
+                    text = "계정을 복구하시겠습니까?",
                     style = RodiTheme.typography.body3Medium,
                     color = RodiTheme.colors.gray700,
                     textAlign = TextAlign.Center,
@@ -63,15 +63,15 @@ fun AccountRecoveryDialog(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     RodiButton(
-                        text = "취소",
-                        onClick = onDismiss,
+                        text = if (isRestoring) "복구 중" else "예",
+                        onClick = onConfirm,
                         variant = RodiButtonVariant.Secondary,
                         enabled = !isRestoring,
                         modifier = Modifier.weight(1f),
                     )
                     RodiButton(
-                        text = if (isRestoring) "복구 중" else "계정 복구",
-                        onClick = onConfirm,
+                        text = "아니오",
+                        onClick = onDismiss,
                         enabled = !isRestoring,
                         modifier = Modifier.weight(1f),
                     )
@@ -81,8 +81,14 @@ fun AccountRecoveryDialog(
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 420)
+@Preview(name = "계정 복구 안내 - 기본", showBackground = true, widthDp = 375, heightDp = 420)
 @Composable
 private fun AccountRecoveryDialogPreview() {
-    RodiTheme { AccountRecoveryDialog(false, {}, {}) }
+    RodiTheme { AccountRecoveryDialog(isRestoring = false, onConfirm = {}, onDismiss = {}) }
+}
+
+@Preview(name = "계정 복구 안내 - 복구 중", showBackground = true, widthDp = 375, heightDp = 420)
+@Composable
+private fun AccountRecoveryDialogRestoringPreview() {
+    RodiTheme { AccountRecoveryDialog(isRestoring = true, onConfirm = {}, onDismiss = {}) }
 }

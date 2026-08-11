@@ -15,11 +15,15 @@ import com.dororong.rodi.core.domain.model.member.BlockedMember
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import timber.log.Timber
 
 fun MyPageResponse.toDomain() = MyPage(
     nickname = nickname,
     level = runCatching { OnboardingLevel.valueOf(level) }
-        .getOrElse { throw IllegalArgumentException("Unsupported onboarding level: $level") },
+        .getOrElse {
+            Timber.w("Unknown member level value: %s", level)
+            OnboardingLevel.SEED
+        },
     recommendationTags = recommendationTags,
     drivingGoal = drivingGoal,
     savedPlaceCount = savedPlaceCount,
