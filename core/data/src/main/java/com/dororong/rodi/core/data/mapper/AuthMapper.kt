@@ -5,8 +5,6 @@ import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginResponse
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
-import java.time.OffsetDateTime
-import java.time.format.DateTimeParseException
 
 fun SocialLoginResponse.toAccountRestoreResult(): AccountRestoreResult = when (status) {
     STATUS_SUCCESS -> AccountRestoreResult.Restored(
@@ -39,8 +37,8 @@ fun SocialLoginResponse.toAuthTokenResponse(): AuthTokenResponse = AuthTokenResp
 )
 
 private fun parseDateTime(value: String?, field: String) = try {
-    OffsetDateTime.parse(requireField(value, field)).toInstant()
-} catch (_: DateTimeParseException) {
+    parseServerTimestamp(requireField(value, field))
+} catch (_: IllegalArgumentException) {
     throw AuthException.Unknown("인증 응답의 $field 값이 올바르지 않습니다.")
 }
 

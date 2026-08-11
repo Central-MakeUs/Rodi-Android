@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -118,7 +119,7 @@ private fun MyPostsContent(
             .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
     }
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
-        Column(modifier = Modifier.fillMaxSize().navigationBarsPadding()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             PostsTopBar(onBack = onBack)
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("불러오는 중…", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600) }

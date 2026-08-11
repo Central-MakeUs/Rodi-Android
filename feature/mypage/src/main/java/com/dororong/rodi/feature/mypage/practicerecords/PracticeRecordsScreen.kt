@@ -77,7 +77,7 @@ private fun PracticeRecordsContent(
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding()) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             SubPageTopBar(title = "연습기록", onBack = onBack)
             val listState = rememberLazyListState()
             LaunchedEffect(listState, state.records.size, state.hasNextPage) {

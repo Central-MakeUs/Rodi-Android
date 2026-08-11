@@ -103,11 +103,20 @@ class ReviewMapperTest {
         assertNull(result.practiceMethod)
     }
 
+    /** 서버가 오프셋 없이 내려주는 값이 목록 전체를 날려버리던 회귀. */
+    @Test
+    fun `offset-less createdAt does not break review mapping`() {
+        val result = checkNotNull(reviewResponse(createdAt = "2026-08-10T10:47:33.996642").toDomain())
+
+        assertEquals(parseServerTimestamp("2026-08-10T10:47:33.996642"), result.createdAt)
+    }
+
     private fun reviewResponse(
         reviewId: Long = 1,
         memberLevel: String = "ROOKIE",
         difficulty: String? = "VERY_EASY",
         practiceMethod: String? = "SOLO",
+        createdAt: String = "2026-08-08T00:00:00Z",
     ) = ReviewResponse(
         reviewId = reviewId,
         memberId = 10,
@@ -120,7 +129,7 @@ class ReviewMapperTest {
         isMine = false,
         isEditable = false,
         isHidden = false,
-        createdAt = "2026-08-08T00:00:00Z",
+        createdAt = createdAt,
     )
 
     private fun reportOption(code: String, order: Int) = ReportFormOptionResponse(

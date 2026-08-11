@@ -14,7 +14,6 @@ import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.member.BlockedMember
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
-import java.time.Instant
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 
 fun MyPageResponse.toDomain() = MyPage(
@@ -45,7 +44,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     placeName = placeName,
     practiceTypes = practiceTypes.mapNotNull { value -> PracticeType.entries.firstOrNull { it.name == value } },
     visitCount = visitCount,
-    visitedAt = visitedAt?.let(::parseInstant),
+    visitedAt = visitedAt?.let(::parseServerTimestamp),
     isVerified = isVerified,
     hasReview = hasReview,
 )
@@ -65,7 +64,7 @@ fun MyReviewItemResponse.toDomain() = MyReview(
     isEditable = isEditable,
     isHidden = isHidden,
     isVerifiedVisit = isVerifiedVisit,
-    createdAt = parseInstant(createdAt),
+    createdAt = parseServerTimestamp(createdAt),
 )
 
 fun CursorPageBlockedMemberItemResponse.toDomain() = CursorPage(
@@ -78,8 +77,5 @@ fun CursorPageBlockedMemberItemResponse.toDomain() = CursorPage(
 fun BlockedMemberItemResponse.toDomain() = BlockedMember(
     memberId = memberId,
     nickname = nickname,
-    blockedAt = parseInstant(blockedAt),
+    blockedAt = parseServerTimestamp(blockedAt),
 )
-
-private fun parseInstant(value: String): Instant = runCatching { Instant.parse(value) }
-    .getOrElse { throw IllegalArgumentException("Invalid timestamp: $value", it) }

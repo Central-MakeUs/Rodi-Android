@@ -266,7 +266,10 @@ private fun MyPageContent(
             onClick = onSavedCoursesClick,
         )
         MyPageNavigationRow(text = "내 게시글", onClick = onMyPostsClick)
-        Spacer(Modifier.height(56.dp).navigationBarsPadding())
+        // 바텀 네비게이션이 sibling overlay로 얹히므로 그 높이만큼 자리를 비워둔다.
+        // RodiBottomNavigation은 `navigationBarsPadding().height(56.dp)` 순서라 실제 높이가
+        // navInset + 56dp다. 여기서 순서를 뒤집으면 Spacer가 56dp로 고정돼 마지막 행이 가려진다.
+        Spacer(Modifier.navigationBarsPadding().height(56.dp))
     }
 }
 
