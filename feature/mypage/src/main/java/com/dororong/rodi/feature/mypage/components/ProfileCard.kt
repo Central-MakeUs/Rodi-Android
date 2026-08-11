@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -216,7 +217,11 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                         modifier = Modifier.size(90.dp),
                         contentScale = ContentScale.FillBounds,
                     )
-                    Column(modifier = Modifier.padding(start = 15.dp, top = 12.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .padding(start = 15.dp, top = 12.dp)
+                            .width(213.dp),
+                    ) {
                         Text(
                             text = profile.nickname,
                             style = RodiTheme.typography.body1SemiBold,
@@ -231,10 +236,35 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                                 style = RodiTheme.typography.caption1Medium,
                                 color = RodiTheme.colors.gray700,
                             )
-                            Text(
-                                text = profile.level.displayName,
-                                style = RodiTheme.typography.body3Medium,
-                                color = RodiTheme.colors.black,
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = profile.level.displayName,
+                                    style = RodiTheme.typography.body3Medium,
+                                    color = RodiTheme.colors.black,
+                                )
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    text = profile.distanceLabel,
+                                    style = RodiTheme.typography.caption2Medium,
+                                    color = RodiTheme.colors.gray600,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(2.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .background(RodiTheme.colors.gray200, RoundedCornerShape(100)),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(profile.progress.coerceIn(0f, 1f))
+                                    .height(6.dp)
+                                    .background(RodiTheme.colors.primary600, RoundedCornerShape(100)),
                             )
                         }
                     }
@@ -311,9 +341,9 @@ private val OnboardingLevel.characterImageRes: Int
         OnboardingLevel.NAVIGATOR -> R.drawable.illust_profile_navigator
     }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Preview(name = "프로필 진행률 0%", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardIncompletePreview() {
+private fun ProfileCardProgressZeroPreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
@@ -325,9 +355,9 @@ private fun ProfileCardIncompletePreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Preview(name = "프로필 진행률 40%", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardFilledPreview() {
+private fun ProfileCardProgressFortyPreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
@@ -335,15 +365,16 @@ private fun ProfileCardFilledPreview() {
                 level = OnboardingLevel.ROOKIE,
                 practiceTypes = listOf("유턴", "차선변경", "주차", "교차로"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
+                progress = 0.4f,
             ),
             onGoalClick = {},
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Preview(name = "프로필 진행률 100%", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardOwnerPreview() {
+private fun ProfileCardProgressFullPreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
@@ -351,15 +382,16 @@ private fun ProfileCardOwnerPreview() {
                 level = OnboardingLevel.OWNER,
                 practiceTypes = listOf("고속도로", "합류", "다차로주행"),
                 drivingGoal = "고속도로를 편안하게 주행하기",
+                progress = 1f,
             ),
             onGoalClick = {},
         )
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Preview(name = "프로필 긴 닉네임", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardExplorerPreview() {
+private fun ProfileCardLongNicknamePreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
@@ -373,9 +405,9 @@ private fun ProfileCardExplorerPreview() {
     }
 }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 248)
+@Preview(name = "프로필 긴 운전 목표", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable
-private fun ProfileCardNavigatorPreview() {
+private fun ProfileCardLongGoalPreview() {
     RodiTheme {
         ProfileCard(
             profile = MyPageProfile(
@@ -384,6 +416,17 @@ private fun ProfileCardNavigatorPreview() {
                 practiceTypes = listOf("코스등록", "리뷰 작성", "추천 코스"),
                 drivingGoal = "다른 운전자에게 도움이 되는 코스 남기기",
             ),
+            onGoalClick = {},
+        )
+    }
+}
+
+@Preview(name = "프로필 목표 없음", showBackground = true, widthDp = 375, heightDp = 248)
+@Composable
+private fun ProfileCardNoGoalPreview() {
+    RodiTheme {
+        ProfileCard(
+            profile = MyPageProfile(nickname = "운전 초보", level = OnboardingLevel.SEED),
             onGoalClick = {},
         )
     }

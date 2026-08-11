@@ -25,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -274,6 +275,7 @@ internal fun LevelDropdown(
 
 @Composable
 private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
+    val buttonShape = RoundedCornerShape(8.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -291,7 +293,8 @@ private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
         Row(
             modifier = Modifier
                 .width(177.dp)
-                .border(1.dp, RodiTheme.colors.primary600, RoundedCornerShape(8.dp))
+                .clip(buttonShape)
+                .border(1.dp, RodiTheme.colors.primary600, buttonShape)
                 .clickable(onClick = onWriteReviewClick)
                 .padding(horizontal = 20.dp, vertical = 7.dp),
             horizontalArrangement = Arrangement.Center,

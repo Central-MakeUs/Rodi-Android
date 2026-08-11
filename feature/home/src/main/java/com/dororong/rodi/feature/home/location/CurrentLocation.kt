@@ -1,19 +1,17 @@
 package com.dororong.rodi.feature.home.location
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
 import android.location.Location
 import android.os.SystemClock
 import android.os.Looper
-import androidx.core.content.ContextCompat
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.kakao.vectormap.LatLng
+import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -25,13 +23,6 @@ private const val LOCATION_UPDATE_INTERVAL_MILLIS = 3_000L
 private const val LOCATION_UPDATE_MIN_INTERVAL_MILLIS = 1_000L
 private const val LOCATION_UPDATE_MIN_DISTANCE_METERS = 1f
 const val INITIAL_LOCATION_TIMEOUT_MILLIS = 5_000L
-
-/** 위치 권한(FINE 또는 COARSE)이 하나라도 허용돼 있는지. */
-fun Context.hasLocationPermission(): Boolean {
-    fun granted(p: String) = ContextCompat.checkSelfPermission(this, p) == PackageManager.PERMISSION_GRANTED
-    return granted(Manifest.permission.ACCESS_FINE_LOCATION) ||
-        granted(Manifest.permission.ACCESS_COARSE_LOCATION)
-}
 
 /**
  * 유효한 현재 위치를 제한 시간 동안 기다린다. 권한이 없거나 제한 시간을 넘기면 null.

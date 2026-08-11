@@ -32,3 +32,16 @@ data object SavedCoursesRoute : NavKey
 
 @Serializable
 data object SettingsRoute : NavKey
+
+@Serializable
+data object PracticeRecordsRoute : NavKey
+
+@Serializable
+data object MyPostsRoute : NavKey
+
+@Serializable
+data class ReviewWriteRoute(
+    val placeId: Long,
+    val placeName: String,
+    val reviewId: Long? = null,
+) : NavKey

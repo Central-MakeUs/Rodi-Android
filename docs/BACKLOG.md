@@ -4,6 +4,13 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+- [ ] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
+  (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
+  `GET /places/{placeId}/reviews/summary`·`?level=ALL`·`GET /places/{placeId}/reviews?size=1`이
+  전부 200을 반환하지만 방금 만든 후기가 응답에 없다. 클라이언트 재조회 배선(`CourseReviewViewModel.refresh()`)은
+  3라운드에 걸쳐 정상 동작을 확인했다 — `ReviewLevelFilter.Mine`이 `level` 쿼리를 생략하는데,
+  서버가 이를 "내 레벨 코호트"로 해석하는지 "필터 없음"으로 해석하는지 확인 필요. 개발 서버
+  `placeId 106`에 테스트 계정 후기 2건("행", "그드팥지")이 남아 정리 필요.
 - [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
   `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
   같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
@@ -67,6 +74,15 @@
   - 컴포넌트 네이밍은 프로젝트 프리픽스 통일(`Pickle*` → Rodi라면 `Rodi*`), `components/<종류>/model/`
     하위에 Type/Size 등 sealed 모델 분리
   - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
+
+## 마이페이지 개편 후속
+- [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
+- [x] **내 후기 목록 API 연동** — `GET /members/me/reviews`를 내 게시글 화면에 커서 페이징으로 연결했다.
+- [x] **차단 목록 조회 API 연동** — `GET /members/me/blocks`를 차단목록 화면에 커서 페이징으로 연결했다.
+- [x] **레벨 진행률(누적 주행거리) 필드 연동** — `MyPageResponse.levelProgress`를 프로필 카드 진행바와 거리 텍스트에 연결했다.
+- [ ] **레벨업 감지 트리거 연결** — 레벨업 팝업 UI만 구현되어 호출부가 없다.
+- [ ] **후기 "좋아요" 기능 유무 확인** — 후기 수정 안내 문구가 좋아요 초기화를 언급하지만 현재 앱에는 좋아요 기능이 없다.
+- [ ] **설정 `데이터 출처` 항목 존치 여부** — 최신 디자인에는 빠졌으나 공공데이터 출처 표기 의무 가능성이 있어 유지했다.
 
 ## 완료 (이력)
 - [x] **온보딩 서버 API 연동 + 점수 배점** — `OnboardingApi.submit()`이 `/members/me/onboarding`에

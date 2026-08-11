@@ -32,7 +32,10 @@ fun ReviewDraft.toRequest() = ReviewRequest(
     isRecommended = isRecommended,
     difficulty = difficulty.name,
     congestion = congestion.name,
-    practiceMethod = practiceMethod.name,
+    practiceMethod = when (practiceMethod) {
+        PracticeMethod.SOLO -> "SOLO"
+        PracticeMethod.WITH_COMPANION -> "ACCOMPANIED"
+    },
     content = content,
     caution = caution,
 )
@@ -57,7 +60,7 @@ fun ReviewResponse.toDomain(): Review? {
         isRecommended = isRecommended,
         difficulty = difficulty.toNullableEnum<ReviewDifficulty>("difficulty"),
         congestion = congestion.toNullableEnum<ReviewCongestion>("congestion"),
-        practiceMethod = practiceMethod.toNullableEnum<PracticeMethod>("practiceMethod"),
+        practiceMethod = practiceMethod.toPracticeMethodOrNull(),
         content = content,
         caution = caution,
         isMine = isMine,
@@ -96,6 +99,13 @@ private fun ReportFormOptionResponse.toDomain() = ReportFormOption(
     textInputPlaceholder = textInputPlaceholder,
     textInputMaxLength = textInputMaxLength,
 )
+
+private fun String?.toPracticeMethodOrNull(): PracticeMethod? = when (this) {
+    null -> null
+    "SOLO" -> PracticeMethod.SOLO
+    "ACCOMPANIED" -> PracticeMethod.WITH_COMPANION
+    else -> null.also { Timber.w("Unknown review practiceMethod value: %s", this) }
+}
 
 private inline fun <reified T : Enum<T>> String?.toNullableEnum(field: String): T? =
     this?.toEnumOrNull<T>(field)

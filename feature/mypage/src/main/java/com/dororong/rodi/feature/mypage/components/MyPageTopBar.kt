@@ -27,7 +27,7 @@ internal fun MyPageTopBar(onSettingsClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = "프로필",
+            text = "마이페이지",
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,
         )

@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -64,6 +65,7 @@ fun RodiPopupMenu(
         Column(
             modifier = modifier
                 .widthIn(min = MenuMinWidth)
+                .clip(MenuShape)
                 .background(RodiTheme.colors.white, MenuShape)
                 .border(1.dp, RodiTheme.colors.gray300, MenuShape),
         ) {

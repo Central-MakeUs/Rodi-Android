@@ -8,10 +8,12 @@ interface EntryRepository {
     val isCompleted: Flow<Boolean?>
     val hasGuestAccess: Flow<Boolean>
     val hasRequestedLocationPermission: Flow<Boolean>
+    val hasRequestedNotificationPermission: Flow<Boolean>
     val progress: Flow<EntryProgress>
     suspend fun setCompleted()
     suspend fun start(mode: EntryMode)
     suspend fun markLocationPermissionRequested()
+    suspend fun markNotificationPermissionRequested()
     suspend fun grantGuestAccess()
     suspend fun clearGuestAccess()
     suspend fun clear()

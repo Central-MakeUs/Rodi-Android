@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
@@ -386,12 +387,14 @@ private fun DialogButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val buttonShape = RoundedCornerShape(8.dp)
     Surface(
         modifier = Modifier
             .width(116.dp)
             .height(42.dp)
+            .clip(buttonShape)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(8.dp),
+        shape = buttonShape,
         color = if (isPrimary) RodiTheme.colors.primary600 else RodiTheme.colors.white,
         border = if (isPrimary) null else BorderStroke(1.dp, RodiTheme.colors.gray300),
     ) {

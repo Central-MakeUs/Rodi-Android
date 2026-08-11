@@ -63,6 +63,13 @@ class EntryPreferences @Inject constructor(
                 prefs[KEY_LOCATION_PERMISSION_REQUESTED] ?: (prefs[KEY_COMPLETED] ?: false)
             }
 
+    val hasRequestedNotificationPermission: Flow<Boolean> =
+        context.entryDataStore.data
+            .catch { exception ->
+                if (exception is IOException) emit(emptyPreferences()) else throw exception
+            }
+            .map { it[KEY_NOTIFICATION_PERMISSION_REQUESTED] ?: false }
+
     val progress: Flow<EntryProgress> =
         context.entryDataStore.data
             .catch { exception ->
@@ -111,6 +118,10 @@ class EntryPreferences @Inject constructor(
         context.entryDataStore.edit { it[KEY_LOCATION_PERMISSION_REQUESTED] = true }
     }
 
+    suspend fun markNotificationPermissionRequested() {
+        context.entryDataStore.edit { it[KEY_NOTIFICATION_PERMISSION_REQUESTED] = true }
+    }
+
     suspend fun grantGuestAccess() {
         context.entryDataStore.edit { it[KEY_GUEST_ACCESS] = true }
     }
@@ -141,6 +152,7 @@ class EntryPreferences @Inject constructor(
         val KEY_COMPLETED = booleanPreferencesKey("entry_completed")
         val KEY_GUEST_ACCESS = booleanPreferencesKey("guest_access")
         val KEY_LOCATION_PERMISSION_REQUESTED = booleanPreferencesKey("location_permission_requested")
+        val KEY_NOTIFICATION_PERMISSION_REQUESTED = booleanPreferencesKey("notification_permission_requested")
         val KEY_STEP = stringPreferencesKey("entry_step")
         val KEY_WEB_VIEW_URL = stringPreferencesKey("entry_web_view_url")
         val KEY_SERVICE_TERMS_CHECKED = booleanPreferencesKey("service_terms_checked")

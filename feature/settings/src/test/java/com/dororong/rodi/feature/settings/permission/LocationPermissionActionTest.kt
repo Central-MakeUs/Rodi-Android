@@ -2,6 +2,8 @@ package com.dororong.rodi.feature.settings.permission
 
 import com.dororong.rodi.core.ui.permission.LocationPermissionAction
 import com.dororong.rodi.core.ui.permission.resolveLocationPermissionAction
+import com.dororong.rodi.core.ui.permission.PermissionAction
+import com.dororong.rodi.core.ui.permission.resolvePermissionAction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -49,5 +51,13 @@ class LocationPermissionActionTest {
         )
 
         assertEquals(LocationPermissionAction.OpenAppSettings, result)
+    }
+
+    @Test
+    fun `generic permission resolver uses settings after a denied legacy permission`() {
+        assertEquals(
+            PermissionAction.OpenAppSettings,
+            resolvePermissionAction(isGranted = false, hasRequestedPermission = true, shouldShowRationale = false),
+        )
     }
 }

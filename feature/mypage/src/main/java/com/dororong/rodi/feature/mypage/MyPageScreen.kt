@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.mypage
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -9,11 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -37,12 +41,16 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.components.MyPageTopBar
 import com.dororong.rodi.feature.mypage.components.ProfileCard
+import com.dororong.rodi.feature.mypage.components.PracticeRecordSection
 import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
+import com.dororong.rodi.core.domain.model.place.PracticeType
+import java.time.Instant
 
 data class MyPageProfile(
     val nickname: String = "",
@@ -50,6 +58,8 @@ data class MyPageProfile(
     val practiceTypes: List<String> = emptyList(),
     val drivingGoal: String = "",
     val savedPlaceCount: Long = 0,
+    val progress: Float = 0f,
+    val distanceLabel: String = "0km",
 )
 
 @Composable
@@ -57,6 +67,9 @@ fun MyPageScreen(
     onSettingsClick: () -> Unit,
     onGoalClick: () -> Unit,
     onSavedCoursesClick: () -> Unit,
+    onPracticeRecordsClick: () -> Unit,
+    onMyPostsClick: () -> Unit,
+    onWriteReviewClick: (Long, String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel = hiltViewModel(),
 ) {
@@ -100,6 +113,12 @@ fun MyPageScreen(
                 onSettingsClick = onSettingsClick,
                 onGoalClick = onGoalClick,
                 onSavedCoursesClick = onSavedCoursesClick,
+                onPracticeRecordsClick = onPracticeRecordsClick,
+                onMyPostsClick = onMyPostsClick,
+                onWriteReviewClick = onWriteReviewClick,
+                practiceRecords = uiState.practiceRecords,
+                practiceRecordsErrorMessage = uiState.practiceRecordsErrorMessage,
+                onPracticeRecordsRetry = viewModel::refresh,
             )
         }
         RodiSnackbarHost(snackbarHostState)
@@ -122,7 +141,7 @@ private fun MyPageLoadingContent() {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "프로필",
+                text = "마이페이지",
                 style = RodiTheme.typography.headline1,
                 color = RodiTheme.colors.black,
             )
@@ -215,23 +234,58 @@ private fun MyPageContent(
     onSettingsClick: () -> Unit,
     onGoalClick: () -> Unit,
     onSavedCoursesClick: () -> Unit,
+    onPracticeRecordsClick: () -> Unit,
+    onMyPostsClick: () -> Unit,
+    onWriteReviewClick: (Long, String) -> Unit,
+    practiceRecords: List<PracticeRecord> = emptyList(),
+    practiceRecordsErrorMessage: String? = null,
+    onPracticeRecordsRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .verticalScroll(rememberScrollState()),
     ) {
         MyPageTopBar(onSettingsClick = onSettingsClick)
         ProfileCard(profile = profile, onGoalClick = onGoalClick)
         Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = RodiTheme.colors.gray100)
+        PracticeRecordSection(
+            records = practiceRecords,
+            errorMessage = practiceRecordsErrorMessage,
+            onAllClick = onPracticeRecordsClick,
+            onWriteReviewClick = onWriteReviewClick,
+            onRetry = onPracticeRecordsRetry,
+        )
+        HorizontalDivider(color = RodiTheme.colors.gray100)
         SavedCoursesRow(
             count = profile.savedPlaceCount,
             onClick = onSavedCoursesClick,
         )
-        Spacer(Modifier.weight(1f))
+        MyPageNavigationRow(text = "내 게시글", onClick = onMyPostsClick)
+        Spacer(Modifier.height(56.dp).navigationBarsPadding())
+    }
+}
+
+@Composable
+private fun MyPageNavigationRow(text: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(text = text, style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
+        Icon(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = RodiTheme.colors.gray600,
+            modifier = Modifier.size(20.dp),
+        )
     }
 }
 
@@ -246,10 +300,19 @@ private fun MyPageContentPreview() {
                 practiceTypes = listOf("유턴", "차선변경", "주차", "교차로"),
                 drivingGoal = "복잡한 강남 자신있게 운전하기",
                 savedPlaceCount = 5,
+                progress = 0.4f,
             ),
             onSettingsClick = {},
             onGoalClick = {},
             onSavedCoursesClick = {},
+            onPracticeRecordsClick = {},
+            onMyPostsClick = {},
+            onWriteReviewClick = { _, _ -> },
+            onPracticeRecordsRetry = {},
+            practiceRecords = listOf(
+                PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
+                PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
+            ),
         )
     }
 }
@@ -274,6 +337,10 @@ private fun MyPageIncompleteProfilePreview() {
             onSettingsClick = {},
             onGoalClick = {},
             onSavedCoursesClick = {},
+            onPracticeRecordsClick = {},
+            onMyPostsClick = {},
+            onWriteReviewClick = { _, _ -> },
+            onPracticeRecordsRetry = {},
         )
     }
 }
