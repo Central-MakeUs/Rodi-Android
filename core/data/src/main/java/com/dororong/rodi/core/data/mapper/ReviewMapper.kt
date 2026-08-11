@@ -19,7 +19,6 @@ import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
-import java.time.Instant
 import timber.log.Timber
 
 fun ReviewLevelFilter.toQueryValue(): String? = when (this) {
@@ -66,7 +65,7 @@ fun ReviewResponse.toDomain(): Review? {
         isMine = isMine,
         isEditable = isEditable,
         isHidden = isHidden,
-        createdAt = Instant.parse(createdAt),
+        createdAt = parseServerTimestamp(createdAt),
     )
 }
 

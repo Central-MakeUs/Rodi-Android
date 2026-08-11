@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.recommendations
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
@@ -45,9 +46,8 @@ class MyPageViewModel @Inject constructor(
                 val recordsDeferred = async { getPracticeRecords(size = 4) }
                 val recordsResult = recordsDeferred.await()
                 val records = recordsResult.getOrNull()?.items.orEmpty().map { it.toFeatureModel() }
-                val recordsErrorMessage = recordsResult.exceptionOrNull()?.let {
-                    it.message ?: "연습기록을 불러오지 못했어요."
-                }
+                val recordsErrorMessage = recordsResult.exceptionOrNull()
+                    ?.userMessage("연습기록을 불러오지 못했어요.")
                 profileDeferred.await()
                     .onSuccess { page ->
                         _uiState.value = MyPageUiState(
@@ -62,7 +62,7 @@ class MyPageViewModel @Inject constructor(
                             it.copy(
                                 isLoading = false,
                                 practiceRecords = records,
-                                errorMessage = error.message ?: "마이페이지를 불러오지 못했어요.",
+                                errorMessage = error.userMessage("마이페이지를 불러오지 못했어요."),
                                 practiceRecordsErrorMessage = recordsErrorMessage,
                             )
                         }
@@ -71,6 +71,13 @@ class MyPageViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * `AuthException`만 사용자에게 보여줄 만한 문구를 갖는다. 나머지(직렬화·파싱 실패 등)의
+ * `message`는 JSON 필드명이 그대로 박힌 개발자용 텍스트라 화면에 노출하면 안 된다.
+ */
+private fun Throwable.userMessage(fallback: String): String =
+    (this as? AuthException)?.message?.ifBlank { null } ?: fallback
 
 private fun MyPage.toUiProfile() = MyPageProfile(
     nickname = nickname,

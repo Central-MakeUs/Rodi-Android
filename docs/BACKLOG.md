@@ -11,13 +11,42 @@
   3라운드에 걸쳐 정상 동작을 확인했다 — `ReviewLevelFilter.Mine`이 `level` 쿼리를 생략하는데,
   서버가 이를 "내 레벨 코호트"로 해석하는지 "필터 없음"으로 해석하는지 확인 필요. 개발 서버
   `placeId 106`에 테스트 계정 후기 2건("행", "그드팥지")이 남아 정리 필요.
+
+  **2026-08-12 기기 검증 — 백엔드 이슈가 맞다.** 한때 이 항목을 "클라이언트 타임스탬프 파싱
+  버그"로 재진단했으나 틀렸다. 에뮬레이터에서 같은 계정으로 확인한 결과:
+  - `GET /members/me/reviews` → 그 후기 2건이 **정상 렌더링**된다(내 게시글, 26.08.10 "ㄱㄷ팥ㅈ" /
+    26.08.09 "행"). 즉 서버에 후기가 실재하고 클라이언트 파싱도 정상이다.
+  - 같은 시점에 `/places/106/reviews*`는 200 + 0건 → 코스 상세는 빈 상태.
+  - `HomeScreen`에 후기 조회 실패 스낵바를 붙여둔 상태에서 **스낵바가 뜨지 않았다.** 매퍼 예외가
+    아니라 서버가 실제로 빈 응답을 준다는 뜻이다.
+
+  타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
+  차단목록·연습기록이지 이 항목이 아니었다.
+- [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
+  (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
+  `LazyColumn`만 그린다). 로딩·에러 상태는 있는데 빈 상태만 없다. 마이페이지 연습기록의
+  "아직 연습기록이 없어요!" 같은 문구가 필요하다. 2026-08-12 기기 검증 중 발견.
+
 - [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
   `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
   같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
   `feature/home/.../reviewactions/ReviewReportScreen.kt`의 `BlockMemberDialog`·`ReportSubmittedDialog`를
   이관하고, 거기 있는 사설 `DialogButton`(116×42)을 제거한다. 당시엔 diff를 작게 유지하려고 미뤘다.
-- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`와
-  `SearchViewModel.kt`에 같은 파일-private 확장이 복사돼 있다. `core:common`으로 올리고 두 복사본 제거.
+- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`,
+  `SearchViewModel.kt`, `MyPageViewModel.kt`에 같은 파일-private 확장이 복사돼 있다(3곳).
+  `core:common`으로 올리고 복사본을 제거한다. 세 번째 복사본은 마이페이지가 역직렬화 예외
+  원문을 화면에 그대로 노출하던 걸 막으면서 생겼다 — 규칙이 코드가 아니라 관습으로만 있으니
+  같은 것이 계속 복제된다.
+
+- [ ] **재가입 가능 시각(`rejoinableAt`) 서버 필드 요청됨 (백엔드 대기)** — 탈퇴 정책은
+  유예 3일(복구 가능) → 이후 총 10일까지 재가입 불가 → 그 뒤 재가입 가능, 3구간이다.
+  가운데 구간(탈퇴+3일 ~ +10일)에서 서버는 `MEMBER_409_1`을 주는데 본문이 `code`/`message`뿐이라
+  **안내에 쓸 기준 날짜가 오지 않는다.** 그래서 MY-06-R "0월 0일 이후 재가입 가능해요." 다이얼로그를
+  구현할 수 없다. 주의: `recoverableUntil`은 탈퇴+3일이라 이 문구에 쓰면 7일 어긋난다.
+  서버가 `rejoinableAt`을 `200 WITHDRAWAL_PENDING`과 `MEMBER_409_1` 양쪽에 실어주면
+  앱이 정책 상수를 하드코딩하지 않아도 된다(`ApiEnvelope`에 `data` 필드가 이미 있다).
+  그때까지 이 구간은 디자인의 "재가입 가능 날짜를 불러오지 못했어요." 토스트 + 새로고침으로 폴백.
+  요청은 넣어둔 상태(2026-08-12).
 - [ ] **미방문 사유 제출 API 연동** — RV-01의 "안 했어요" → 미방문 사유 화면은 만들어뒀지만
   **서버에 제출 API가 없어 제출이 스텁**이다(`feature/home/.../review/notvisited/`).
   사유 5종도 서버 계약이 없어 클라이언트 enum(`NotVisitedReason`)으로 두었다.

@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.mypage
 
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
@@ -7,6 +8,7 @@ import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -61,7 +63,7 @@ class MyPageViewModelTest {
         advanceUntilIdle()
 
         assertEquals("서버 닉네임", viewModel.uiState.value.profile.nickname)
-        assertEquals("기록 조회 실패", viewModel.uiState.value.practiceRecordsErrorMessage)
+        assertEquals("연습기록을 불러오지 못했어요.", viewModel.uiState.value.practiceRecordsErrorMessage)
     }
 
     @Test
@@ -83,6 +85,39 @@ class MyPageViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isLoading)
         assertEquals("서버 닉네임", state.profile.nickname)
-        assertEquals("새로고침 실패", state.errorMessage)
+        assertEquals("마이페이지를 불러오지 못했어요.", state.errorMessage)
+    }
+
+    @Test
+    // 실제 경로에서는 리포지토리가 예외를 AuthException.Unknown으로 감싸므로 원문 차단은
+    // AuthErrorMapper가 맡는다(AuthErrorMapperTest). 여기서 보는 건 그 경로를 거치지 않고
+    // 올라오는 예외에 대한 이중 방어다.
+    fun `non-auth failures fall back to the generic message`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getMyPage() } returns Result.failure(
+            SerializationException("Field 'nickname' is required for type with serial name 'MyPageResponse'"),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals("마이페이지를 불러오지 못했어요.", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `authentication failures keep their own message`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getMyPage() } returns Result.failure(AuthException.Network("네트워크 연결을 확인해주세요."))
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals("네트워크 연결을 확인해주세요.", viewModel.uiState.value.errorMessage)
     }
 }

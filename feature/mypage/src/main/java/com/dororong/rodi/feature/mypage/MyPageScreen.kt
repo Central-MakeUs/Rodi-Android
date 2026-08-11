@@ -94,20 +94,11 @@ fun MyPageScreen(
     Box(modifier = modifier.fillMaxSize()) {
         when {
             uiState.isLoading && uiState.profile.nickname.isBlank() -> MyPageLoadingContent()
-            uiState.errorMessage != null && uiState.profile.nickname.isBlank() -> Box(
-                modifier = Modifier.fillMaxSize().background(RodiTheme.colors.white),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = uiState.errorMessage.orEmpty(),
-                        style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.gray700,
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    RodiButton(text = "다시 시도", onClick = viewModel::refresh, fillMaxWidth = false)
-                }
-            }
+            uiState.errorMessage != null && uiState.profile.nickname.isBlank() ->
+                MyPageErrorContent(
+                    onSettingsClick = onSettingsClick,
+                    onRetry = viewModel::refresh,
+                )
             else -> MyPageContent(
                 profile = uiState.profile,
                 onSettingsClick = onSettingsClick,
@@ -122,6 +113,36 @@ fun MyPageScreen(
             )
         }
         RodiSnackbarHost(snackbarHostState)
+    }
+}
+
+/**
+ * 프로필을 못 불러와도 상단바는 남긴다. 설정 진입로가 여기뿐이라 상단바까지 감추면
+ * 로그아웃·탈퇴가 막혀 사용자가 앱을 재설치하는 것 말고는 빠져나갈 방법이 없다.
+ */
+@Composable
+private fun MyPageErrorContent(
+    onSettingsClick: () -> Unit,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(RodiTheme.colors.white)
+            .statusBarsPadding(),
+    ) {
+        MyPageTopBar(onSettingsClick = onSettingsClick)
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "내 정보를 불러오지 못했어요.",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray700,
+                )
+                Spacer(Modifier.height(16.dp))
+                RodiButton(text = "다시 시도", onClick = onRetry, fillMaxWidth = false)
+            }
+        }
     }
 }
 
@@ -266,7 +287,10 @@ private fun MyPageContent(
             onClick = onSavedCoursesClick,
         )
         MyPageNavigationRow(text = "내 게시글", onClick = onMyPostsClick)
-        Spacer(Modifier.height(56.dp).navigationBarsPadding())
+        // 바텀 네비게이션이 sibling overlay로 얹히므로 그 높이만큼 자리를 비워둔다.
+        // RodiBottomNavigation은 `navigationBarsPadding().height(56.dp)` 순서라 실제 높이가
+        // navInset + 56dp다. 여기서 순서를 뒤집으면 Spacer가 56dp로 고정돼 마지막 행이 가려진다.
+        Spacer(Modifier.navigationBarsPadding().height(56.dp))
     }
 }
 

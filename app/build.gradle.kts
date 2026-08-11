@@ -66,10 +66,6 @@ android {
     }
 
     buildTypes {
-        debug {
-            applicationIdSuffix = ".dev"
-            buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuel7v1h92\"")
-        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
