@@ -46,6 +46,11 @@
   "Phase 1/2" 같은 내부 계획 용어·HANDOFF 제목을 그대로 커밋 메시지에 쓰지 않는다 — 계획 문서는
   아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
+  `KAKAO_NATIVE_APP_KEY_DEV`(선택)는 debug(`.dev`) 빌드 전용 네이티브 앱키 — 카카오 디벨로퍼스
+  콘솔에 debug 패키지(`com.dororong.rodi.dev`)+`debug.keystore` 키해시를 등록한 별도 앱키가 있을 때
+  설정한다. 없으면 기본 `KAKAO_NATIVE_APP_KEY`로 폴백하는데, 그 경우 콘솔에 `.dev` 패키지가
+  기본 앱키 쪽에도 등록돼 있어야 카카오톡 네이티브 로그인이 동작한다(안 맞으면 조용히 웹
+  로그인으로 폴백된다 — 2026-08-11 확인된 실제 장애 패턴).
 - **패키지**: 같은 역할 파일이 2개 이상이면 역할 패키지를 만들고, 하나면 feature 루트에 둔다.
   Contract는 feature 루트에 하나로 유지하고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
 - **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.

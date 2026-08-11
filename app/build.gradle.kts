@@ -24,6 +24,10 @@ fun Properties.requireNotBlank(key: String, source: String): String =
         ?: throw GradleException("${source}에 '$key'가 설정되지 않았습니다.")
 
 val kakaoNativeAppKey: String = localProperties.requireNotBlank("KAKAO_NATIVE_APP_KEY", "local.properties")
+// 카카오 디벨로퍼스 콘솔에 debug(.dev) 패키지·키해시를 별도 네이티브 앱키로 등록해뒀다면 여기 지정한다.
+// 없으면 기본 키를 그대로 쓴다(기존 local.properties와 하위 호환).
+val kakaoNativeAppKeyDebug: String = localProperties.getProperty("KAKAO_NATIVE_APP_KEY_DEV")
+    ?.trim()?.takeIf(String::isNotEmpty) ?: kakaoNativeAppKey
 val hasLocalReleaseSigning = releaseSigningProperties.isNotEmpty()
 
 android {
@@ -68,6 +72,12 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".dev"
+            // 카카오톡 앱 로그인은 로컬에서 패키지명+키해시를 네이티브 앱키의 등록된 플랫폼과
+            // 대조한다. .dev 패키지는 기본 키가 아니라 별도 Dev Native AppKey에 등록돼 있으므로
+            // BuildConfig와 매니페스트 리다이렉트 스킴(kakao${KAKAO_NATIVE_APP_KEY}) 둘 다 맞춰줘야
+            // 웹 로그인으로 조용히 폴백되지 않는다.
+            buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoNativeAppKeyDebug\"")
+            manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKeyDebug
             buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuel7v1h92\"")
         }
         release {
