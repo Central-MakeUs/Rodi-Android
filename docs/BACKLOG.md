@@ -22,6 +22,18 @@
 
   타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
   차단목록·연습기록이지 이 항목이 아니었다.
+- [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 (5곳)** — Dialog·Popup·
+  ModalBottomSheet는 별도 윈도우라 정적 프리뷰가 빈 화면이다. 프리뷰가 있어도 확인이 안 된다.
+  `RodiDialog`·`AccountRecoveryDialog`·`LoginRequiredDialog`·`OnboardingAnalysisDialog`는 적용됐고,
+  남은 곳: `core/ui/.../components/RodiPopupMenu.kt`,
+  `feature/home/.../components/NaviPickerSheet.kt`,
+  `feature/home/.../detail/reviewactions/ReviewReportScreen.kt`,
+  `feature/home/.../filter/FilterBottomSheet.kt`,
+  `feature/settings/.../account/AccountSettingsScreen.kt`.
+  함께: 이름 없는 `@Preview` 45개에 `name =` 부여(전체 181개).
+  **주의**: `FilterBottomSheet`의 `isSaving` 프리뷰는 `FilterActionButton`에 disabled 시각 토큰이
+  없어 추가해도 픽셀이 같다 — 토큰을 먼저 만들어야 순서가 맞다(디자인 확인 필요).
+
 - [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
   (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
   `LazyColumn`만 그린다). 로딩·에러 상태는 있는데 빈 상태만 없다. 마이페이지 연습기록의
