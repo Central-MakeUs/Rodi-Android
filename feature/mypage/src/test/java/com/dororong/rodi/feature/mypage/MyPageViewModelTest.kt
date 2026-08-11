@@ -89,7 +89,10 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `internal failure messages never reach the user`() = runTest(dispatcher) {
+    // 실제 경로에서는 리포지토리가 예외를 AuthException.Unknown으로 감싸므로 원문 차단은
+    // AuthErrorMapper가 맡는다(AuthErrorMapperTest). 여기서 보는 건 그 경로를 거치지 않고
+    // 올라오는 예외에 대한 이중 방어다.
+    fun `non-auth failures fall back to the generic message`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))

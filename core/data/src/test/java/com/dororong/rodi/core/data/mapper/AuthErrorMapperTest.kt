@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.mapper
 
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.ResponseBody.Companion.toResponseBody
@@ -79,6 +80,18 @@ class AuthErrorMapperTest {
         val result = exception.toAuthException(json)
 
         assertTrue(result is AuthException.Unknown)
+    }
+
+    @Test
+    fun `never leaks deserialization failure text to the user`() {
+        val missingField = SerializationException(
+            "Field 'nickname' is required for type with serial name 'MyPageResponse', but it was missing",
+        )
+
+        val result = missingField.toAuthException(json)
+
+        assertTrue(result is AuthException.Unknown)
+        assertEquals("알 수 없는 오류가 발생했습니다.", result.message)
     }
 
     @Test

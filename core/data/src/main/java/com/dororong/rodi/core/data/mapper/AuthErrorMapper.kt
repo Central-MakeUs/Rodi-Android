@@ -6,6 +6,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import retrofit2.HttpException
+import timber.log.Timber
 import java.io.IOException
 
 @Serializable
@@ -23,7 +24,12 @@ fun Throwable.toAuthException(json: Json): AuthException = when (this) {
         )
     }
     is IOException -> AuthException.Network("네트워크 연결을 확인해주세요.")
-    else -> AuthException.Unknown(message ?: "알 수 없는 오류가 발생했습니다.")
+    // 여기까지 온 건 서버가 준 메시지가 아니라 역직렬화·매핑 실패 같은 로컬 예외다.
+    // 그 message에는 JSON 필드명이 그대로 박혀 있어 화면에 내보내면 안 된다.
+    else -> {
+        Timber.w(this, "Unmapped error surfaced as AuthException.Unknown")
+        AuthException.Unknown("알 수 없는 오류가 발생했습니다.")
+    }
 }
 
 suspend fun <T> Json.authRequest(block: suspend () -> T): T = try {
