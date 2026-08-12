@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage.practicerecords
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.practice.DeletePracticeUseCase
 import io.mockk.coEvery
 import io.mockk.mockk
 import java.time.Instant
@@ -24,17 +25,19 @@ import org.junit.jupiter.api.Test
 class PracticeRecordsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+    private val deletePractice = mockk<DeletePracticeUseCase>()
     private val first = PracticeRecord(1, 1, "장소", listOf(PracticeType.PARKING), 1, Instant.EPOCH, true, false)
 
     @BeforeEach fun setUp() {
         Dispatchers.setMain(dispatcher)
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { deletePractice(any()) } returns Result.success(Unit)
     }
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
     fun `initial load starts empty and idle`() = runTest(dispatcher) {
-        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.records.isEmpty())
         assertEquals(false, viewModel.uiState.value.isLoading)
@@ -48,7 +51,7 @@ class PracticeRecordsViewModelTest {
         coEvery { getPracticeRecords("next", 20) } returns Result.success(
             CursorPage(listOf(first, first.copy(practiceId = 2)), false, null, 2),
         )
-        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
         advanceUntilIdle()
         viewModel.loadNextPage()
         advanceUntilIdle()
@@ -59,7 +62,7 @@ class PracticeRecordsViewModelTest {
     @Test
     fun `initial load errors are kept in state`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } returns Result.failure(IllegalStateException("처음 오류"))
-        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
         advanceUntilIdle()
         assertEquals("처음 오류", viewModel.uiState.value.initialError)
     }
@@ -67,7 +70,7 @@ class PracticeRecordsViewModelTest {
     @Test
     fun `cancellation during initial load is not exposed as an error`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } coAnswers { throw CancellationException("취소") }
-        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
 
         try {
             advanceUntilIdle()
@@ -75,5 +78,17 @@ class PracticeRecordsViewModelTest {
         }
 
         assertEquals(null, viewModel.uiState.value.initialError)
+    }
+
+    @Test
+    fun `deleting a record removes it from state`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(first), false, null, 1))
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
+        advanceUntilIdle()
+
+        viewModel.delete(first)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.records.isEmpty())
     }
 }

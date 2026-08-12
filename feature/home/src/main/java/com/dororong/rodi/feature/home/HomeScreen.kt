@@ -90,12 +90,14 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
+import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -117,7 +119,7 @@ import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.review.notvisited.NotVisitedReasonScreen
+import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -272,7 +274,8 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
-    var isNotVisitedReasonVisible by remember { mutableStateOf(false) }
+    var isPracticeSkipReasonVisible by remember { mutableStateOf(false) }
+    var notVisitedPractice by remember { mutableStateOf<PracticeRecordItem?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -502,6 +505,9 @@ fun HomeScreen(
             is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.place)
             is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
             is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
+            is HomeEffect.OpenPracticeReview -> {
+                reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
+            }
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
@@ -1261,20 +1267,33 @@ fun HomeScreen(
     }
     state.practicePrompt?.let { session ->
         PracticePromptDialog(
-            session = session,
+            practice = session,
             onVisited = {
                 vm.onIntent(HomeIntent.OnPracticePromptVisited)
-                reviewToWrite = ReviewWriteTarget(session.placeId, session.placeName, null)
             },
             onNotVisited = {
+                notVisitedPractice = session
                 vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
-                isNotVisitedReasonVisible = true
+                isPracticeSkipReasonVisible = true
             },
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (isNotVisitedReasonVisible) {
-        NotVisitedReasonScreen(onClose = { isNotVisitedReasonVisible = false })
+    if (isPracticeSkipReasonVisible && notVisitedPractice != null) {
+        PracticeSkipReasonScreen(
+            practiceId = requireNotNull(notVisitedPractice).practiceId,
+            onClose = {
+                isPracticeSkipReasonVisible = false
+                notVisitedPractice = null
+            },
+        )
+    }
+    state.levelUp?.let { level ->
+        LevelUpDialog(
+            level = level,
+            onConfirm = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
+            onDismissRequest = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
+        )
     }
     reviewToBlock?.let { review ->
         BlockMemberDialog(

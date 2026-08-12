@@ -48,13 +48,30 @@ class MemberMapperTest {
         assertNull(practiceItem(visitedAt = null).toDomain().visitedAt)
     }
 
-    private fun practiceItem(visitedAt: String?) = PracticeItemResponse(
+    @Test
+    fun `known practice status maps to domain status`() {
+        assertEquals(
+            com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
+            practiceItem(visitedAt = null, status = "VISITED").toDomain().status,
+        )
+    }
+
+    @Test
+    fun `unknown practice status falls back to planned`() {
+        assertEquals(
+            com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED,
+            practiceItem(visitedAt = null, status = "UNKNOWN_STATUS").toDomain().status,
+        )
+    }
+
+    private fun practiceItem(visitedAt: String?, status: String = "PLANNED") = PracticeItemResponse(
         practiceId = 1,
         placeId = 10,
         placeName = "망원한강공원",
         practiceTypes = listOf("ROUNDABOUT"),
         visitCount = 1,
         visitedAt = visitedAt,
+        status = status,
     )
 
     private companion object {

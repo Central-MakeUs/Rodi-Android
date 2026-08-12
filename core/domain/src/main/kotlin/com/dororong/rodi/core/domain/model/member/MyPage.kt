@@ -2,6 +2,7 @@ package com.dororong.rodi.core.domain.model.member
 
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 
 data class MyPage(
     val nickname: String,
@@ -28,6 +29,7 @@ data class PracticeRecordItem(
     val visitedAt: java.time.Instant?,
     val isVerified: Boolean,
     val hasReview: Boolean,
+    val status: PracticeStatus = PracticeStatus.PLANNED,
 )
 
 data class MyReview(

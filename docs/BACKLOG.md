@@ -22,6 +22,14 @@
 
   타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
   차단목록·연습기록이지 이 항목이 아니었다.
+- [ ] **주차장도 연습 목록에 담아야 하는지 (기획 확인 중)** — `HomeViewModel.launchPractice()`가
+  `place.type == PlaceType.COURSE`일 때만 `POST /places/{placeId}/practices`를 부른다.
+  서버 Swagger는 "코스·주차장 모두 가능"이라고 명시한다. 지금 상태로는 **주차장 연습은
+  연습기록에 영원히 쌓이지 않고 RV-01도 뜨지 않는다.** 로컬 세션 시절부터 있던 가드라
+  회귀는 아니다. 담아야 한다면 가드를 제거하고 `HomeViewModelTest`의
+  `launching navigation for a parking place does not start a practice session` 테스트를
+  뒤집으면 된다. 질문 넣어둔 상태(2026-08-12).
+
 - [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
   (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
   `LazyColumn`만 그린다). 로딩·에러 상태는 있는데 빈 상태만 없다. 마이페이지 연습기록의

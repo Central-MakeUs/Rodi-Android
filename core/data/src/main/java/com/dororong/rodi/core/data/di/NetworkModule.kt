@@ -5,6 +5,7 @@ import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
+import com.dororong.rodi.core.data.source.remote.api.PracticeApi
 import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
 import com.dororong.rodi.core.data.source.remote.api.ReviewApi
 import dagger.Module
@@ -76,6 +77,10 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePlaceApi(retrofit: Retrofit): PlaceApi = retrofit.create(PlaceApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePracticeApi(retrofit: Retrofit): PracticeApi = retrofit.create(PracticeApi::class.java)
 
     @Provides
     @Singleton

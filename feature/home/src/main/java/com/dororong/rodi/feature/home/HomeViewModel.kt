@@ -13,6 +13,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
@@ -25,9 +27,8 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
-import com.dororong.rodi.core.domain.usecase.practice.ClearPracticeSessionUseCase
-import com.dororong.rodi.core.domain.usecase.practice.GetCompletedPracticeSessionUseCase
-import com.dororong.rodi.core.domain.usecase.practice.StartPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.RecordPracticeVisitUseCase
+import com.dororong.rodi.core.domain.usecase.practice.RegisterPracticeUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
@@ -62,9 +63,9 @@ class HomeViewModel @Inject constructor(
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
     private val updateFilterTagsUseCase: UpdateFilterTagsUseCase,
-    private val startPracticeSessionUseCase: StartPracticeSessionUseCase,
-    private val getCompletedPracticeSessionUseCase: GetCompletedPracticeSessionUseCase,
-    private val clearPracticeSessionUseCase: ClearPracticeSessionUseCase,
+    private val registerPracticeUseCase: RegisterPracticeUseCase,
+    private val getPracticeRecordsUseCase: GetPracticeRecordsUseCase,
+    private val recordPracticeVisitUseCase: RecordPracticeVisitUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -81,6 +82,7 @@ class HomeViewModel @Inject constructor(
     private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
     private var pendingRestoreCredential: String? = null
+    private val dismissedPracticeIds = mutableSetOf<Long>()
 
     init {
         loadCoordinates()
@@ -112,11 +114,12 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
             HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
-            HomeIntent.OnAppResumed -> loadCompletedPracticeSession()
-            HomeIntent.OnPracticePromptVisited,
+            HomeIntent.OnAppResumed -> loadPlannedPractice()
+            HomeIntent.OnPracticePromptVisited -> recordPracticeVisit()
             HomeIntent.OnPracticePromptNotVisited,
             HomeIntent.OnPracticePromptDismiss,
             -> clearPracticePrompt()
+            HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
@@ -686,27 +689,57 @@ class HomeViewModel @Inject constructor(
 
     private suspend fun launchPractice(place: PlaceDetail, effect: HomeEffect) {
         if (place.type == PlaceType.COURSE) {
-            startPracticeSessionUseCase(place.id, place.name)
+            registerPracticeUseCase(place.id)
+                // 다시 담았다는 건 또 물어봐 달라는 뜻이다. 이전에 닫은 기록을 지운다.
+                .onSuccess { dismissedPracticeIds -= it.practiceId }
                 .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
-                .onSuccess { _effect.send(effect) }
-            return
         }
         _effect.send(effect)
     }
 
-    private fun loadCompletedPracticeSession() {
+    private fun loadPlannedPractice() {
         viewModelScope.launch {
             if (!isLoggedIn()) return@launch
-            getCompletedPracticeSessionUseCase().onSuccess { session ->
-                _state.update { it.copy(practicePrompt = session) }
+            getPracticeRecordsUseCase(size = PRACTICE_PAGE_SIZE).onSuccess { page ->
+                val plannedPractice = page.items.firstOrNull {
+                    it.status == PracticeStatus.PLANNED && it.practiceId !in dismissedPracticeIds
+                }
+                _state.update { current ->
+                    if (current.practicePrompt == null) current.copy(practicePrompt = plannedPractice) else current
+                }
             }
         }
     }
 
+    /**
+     * 닫기·안 했어요는 서버 상태를 PLANNED로 남겨두므로, 기억해두지 않으면 앱에 재진입할 때마다
+     * 같은 팝업이 다시 뜬다. 서버가 "담은 시각"을 내려주지 않아 시간 기반으로는 거를 수 없다.
+     */
     private fun clearPracticePrompt() {
+        _state.value.practicePrompt?.let { dismissedPracticeIds += it.practiceId }
         _state.update { it.copy(practicePrompt = null) }
+    }
+
+    private fun recordPracticeVisit() {
+        val practice = _state.value.practicePrompt ?: return
+        if (_state.value.isPracticeActionInProgress) return
         viewModelScope.launch {
-            clearPracticeSessionUseCase().onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
+            _state.update { it.copy(isPracticeActionInProgress = true) }
+            recordPracticeVisitUseCase(practice.practiceId)
+                .onSuccess { result ->
+                    _state.update {
+                        it.copy(
+                            practicePrompt = null,
+                            isPracticeActionInProgress = false,
+                            levelUp = result.newLevel.takeIf { level -> result.levelUp && level != null },
+                        )
+                    }
+                    _effect.send(HomeEffect.OpenPracticeReview(practice.placeId, practice.placeName))
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
         }
     }
 
@@ -726,3 +759,5 @@ internal data class PlaceRequestKey(
 
 private fun Throwable.userMessage(): String = message?.takeIf(String::isNotBlank)
     ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."
+
+private const val PRACTICE_PAGE_SIZE = 20
