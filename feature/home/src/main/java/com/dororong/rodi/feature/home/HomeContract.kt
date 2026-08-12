@@ -76,8 +76,8 @@ sealed interface HomeIntent {
     data class OnProgrammaticSearch(val query: PlaceViewportQuery) : HomeIntent
     data class OnResearch(val query: PlaceViewportQuery) : HomeIntent
     data object OnListOpen : HomeIntent
-    data object OnListExpand : HomeIntent
     data object OnListCollapse : HomeIntent
+    data class OnListSheetSettled(val surface: HomeSurfaceState) : HomeIntent
     data object OnLoadNextPage : HomeIntent
     data class OnPlaceClick(val id: Long, val origin: HomeDetailOrigin) : HomeIntent
     data object OnDismissDetail : HomeIntent

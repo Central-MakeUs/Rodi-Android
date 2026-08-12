@@ -14,6 +14,7 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.bundles.compose)
+    implementation(libs.androidx.compose.foundation)
     implementation(libs.bundles.lifecycle.compose)
     implementation(libs.bundles.hilt.compose)
     implementation(libs.bundles.kakao.navigation)

@@ -245,11 +245,21 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnListOpen)
         assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        vm.onIntent(HomeIntent.OnListExpand)
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
         assertEquals(HomeSurfaceState.FullList, vm.state.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
         assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+    }
+
+    @Test
+    fun `sheet dragged from full straight to hidden lands on navigation`() {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+
         assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
     }
 

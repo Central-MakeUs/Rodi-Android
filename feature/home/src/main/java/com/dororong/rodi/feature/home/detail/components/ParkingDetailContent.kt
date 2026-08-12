@@ -44,7 +44,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
-import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
+import com.dororong.rodi.feature.home.components.SheetHandle
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -53,10 +53,10 @@ fun ParkingDetailContent(
     place: PlaceDetail,
     isBookmarkUpdating: Boolean,
     onDismiss: () -> Unit,
-    onHandleDragDown: () -> Unit,
     onBookmarkClick: () -> Unit,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier,
     initialAddressExpanded: Boolean = false,
     initialHoursExpanded: Boolean = false,
 ) {
@@ -65,10 +65,7 @@ fun ParkingDetailContent(
     var hoursExpanded by rememberSaveable(place.id) { mutableStateOf(initialHoursExpanded) }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        DismissibleSheetHandle(
-            onDragDown = onHandleDragDown,
-            modifier = Modifier.height(24.dp),
-        )
+        SheetHandle(modifier = Modifier.height(24.dp).then(dragHandleModifier))
 
         Row(
             modifier = Modifier
@@ -407,7 +404,7 @@ private fun String.withoutDistrictPrefix(): String {
 @Preview(name = "Parking detail - paid", showBackground = true, widthDp = 375, heightDp = 400)
 @Composable
 private fun ParkingPaidPreview() {
-    RodiTheme { ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}) }
+    RodiTheme { ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}) }
 }
 
 @Preview(name = "Parking detail - free", showBackground = true, widthDp = 375, heightDp = 400)
@@ -419,14 +416,14 @@ private fun ParkingFreePreview() {
             feeInfo = null,
         ),
     )
-    RodiTheme { ParkingDetailContent(freeParking, false, {}, {}, {}, {}) }
+    RodiTheme { ParkingDetailContent(freeParking, false, {}, {}, {}) }
 }
 
 @Preview(name = "Parking detail - address", showBackground = true, widthDp = 375, heightDp = 400)
 @Composable
 private fun ParkingAddressPreview() {
     RodiTheme {
-        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}, initialAddressExpanded = true)
+        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, initialAddressExpanded = true)
     }
 }
 
@@ -434,12 +431,12 @@ private fun ParkingAddressPreview() {
 @Composable
 private fun ParkingHoursPreview() {
     RodiTheme {
-        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, {}, initialHoursExpanded = true)
+        ParkingDetailContent(HomePreviewData.parkingDetail, false, {}, {}, {}, initialHoursExpanded = true)
     }
 }
 
 @Preview(name = "Parking detail - missing", showBackground = true, widthDp = 320, heightDp = 400, fontScale = 1.3f)
 @Composable
 private fun ParkingMissingPreview() {
-    RodiTheme { ParkingDetailContent(HomePreviewData.parkingMissingFields, false, {}, {}, {}, {}) }
+    RodiTheme { ParkingDetailContent(HomePreviewData.parkingMissingFields, false, {}, {}, {}) }
 }
