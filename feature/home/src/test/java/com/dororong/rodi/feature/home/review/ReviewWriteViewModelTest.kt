@@ -299,7 +299,7 @@ class ReviewWriteViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.state.value.isSubmitted)
-        assertEquals("offline", viewModel.state.value.errorMessage)
+        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", viewModel.state.value.errorMessage)
         viewModel.consumeError()
         assertNull(viewModel.state.value.errorMessage)
     }

@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":core:common"))
+    api(project(":core:common"))
     implementation(libs.javax.inject)
     api(libs.kotlinx.coroutines.core)
 
