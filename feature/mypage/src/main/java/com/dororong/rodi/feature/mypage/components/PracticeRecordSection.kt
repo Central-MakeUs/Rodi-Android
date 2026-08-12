@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
@@ -162,7 +163,7 @@ private fun PracticeRecordCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = record.visitedAt?.let(RecordDateFormatter::format) ?: "방문 예정",
+                text = record.recordStatusLabel(),
                 style = RodiTheme.typography.caption1Medium,
                 color = RodiTheme.colors.gray600,
             )
@@ -201,6 +202,14 @@ private fun PracticeRecordCard(
 }
 
 private val RecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
+
+// visitedAt은 방문(VISITED)에서만 채워진다. 미방문 사유를 제출해도 NOT_VISITED로 남을 뿐
+// visitedAt은 비어 있어, visitedAt만으로 분기하면 미방문 처리한 항목이 계속 "방문 예정"으로 보인다.
+private fun PracticeRecord.recordStatusLabel(): String = when {
+    visitedAt != null -> RecordDateFormatter.format(visitedAt)
+    status == PracticeStatus.NOT_VISITED -> "미방문"
+    else -> "방문 예정"
+}
 
 private val PreviewRecords = listOf(
     PracticeRecord(
