@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
@@ -186,5 +187,28 @@ private fun TermsWebViewError(
         Button(onClick = onRetry) {
             Text("다시 시도")
         }
+    }
+}
+
+// TermsWebView 본체는 WebView라 프리뷰가 렌더되지 않는다. 에러 화면만 확인한다.
+@Preview(name = "약관 로드 실패", showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun TermsWebViewErrorPreview() {
+    RodiTheme {
+        TermsWebViewError(
+            message = "net::ERR_INTERNET_DISCONNECTED",
+            onRetry = {},
+        )
+    }
+}
+
+@Preview(name = "약관 로드 실패 - 긴 메시지", showBackground = true, widthDp = 360, heightDp = 640)
+@Composable
+private fun TermsWebViewErrorLongMessagePreview() {
+    RodiTheme {
+        TermsWebViewError(
+            message = "약관 페이지를 불러오지 못했어요. 네트워크 상태를 확인한 뒤 다시 시도해주세요.",
+            onRetry = {},
+        )
     }
 }

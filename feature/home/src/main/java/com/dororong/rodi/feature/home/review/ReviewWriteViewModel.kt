@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.review
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
@@ -136,7 +137,7 @@ class ReviewWriteViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isSubmitting = false,
-                        errorMessage = error.userMessage(),
+                        errorMessage = error.reviewErrorMessage(),
                     )
                 }
             }
@@ -152,11 +153,10 @@ class ReviewWriteViewModel @Inject constructor(
         content = content,
     )
 
-    private fun Throwable.userMessage(): String = when (this) {
+    private fun Throwable.reviewErrorMessage(): String = when (this) {
         is ReviewException.LevelRequired -> "레벨 진단을 마쳐야 후기를 남길 수 있어요."
         is ReviewException.LevelChanged -> "레벨이 바뀌어서 이 후기는 수정할 수 없어요."
-        else -> message?.takeIf(String::isNotBlank)
-            ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."
+        else -> userMessage()
     }
 }
 
