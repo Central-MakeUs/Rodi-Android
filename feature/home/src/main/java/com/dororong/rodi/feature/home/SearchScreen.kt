@@ -200,7 +200,7 @@ private fun SearchInput(
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (query.isBlank()) {
                         Text(
-                            text = "시/군/구 또는 장소명으로 검색하기",
+                            text = "시/군/구/코스명으로 검색하기",
                             style = RodiTheme.typography.body2Medium,
                             color = RodiTheme.colors.gray500,
                         )

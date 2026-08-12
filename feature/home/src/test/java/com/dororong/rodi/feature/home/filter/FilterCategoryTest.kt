@@ -17,7 +17,7 @@ class FilterCategoryTest {
         )
         assertTrue(FilterCategory.PARKING.practiceOptions.isEmpty())
         assertEquals(
-            listOf("다차로주행", "합류", "고속진입", "전체"),
+            listOf("다차로주행", "합류", "고속도로", "전체"),
             FilterCategory.ROAD_FLOW.practiceOptions.map(FilterPracticeOption::label),
         )
         assertEquals(

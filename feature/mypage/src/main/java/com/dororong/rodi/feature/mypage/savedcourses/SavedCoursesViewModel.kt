@@ -53,7 +53,7 @@ class SavedCoursesViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = SavedCoursesUiState(
                         isLoading = false,
-                        initialError = error.message ?: "저장한 장소를 불러오지 못했어요.",
+                        initialError = error.message ?: "저장목록을 불러오지 못했어요.",
                     )
                 }
         }

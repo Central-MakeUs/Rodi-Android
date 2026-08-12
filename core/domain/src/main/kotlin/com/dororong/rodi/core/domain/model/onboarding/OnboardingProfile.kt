@@ -41,16 +41,16 @@ enum class SoloParkingLevel(val label: String) {
 
 enum class PracticeSituation(val label: String) {
     U_TURN("유턴"),
-    TURN("좌우 회전"),
+    TURN("좌우회전"),
     PARKING("주차"),
     LANE_CHANGE("차선변경"),
     INTERSECTION("교차로"),
-    ROUNDABOUT("회전 교차로"),
-    UNPROTECTED_LEFT_TURN("비보호 좌회전"),
-    HIGHWAY_ENTRY("고속진입"),
+    ROUNDABOUT("회전교차로"),
+    UNPROTECTED_LEFT_TURN("비보호좌회전"),
+    HIGHWAY_ENTRY("고속도로"),
     CORNERING("코너링"),
-    NARROW_ROAD("좁은 도로 주행"),
-    MULTI_LANE("다차로 주행"),
+    NARROW_ROAD("좁은도로"),
+    MULTI_LANE("다차로주행"),
     MERGING("합류"),
     STRAIGHT("직선주행"),
 }

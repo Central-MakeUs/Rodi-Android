@@ -249,9 +249,9 @@ fun HomeScreen(
     var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var lastMapRetryAtMillis by remember { mutableLongStateOf(0L) }
-    var showMapNetworkSnackbar by remember { mutableStateOf(false) }
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
+    var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
     var mapScreenState by remember {
         mutableStateOf(
             when {
@@ -575,7 +575,7 @@ fun HomeScreen(
                 if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
             hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
             else -> {
-                showMapNetworkSnackbar = false
+                showMapNetworkSnackbar = true
                 mapScreenState = MapScreenState.NetworkError
             }
         }
@@ -775,7 +775,6 @@ fun HomeScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { RodiSnackbarHost(snackbarHostState) },
         content = { contentPadding ->
             Box(
                 modifier = Modifier
@@ -852,10 +851,8 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                if (hasMapLoadedThisEntry) {
-                                                    showMapNetworkSnackbar = true
-                                                } else {
-                                                    showMapNetworkSnackbar = false
+                                                showMapNetworkSnackbar = true
+                                                if (!hasMapLoadedThisEntry) {
                                                     mapScreenState = MapScreenState.NetworkError
                                                 }
                                             }
@@ -1194,9 +1191,14 @@ fun HomeScreen(
 
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
-                    MapScreenState.NetworkError -> MapNetworkErrorScreen(onRetry = ::retryMap)
+                    MapScreenState.NetworkError -> MapNetworkErrorScreen()
                     MapScreenState.Ready -> Unit
                 }
+
+                RodiSnackbarHost(
+                    state = snackbarHostState,
+                    bottomPadding = if (mapScreenState == MapScreenState.NetworkError) 20.dp else 114.dp,
+                )
             }
         },
     )

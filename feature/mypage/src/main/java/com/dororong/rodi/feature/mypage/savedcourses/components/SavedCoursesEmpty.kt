@@ -35,7 +35,7 @@ internal fun SavedCoursesEmpty(modifier: Modifier = Modifier) {
                 modifier = Modifier.size(60.dp),
             )
             Text(
-                text = "저장한 장소가 없어요.",
+                text = "저장목록이 없어요.",
                 style = RodiTheme.typography.headline1,
                 color = RodiTheme.colors.gray600,
             )

@@ -36,7 +36,7 @@ internal fun SavedCoursesTopBar(onBack: () -> Unit) {
                 .clickable(onClick = onBack),
         )
         Text(
-            text = "저장한 장소",
+            text = "저장목록",
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,
         )

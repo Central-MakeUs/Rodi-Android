@@ -107,13 +107,13 @@ enum class Difficulty(val label: String, val level: Int) {
 
 /** 연습 유형 태그 (features 에서 파생). */
 enum class PracticeTag(val label: String) {
-    STRAIGHT("직진"),
+    STRAIGHT("직선주행"),
     LANE_CHANGE("차선변경"),
     U_TURN("유턴"),
     TURN("좌우회전"),
     ALLEY("골목길"),
     PARKING("주차"),
-    HIGHWAY_ENTRY("고속진입"),
+    HIGHWAY_ENTRY("고속도로"),
     NIGHT("야간운전"),
     SIDE_ROAD("보조도로"),
     HIGHWAY("고속도로"),
