@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
@@ -354,5 +355,3 @@ class SearchViewModel @Inject constructor(
 }
 
 private const val MAX_RECENT_SEARCHES = 15
-private fun Throwable.userMessage(): String = message?.takeIf(String::isNotBlank)
-    ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."

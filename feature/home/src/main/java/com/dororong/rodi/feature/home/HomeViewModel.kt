@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.LoginResult
@@ -756,8 +757,4 @@ internal data class PlaceRequestKey(
     val query: PlaceViewportQuery,
     val cursor: String?,
 )
-
-private fun Throwable.userMessage(): String = message?.takeIf(String::isNotBlank)
-    ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요."
-
 private const val PRACTICE_PAGE_SIZE = 20

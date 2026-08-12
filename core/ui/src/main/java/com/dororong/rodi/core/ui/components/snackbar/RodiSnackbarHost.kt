@@ -18,8 +18,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.theme.RodiTheme
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -61,5 +63,58 @@ fun RodiSnackbarHost(
         ) {
             lastShown?.let { RodiSnackbar(data = it) }
         }
+    }
+}
+
+// Host는 하단 고정 위치와 인셋이 핵심이라 스낵바 단독 프리뷰(RodiSnackbar.kt)로는 확인되지 않는다.
+// 자동 dismiss가 걸리면 인터랙티브 프리뷰에서 사라지므로 Indefinite로 고정한다.
+@Composable
+private fun previewHostState(data: RodiSnackbarData) =
+    remember { RodiSnackbarHostState().apply { show(data) } }
+
+@Preview(name = "RodiSnackbarHost - 텍스트만", showBackground = true, widthDp = 360, heightDp = 400)
+@Composable
+private fun RodiSnackbarHostPreview() {
+    RodiTheme {
+        RodiSnackbarHost(
+            state = previewHostState(
+                RodiSnackbarData(
+                    message = "저장되었습니다",
+                    duration = RodiSnackbarDuration.Indefinite,
+                ),
+            ),
+        )
+    }
+}
+
+@Preview(name = "RodiSnackbarHost - 액션 포함", showBackground = true, widthDp = 360, heightDp = 400)
+@Composable
+private fun RodiSnackbarHostWithActionPreview() {
+    RodiTheme {
+        RodiSnackbarHost(
+            state = previewHostState(
+                RodiSnackbarData(
+                    message = "재가입 가능 날짜를 불러오지 못했어요.",
+                    duration = RodiSnackbarDuration.Indefinite,
+                    actionLabel = "새로고침",
+                    onAction = {},
+                ),
+            ),
+        )
+    }
+}
+
+@Preview(name = "RodiSnackbarHost - 두 줄", showBackground = true, widthDp = 360, heightDp = 400)
+@Composable
+private fun RodiSnackbarHostTwoLinePreview() {
+    RodiTheme {
+        RodiSnackbarHost(
+            state = previewHostState(
+                RodiSnackbarData(
+                    message = "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
+                    duration = RodiSnackbarDuration.Indefinite,
+                ),
+            ),
+        )
     }
 }

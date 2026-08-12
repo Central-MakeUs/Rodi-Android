@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -50,6 +51,11 @@ fun OnboardingAnalysisDialog(
     copy: OnboardingAnalysisCopy,
     onConfirm: () -> Unit,
 ) {
+    // Dialog는 별도 윈도우라 정적 프리뷰에서 렌더되지 않는다. 프리뷰에서는 내용만 그린다.
+    if (LocalInspectionMode.current) {
+        OnboardingAnalysisDialogContent(state, level, copy, onConfirm)
+        return
+    }
     Dialog(
         onDismissRequest = {},
         properties = DialogProperties(
@@ -58,15 +64,25 @@ fun OnboardingAnalysisDialog(
             usePlatformDefaultWidth = false,
         ),
     ) {
-        Surface(
-            modifier = Modifier.width(290.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = RodiTheme.colors.white,
-        ) {
-            when (state) {
-                OnboardingAnalysisState.ANALYZING -> AnalysisLoadingContent()
-                OnboardingAnalysisState.RESULT -> AnalysisResultContent(level, copy, onConfirm)
-            }
+        OnboardingAnalysisDialogContent(state, level, copy, onConfirm)
+    }
+}
+
+@Composable
+private fun OnboardingAnalysisDialogContent(
+    state: OnboardingAnalysisState,
+    level: OnboardingLevel,
+    copy: OnboardingAnalysisCopy,
+    onConfirm: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.width(290.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = RodiTheme.colors.white,
+    ) {
+        when (state) {
+            OnboardingAnalysisState.ANALYZING -> AnalysisLoadingContent()
+            OnboardingAnalysisState.RESULT -> AnalysisResultContent(level, copy, onConfirm)
         }
     }
 }
@@ -214,13 +230,26 @@ private val OnboardingLevel.characterImageRes: Int?
         OnboardingLevel.NAVIGATOR -> CoreUiR.drawable.illust_level_navigator
     }
 
-@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "온보딩 분석 - 결과", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun OnboardingAnalysisDialogPreview() {
     RodiTheme {
         OnboardingAnalysisDialog(
             state = OnboardingAnalysisState.RESULT,
             level = OnboardingLevel.ROOKIE,
+            copy = OnboardingAnalysisCopy("집 근처", "가끔", "교차로·유턴이 아직 긴장돼요."),
+            onConfirm = {},
+        )
+    }
+}
+
+@Preview(name = "온보딩 분석 - 분석 중", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun OnboardingAnalysisDialogAnalyzingPreview() {
+    RodiTheme {
+        OnboardingAnalysisDialog(
+            state = OnboardingAnalysisState.ANALYZING,
+            level = OnboardingLevel.SEED,
             copy = OnboardingAnalysisCopy("집 근처", "가끔", "교차로·유턴이 아직 긴장돼요."),
             onConfirm = {},
         )

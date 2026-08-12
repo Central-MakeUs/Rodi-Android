@@ -22,7 +22,6 @@
 
   타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
   차단목록·연습기록이지 이 항목이 아니었다.
-
   **2026-08-12 재검증 — 원인을 찾았다. 서버 스키마 자체가 바뀌었고 클라이언트가 못 쫓아갔다.**
   코스 상세를 열 때 스낵바에 원문 예외가 그대로 떴다: `Field 'totalCount' is required for type
   with serial name '...ReviewSummaryResponse'`. Swagger를 다시 받아 대조하니
@@ -49,6 +48,7 @@
   회귀는 아니다. 담아야 한다면 가드를 제거하고 `HomeViewModelTest`의
   `launching navigation for a parking place does not start a practice session` 테스트를
   뒤집으면 된다. 질문 넣어둔 상태(2026-08-12).
+- [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
 - [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
   (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
@@ -60,11 +60,12 @@
   같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
   `feature/home/.../reviewactions/ReviewReportScreen.kt`의 `BlockMemberDialog`·`ReportSubmittedDialog`를
   이관하고, 거기 있는 사설 `DialogButton`(116×42)을 제거한다. 당시엔 diff를 작게 유지하려고 미뤘다.
-- [ ] **`Throwable.userMessage()` `core:common` 승격** — `HomeViewModel.kt:689`,
-  `SearchViewModel.kt`, `MyPageViewModel.kt`에 같은 파일-private 확장이 복사돼 있다(3곳).
-  `core:common`으로 올리고 복사본을 제거한다. 세 번째 복사본은 마이페이지가 역직렬화 예외
-  원문을 화면에 그대로 노출하던 걸 막으면서 생겼다 — 규칙이 코드가 아니라 관습으로만 있으니
-  같은 것이 계속 복제된다.
+- [x] **`Throwable.userMessage()` `core:common` 승격** — `core/common/.../UserMessage.kt`로
+  올리고 `HomeViewModel`·`SearchViewModel`의 동일 복사본을 제거했다. `ReviewWriteViewModel`은
+  도메인 예외 분기가 있어 `reviewErrorMessage()`로 이름을 바꾸고 else만 공용 함수에 위임한다.
+  `MyPageViewModel`의 `userMessage(fallback)`은 화면별 대체 문구를 받는 다른 계약이라 남겼다.
+  원문 누출 차단은 `AuthErrorMapper`가 맡는다(`876f3142`) — 리포지토리가 모든 예외를
+  `AuthException`으로 감싸므로 화면 단 필터로는 못 막는다.
 
 - [ ] **재가입 가능 시각(`rejoinableAt`) 서버 필드 요청됨 (백엔드 대기)** — 탈퇴 정책은
   유예 3일(복구 가능) → 이후 총 10일까지 재가입 불가 → 그 뒤 재가입 가능, 3구간이다.
