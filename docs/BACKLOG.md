@@ -22,6 +22,26 @@
 
   타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
   차단목록·연습기록이지 이 항목이 아니었다.
+
+  **2026-08-12 재검증 — 원인을 찾았다. 서버 스키마 자체가 바뀌었고 클라이언트가 못 쫓아갔다.**
+  코스 상세를 열 때 스낵바에 원문 예외가 그대로 떴다: `Field 'totalCount' is required for type
+  with serial name '...ReviewSummaryResponse'`. Swagger를 다시 받아 대조하니
+  `ReviewSummaryResponse`가 통째로 바뀌어 있었다 — `totalCount`가 없어지고
+  `levelReviewCount`·`totalReviewCount`·`topDifficulty`(신규)로 갈렸다. 클라이언트 DTO
+  (`core/data/.../model/review/ReviewResponses.kt`)는 옛 스키마 그대로라 역직렬화가 항상
+  실패한다. `/places/106/reviews*`가 200에 0건처럼 보인 건 실제로 빈 응답이 아니라
+  **파싱이 매번 터져서 조회 자체가 실패**했기 때문이다("빈 상태"와 "실패"가 UI에서 구분이
+  안 됐을 뿐, 스낵바가 뜬 지금은 원인이 보인다).
+
+  범위가 크다 — 새 필드 3개 반영, `ReviewSummaryResponse`/도메인 모델/매퍼/`CourseReviewViewModel`/
+  UI(`topDifficulty` 노출 여부 등) 전부 손대야 해서 이번엔 고치지 않고 여기 남긴다. 최신 Swagger
+  원문(`GET /places/{placeId}/reviews/summary` description): "난이도 분포와 최다 난이도
+  (topDifficulty)는 **선택한 레벨** 기준, 추천/비추천 수는 **전체 레벨 합산**이라 모수가
+  levelReviewCount·totalReviewCount로 나뉜다. 동률이면 더 어려운 난이도를 고르고, 후기가 없으면
+  topDifficulty 키 자체가 빠진다."
+  같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
+  그대로 실어 보냄)도 `AuthErrorMapper`(`876f3142`)·`PracticeRepositoryImpl`과 같은 패턴이라
+  이 작업과 함께 고치는 게 맞다.
 - [ ] **주차장도 연습 목록에 담아야 하는지 (기획 확인 중)** — `HomeViewModel.launchPractice()`가
   `place.type == PlaceType.COURSE`일 때만 `POST /places/{placeId}/practices`를 부른다.
   서버 Swagger는 "코스·주차장 모두 가능"이라고 명시한다. 지금 상태로는 **주차장 연습은
