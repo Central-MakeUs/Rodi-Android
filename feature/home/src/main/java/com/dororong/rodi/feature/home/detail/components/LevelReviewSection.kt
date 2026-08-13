@@ -168,9 +168,7 @@ private fun SummaryRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        // Figma는 이 통계 묶음 전체를 섹션 우측 끝에 붙인다("전체보기"·"자세히 보기" 등 다른
-        // 우측 정렬 요소와 같은 라인). spacedBy(30dp)로 안쪽 간격은 유지하면서 묶음 자체를 끝으로 민다.
-        horizontalArrangement = Arrangement.spacedBy(30.dp, Alignment.End),
+        horizontalArrangement = Arrangement.spacedBy(30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
@@ -208,7 +206,9 @@ private fun SummaryRow(
         )
 
         Column(
-            modifier = Modifier.width(202.dp),
+            // 남은 폭을 전부 차지해야 안쪽 Row의 SpaceBetween이 레벨 드롭다운을 섹션 우측 끝까지
+            // 밀어낸다. "추천해요"·"난이도" 라벨은 그대로 좌측에 붙어있는다.
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
