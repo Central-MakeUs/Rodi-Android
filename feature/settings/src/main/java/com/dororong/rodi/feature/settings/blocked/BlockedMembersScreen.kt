@@ -71,6 +71,8 @@ private fun BlockedMembersContent(
                 }
                 if (state.members.isEmpty() && state.initialError != null) {
                     BlockedMembersError(state.initialError, onLoadInitial)
+                } else if (state.members.isEmpty()) {
+                    BlockedMembersEmpty()
                 } else {
                     LazyColumn(
                         state = listState,
@@ -102,6 +104,17 @@ private fun BlockedMembersContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun BlockedMembersEmpty() {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text(
+            text = "차단한 사용자가 없습니다.",
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.gray600,
+        )
     }
 }
 
