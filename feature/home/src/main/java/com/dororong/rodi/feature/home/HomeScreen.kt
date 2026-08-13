@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -205,6 +206,9 @@ private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+// HomeSearchBar가 지도 위에 statusBarsPadding() + vertical 5dp로 떠 있는 만큼. 경로 핏 계산에
+// 이 높이를 반영하지 않으면 세로로 긴 코스의 출발지·도착지 마커가 검색창 뒤에 가려진다.
+private val MAP_SEARCH_BAR_TOP_INSET = 5.dp + 46.dp
 private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
 
 typealias KakaoLoginRequest = (
@@ -447,6 +451,8 @@ fun HomeScreen(
             ?: 0
         else -> 0
     }
+    val mapContentTopPaddingPx = WindowInsets.statusBars.getTop(density) +
+        with(density) { MAP_SEARCH_BAR_TOP_INSET.roundToPx() }
     val clusterFitPaddingPx = with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() }
     val mapBrandOffset = maxOf(0.dp, BOTTOM_CONTROL_MIN_OFFSET + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
@@ -753,7 +759,7 @@ fun HomeScreen(
                         snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
                     )
                     if (mapContentBottomPaddingPx > 0) {
-                        map.fitCourseToScreen(routePoints, mapContentBottomPaddingPx)
+                        map.fitCourseToScreen(routePoints, mapContentTopPaddingPx, mapContentBottomPaddingPx)
                     }
                 }
             }
