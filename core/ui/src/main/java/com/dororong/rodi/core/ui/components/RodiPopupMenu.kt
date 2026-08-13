@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
@@ -45,6 +46,7 @@ fun RodiPopupMenu(
     onSelect: (Int) -> Unit,
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
+    menuWidth: Dp = MenuDefaultWidth,
     scrollState: ScrollableState? = null,
 ) {
     LaunchedEffect(expanded, scrollState) {
@@ -64,7 +66,7 @@ fun RodiPopupMenu(
     ) {
         Column(
             modifier = modifier
-                .widthIn(min = MenuMinWidth)
+                .width(menuWidth)
                 .clip(MenuShape)
                 .background(RodiTheme.colors.white, MenuShape)
                 .border(1.dp, RodiTheme.colors.gray300, MenuShape),
@@ -75,6 +77,8 @@ fun RodiPopupMenu(
                     style = RodiTheme.typography.body2Medium,
                     color = RodiTheme.colors.gray700,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { onSelect(index) }
@@ -88,7 +92,7 @@ fun RodiPopupMenu(
     }
 }
 
-private val MenuMinWidth = 75.dp
+private val MenuDefaultWidth = 75.dp
 private val MenuShape = RoundedCornerShape(2.dp)
 
 /** 앵커 바로 아래, 오른쪽 끝을 맞춰 띄운다. 화면 밖으로 나가면 안쪽으로 당긴다. */
@@ -130,6 +134,7 @@ private fun RodiPopupMenuLevelPreview() {
                     items = listOf("Seed", "Rookie", "Owner", "Explorer", "Navigator"),
                     onSelect = {},
                     onDismissRequest = {},
+                    menuWidth = 103.dp,
                 )
             }
         }
@@ -156,6 +161,7 @@ private fun RodiPopupMenuReviewPreview() {
                     items = listOf("신고하기", "차단"),
                     onSelect = {},
                     onDismissRequest = {},
+                    menuWidth = 75.dp,
                 )
             }
         }

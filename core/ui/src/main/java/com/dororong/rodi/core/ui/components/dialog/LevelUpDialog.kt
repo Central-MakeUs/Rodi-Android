@@ -2,16 +2,19 @@ package com.dororong.rodi.core.ui.components.dialog
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,33 +30,61 @@ fun LevelUpDialog(
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
-    RodiDialog(onDismissRequest = onDismissRequest, modifier = Modifier.fillMaxWidth(0.82f)) {
+    RodiDialog(
+        onDismissRequest = onDismissRequest,
+        modifier = Modifier
+            .width(290.dp)
+            .height(388.dp),
+        contentPadding = PaddingValues(0.dp),
+    ) {
         Column(
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Level Up!", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
             Text(
-                "레벨업 했어요,\n앞으로도 새로운 코스에 도전해보세요!",
+                text = "Level Up!",
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.black,
+                modifier = Modifier.padding(top = 32.dp),
+            )
+            Text(
+                text = "레벨업 했어요,\n앞으로도 새로운 코스에 도전해보세요!",
                 style = RodiTheme.typography.body3Medium,
                 color = RodiTheme.colors.gray600,
                 textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 8.dp),
             )
-            Image(painterResource(level.characterImageRes), null, modifier = Modifier.size(120.dp))
+            Image(
+                painter = painterResource(level.characterImageRes),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(top = 18.dp)
+                    .size(150.dp),
+            )
             Text(
-                level.displayName,
+                text = level.displayName,
                 style = RodiTheme.typography.body3Medium,
                 color = RodiTheme.colors.primary600,
                 modifier = Modifier
-                    .background(RodiTheme.colors.primary100, RoundedCornerShape(100))
-                    .padding(horizontal = 12.dp, vertical = 5.dp),
+                    .padding(top = 14.dp)
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                RodiTheme.colors.primary100,
+                                RodiTheme.colors.primary200,
+                            ),
+                        ),
+                        shape = RoundedCornerShape(4.dp),
+                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
             )
             RodiButton(
                 text = "확인",
                 onClick = onConfirm,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 4.dp),
+                    .padding(start = 16.dp, top = 15.dp, end = 16.dp),
+                height = 54.dp,
             )
         }
     }

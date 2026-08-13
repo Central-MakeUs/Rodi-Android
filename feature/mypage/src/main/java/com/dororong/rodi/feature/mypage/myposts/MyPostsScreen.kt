@@ -1,6 +1,8 @@
 package com.dororong.rodi.feature.mypage.myposts
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.mypage.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -127,7 +130,10 @@ private fun MyPostsContent(
                     message = state.errorMessage,
                     onRetry = { onClearError(); onLoadInitial() },
                 )
-                state.posts.isEmpty() -> MyPostsEmpty(onPracticeRecordsClick)
+                state.posts.isEmpty() -> MyPostsEmpty(
+                    onPracticeRecordsClick = onPracticeRecordsClick,
+                    showPracticeRecordsButton = state.hasPracticeRecords,
+                )
                 else -> LazyColumn(
                     state = scrollState,
                     modifier = Modifier.fillMaxSize(),
@@ -206,7 +212,7 @@ private fun PostsTopBar(onBack: () -> Unit) {
         IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
             Icon(painterResource(CoreUiR.drawable.ic_chevron_left), "뒤로", tint = RodiTheme.colors.black)
         }
-        Text("내 게시글", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black, modifier = Modifier.align(Alignment.Center))
+        Text("내 활동", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black, modifier = Modifier.align(Alignment.Center))
     }
 }
 
@@ -232,36 +238,62 @@ private fun MyPostRow(
                     items = listOf("수정하기", "삭제하기"),
                     onSelect = { index -> if (index == 0) onEdit() else onDelete() },
                     onDismissRequest = onMenuDismiss,
+                    menuWidth = 75.dp,
                     scrollState = scrollState,
                 )
             }
         }
         Text(MyPostDateFormatter.format(post.review.createdAt), style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 4.dp))
-        Text(
-            text = post.review.content.orEmpty().ifBlank { "작성한 후기 내용이 없어요." },
-            style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.gray700,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).background(RodiTheme.colors.gray100, androidx.compose.foundation.shape.RoundedCornerShape(8.dp)).padding(12.dp),
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(37.dp)
+                .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
+                .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                text = post.review.content.orEmpty().ifBlank { "작성한 후기 내용이 없어요." },
+                style = RodiTheme.typography.caption1Regular,
+                color = RodiTheme.colors.gray700,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         HorizontalDivider(modifier = Modifier.padding(top = 14.dp), color = RodiTheme.colors.gray100)
     }
 }
 
 @Composable
-private fun MyPostsEmpty(onPracticeRecordsClick: () -> Unit) {
+private fun MyPostsEmpty(
+    onPracticeRecordsClick: () -> Unit,
+    showPracticeRecordsButton: Boolean,
+) {
     Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("아직 작성한 후기가 없어요!", style = RodiTheme.typography.headline1, color = RodiTheme.colors.gray600)
+            Image(
+                painter = painterResource(R.drawable.illust_my_activity_empty),
+                contentDescription = null,
+                modifier = Modifier.size(60.dp),
+            )
+            Text(
+                "아직 작성한 후기가 없어요!",
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.gray600,
+                modifier = Modifier.padding(top = 16.dp),
+            )
             Text("다녀온 코스의 경험을 기록해보세요.", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))
-            OutlinedButton(
-                onClick = onPracticeRecordsClick,
-                modifier = Modifier.padding(top = 20.dp).height(40.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, RodiTheme.colors.primary600),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
-            ) { Text("연습기록 보러가기", style = RodiTheme.typography.body3Medium) }
+            if (showPracticeRecordsButton) {
+                OutlinedButton(
+                    onClick = onPracticeRecordsClick,
+                    modifier = Modifier.padding(top = 20.dp).height(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, RodiTheme.colors.primary600),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
+                ) { Text("연습기록 보러가기", style = RodiTheme.typography.body3Medium) }
+            }
         }
     }
 }
@@ -281,7 +313,7 @@ private val PreviewPosts = listOf(
     ),
 )
 
-@Preview(name = "내 게시글 목록", showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "내 활동 목록", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsListPreview() = RodiTheme {
     MyPostsContent(
@@ -296,7 +328,7 @@ private fun MyPostsListPreview() = RodiTheme {
     )
 }
 
-@Preview(name = "내 게시글 메뉴", showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "내 활동 메뉴", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsMenuPreview() = RodiTheme {
     MyPostsContent(
@@ -312,13 +344,13 @@ private fun MyPostsMenuPreview() = RodiTheme {
     )
 }
 
-@Preview(name = "내 게시글 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "내 활동 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsDeletePreview() = RodiTheme {
     RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "취소", confirmText = "삭제하기", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
 }
 
-@Preview(name = "내 게시글 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "내 활동 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsEmptyPreview() = RodiTheme {
     MyPostsContent(

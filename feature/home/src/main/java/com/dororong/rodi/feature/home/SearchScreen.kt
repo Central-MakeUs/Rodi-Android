@@ -225,7 +225,16 @@ private fun RecentSearchList(
 ) {
     when {
         isLoading -> RecentSearchSkeletonList(modifier)
-        searches.isEmpty() -> Unit
+        searches.isEmpty() -> Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "최근 검색 내역이 없습니다",
+                style = RodiTheme.typography.body1Medium,
+                color = RodiTheme.colors.gray600,
+            )
+        }
         else -> LazyColumn(modifier = modifier.fillMaxWidth()) {
             item(key = "recent_search_header") {
                 Row(

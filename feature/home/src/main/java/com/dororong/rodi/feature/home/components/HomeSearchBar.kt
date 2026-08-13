@@ -50,7 +50,7 @@ fun HomeSearchBar(
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = searchKeyword ?: "시/군/구로 검색하기",
+                text = searchKeyword ?: "시/군/구/코스명으로 검색하기",
                 style = RodiTheme.typography.body2Medium,
                 color = if (searchKeyword == null) RodiTheme.colors.gray500 else RodiTheme.colors.black,
             )

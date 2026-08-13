@@ -171,7 +171,7 @@ fun CourseDetailSheet(
                     shadowElevation = 4.dp,
                 ) {
                     Column {
-                        HorizontalDivider(color = RodiTheme.colors.gray200)
+                        HorizontalDivider(color = RodiTheme.colors.gray100)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()

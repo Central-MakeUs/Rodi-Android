@@ -225,16 +225,19 @@ private fun PracticeRecordListItem(
                 )
             }
         }
-        if (!record.hasReview) {
-            OutlinedButton(
-                onClick = { onWriteReviewClick(record.placeId, record.placeName) },
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(32.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, RodiTheme.colors.primary600),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-            ) { Text("후기 작성", style = RodiTheme.typography.body3Medium) }
-        }
+        OutlinedButton(
+            onClick = { onWriteReviewClick(record.placeId, record.placeName) },
+            enabled = !record.hasReview,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(32.dp),
+            shape = RoundedCornerShape(8.dp),
+            border = if (record.hasReview) null else BorderStroke(1.dp, RodiTheme.colors.primary600),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = RodiTheme.colors.primary600,
+                disabledContainerColor = RodiTheme.colors.gray300,
+                disabledContentColor = RodiTheme.colors.gray500,
+            ),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
+        ) { Text(if (record.hasReview) "작성 완료" else "후기 작성", style = RodiTheme.typography.body3Medium) }
         HorizontalDivider(modifier = Modifier.padding(top = 16.dp), color = RodiTheme.colors.gray100)
     }
 }
