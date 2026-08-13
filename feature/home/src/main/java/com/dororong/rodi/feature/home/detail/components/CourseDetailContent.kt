@@ -80,12 +80,15 @@ fun CourseDetailContent(
                     )
                 }
                 if (showCloseButton) {
+                    // 이 헤더는 시트 바깥쪽 verticalScroll에 바로 감싸여 최상단에 붙어있다. 기본
+                    // touchSize(48dp)가 남기는 오버플로가 스크롤 뷰포트 클립 경계에서 잘려 핸들 라인
+                    // 아래로 리플이 가려지므로, 여기서만 오버플로 없이 행 높이에 맞춘다.
                     RodiIconButton(
                         painter = painterResource(R.drawable.ic_x),
                         onClick = onDismiss,
                         iconSize = 20.dp,
-                        touchSize = 48.dp,
-                        layoutSize = 23.dp,
+                        touchSize = 24.dp,
+                        layoutSize = 24.dp,
                         contentDescription = "닫기",
                         tint = RodiTheme.colors.black,
                     )
