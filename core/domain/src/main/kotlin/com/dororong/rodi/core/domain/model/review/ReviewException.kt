@@ -1,9 +1,11 @@
 package com.dororong.rodi.core.domain.model.review
 
+import com.dororong.rodi.core.common.UserMessageProvider
+
 sealed class ReviewException(
-    message: String,
+    override val userMessage: String,
     cause: Throwable? = null,
-) : RuntimeException(message, cause) {
+) : RuntimeException(userMessage, cause), UserMessageProvider {
     class AuthenticationRequired(message: String, cause: Throwable? = null) : ReviewException(message, cause)
     class Forbidden(message: String, cause: Throwable? = null) : ReviewException(message, cause)
     class InvalidRequest(message: String, cause: Throwable? = null) : ReviewException(message, cause)
