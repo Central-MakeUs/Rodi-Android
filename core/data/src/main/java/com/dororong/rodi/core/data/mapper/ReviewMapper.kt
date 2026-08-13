@@ -74,7 +74,10 @@ fun ReviewSummaryResponse.toDomain() = ReviewSummary(
         null, "ALL" -> null
         else -> level.toEnumOrNull<OnboardingLevel>("level")
     },
-    totalCount = totalCount,
+    // 서버 totalReviewCount(전체 레벨 합산)를 도메인 totalCount로 그대로 옮긴다. 이름은
+    // 도메인 쪽 기존 계약을 유지한다 — 소비하는 곳(전체보기 노출 판단)엔 "레벨 무관 총 후기 수"면
+    // 충분해서 굳이 이름까지 바꿔 여러 파일을 건드릴 필요는 없다.
+    totalCount = totalReviewCount,
     recommendCount = recommendCount,
     notRecommendCount = notRecommendCount,
     difficultyCounts = difficultyCounts.toEnumMap<ReviewDifficulty>("difficultyCounts"),
