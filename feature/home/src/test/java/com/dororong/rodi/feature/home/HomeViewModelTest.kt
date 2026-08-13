@@ -13,9 +13,11 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.practice.Practice
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.model.practice.PracticeVisitResult
+import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
@@ -42,6 +44,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -669,6 +673,60 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `dismissed practice ids are persisted and skip reason state is view model backed`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        assertTrue(vm.state.value.isPracticeSkipReasonVisible)
+        assertEquals(practice.practiceId, vm.state.value.notVisitedPracticeId)
+        coVerify(exactly = 1) { deps.dismissedPractice.dismiss(practice.practiceId) }
+
+        vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed)
+
+        assertFalse(vm.state.value.isPracticeSkipReasonVisible)
+        assertNull(vm.state.value.notVisitedPracticeId)
+    }
+
+    @Test
+    fun `latest planned practice lookup wins over an older response`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val older = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
+        val newer = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
+        val oldPractice = practiceRecord(status = PracticeStatus.PLANNED)
+        val newPractice = oldPractice.copy(practiceId = 20L)
+        var requestCount = 0
+        coEvery { deps.getPracticeRecords(null, 20) } coAnswers {
+            requestCount += 1
+            if (requestCount == 1) {
+                withContext(NonCancellable) { older.await() }
+            } else {
+                newer.await()
+            }
+        }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        runCurrent()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        runCurrent()
+
+        newer.complete(Result.success(CursorPage(listOf(newPractice), false, null, 1)))
+        runCurrent()
+        older.complete(Result.success(CursorPage(listOf(oldPractice), false, null, 1)))
+        advanceUntilIdle()
+
+        assertEquals(newPractice, vm.state.value.practicePrompt)
+    }
+
+    @Test
     fun `registering the same place again makes the prompt eligible once more`() = runTest(dispatcher) {
         val deps = Dependencies()
         val practice = practiceRecord(status = PracticeStatus.PLANNED)
@@ -724,6 +782,48 @@ class HomeViewModelTest {
 
         assertNull(vm.state.value.practicePrompt)
         coVerify(exactly = 1) { deps.recordPracticeVisit(practice.practiceId) }
+    }
+
+    @Test
+    fun `level up visit updates state and opens the review effect`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns
+            Result.success(visitResult(levelUp = true, newLevel = OnboardingLevel.ROOKIE))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticePromptVisited)
+            advanceUntilIdle()
+
+            assertEquals(OnboardingLevel.ROOKIE, vm.state.value.levelUp)
+            assertEquals(HomeEffect.OpenPracticeReview(practice.placeId, practice.placeName), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `failed and cancelled visits clear progress state`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns Result.failure(IllegalStateException("실패"))
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isPracticeActionInProgress)
+
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } throws CancellationException("취소")
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isPracticeActionInProgress)
     }
 
     @Test
@@ -786,6 +886,7 @@ private class Dependencies(loggedIn: Boolean = true) {
     val registerPractice = mockk<RegisterPracticeUseCase>()
     val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
     val recordPracticeVisit = mockk<RecordPracticeVisitUseCase>()
+    val dismissedPractice = mockk<PracticePromptDismissalRepository>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -799,6 +900,9 @@ private class Dependencies(loggedIn: Boolean = true) {
         )
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { recordPracticeVisit(any(), any()) } returns Result.success(visitResult())
+        coEvery { dismissedPractice.readDismissedPracticeIds() } returns emptySet()
+        coEvery { dismissedPractice.dismiss(any()) } returns Unit
+        coEvery { dismissedPractice.restore(any()) } returns Unit
     }
 
     fun viewModel() = HomeViewModel(
@@ -818,6 +922,7 @@ private class Dependencies(loggedIn: Boolean = true) {
         registerPracticeUseCase = registerPractice,
         getPracticeRecordsUseCase = getPracticeRecords,
         recordPracticeVisitUseCase = recordPracticeVisit,
+        practicePromptDismissalRepository = dismissedPractice,
     )
 }
 
@@ -839,15 +944,18 @@ private fun practiceRecord(status: PracticeStatus) = PracticeRecordItem(
     status = status,
 )
 
-private fun visitResult() = PracticeVisitResult(
+private fun visitResult(
+    levelUp: Boolean = false,
+    newLevel: OnboardingLevel? = null,
+) = PracticeVisitResult(
     visitCount = 1,
     addedCertifiedDistanceMeters = 0,
     requiredDistanceMeters = 1000,
     isCertifiedNow = false,
     isVerified = false,
     totalDistanceKm = 0.0,
-    levelUp = false,
-    newLevel = null,
+    levelUp = levelUp,
+    newLevel = newLevel,
 )
 
 private fun summary(id: Long) = PlaceSummary(

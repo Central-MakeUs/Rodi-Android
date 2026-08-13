@@ -31,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -62,14 +63,23 @@ fun PracticeRecordsScreen(
     viewModel: PracticeRecordsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var deleteTarget by remember { mutableStateOf<PracticeRecord?>(null) }
+    var deleteTargetId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val deleteTarget = state.records.firstOrNull { it.practiceId == deleteTargetId }
+    LaunchedEffect(state.deletingPracticeId, state.deleteErrorMessage, state.records) {
+        val targetId = deleteTargetId ?: return@LaunchedEffect
+        if (state.deleteErrorMessage != null ||
+            (state.deletingPracticeId == null && state.records.none { it.practiceId == targetId })
+        ) {
+            deleteTargetId = null
+        }
+    }
     PracticeRecordsContent(
         state = state,
         onBack = onBack,
         onRetry = viewModel::refresh,
         onLoadNext = viewModel::loadNextPage,
         onWriteReviewClick = onWriteReviewClick,
-        onDeleteClick = { deleteTarget = it },
+        onDeleteClick = { deleteTargetId = it.practiceId },
         modifier = modifier,
     )
     deleteTarget?.let { record ->
@@ -81,10 +91,9 @@ fun PracticeRecordsScreen(
             enabled = state.deletingPracticeId == null,
             onConfirm = {
                 viewModel.delete(record)
-                deleteTarget = null
             },
-            onDismiss = { deleteTarget = null },
-            onDismissRequest = { if (state.deletingPracticeId == null) deleteTarget = null },
+            onDismiss = { if (state.deletingPracticeId == null) deleteTargetId = null },
+            onDismissRequest = { if (state.deletingPracticeId == null) deleteTargetId = null },
         )
     }
     state.deleteErrorMessage?.let { message ->

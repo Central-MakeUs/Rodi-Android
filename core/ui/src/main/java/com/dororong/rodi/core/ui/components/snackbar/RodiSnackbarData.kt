@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.painter.Painter
 
 enum class RodiSnackbarDuration(val millis: Long) {
     Short(2_000),
-    /** 에러 토스트 기본값. 디자인이 여러 화면에서 3초 자동 dismiss로 명시한다. */
     Medium(3_000),
     Extended(3_500),
     Indefinite(Long.MAX_VALUE),

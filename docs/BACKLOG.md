@@ -41,13 +41,7 @@
   같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
   그대로 실어 보냄)도 `AuthErrorMapper`(`876f3142`)·`PracticeRepositoryImpl`과 같은 패턴이라
   이 작업과 함께 고치는 게 맞다.
-- [ ] **주차장도 연습 목록에 담아야 하는지 (기획 확인 중)** — `HomeViewModel.launchPractice()`가
-  `place.type == PlaceType.COURSE`일 때만 `POST /places/{placeId}/practices`를 부른다.
-  서버 Swagger는 "코스·주차장 모두 가능"이라고 명시한다. 지금 상태로는 **주차장 연습은
-  연습기록에 영원히 쌓이지 않고 RV-01도 뜨지 않는다.** 로컬 세션 시절부터 있던 가드라
-  회귀는 아니다. 담아야 한다면 가드를 제거하고 `HomeViewModelTest`의
-  `launching navigation for a parking place does not start a practice session` 테스트를
-  뒤집으면 된다. 질문 넣어둔 상태(2026-08-12).
+- [ ] 주차장도 연습 목록에 담을지 기획 확인 필요
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
 - [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다

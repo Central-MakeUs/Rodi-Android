@@ -66,6 +66,8 @@ data class HomeUiState(
     val regionSearchGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
     val practicePrompt: PracticeRecordItem? = null,
+    val isPracticeSkipReasonVisible: Boolean = false,
+    val notVisitedPracticeId: Long? = null,
     val isPracticeActionInProgress: Boolean = false,
     val levelUp: OnboardingLevel? = null,
 ) {
@@ -91,6 +93,7 @@ sealed interface HomeIntent {
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
     data object OnPracticePromptDismiss : HomeIntent
+    data object OnPracticeSkipReasonClosed : HomeIntent
     data object OnLevelUpDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent

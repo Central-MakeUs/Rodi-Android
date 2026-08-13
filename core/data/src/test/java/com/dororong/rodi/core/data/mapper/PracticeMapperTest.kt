@@ -6,6 +6,7 @@ import com.dororong.rodi.core.data.source.remote.model.practice.PracticeRegister
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
+import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -57,6 +58,9 @@ class PracticeMapperTest {
         ).toDomain()
 
         assertEquals(listOf("TOO_FAR", "OTHER"), result.options.map { it.code })
-        assertEquals(parseServerTimestamp("2026-08-10T10:47:33.996642"), parseServerTimestamp("2026-08-10T10:47:33.996642"))
+        assertEquals(
+            Instant.parse("2026-08-10T01:47:33.996642Z"),
+            parseServerTimestamp("2026-08-10T10:47:33.996642"),
+        )
     }
 }

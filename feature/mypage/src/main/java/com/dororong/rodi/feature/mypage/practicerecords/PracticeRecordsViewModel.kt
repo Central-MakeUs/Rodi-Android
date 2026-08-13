@@ -100,24 +100,34 @@ class PracticeRecordsViewModel @Inject constructor(
         if (_uiState.value.deletingPracticeId != null) return
         viewModelScope.launch {
             _uiState.update { it.copy(deletingPracticeId = record.practiceId, deleteErrorMessage = null) }
-            deletePractice(record.practiceId)
-                .onSuccess {
-                    _uiState.update { current ->
-                        current.copy(
-                            records = current.records.filterNot { it.practiceId == record.practiceId },
-                            totalCount = current.totalCount?.dec(),
-                            deletingPracticeId = null,
-                        )
+            try {
+                deletePractice(record.practiceId)
+                    .onSuccess {
+                        _uiState.update { current ->
+                            current.copy(
+                                records = current.records.filterNot { it.practiceId == record.practiceId },
+                                totalCount = current.totalCount?.dec(),
+                                deletingPracticeId = null,
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        _uiState.update {
+                            it.copy(
+                                deletingPracticeId = null,
+                                deleteErrorMessage = error.message ?: "연습기록을 삭제하지 못했어요.",
+                            )
+                        }
+                    }
+            } finally {
+                _uiState.update { current ->
+                    if (current.deletingPracticeId == record.practiceId) {
+                        current.copy(deletingPracticeId = null)
+                    } else {
+                        current
                     }
                 }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            deletingPracticeId = null,
-                            deleteErrorMessage = error.message ?: "연습기록을 삭제하지 못했어요.",
-                        )
-                    }
-                }
+            }
         }
     }
 

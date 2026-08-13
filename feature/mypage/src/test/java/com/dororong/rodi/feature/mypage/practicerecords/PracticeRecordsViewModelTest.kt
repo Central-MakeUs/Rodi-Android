@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -90,5 +91,45 @@ class PracticeRecordsViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.records.isEmpty())
+    }
+
+    @Test
+    fun `failed deletion keeps the record and exposes the error`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(first), false, null, 1))
+        coEvery { deletePractice(first.practiceId) } returns Result.failure(IllegalStateException("삭제 실패"))
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
+        advanceUntilIdle()
+
+        viewModel.delete(first)
+        advanceUntilIdle()
+
+        assertEquals(listOf(first), viewModel.uiState.value.records)
+        assertEquals("삭제 실패", viewModel.uiState.value.deleteErrorMessage)
+        assertNull(viewModel.uiState.value.deletingPracticeId)
+    }
+
+    @Test
+    fun `cancelled deletion clears progress and allows a later delete`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(first), false, null, 1))
+        var deleteCalls = 0
+        coEvery { deletePractice(first.practiceId) } coAnswers {
+            deleteCalls += 1
+            if (deleteCalls == 1) throw CancellationException("취소")
+            Result.success(Unit)
+        }
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords, deletePractice)
+        advanceUntilIdle()
+
+        viewModel.delete(first)
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.deletingPracticeId)
+        assertNull(viewModel.uiState.value.deleteErrorMessage)
+
+        viewModel.delete(first)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.records.isEmpty())
+        assertEquals(2, deleteCalls)
     }
 }

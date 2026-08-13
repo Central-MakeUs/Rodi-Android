@@ -178,8 +178,6 @@ fun PracticeSkipReasonScreen(
     if (state.isSubmitted) {
         NotVisitedCompletionDialog(onConfirm = onClose)
     }
-    // 디자인(3659-67976): 다이얼로그가 아니라 CM-08 에러 토스트를 3초간 띄우고 자동으로 닫는다.
-    // 입력값과 다음 버튼 상태는 그대로 두어 바로 재시도할 수 있게 한다.
     val snackbarHostState = remember { RodiSnackbarHostState() }
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let { message ->
@@ -419,11 +417,6 @@ private fun PracticeSkipReasonCompletePreview() = RodiTheme {
     RodiAlertDialog("확인", {}, {}, title = "소중한 의견 감사해요!")
 }
 
-/**
- * 디자인(3659-67976)이 예외처리 문구를 네트워크/서버 두 가지로 고정했다.
- * 서버 메시지나 예외 원문을 그대로 노출하지 않는다 — HttpException.message()는
- * "Forbidden" 같은 HTTP reason phrase라 한국어 화면에 그대로 뜬다.
- */
 private fun Throwable.skipReasonErrorMessage(): String = when (this) {
     is PracticeException.Network -> "네트워크 연결을 확인해주세요."
     else -> "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."

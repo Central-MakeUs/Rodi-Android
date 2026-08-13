@@ -90,7 +90,6 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
-import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
@@ -274,8 +273,6 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
-    var isPracticeSkipReasonVisible by remember { mutableStateOf(false) }
-    var notVisitedPractice by remember { mutableStateOf<PracticeRecordItem?>(null) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -1274,20 +1271,15 @@ fun HomeScreen(
                 vm.onIntent(HomeIntent.OnPracticePromptVisited)
             },
             onNotVisited = {
-                notVisitedPractice = session
                 vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
-                isPracticeSkipReasonVisible = true
             },
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (isPracticeSkipReasonVisible && notVisitedPractice != null) {
+    if (state.isPracticeSkipReasonVisible && state.notVisitedPracticeId != null) {
         PracticeSkipReasonScreen(
-            practiceId = requireNotNull(notVisitedPractice).practiceId,
-            onClose = {
-                isPracticeSkipReasonVisible = false
-                notVisitedPractice = null
-            },
+            practiceId = requireNotNull(state.notVisitedPracticeId),
+            onClose = { vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed) },
         )
     }
     state.levelUp?.let { level ->
