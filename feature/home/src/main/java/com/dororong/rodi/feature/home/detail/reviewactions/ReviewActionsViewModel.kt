@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.detail.reviewactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
@@ -81,7 +82,7 @@ class ReviewActionsViewModel @Inject constructor(
             current.copy(
                 selectedOptionCode = option.code,
                 reportDetail = if (option.requiresTextInput) {
-                    current.reportDetail.take(option.textInputMaxLength ?: current.reportDetail.length)
+                    option.textInputMaxLength?.let(current.reportDetail::takeGraphemes) ?: current.reportDetail
                 } else {
                     ""
                 },
@@ -94,7 +95,7 @@ class ReviewActionsViewModel @Inject constructor(
         val maxLength = _state.value.selectedOption()?.textInputMaxLength
         _state.update {
             it.copy(
-                reportDetail = detail.take(maxLength ?: detail.length),
+                reportDetail = maxLength?.let(detail::takeGraphemes) ?: detail,
                 reportErrorMessage = null,
             )
         }
