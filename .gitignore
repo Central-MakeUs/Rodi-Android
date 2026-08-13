@@ -53,6 +53,7 @@ docs/handoff/.pr-nudge-count
 # 로컬 전용 자동화 파이프라인 — 디스크엔 유지하되 원격 저장소엔 올리지 않는다.
 scripts/
 docs/QUEUE.md
+.claude/relay.local.md
 
 # 실제 작업 스펙/구현결과/리뷰가 담긴 핸드오프 문서 — 방법론이 그대로 드러나므로 비공개 유지.
 # 빈 스키마인 TEMPLATE.md와 목차 역할의 archive/README.md만 공개로 남긴다.
