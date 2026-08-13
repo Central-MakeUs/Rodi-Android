@@ -68,13 +68,15 @@ fun LevelReviewSection(
         ) {
             SectionHeader(showAllLink = totalCount > 0, onAllClick = onAllClick)
 
-            // 코스에 후기가 하나라도 있으면(다른 레벨 포함) 요약 노출. 내 레벨에만 후기가 없는 것과는 무관하다.
-            if (topDifficulty != null) {
+            // 코스에 후기가 하나라도 있으면(다른 레벨 포함) 요약 노출. difficultyCounts는 선택한
+            // 레벨 기준이라 이걸로 노출 여부를 걸면 후기 없는 레벨로 바꿀 때마다 요약이 통째로
+            // 사라진다 — totalCount(레벨 무관 전체 후기 수)로 판단해야 한다.
+            if (totalCount > 0) {
                 SummaryRow(
                     recommendCount = recommendCount,
                     selectedLevel = selectedLevel,
                     topDifficulty = topDifficulty,
-                    topDifficultyCount = difficultyCounts[topDifficulty] ?: 0L,
+                    topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
                 )
@@ -154,7 +156,8 @@ private fun SectionHeader(
 private fun SummaryRow(
     recommendCount: Long,
     selectedLevel: OnboardingLevel,
-    topDifficulty: ReviewDifficulty,
+    // 선택한 레벨에 후기가 없으면 null — 그 레벨만의 최다 난이도가 없다는 뜻이라 칩 없이 "0명"만 보여준다.
+    topDifficulty: ReviewDifficulty?,
     topDifficultyCount: Long,
     onSelectLevel: (OnboardingLevel) -> Unit,
     scrollState: ScrollableState?,
@@ -221,7 +224,9 @@ private fun SummaryRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DifficultyChip(difficulty = topDifficulty, emphasized = false)
+                if (topDifficulty != null) {
+                    DifficultyChip(difficulty = topDifficulty, emphasized = false)
+                }
                 Text(
                     text = "${topDifficultyCount}명",
                     style = RodiTheme.typography.body1SemiBold,
@@ -381,5 +386,14 @@ private fun LevelReviewSectionNoReviewWithSummaryDataPreview() = PreviewSection(
     totalCount = 30,
     recommendCount = 15,
     difficultyCounts = mapOf(ReviewDifficulty.NORMAL to 8L, ReviewDifficulty.HARD to 3L),
+    review = null,
+)
+
+@Preview(name = "레벨별 후기 - 선택한 레벨은 후기 0건(다른 레벨은 있음)", showBackground = true, widthDp = 375)
+@Composable
+private fun LevelReviewSectionSelectedLevelEmptyPreview() = PreviewSection(
+    totalCount = 30,
+    recommendCount = 15,
+    difficultyCounts = emptyMap(),
     review = null,
 )
