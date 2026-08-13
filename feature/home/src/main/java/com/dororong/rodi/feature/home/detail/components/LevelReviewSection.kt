@@ -59,7 +59,6 @@ fun LevelReviewSection(
     scrollState: ScrollableState? = null,
 ) {
     val topDifficulty = difficultyCounts.topDifficulty()
-    val isEmpty = totalCount == 0L
     val hasReview = review != null
 
     Column(modifier) {
@@ -69,7 +68,8 @@ fun LevelReviewSection(
         ) {
             SectionHeader(showAllLink = totalCount > 0, onAllClick = onAllClick)
 
-            if (hasReview && topDifficulty != null) {
+            // 코스에 후기가 하나라도 있으면(다른 레벨 포함) 요약 노출. 내 레벨에만 후기가 없는 것과는 무관하다.
+            if (topDifficulty != null) {
                 SummaryRow(
                     recommendCount = recommendCount,
                     selectedLevel = selectedLevel,
@@ -83,13 +83,7 @@ fun LevelReviewSection(
 
         if (!hasReview) {
             Spacer(Modifier.height(12.dp))
-            WriteReviewPrompt(
-                showLevelSelector = !isEmpty,
-                selectedLevel = selectedLevel,
-                onSelectLevel = onSelectLevel,
-                scrollState = scrollState,
-                onWriteReviewClick = onWriteReviewClick,
-            )
+            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
         } else {
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
@@ -107,13 +101,7 @@ fun LevelReviewSection(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
             Spacer(Modifier.height(12.dp))
-            WriteReviewPrompt(
-                showLevelSelector = false,
-                selectedLevel = selectedLevel,
-                onSelectLevel = onSelectLevel,
-                scrollState = scrollState,
-                onWriteReviewClick = onWriteReviewClick,
-            )
+            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
         }
 
         Spacer(
@@ -287,29 +275,13 @@ internal fun LevelDropdown(
 }
 
 @Composable
-private fun WriteReviewPrompt(
-    showLevelSelector: Boolean,
-    selectedLevel: OnboardingLevel,
-    onSelectLevel: (OnboardingLevel) -> Unit,
-    scrollState: ScrollableState?,
-    onWriteReviewClick: () -> Unit,
-) {
+private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
     val buttonShape = RoundedCornerShape(8.dp)
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(124.dp),
     ) {
-        if (showLevelSelector) {
-            LevelDropdown(
-                selectedLevel = selectedLevel,
-                onSelectLevel = onSelectLevel,
-                scrollState = scrollState,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 12.dp, end = 16.dp),
-            )
-        }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
