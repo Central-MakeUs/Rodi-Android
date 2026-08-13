@@ -11,7 +11,6 @@ import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
-import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
@@ -709,15 +708,13 @@ class HomeViewModel @Inject constructor(
     }
 
     private suspend fun launchPractice(place: PlaceDetail, effect: HomeEffect) {
-        if (place.type == PlaceType.COURSE) {
-            registerPracticeUseCase(place.id)
-                // 다시 담았다는 건 또 물어봐 달라는 뜻이다. 이전에 닫은 기록을 지운다.
-                .onSuccess {
-                    dismissedPracticeIds -= it.practiceId
-                    persistPracticePromptRestore(it.practiceId)
-                }
-                .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
-        }
+        registerPracticeUseCase(place.id)
+            // 다시 담았다는 건 또 물어봐 달라는 뜻이다. 이전에 닫은 기록을 지운다.
+            .onSuccess {
+                dismissedPracticeIds -= it.practiceId
+                persistPracticePromptRestore(it.practiceId)
+            }
+            .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
         _effect.send(effect)
     }
 

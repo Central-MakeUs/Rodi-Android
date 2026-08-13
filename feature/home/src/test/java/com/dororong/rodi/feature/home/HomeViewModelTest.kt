@@ -882,7 +882,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `launching navigation for a parking place does not start a practice session`() = runTest(dispatcher) {
+    fun `launching navigation for a parking place also registers the practice`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(parkingNavigationPlace())
         val vm = deps.viewModel()
@@ -892,7 +892,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { deps.registerPractice(any()) }
+        coVerify(exactly = 1) { deps.registerPractice(19L) }
     }
 }
 
