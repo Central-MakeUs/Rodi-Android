@@ -59,6 +59,11 @@
   기본값으로 조용히 틀리게 채워질 수 있다(예: `totalCount`가 `totalReviewCount`로 개명됐는데
   기본값 0만 채웠다가 "전체보기" 노출 조건이 항상 거짓이 된 사례, 2026-08-13). enum 값도 같은
   이유로 반드시 Swagger 원문과 1:1 대조한다.
+- **`Dialog`/`Popup` 기반 컴포저블은 `LocalInspectionMode` 분기 필수**: `Dialog`/`Popup`은 별도
+  윈도우로 뜨기 때문에 IDE `@Preview`에서 실제 앱과 다르게(또는 아예 안) 그려진다.
+  `if (LocalInspectionMode.current) { 내용만 직접 그리기 } else { Dialog(...) { 내용 } }`으로
+  분기해 프리뷰에서는 진짜 `Dialog`/`Popup`을 띄우지 않고 내용 Composable을 그대로 그린다.
+  참고 구현: `core/ui/.../dialog/RodiDialog.kt`.
 
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.
