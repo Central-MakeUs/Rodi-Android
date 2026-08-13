@@ -27,13 +27,17 @@ fun PlaceEmptyContent(
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
+    // 목록이 비었을 땐 헤더(ListSheetHeader) 대신 이 컴포넌트가 바로 오는데, 드래그를 핸들 22dp
+    // 줄에만 걸면 다른 상태의 헤더 전체 드래그보다 훨씬 좁은 영역만 시트를 내릴 수 있게 된다.
+    // 안에 클릭 가능한 요소가 없으므로 전체 영역에 드래그를 걸어도 안전하다.
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 375.dp),
+            .heightIn(min = 375.dp)
+            .then(dragHandleModifier),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SheetHandle(modifier = Modifier.height(22.dp).then(dragHandleModifier))
+        SheetHandle(modifier = Modifier.height(22.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()
