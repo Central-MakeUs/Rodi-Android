@@ -81,14 +81,16 @@ fun CourseDetailContent(
                 }
                 if (showCloseButton) {
                     // 이 헤더는 시트 바깥쪽 verticalScroll에 바로 감싸여 최상단에 붙어있다. 기본
-                    // touchSize(48dp)가 남기는 오버플로가 스크롤 뷰포트 클립 경계에서 잘려 핸들 라인
-                    // 아래로 리플이 가려지므로, 여기서만 오버플로 없이 행 높이에 맞춘다.
+                    // touchSize(48dp)로 인한 레이아웃 오버플로는 앞서 24dp로 없앴지만, ripple radius가
+                    // 기본값(touchSize/2, 24dp 중 큰 값)으로 24dp 최소치를 유지해 리플 자체는 여전히
+                    // 스크롤 클립 경계 밖으로 번져 핸들 라인 아래로 잘렸다. radius도 박스 크기에 맞춘다.
                     RodiIconButton(
                         painter = painterResource(R.drawable.ic_x),
                         onClick = onDismiss,
                         iconSize = 20.dp,
                         touchSize = 24.dp,
                         layoutSize = 24.dp,
+                        rippleRadius = 12.dp,
                         contentDescription = "닫기",
                         tint = RodiTheme.colors.black,
                     )

@@ -31,6 +31,9 @@ fun RodiIconButton(
     iconSize: Dp = 24.dp,
     touchSize: Dp = 48.dp,
     layoutSize: Dp = 24.dp,
+    // 스크롤 뷰포트 가장자리처럼 클리핑되는 자리에 놓일 때 오버플로를 없애려면 touchSize/2보다
+    // 작은 값을 넘긴다. 기본값은 손가락 크기를 보장하는 기존 동작 그대로다.
+    rippleRadius: Dp = maxOf(touchSize / 2, 24.dp),
     contentDescription: String? = null,
     tint: Color = Color.Unspecified,
     enabled: Boolean = true,
@@ -62,7 +65,7 @@ fun RodiIconButton(
                 interactionSource = interactionSource,
                 indication = ripple(
                     bounded = false,
-                    radius = maxOf(touchSize / 2, 24.dp),
+                    radius = rippleRadius,
                 ),
                 onClick = onClick,
             ),
