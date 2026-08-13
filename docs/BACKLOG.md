@@ -4,7 +4,7 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
+- [x] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
   (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
   `GET /places/{placeId}/reviews/summary`·`?level=ALL`·`GET /places/{placeId}/reviews?size=1`이
   전부 200을 반환하지만 방금 만든 후기가 응답에 없다. 클라이언트 재조회 배선(`CourseReviewViewModel.refresh()`)은
@@ -41,7 +41,17 @@
   같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
   그대로 실어 보냄)도 `AuthErrorMapper`(`876f3142`)·`PracticeRepositoryImpl`과 같은 패턴이라
   이 작업과 함께 고치는 게 맞다.
-- [ ] 주차장도 연습 목록에 담을지 기획 확인 필요
+
+  **2026-08-13 부분 해결.** 지난 QA 라운드에서 "totalCount 오류 토스트"를 크래시만 막고 넘어갔다가
+  (기본값 0L만 채움), 이번에 Swagger를 다시 대조해 진짜 원인을 잡았다. `ReviewSummaryResponse`를
+  `levelReviewCount`/`totalReviewCount`에 맞추고 도메인 `totalCount`를 `totalReviewCount`에서
+  옮기도록 매퍼를 고쳤다 — 이제 파싱은 항상 성공하고 "전체보기" 링크도 실제 후기 수를 반영한다.
+  **남은 범위**: `topDifficulty`(서버가 동률까지 계산해 내려주는 신규 필드)는 매핑하지 않았다 —
+  클라이언트가 `difficultyCounts`로 이미 같은 규칙을 계산 중이라 당장 필요하지 않았다. `levelReviewCount`도
+  아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 원문 노출(`else` 분기) 정리도 남아있다.
+  `placeId 106`의 테스트 후기 2건 정리는 여전히 미확인.
+- [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
+  가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
 - [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
