@@ -42,6 +42,7 @@ private data class RouteRowItem(
     val label: String,
     val name: String,
     val color: Color,
+    val dotColor: Color,
 )
 
 @Composable
@@ -55,9 +56,10 @@ fun RouteInfoSection(
     val startColor = RodiTheme.semantic.pinStart
     val arrivalColor = RodiTheme.semantic.pinArrival
     val viaColor = RodiTheme.colors.gray800
+    val viaDotColor = RodiTheme.colors.gray400
 
-    val allRows = remember(waypoints, startColor, viaColor, arrivalColor) {
-        buildRouteRows(waypoints, startColor, viaColor, arrivalColor)
+    val allRows = remember(waypoints, startColor, viaColor, viaDotColor, arrivalColor) {
+        buildRouteRows(waypoints, startColor, viaColor, viaDotColor, arrivalColor)
     }
     if (allRows.isEmpty()) return
     val rows = if (expanded) allRows else allRows.take(1)
@@ -129,7 +131,7 @@ private fun RouteRow(row: RouteRowItem) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(9.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(7.dp).background(row.color, CircleShape))
+                Box(Modifier.size(7.dp).background(row.dotColor, CircleShape))
             }
             Spacer(Modifier.width(6.dp))
             Text(
@@ -153,21 +155,22 @@ private fun buildRouteRows(
     waypoints: List<PlaceWaypoint>,
     startColor: Color,
     viaColor: Color,
+    viaDotColor: Color,
     arrivalColor: Color,
 ): List<RouteRowItem> {
     val sortedWaypoints = waypoints
         .filter { !it.name.isNullOrBlank() }
         .sortedBy { it.sequence }
     return sortedWaypoints.mapIndexed { index, waypoint ->
-            val (label, color) = when (waypoint.type) {
-                PlaceWaypointType.START -> "출발지" to startColor
-                PlaceWaypointType.DESTINATION -> "도착지" to arrivalColor
+            val (label, color, dotColor) = when (waypoint.type) {
+                PlaceWaypointType.START -> Triple("출발지", startColor, startColor)
+                PlaceWaypointType.DESTINATION -> Triple("도착지", arrivalColor, arrivalColor)
                 PlaceWaypointType.VIA -> {
                     val viaNumber = sortedWaypoints.take(index + 1).count { it.type == PlaceWaypointType.VIA }
-                    "경유지 $viaNumber" to viaColor
+                    Triple("경유지 $viaNumber", viaColor, viaDotColor)
                 }
             }
-            RouteRowItem(label = label, name = waypoint.name.orEmpty(), color = color)
+            RouteRowItem(label = label, name = waypoint.name.orEmpty(), color = color, dotColor = dotColor)
         }
 }
 
