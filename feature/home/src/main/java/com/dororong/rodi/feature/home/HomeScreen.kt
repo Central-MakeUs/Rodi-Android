@@ -218,7 +218,6 @@ private data class ReviewWriteTarget(
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
-    onCourseRegistrationClick: () -> Unit,
     onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
@@ -514,7 +513,6 @@ fun HomeScreen(
             is HomeEffect.ShowSnackbar -> snackbarHostState.show(RodiSnackbarData(message = effect.message))
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
-            HomeEffect.NavigateCourseRegistration -> onCourseRegistrationClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
         }
     }
@@ -1631,7 +1629,6 @@ private fun HomeChromePreview() {
             RodiBottomNavigation(
                 selectedDestination = RodiBottomNavigationDestination.Home,
                 onHomeClick = {},
-                onCourseRegistrationClick = {},
                 onMyClick = {},
                 modifier = Modifier.align(Alignment.BottomCenter),
             )

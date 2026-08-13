@@ -6,6 +6,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -31,7 +32,6 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 
 enum class RodiBottomNavigationDestination {
     Home,
-    CourseRegistration,
     My,
 }
 
@@ -39,7 +39,6 @@ enum class RodiBottomNavigationDestination {
 fun RodiBottomNavigation(
     selectedDestination: RodiBottomNavigationDestination,
     onHomeClick: () -> Unit,
-    onCourseRegistrationClick: () -> Unit,
     onMyClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -54,7 +53,7 @@ fun RodiBottomNavigation(
                 .fillMaxWidth()
                 .navigationBarsPadding()
                 .height(56.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+            horizontalArrangement = Arrangement.Center,
         ) {
             RodiBottomNavigationItem(
                 icon = R.drawable.ic_nav_home,
@@ -62,12 +61,7 @@ fun RodiBottomNavigation(
                 selected = selectedDestination == RodiBottomNavigationDestination.Home,
                 onClick = onHomeClick,
             )
-            RodiBottomNavigationItem(
-                icon = R.drawable.ic_nav_course,
-                label = "코스 등록",
-                selected = selectedDestination == RodiBottomNavigationDestination.CourseRegistration,
-                onClick = onCourseRegistrationClick,
-            )
+            Spacer(Modifier.width(68.dp))
             RodiBottomNavigationItem(
                 icon = R.drawable.ic_nav_my,
                 label = "마이",
@@ -122,20 +116,6 @@ private fun RodiBottomNavigationPreview() {
         RodiBottomNavigation(
             selectedDestination = RodiBottomNavigationDestination.Home,
             onHomeClick = {},
-            onCourseRegistrationClick = {},
-            onMyClick = {},
-        )
-    }
-}
-
-@Preview(showBackground = true, widthDp = 360)
-@Composable
-private fun RodiBottomNavigationCourseRegistrationPreview() {
-    RodiTheme {
-        RodiBottomNavigation(
-            selectedDestination = RodiBottomNavigationDestination.CourseRegistration,
-            onHomeClick = {},
-            onCourseRegistrationClick = {},
             onMyClick = {},
         )
     }

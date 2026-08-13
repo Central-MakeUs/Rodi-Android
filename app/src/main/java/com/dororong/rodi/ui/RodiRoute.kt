@@ -22,9 +22,6 @@ data class SearchRoute(
 ) : NavKey
 
 @Serializable
-data object CourseRegistrationRoute : NavKey
-
-@Serializable
 data object MyPageRoute : NavKey
 
 @Serializable
@@ -42,7 +39,6 @@ internal fun NavKey.toClarityScreenName(): String? = when (this) {
     MainRoute -> null
     HomeRoute -> "Home"
     is SearchRoute -> "Search"
-    CourseRegistrationRoute -> "CourseRegistration"
     MyPageRoute -> "MyPage"
     DrivingGoalRoute -> "DrivingGoal"
     SavedCoursesRoute -> "SavedCourses"

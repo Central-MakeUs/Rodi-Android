@@ -25,7 +25,6 @@ import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.home.HomeViewModel
-import com.dororong.rodi.feature.home.course.CourseRegistrationScreen
 import com.dororong.rodi.feature.home.SearchScreen
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
@@ -61,10 +60,10 @@ fun MainScreen(
         movableContentOf {
             val route = currentRouteState.value
             RodiBottomNavigation(
-                selectedDestination = when (route) {
-                    MyPageRoute -> RodiBottomNavigationDestination.My
-                    CourseRegistrationRoute -> RodiBottomNavigationDestination.CourseRegistration
-                    else -> RodiBottomNavigationDestination.Home
+                selectedDestination = if (route == MyPageRoute) {
+                    RodiBottomNavigationDestination.My
+                } else {
+                    RodiBottomNavigationDestination.Home
                 },
                 onHomeClick = {
                     if (route == HomeRoute) {
@@ -73,16 +72,8 @@ fun MainScreen(
                         backStack[backStack.lastIndex] = HomeRoute
                     }
                 },
-                onCourseRegistrationClick = {
-                    if (route == HomeRoute) {
-                        homeViewModel.onIntent(HomeIntent.OnCourseRegistrationClick)
-                    } else if (route != CourseRegistrationRoute) {
-                        backStack[backStack.lastIndex] = CourseRegistrationRoute
-                    }
-                },
                 onMyClick = {
                     if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.OnMyClick)
-                    else if (route != MyPageRoute) backStack[backStack.lastIndex] = MyPageRoute
                 },
             )
         }
@@ -105,9 +96,6 @@ fun MainScreen(
                         HomeScreen(
                             onMyPageClick = {
                                 backStack[backStack.lastIndex] = MyPageRoute
-                            },
-                            onCourseRegistrationClick = {
-                                backStack[backStack.lastIndex] = CourseRegistrationRoute
                             },
                             onSearchClick = { origin ->
                                 backStack.add(SearchRoute(origin.lat, origin.lng))
@@ -137,11 +125,6 @@ fun MainScreen(
                                 homeViewModel.onIntent(HomeIntent.OnRegionSearch(region, initialPlaces))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
-                        )
-                    }
-                    CourseRegistrationRoute -> NavEntry(key) {
-                        CourseRegistrationScreen(
-                            onBack = { backStack[backStack.lastIndex] = HomeRoute },
                         )
                     }
                     MyPageRoute -> NavEntry(key) {
@@ -210,7 +193,7 @@ fun MainScreen(
                 }
             },
         )
-        if (currentRoute == MyPageRoute || currentRoute == CourseRegistrationRoute) {
+        if (currentRoute == MyPageRoute) {
             Box(Modifier.align(Alignment.BottomCenter)) { bottomNavigation() }
         }
     }
