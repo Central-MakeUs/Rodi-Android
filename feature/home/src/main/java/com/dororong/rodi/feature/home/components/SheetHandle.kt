@@ -13,10 +13,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
-/**
- * 시트 상단의 손잡이 바. 드래그 동작은 호출자가 [modifier]로 넘긴
- * `Modifier.anchoredDraggable`이 담당한다 — 시트마다 앵커가 다르므로 여기서 소유하지 않는다.
- */
 @Composable
 fun SheetHandle(modifier: Modifier = Modifier) {
     Box(

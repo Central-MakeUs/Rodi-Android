@@ -264,6 +264,23 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `late list sheet settle event does not override an open detail`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 40L)
+        coEvery { deps.getDetail(40L) } returns Result.success(place)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(40L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+
+        assertEquals(HomeSurfaceState.Detail, vm.state.value.surfaceState)
+        assertEquals(40L, vm.state.value.selectedPlaceId)
+        assertEquals(place, vm.state.value.selectedPlace)
+        assertFalse(vm.state.value.isDetailLoading)
+    }
+
+    @Test
     fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))

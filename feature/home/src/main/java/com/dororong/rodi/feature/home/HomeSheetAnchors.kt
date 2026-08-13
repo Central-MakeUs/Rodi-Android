@@ -13,13 +13,6 @@ enum class DetailSheetValue {
     Dismissed,
 }
 
-/**
- * 리스트 시트 앵커의 시트 상단 y좌표(px). 컨테이너 기준이라 값이 클수록 아래로 내려간 상태다.
- *
- * 빈 목록·초기 에러일 때 [fullPx]는 null이다. 위로 못 올라가게 막는 방법은 두 가지인데,
- * settle 시점에 되돌리면 손가락을 따라 올라갔다가 튕겨 내려오는 게 그대로 보이므로
- * 앵커 자체를 만들지 않는다.
- */
 internal data class ListSheetAnchorPositions(
     val hiddenPx: Float,
     val partialPx: Float,

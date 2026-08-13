@@ -1468,13 +1468,6 @@ private fun titleCenteringProgress(expansionProgress: Float): Float =
     ((expansionProgress - LIST_TITLE_CENTERING_START) / (1f - LIST_TITLE_CENTERING_START))
         .coerceIn(0f, 1f)
 
-/**
- * 손잡이 + 타이틀 라인. 시트를 끄는 유일한 면이라 드래그 [modifier]는 호출자가 넘긴다.
- *
- * [expansionProgress]는 드래그 중 프레임마다 바뀌므로 값이 아니라 람다로 받아 graphicsLayer/layout
- * 안에서만 읽는다. 컴포지션에서 읽으면 헤더가 매 프레임 recompose 된다. 반면 아이콘 활성화 여부는
- * 정착 후에만 의미가 있어 [isExpanded]로 따로 받는다.
- */
 @Composable
 private fun ListSheetHeader(
     expansionProgress: () -> Float,
