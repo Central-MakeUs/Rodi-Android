@@ -256,12 +256,7 @@ private fun MyPageLevelChipSkeleton() {
             .width(56.dp)
             .height(21.dp),
         shape = RoundedCornerShape(4.dp),
-        color = RodiTheme.colors.primary200,
-        shimmerColors = listOf(
-            RodiTheme.colors.primary200,
-            RodiTheme.colors.primary100,
-            RodiTheme.colors.primary200,
-        ),
+        color = RodiTheme.colors.gray200,
     )
 }
 
