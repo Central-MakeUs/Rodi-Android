@@ -97,6 +97,7 @@ sealed interface HomeIntent {
     data object OnLevelUpDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
+    data object OnCourseRegistrationClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
     data class OnRegionSearch(
         val region: RegionOfficeLocation,
@@ -133,6 +134,7 @@ sealed interface HomeEffect {
     data class ShowSnackbar(val message: String) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
+    data object NavigateCourseRegistration : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
 }
 
@@ -140,6 +142,7 @@ sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction
     data object ToggleBookmark : PendingHomeAction
     data object OpenMyPage : PendingHomeAction
+    data object OpenCourseRegistration : PendingHomeAction
     data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
     data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }
