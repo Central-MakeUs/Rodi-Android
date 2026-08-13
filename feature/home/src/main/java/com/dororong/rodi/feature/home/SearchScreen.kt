@@ -180,13 +180,11 @@ private fun SearchInput(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        RodiIconButton(
             painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
             contentDescription = "뒤로가기",
             tint = RodiTheme.colors.black,
-            modifier = Modifier
-                .size(24.dp)
-                .clickable(onClick = onBack),
         )
         BasicTextField(
             value = query,
