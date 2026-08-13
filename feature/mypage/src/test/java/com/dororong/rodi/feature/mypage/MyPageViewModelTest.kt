@@ -50,6 +50,36 @@ class MyPageViewModelTest {
     }
 
     @Test
+    fun `practice record status survives the mypage feature model mapping`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val notVisited = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
+            practiceId = 9L,
+            placeId = 106L,
+            placeName = "영덕 해안도로 코스",
+            practiceTypes = emptyList(),
+            visitCount = 0,
+            visitedAt = null,
+            isVerified = false,
+            hasReview = true,
+            status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.NOT_VISITED,
+        )
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(notVisited), false, null, 1))
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(
+            com.dororong.rodi.core.domain.model.practice.PracticeStatus.NOT_VISITED,
+            viewModel.uiState.value.practiceRecords.single().status,
+        )
+    }
+
+    @Test
     fun `practice record failure is preserved separately from profile state`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()

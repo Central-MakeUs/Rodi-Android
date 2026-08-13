@@ -9,7 +9,8 @@ import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.data.repository.MemberRepositoryImpl
 import com.dororong.rodi.core.data.repository.RecentSearchRepositoryImpl
 import com.dororong.rodi.core.data.repository.ReviewRepositoryImpl
-import com.dororong.rodi.core.data.repository.PracticeSessionRepositoryImpl
+import com.dororong.rodi.core.data.repository.PracticeRepositoryImpl
+import com.dororong.rodi.core.data.source.local.datastore.PracticePromptDismissalStore
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
@@ -19,7 +20,8 @@ import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.repository.ReviewRepository
-import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
+import com.dororong.rodi.core.domain.repository.PracticeRepository
+import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -60,7 +62,12 @@ abstract class DataModule {
     abstract fun bindReviewRepository(impl: ReviewRepositoryImpl): ReviewRepository
 
     @Binds
-    abstract fun bindPracticeSessionRepository(impl: PracticeSessionRepositoryImpl): PracticeSessionRepository
+    abstract fun bindPracticeRepository(impl: PracticeRepositoryImpl): PracticeRepository
+
+    @Binds
+    abstract fun bindPracticePromptDismissalRepository(
+        impl: PracticePromptDismissalStore,
+    ): PracticePromptDismissalRepository
 
     companion object {
         @Provides

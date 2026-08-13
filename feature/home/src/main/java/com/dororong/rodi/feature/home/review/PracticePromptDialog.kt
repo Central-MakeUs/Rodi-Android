@@ -11,14 +11,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import com.dororong.rodi.core.domain.model.practice.PracticeSession
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import java.time.Instant
 
 @Composable
 fun PracticePromptDialog(
-    session: PracticeSession,
+    practice: PracticeRecordItem,
     onVisited: () -> Unit,
     onNotVisited: () -> Unit,
     onDismiss: () -> Unit,
@@ -34,7 +34,7 @@ fun PracticePromptDialog(
         titleContent = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "'${session.placeName}'",
+                    text = "'${practice.placeName}'",
                     modifier = Modifier.fillMaxWidth(),
                     style = RodiTheme.typography.headline1,
                     color = RodiTheme.colors.primary600,
@@ -63,7 +63,7 @@ private fun PracticePromptShortPreview() {
             contentAlignment = Alignment.Center,
         ) {
             PracticePromptDialog(
-                session = PracticeSession(1L, "강남역 코스", Instant.EPOCH),
+                practice = PracticeRecordItem(1L, 1L, "강남역 코스", emptyList(), 0, Instant.EPOCH, false, false),
                 onVisited = {},
                 onNotVisited = {},
                 onDismiss = {},
@@ -81,10 +81,15 @@ private fun PracticePromptLongPreview() {
             contentAlignment = Alignment.Center,
         ) {
             PracticePromptDialog(
-                session = PracticeSession(
+                practice = PracticeRecordItem(
+                    practiceId = 1L,
                     placeId = 1L,
                     placeName = "서울특별시 강남구 테헤란로 초보 운전 연습 코스",
-                    startedAt = Instant.EPOCH,
+                    practiceTypes = emptyList(),
+                    visitCount = 0,
+                    visitedAt = null,
+                    isVerified = false,
+                    hasReview = false,
                 ),
                 onVisited = {},
                 onNotVisited = {},

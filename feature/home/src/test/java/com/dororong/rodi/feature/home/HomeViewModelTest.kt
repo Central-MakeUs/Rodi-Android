@@ -12,7 +12,12 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
-import com.dororong.rodi.core.domain.model.practice.PracticeSession
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.Practice
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
+import com.dororong.rodi.core.domain.model.practice.PracticeVisitResult
+import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
@@ -26,9 +31,9 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
-import com.dororong.rodi.core.domain.usecase.practice.ClearPracticeSessionUseCase
-import com.dororong.rodi.core.domain.usecase.practice.GetCompletedPracticeSessionUseCase
-import com.dororong.rodi.core.domain.usecase.practice.StartPracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.practice.RecordPracticeVisitUseCase
+import com.dororong.rodi.core.domain.usecase.practice.RegisterPracticeUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
@@ -39,6 +44,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -636,17 +643,116 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `resuming after a completed practice shows its review prompt for a member`() = runTest(dispatcher) {
+    fun `resuming with a planned practice shows its review prompt for a member`() = runTest(dispatcher) {
         val deps = Dependencies()
-        val session = PracticeSession(19L, "강남역 주변 코스", Instant.EPOCH)
-        coEvery { deps.getCompletedPracticeSession() } returns Result.success(session)
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertEquals(session, vm.state.value.practicePrompt)
-        coVerify(exactly = 1) { deps.getCompletedPracticeSession() }
+        assertEquals(practice, vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.getPracticeRecords(null, 20) }
+    }
+
+    @Test
+    fun `dismissed practice prompt does not come back on the next resume`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+    }
+
+    @Test
+    fun `dismissed practice ids are persisted and skip reason state is view model backed`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        assertTrue(vm.state.value.isPracticeSkipReasonVisible)
+        assertEquals(practice.practiceId, vm.state.value.notVisitedPracticeId)
+        coVerify(exactly = 1) { deps.dismissedPractice.dismiss(practice.practiceId) }
+
+        vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed)
+
+        assertFalse(vm.state.value.isPracticeSkipReasonVisible)
+        assertNull(vm.state.value.notVisitedPracticeId)
+    }
+
+    @Test
+    fun `latest planned practice lookup wins over an older response`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val older = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
+        val newer = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
+        val oldPractice = practiceRecord(status = PracticeStatus.PLANNED)
+        val newPractice = oldPractice.copy(practiceId = 20L)
+        var requestCount = 0
+        coEvery { deps.getPracticeRecords(null, 20) } coAnswers {
+            requestCount += 1
+            if (requestCount == 1) {
+                withContext(NonCancellable) { older.await() }
+            } else {
+                newer.await()
+            }
+        }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        runCurrent()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        runCurrent()
+
+        newer.complete(Result.success(CursorPage(listOf(newPractice), false, null, 1)))
+        runCurrent()
+        older.complete(Result.success(CursorPage(listOf(oldPractice), false, null, 1)))
+        advanceUntilIdle()
+
+        assertEquals(newPractice, vm.state.value.practicePrompt)
+    }
+
+    @Test
+    fun `registering the same place again makes the prompt eligible once more`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        coEvery { deps.registerPractice(any()) } returns Result.success(
+            Practice(
+                practiceId = practice.practiceId,
+                status = PracticeStatus.PLANNED,
+                visitCount = 0,
+                requiredDistanceMeters = 0,
+            ),
+        )
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
+
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertEquals(practice, vm.state.value.practicePrompt)
     }
 
     @Test
@@ -658,14 +764,15 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertNull(vm.state.value.practicePrompt)
-        coVerify(exactly = 0) { deps.getCompletedPracticeSession() }
+        coVerify(exactly = 0) { deps.getPracticeRecords(any(), any()) }
     }
 
     @Test
-    fun `responding to a practice prompt clears the stored session`() = runTest(dispatcher) {
+    fun `responding to a practice prompt records a visit`() = runTest(dispatcher) {
         val deps = Dependencies()
-        val session = PracticeSession(19L, "강남역 주변 코스", Instant.EPOCH)
-        coEvery { deps.getCompletedPracticeSession() } returns Result.success(session)
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -674,11 +781,53 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertNull(vm.state.value.practicePrompt)
-        coVerify(exactly = 1) { deps.clearPracticeSession() }
+        coVerify(exactly = 1) { deps.recordPracticeVisit(practice.practiceId) }
     }
 
     @Test
-    fun `launching an installed navigation app starts a practice session`() = runTest(dispatcher) {
+    fun `level up visit updates state and opens the review effect`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns
+            Result.success(visitResult(levelUp = true, newLevel = OnboardingLevel.ROOKIE))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticePromptVisited)
+            advanceUntilIdle()
+
+            assertEquals(OnboardingLevel.ROOKIE, vm.state.value.levelUp)
+            assertEquals(HomeEffect.OpenPracticeReview(practice.placeId, practice.placeName), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `failed and cancelled visits clear progress state`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val practice = practiceRecord(status = PracticeStatus.PLANNED)
+        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns Result.failure(IllegalStateException("실패"))
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+        assertFalse(vm.state.value.isPracticeActionInProgress)
+
+        coEvery { deps.recordPracticeVisit(practice.practiceId) } throws CancellationException("취소")
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isPracticeActionInProgress)
+    }
+
+    @Test
+    fun `launching an installed navigation app registers the course practice`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
@@ -688,7 +837,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { deps.startPracticeSession(19L, "테스트 연습장") }
+        coVerify(exactly = 1) { deps.registerPractice(19L) }
     }
 
     @Test
@@ -702,7 +851,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { deps.startPracticeSession(any(), any()) }
+        coVerify(exactly = 0) { deps.registerPractice(any()) }
     }
 
     @Test
@@ -716,7 +865,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { deps.startPracticeSession(any(), any()) }
+        coVerify(exactly = 0) { deps.registerPractice(any()) }
     }
 }
 
@@ -734,9 +883,10 @@ private class Dependencies(loggedIn: Boolean = true) {
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
     val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
-    val startPracticeSession = mockk<StartPracticeSessionUseCase>()
-    val getCompletedPracticeSession = mockk<GetCompletedPracticeSessionUseCase>()
-    val clearPracticeSession = mockk<ClearPracticeSessionUseCase>()
+    val registerPractice = mockk<RegisterPracticeUseCase>()
+    val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+    val recordPracticeVisit = mockk<RecordPracticeVisitUseCase>()
+    val dismissedPractice = mockk<PracticePromptDismissalRepository>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -745,9 +895,14 @@ private class Dependencies(loggedIn: Boolean = true) {
         coEvery { authSession() } returns AuthSession(loggedIn, false)
         coEvery { getNaviAlways() } returns null
         coEvery { setNaviAlways(any()) } returns Unit
-        coEvery { startPracticeSession(any(), any()) } returns Result.success(Unit)
-        coEvery { getCompletedPracticeSession() } returns Result.success(null)
-        coEvery { clearPracticeSession() } returns Result.success(Unit)
+        coEvery { registerPractice(any()) } returns Result.success(
+            Practice(practiceId = 19L, status = PracticeStatus.PLANNED, visitCount = 0, requiredDistanceMeters = 0),
+        )
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { recordPracticeVisit(any(), any()) } returns Result.success(visitResult())
+        coEvery { dismissedPractice.readDismissedPracticeIds() } returns emptySet()
+        coEvery { dismissedPractice.dismiss(any()) } returns Unit
+        coEvery { dismissedPractice.restore(any()) } returns Unit
     }
 
     fun viewModel() = HomeViewModel(
@@ -764,9 +919,10 @@ private class Dependencies(loggedIn: Boolean = true) {
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
         updateFilterTagsUseCase = updateFilterTags,
-        startPracticeSessionUseCase = startPracticeSession,
-        getCompletedPracticeSessionUseCase = getCompletedPracticeSession,
-        clearPracticeSessionUseCase = clearPracticeSession,
+        registerPracticeUseCase = registerPractice,
+        getPracticeRecordsUseCase = getPracticeRecords,
+        recordPracticeVisitUseCase = recordPracticeVisit,
+        practicePromptDismissalRepository = dismissedPractice,
     )
 }
 
@@ -774,6 +930,32 @@ private fun query(offset: Double = 0.0) = PlaceViewportQuery(
     southWest = GeoPoint(37.0 + offset, 126.0 + offset),
     northEast = GeoPoint(38.0 + offset, 127.0 + offset),
     origin = GeoPoint(37.5 + offset, 126.5 + offset),
+)
+
+private fun practiceRecord(status: PracticeStatus) = PracticeRecordItem(
+    practiceId = 19L,
+    placeId = 27L,
+    placeName = "강남역 주변 코스",
+    practiceTypes = listOf(PracticeType.STRAIGHT),
+    visitCount = 0,
+    visitedAt = null,
+    isVerified = false,
+    hasReview = false,
+    status = status,
+)
+
+private fun visitResult(
+    levelUp: Boolean = false,
+    newLevel: OnboardingLevel? = null,
+) = PracticeVisitResult(
+    visitCount = 1,
+    addedCertifiedDistanceMeters = 0,
+    requiredDistanceMeters = 1000,
+    isCertifiedNow = false,
+    isVerified = false,
+    totalDistanceKm = 0.0,
+    levelUp = levelUp,
+    newLevel = newLevel,
 )
 
 private fun summary(id: Long) = PlaceSummary(

@@ -15,6 +15,7 @@ import com.dororong.rodi.core.domain.model.member.BlockedMember
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import timber.log.Timber
 
 fun MyPageResponse.toDomain() = MyPage(
@@ -51,6 +52,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     visitedAt = visitedAt?.let(::parseServerTimestamp),
     isVerified = isVerified,
     hasReview = hasReview,
+    status = status.toPracticeStatus(),
 )
 
 fun CursorPageMyReviewItemResponse.toDomain() = CursorPage(

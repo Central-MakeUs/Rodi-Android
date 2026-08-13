@@ -8,7 +8,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
-import com.dororong.rodi.core.domain.model.practice.PracticeSession
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -64,7 +65,11 @@ data class HomeUiState(
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
-    val practicePrompt: PracticeSession? = null,
+    val practicePrompt: PracticeRecordItem? = null,
+    val isPracticeSkipReasonVisible: Boolean = false,
+    val notVisitedPracticeId: Long? = null,
+    val isPracticeActionInProgress: Boolean = false,
+    val levelUp: OnboardingLevel? = null,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -88,6 +93,8 @@ sealed interface HomeIntent {
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
     data object OnPracticePromptDismiss : HomeIntent
+    data object OnPracticeSkipReasonClosed : HomeIntent
+    data object OnLevelUpDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
@@ -121,6 +128,7 @@ sealed interface HomeEffect {
     data class LaunchKakaoNavi(val place: PlaceDetail) : HomeEffect
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
+    data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect

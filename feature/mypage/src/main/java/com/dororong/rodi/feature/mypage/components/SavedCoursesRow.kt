@@ -26,14 +26,14 @@ internal fun SavedCoursesRow(count: Long, onClick: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "저장한 코스 ($count)",
+            text = "저장목록 ($count)",
             style = RodiTheme.typography.body1Medium,
             color = RodiTheme.colors.black,
             modifier = Modifier.weight(1f),
         )
         Icon(
             painter = painterResource(CoreUiR.drawable.ic_chevron_right),
-            contentDescription = "저장한 코스 보기",
+            contentDescription = "저장목록 보기",
             tint = RodiTheme.colors.gray600,
             modifier = Modifier.size(20.dp),
         )

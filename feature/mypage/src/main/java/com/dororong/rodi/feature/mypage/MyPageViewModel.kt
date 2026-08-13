@@ -92,6 +92,9 @@ private fun MyPage.toUiProfile() = MyPageProfile(
     distanceLabel = "${levelProgress.totalDistanceKm.roundToInt()}km",
 )
 
+// PracticeRecord는 PracticeRecordItem의 typealias라 이 매핑은 항등 복사다. 필드별로 나열해두면
+// 도메인 모델에 필드가 추가될 때(status가 그랬다) 여기 반영을 잊어도 컴파일이 통과해 조용히
+// 기본값으로 떨어진다 — 실제로 status 누락으로 마이페이지 카드가 계속 "방문 예정"을 보여줬다.
 private fun com.dororong.rodi.core.domain.model.member.PracticeRecordItem.toFeatureModel() = PracticeRecord(
     practiceId = practiceId,
     placeId = placeId,
@@ -101,4 +104,5 @@ private fun com.dororong.rodi.core.domain.model.member.PracticeRecordItem.toFeat
     visitedAt = visitedAt,
     isVerified = isVerified,
     hasReview = hasReview,
+    status = status,
 )

@@ -29,7 +29,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
@@ -68,7 +67,6 @@ fun MapLoadingScreen(modifier: Modifier = Modifier) {
 
 @Composable
 fun MapNetworkErrorScreen(
-    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -105,12 +103,6 @@ fun MapNetworkErrorScreen(
                 style = RodiTheme.typography.body3Medium,
                 color = RodiTheme.colors.gray800,
                 textAlign = TextAlign.Center,
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            RodiButton(
-                text = "새로고침",
-                onClick = onRetry,
-                fillMaxWidth = false,
             )
         }
     }
@@ -177,6 +169,6 @@ private fun MapLoadingScreenPreview() {
 @Composable
 private fun MapNetworkErrorScreenPreview() {
     RodiTheme {
-        MapNetworkErrorScreen(onRetry = {})
+        MapNetworkErrorScreen()
     }
 }

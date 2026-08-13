@@ -399,7 +399,7 @@ private fun ProfileCardLongNicknamePreview() {
             profile = MyPageProfile(
                 nickname = "새 도전을 즐기는 로디",
                 level = OnboardingLevel.EXPLORER,
-                practiceTypes = listOf("비보호 좌회전", "회전교차로", "코너링"),
+                practiceTypes = listOf("비보호좌회전", "회전교차로", "코너링"),
                 drivingGoal = "낯선 길도 자신 있게 주행하기",
             ),
             onGoalClick = {},

@@ -355,10 +355,8 @@ internal fun ParkingPlaceDetail.toFeeDisplayRows(): List<ParkingFeeDisplayRow> {
         formatParkingRate(feeInfo?.addUnitMinutes, feeInfo?.addUnitFee)
     }
     return listOf(
-        ParkingFeeDisplayRow("초기무료", "해당항목없음"),
         ParkingFeeDisplayRow("기본요금", baseRate),
         ParkingFeeDisplayRow("추가요금", additionalRate),
-        ParkingFeeDisplayRow("할증기준시간", "해당항목없음"),
     )
 }
 

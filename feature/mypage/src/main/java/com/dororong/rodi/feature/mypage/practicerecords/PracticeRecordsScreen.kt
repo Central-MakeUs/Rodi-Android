@@ -29,6 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,9 +43,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import java.time.Instant
 import java.time.ZoneId
@@ -57,14 +63,48 @@ fun PracticeRecordsScreen(
     viewModel: PracticeRecordsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    var deleteTargetId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val deleteTarget = state.records.firstOrNull { it.practiceId == deleteTargetId }
+    LaunchedEffect(state.deletingPracticeId, state.deleteErrorMessage, state.records) {
+        val targetId = deleteTargetId ?: return@LaunchedEffect
+        if (state.deleteErrorMessage != null ||
+            (state.deletingPracticeId == null && state.records.none { it.practiceId == targetId })
+        ) {
+            deleteTargetId = null
+        }
+    }
     PracticeRecordsContent(
         state = state,
         onBack = onBack,
         onRetry = viewModel::refresh,
         onLoadNext = viewModel::loadNextPage,
         onWriteReviewClick = onWriteReviewClick,
+        onDeleteClick = { deleteTargetId = it.practiceId },
         modifier = modifier,
     )
+    deleteTarget?.let { record ->
+        RodiAlertDialog(
+            title = "연습기록을 삭제할까요?",
+            description = "삭제한 연습기록은 되돌릴 수 없어요.",
+            confirmText = if (state.deletingPracticeId == record.practiceId) "삭제 중" else "삭제",
+            dismissText = "취소",
+            enabled = state.deletingPracticeId == null,
+            onConfirm = {
+                viewModel.delete(record)
+            },
+            onDismiss = { if (state.deletingPracticeId == null) deleteTargetId = null },
+            onDismissRequest = { if (state.deletingPracticeId == null) deleteTargetId = null },
+        )
+    }
+    state.deleteErrorMessage?.let { message ->
+        RodiAlertDialog(
+            title = "연습기록을 삭제하지 못했어요",
+            description = message,
+            confirmText = "확인",
+            onConfirm = viewModel::consumeDeleteError,
+            onDismissRequest = viewModel::consumeDeleteError,
+        )
+    }
 }
 
 @Composable
@@ -74,6 +114,7 @@ private fun PracticeRecordsContent(
     onRetry: () -> Unit,
     onLoadNext: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
+    onDeleteClick: (PracticeRecord) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
@@ -96,7 +137,7 @@ private fun PracticeRecordsContent(
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
                 ) {
                     items(state.records, key = PracticeRecord::practiceId) { record ->
-                        PracticeRecordListItem(record, onWriteReviewClick)
+                        PracticeRecordListItem(record, onWriteReviewClick, onDeleteClick)
                     }
                     if (state.isLoadingMore || state.nextPageError != null) {
                         item(key = "next-page-status") {
@@ -136,6 +177,7 @@ private fun SubPageTopBar(title: String, onBack: () -> Unit) {
 private fun PracticeRecordListItem(
     record: PracticeRecord,
     onWriteReviewClick: (Long, String) -> Unit,
+    onDeleteClick: (PracticeRecord) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -147,14 +189,23 @@ private fun PracticeRecordListItem(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                text = "${record.visitCount}회차",
-                style = RodiTheme.typography.caption1SemiBold,
-                color = RodiTheme.colors.primary600,
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${record.visitCount}회차",
+                    style = RodiTheme.typography.caption1SemiBold,
+                    color = RodiTheme.colors.primary600,
+                )
+                IconButton(onClick = { onDeleteClick(record) }) {
+                    Icon(
+                        painter = painterResource(com.dororong.rodi.feature.mypage.R.drawable.ic_more_horizontal),
+                        contentDescription = "연습기록 관리",
+                        tint = RodiTheme.colors.gray500,
+                    )
+                }
+            }
         }
         Text(
-            text = record.visitedAt?.let(PracticeRecordDateFormatter::format) ?: "방문 예정",
+            text = record.recordStatusLabel(),
             style = RodiTheme.typography.caption1Medium,
             color = RodiTheme.colors.gray600,
             modifier = Modifier.padding(top = 4.dp),
@@ -248,6 +299,14 @@ private fun PracticeRecordsNextPageFooter(
 
 private val PracticeRecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
 
+// visitedAt은 방문(VISITED)에서만 채워진다. 미방문 사유를 제출해도 NOT_VISITED로 남을 뿐
+// visitedAt은 비어 있어, visitedAt만으로 분기하면 미방문 처리한 항목이 계속 "방문 예정"으로 보인다.
+private fun PracticeRecord.recordStatusLabel(): String = when {
+    visitedAt != null -> PracticeRecordDateFormatter.format(visitedAt)
+    status == PracticeStatus.NOT_VISITED -> "미방문"
+    else -> "방문 예정"
+}
+
 private val PreviewPracticeRecords = listOf(
     PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
     PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
@@ -256,23 +315,23 @@ private val PreviewPracticeRecords = listOf(
 @Preview(name = "연습기록 목록", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun PracticeRecordsListPreview() = RodiTheme {
-    PracticeRecordsContent(PracticeRecordsUiState(records = PreviewPracticeRecords), {}, {}, {}, { _, _ -> })
+    PracticeRecordsContent(PracticeRecordsUiState(records = PreviewPracticeRecords), {}, {}, {}, { _, _ -> }, {})
 }
 
 @Preview(name = "연습기록 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun PracticeRecordsEmptyPreview() = RodiTheme {
-    PracticeRecordsContent(PracticeRecordsUiState(), {}, {}, {}, { _, _ -> })
+    PracticeRecordsContent(PracticeRecordsUiState(), {}, {}, {}, { _, _ -> }, {})
 }
 
 @Preview(name = "연습기록 로딩", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun PracticeRecordsLoadingPreview() = RodiTheme {
-    PracticeRecordsContent(PracticeRecordsUiState(isLoading = true), {}, {}, {}, { _, _ -> })
+    PracticeRecordsContent(PracticeRecordsUiState(isLoading = true), {}, {}, {}, { _, _ -> }, {})
 }
 
 @Preview(name = "연습기록 에러", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun PracticeRecordsErrorPreview() = RodiTheme {
-    PracticeRecordsContent(PracticeRecordsUiState(initialError = "연습기록을 불러오지 못했어요."), {}, {}, {}, { _, _ -> })
+    PracticeRecordsContent(PracticeRecordsUiState(initialError = "연습기록을 불러오지 못했어요."), {}, {}, {}, { _, _ -> }, {})
 }

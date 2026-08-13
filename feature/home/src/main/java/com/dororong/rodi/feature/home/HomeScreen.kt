@@ -96,6 +96,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
+import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -117,7 +118,7 @@ import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.review.notvisited.NotVisitedReasonScreen
+import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -247,9 +248,9 @@ fun HomeScreen(
     var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     var mapRetryKey by remember { mutableIntStateOf(0) }
     var lastMapRetryAtMillis by remember { mutableLongStateOf(0L) }
-    var showMapNetworkSnackbar by remember { mutableStateOf(false) }
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
+    var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
     var mapScreenState by remember {
         mutableStateOf(
             when {
@@ -272,7 +273,6 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
-    var isNotVisitedReasonVisible by remember { mutableStateOf(false) }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -502,6 +502,9 @@ fun HomeScreen(
             is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.place)
             is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
             is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
+            is HomeEffect.OpenPracticeReview -> {
+                reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
+            }
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
@@ -569,7 +572,7 @@ fun HomeScreen(
                 if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
             hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
             else -> {
-                showMapNetworkSnackbar = false
+                showMapNetworkSnackbar = true
                 mapScreenState = MapScreenState.NetworkError
             }
         }
@@ -769,7 +772,6 @@ fun HomeScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        snackbarHost = { RodiSnackbarHost(snackbarHostState) },
         content = { contentPadding ->
             Box(
                 modifier = Modifier
@@ -846,10 +848,8 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                if (hasMapLoadedThisEntry) {
-                                                    showMapNetworkSnackbar = true
-                                                } else {
-                                                    showMapNetworkSnackbar = false
+                                                showMapNetworkSnackbar = true
+                                                if (!hasMapLoadedThisEntry) {
                                                     mapScreenState = MapScreenState.NetworkError
                                                 }
                                             }
@@ -1188,9 +1188,14 @@ fun HomeScreen(
 
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
-                    MapScreenState.NetworkError -> MapNetworkErrorScreen(onRetry = ::retryMap)
+                    MapScreenState.NetworkError -> MapNetworkErrorScreen()
                     MapScreenState.Ready -> Unit
                 }
+
+                RodiSnackbarHost(
+                    state = snackbarHostState,
+                    bottomPadding = if (mapScreenState == MapScreenState.NetworkError) 20.dp else 114.dp,
+                )
             }
         },
     )
@@ -1261,20 +1266,28 @@ fun HomeScreen(
     }
     state.practicePrompt?.let { session ->
         PracticePromptDialog(
-            session = session,
+            practice = session,
             onVisited = {
                 vm.onIntent(HomeIntent.OnPracticePromptVisited)
-                reviewToWrite = ReviewWriteTarget(session.placeId, session.placeName, null)
             },
             onNotVisited = {
                 vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
-                isNotVisitedReasonVisible = true
             },
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (isNotVisitedReasonVisible) {
-        NotVisitedReasonScreen(onClose = { isNotVisitedReasonVisible = false })
+    if (state.isPracticeSkipReasonVisible && state.notVisitedPracticeId != null) {
+        PracticeSkipReasonScreen(
+            practiceId = requireNotNull(state.notVisitedPracticeId),
+            onClose = { vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed) },
+        )
+    }
+    state.levelUp?.let { level ->
+        LevelUpDialog(
+            level = level,
+            onConfirm = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
+            onDismissRequest = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
+        )
     }
     reviewToBlock?.let { review ->
         BlockMemberDialog(
