@@ -1,5 +1,6 @@
 package com.dororong.rodi.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -77,6 +78,12 @@ fun MainScreen(
                 },
             )
         }
+    }
+
+    // 마이페이지에서 뒤로가기를 누르면 바로 앱이 종료되던 걸, 다른 탭 화면들처럼 홈으로 먼저
+    // 돌아가도록 한다. HomeRoute로 치환된 뒤 다시 백스택이 1개라 그다음 뒤로가기는 그대로 종료된다.
+    BackHandler(enabled = currentRoute == MyPageRoute) {
+        backStack[backStack.lastIndex] = HomeRoute
     }
 
     Box(Modifier.fillMaxSize()) {
