@@ -54,10 +54,8 @@
   가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
-- [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
-  (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
-  `LazyColumn`만 그린다). 로딩·에러 상태는 있는데 빈 상태만 없다. 마이페이지 연습기록의
-  "아직 연습기록이 없어요!" 같은 문구가 필요하다. 2026-08-12 기기 검증 중 발견.
+- [x] **차단목록 빈 상태 문구 부재** — `BlockedMembersEmpty()`로 반영 완료(`b0ebd754`, QA
+  라운드). Figma("차단한 사람 없을 때", node 3659:67282)와 문구·스타일 일치 확인(2026-08-13).
 
 - [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
   `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
@@ -80,10 +78,17 @@
   앱이 정책 상수를 하드코딩하지 않아도 된다(`ApiEnvelope`에 `data` 필드가 이미 있다).
   그때까지 이 구간은 디자인의 "재가입 가능 날짜를 불러오지 못했어요." 토스트 + 새로고침으로 폴백.
   요청은 넣어둔 상태(2026-08-12).
-- [ ] **미방문 사유 제출 API 연동** — RV-01의 "안 했어요" → 미방문 사유 화면은 만들어뒀지만
-  **서버에 제출 API가 없어 제출이 스텁**이다(`feature/home/.../review/notvisited/`).
-  사유 5종도 서버 계약이 없어 클라이언트 enum(`NotVisitedReason`)으로 두었다.
-  API가 나오면 enum을 `core:domain`으로 승격하고 UseCase를 배선한다.
+
+  **2026-08-13 재확인 — 여전히 대기 중.** 현재 로그인 응답 Swagger엔 `rejoinableAt`이 없고
+  `withdrawalRequestedAt`/`recoverableUntil`만 있다(`SocialLoginResponse.kt`). 로컬은
+  `recoverableUntil`까지는 이미 받고 있지만 화면에 날짜를 표시하는 곳은 없다 — 연결 누락이
+  아니라 애초에 서버 필드가 없어서 못 붙인 상태. 백엔드가 "`recoverableUntil`을 재가입 기준으로
+  쓴다"고 확정하면 새 필드 없이도 바로 연결 가능하니, 필드 추가 대신 그 방향으로 정리될 수도 있다.
+- [x] **미방문 사유 제출 API 연동** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/skip-reason`이
+  최신 Swagger에 있고 `PracticeApi.submitSkipReason` → `PracticeRepositoryImpl` →
+  `SubmitSkipReasonUseCase` → `PracticeSkipReasonViewModel.submit()`까지 전부 실제 API를
+  호출하도록 배선돼 있다(스텁 아님). 이 항목을 작성한 시점 이후 API가 나와서 바로 연동된 것으로
+  보인다.
 - [ ] **연습 방문 감지를 서버/지오펜싱 기반으로 교체** — 현재 RV-01 트리거는 "내비 실행 시각을
   로컬에 저장(`PracticeSessionPreference`) → 앱 재진입 시 10분 경과 판정" 휴리스틱이다.
   내비를 띄우고 실제로는 안 갔거나, 앱을 아예 안 열면 감지되지 않는다.
@@ -142,7 +147,10 @@
 - [x] **내 후기 목록 API 연동** — `GET /members/me/reviews`를 내 게시글 화면에 커서 페이징으로 연결했다.
 - [x] **차단 목록 조회 API 연동** — `GET /members/me/blocks`를 차단목록 화면에 커서 페이징으로 연결했다.
 - [x] **레벨 진행률(누적 주행거리) 필드 연동** — `MyPageResponse.levelProgress`를 프로필 카드 진행바와 거리 텍스트에 연결했다.
-- [ ] **레벨업 감지 트리거 연결** — 레벨업 팝업 UI만 구현되어 호출부가 없다.
+- [x] **레벨업 감지 트리거 연결** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/visits`
+  응답의 `levelUp`/`newLevel`을 `HomeViewModel.recordPracticeVisit()`이 `state.levelUp`으로
+  넘기고, `HomeScreen.kt`가 이 값으로 `LevelUpDialog`를 띄운다. 실제 승급은 서버가 누적 거리
+  기준으로 `levelUp: true`를 내려줄 때만 발생한다(GPS 인증 거리는 Phase A라 항상 생략).
 - [ ] **후기 "좋아요" 기능 유무 확인** — 후기 수정 안내 문구가 좋아요 초기화를 언급하지만 현재 앱에는 좋아요 기능이 없다.
 - [ ] **설정 `데이터 출처` 항목 존치 여부** — 최신 디자인에는 빠졌으나 공공데이터 출처 표기 의무 가능성이 있어 유지했다.
 
