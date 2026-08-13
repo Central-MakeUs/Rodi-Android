@@ -10,6 +10,7 @@ data class MyPost(
 
 data class MyPostsUiState(
     val posts: List<MyPost> = emptyList(),
+    val hasPracticeRecords: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val nextCursor: String? = null,

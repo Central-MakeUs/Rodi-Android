@@ -63,23 +63,25 @@ internal fun PracticeRecordSection(
                 style = RodiTheme.typography.body1SemiBold,
                 color = RodiTheme.colors.black,
             )
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .clickable(onClick = onAllClick),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "전체보기",
-                    style = RodiTheme.typography.caption1Medium,
-                    color = RodiTheme.colors.gray400,
-                )
-                Icon(
-                    painter = painterResource(CoreUiR.drawable.ic_chevron_right),
-                    contentDescription = null,
-                    tint = RodiTheme.colors.gray400,
-                    modifier = Modifier.width(16.dp),
-                )
+            if (records.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(onClick = onAllClick),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "전체보기",
+                        style = RodiTheme.typography.caption1Medium,
+                        color = RodiTheme.colors.gray400,
+                    )
+                    Icon(
+                        painter = painterResource(CoreUiR.drawable.ic_chevron_right),
+                        contentDescription = null,
+                        tint = RodiTheme.colors.gray400,
+                        modifier = Modifier.width(16.dp),
+                    )
+                }
             }
         }
 
@@ -180,22 +182,21 @@ private fun PracticeRecordCard(
                 )
             }
         }
-        if (!record.hasReview) {
-            Surface(
-                onClick = onWriteReviewClick,
-                shape = RoundedCornerShape(8.dp),
-                color = RodiTheme.colors.white,
-                border = BorderStroke(1.dp, RodiTheme.colors.primary600),
-                modifier = Modifier.fillMaxWidth().height(32.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "후기 작성",
-                        style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.primary600,
-                        textAlign = TextAlign.Center,
-                    )
-                }
+        Surface(
+            onClick = onWriteReviewClick,
+            enabled = !record.hasReview,
+            shape = RoundedCornerShape(8.dp),
+            color = if (record.hasReview) RodiTheme.colors.gray300 else RodiTheme.colors.white,
+            border = if (record.hasReview) null else BorderStroke(1.dp, RodiTheme.colors.primary600),
+            modifier = Modifier.fillMaxWidth().height(32.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = if (record.hasReview) "작성 완료" else "후기 작성",
+                    style = RodiTheme.typography.body3Medium,
+                    color = if (record.hasReview) RodiTheme.colors.gray500 else RodiTheme.colors.primary600,
+                    textAlign = TextAlign.Center,
+                )
             }
         }
     }

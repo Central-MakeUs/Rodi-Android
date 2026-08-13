@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage.myposts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.member.MyReview
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -13,11 +14,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 
 @HiltViewModel
 class MyPostsViewModel @Inject constructor(
     private val deleteReview: DeleteReviewUseCase,
     private val getMyReviews: GetMyReviewsUseCase,
+    private val getPracticeRecords: GetPracticeRecordsUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MyPostsUiState())
     val uiState: StateFlow<MyPostsUiState> = _uiState.asStateFlow()
@@ -29,17 +32,26 @@ class MyPostsViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.value = MyPostsUiState(isLoading = true)
-            getMyReviews(cursor = null, size = PAGE_SIZE)
+            val reviews = async { getMyReviews(cursor = null, size = PAGE_SIZE) }
+            val practices = async { getPracticeRecords(cursor = null, size = 1) }
+            val reviewResult = reviews.await()
+            val practiceResult = practices.await()
+            reviewResult
                 .onSuccess { page ->
                     _uiState.value = MyPostsUiState(
                         posts = page.items.map(MyReview::toMyPost),
+                        hasPracticeRecords = practiceResult.getOrNull()?.items?.isNotEmpty() == true,
                         isLoading = false,
                         nextCursor = page.nextCursor,
                         hasNext = page.hasNext,
                     )
                 }
                 .onFailure { error ->
-                    _uiState.value = MyPostsUiState(isLoading = false, errorMessage = error.message ?: "후기를 불러오지 못했어요.")
+                    _uiState.value = MyPostsUiState(
+                        isLoading = false,
+                        hasPracticeRecords = practiceResult.getOrNull()?.items?.isNotEmpty() == true,
+                        errorMessage = error.message ?: "후기를 불러오지 못했어요.",
+                    )
                 }
         }
     }
@@ -67,7 +79,7 @@ class MyPostsViewModel @Inject constructor(
 
     fun replacePosts(posts: List<MyPost>) {
         loadJob?.cancel()
-        _uiState.value = MyPostsUiState(posts = posts.distinctBy { it.review.reviewId })
+        _uiState.update { it.copy(posts = posts.distinctBy { post -> post.review.reviewId }) }
     }
 
     fun delete(post: MyPost) {
