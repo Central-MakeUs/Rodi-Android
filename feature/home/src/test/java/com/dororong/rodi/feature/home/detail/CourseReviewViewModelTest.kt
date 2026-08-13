@@ -171,7 +171,7 @@ class CourseReviewViewModelTest {
         advanceUntilIdle()
 
         val state = vm.state.value
-        assertEquals("후기를 불러오지 못했어요.", state.errorMessage)
+        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", state.errorMessage)
         assertEquals(PLACE_ID, state.placeId)
     }
 
@@ -204,7 +204,7 @@ class CourseReviewViewModelTest {
         advanceUntilIdle()
 
         assertFalse(vm.state.value.isLoading)
-        assertEquals("세션을 불러오지 못했어요.", vm.state.value.errorMessage)
+        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", vm.state.value.errorMessage)
     }
 
     @Test

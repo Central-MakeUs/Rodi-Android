@@ -53,9 +53,11 @@ data class ReviewCreatedResponse(
 @Serializable
 data class ReviewSummaryResponse(
     val level: String? = null,
-    val totalCount: Long,
-    val recommendCount: Long,
-    val notRecommendCount: Long,
+    // 후기가 0건인 레벨은 서버가 카운트 필드를 아예 생략한다. 기본값 없이 선언하면
+    // MissingFieldException이 그대로 스낵바에 노출된다.
+    val totalCount: Long = 0L,
+    val recommendCount: Long = 0L,
+    val notRecommendCount: Long = 0L,
     val difficultyCounts: Map<String, Long> = emptyMap(),
     val congestionCounts: Map<String, Long> = emptyMap(),
     val levelCounts: Map<String, Long> = emptyMap(),
