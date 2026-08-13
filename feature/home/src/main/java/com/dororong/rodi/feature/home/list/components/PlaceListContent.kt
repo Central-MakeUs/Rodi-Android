@@ -27,6 +27,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.ui.components.place.PlaceCard
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
+import com.dororong.rodi.feature.home.layoutHeightPx
 
 @Composable
 fun PlaceListContent(
@@ -34,7 +35,7 @@ fun PlaceListContent(
     onPlaceClick: (Long) -> Unit,
     onLoadNextPage: () -> Unit,
     isNextPageLoading: Boolean,
-    topContentPadding: Dp,
+    topContentPadding: () -> Dp,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
@@ -56,7 +57,7 @@ fun PlaceListContent(
     ) {
         itemsIndexed(places, key = { _, item -> item.id }) { index, place ->
             if (index == 0) {
-                Spacer(Modifier.height(topContentPadding))
+                Spacer(Modifier.layoutHeightPx { topContentPadding().toPx() })
             }
             PlaceCard(place = place, onClick = { onPlaceClick(place.id) })
             if (index != places.lastIndex) {
@@ -91,7 +92,7 @@ fun PlaceListContent(
 @Composable
 private fun PlaceListPartialPreview() {
     RodiTheme {
-        PlaceListContent(HomePreviewData.summaries, {}, {}, false, topContentPadding = 0.dp)
+        PlaceListContent(HomePreviewData.summaries, {}, {}, false, topContentPadding = { 0.dp })
     }
 }
 
@@ -104,7 +105,7 @@ private fun PlaceListFullPreview() {
             onPlaceClick = {},
             onLoadNextPage = {},
             isNextPageLoading = true,
-            topContentPadding = 20.dp,
+            topContentPadding = { 20.dp },
         )
     }
 }

@@ -40,7 +40,7 @@ class PlaceListContentTest {
                         onPlaceClick = {},
                         onLoadNextPage = {},
                         isNextPageLoading = false,
-                        topContentPadding = 0.dp,
+                        topContentPadding = { 0.dp },
                         modifier = Modifier.height(300.dp),
                     )
                 }

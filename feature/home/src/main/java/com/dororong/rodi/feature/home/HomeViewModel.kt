@@ -115,8 +115,8 @@ class HomeViewModel @Inject constructor(
                 clearMapMovementGeneration = mapMovementGeneration,
             )
             HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
-            HomeIntent.OnListExpand -> _state.update { it.copy(surfaceState = HomeSurfaceState.FullList) }
             HomeIntent.OnListCollapse -> collapseList()
+            is HomeIntent.OnListSheetSettled -> settleListSheet(intent.surface)
             HomeIntent.OnLoadNextPage -> loadNextPage()
             is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
             HomeIntent.OnDismissDetail -> dismissDetail()
@@ -662,6 +662,18 @@ class HomeViewModel @Inject constructor(
                     else -> it.surfaceState
                 },
             )
+        }
+    }
+
+    /**
+     * 시트가 정착한 앵커를 그대로 반영한다. [collapseList]처럼 한 단계씩 내려가면 Full에서 Hidden까지
+     * 한 번에 끌었을 때 PartialList로만 내려가 시트가 도로 튀어 올라간다.
+     *
+     * 상세를 여는 중에는 시트가 Hidden으로 정착하며 늦게 도착한 이벤트가 Detail을 덮어쓸 수 있어 무시한다.
+     */
+    private fun settleListSheet(surface: HomeSurfaceState) {
+        _state.update {
+            if (it.surfaceState == HomeSurfaceState.Detail) it else it.copy(surfaceState = surface)
         }
     }
 

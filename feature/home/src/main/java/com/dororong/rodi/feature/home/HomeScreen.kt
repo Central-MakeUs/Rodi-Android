@@ -13,15 +13,18 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.AnchoredDraggableDefaults
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,28 +38,20 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
-import androidx.compose.material3.rememberBottomSheetScaffoldState
-import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -66,7 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -75,7 +70,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
@@ -180,7 +177,7 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
 
 private const val CLUSTER_DISTANCE_DP = 56
@@ -192,14 +189,21 @@ private const val LIST_BUTTON_FADE_OUT_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_DELAY_MILLIS = 100
 private const val LIST_BUTTON_FADE_IN_MILLIS = 180
 private val LIST_BUTTON_VISUAL_OFFSET = 7.dp
+private val LIST_SHEET_PEEK_HEIGHT = 380.dp
+private val LIST_SHEET_CORNER_RADIUS = 20.dp
+private val LIST_SHEET_SHADOW_ELEVATION = 8.dp
 private val PARTIAL_LIST_HEADER_HEIGHT = 48.dp
 private val FULL_LIST_HEADER_HEIGHT = 64.dp
 private val FULL_LIST_CONTENT_TOP_PADDING = 20.dp
+private val PARTIAL_LIST_TITLE_TOP_PADDING = 24.dp
+private val FULL_LIST_TITLE_TOP_PADDING = 40.dp
+private val LIST_HEADER_HORIZONTAL_PADDING = 16.dp
+private val BOTTOM_CONTROL_MIN_OFFSET = 68.dp
+private val BOTTOM_CONTROL_SHEET_GAP = 12.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
-private val LIST_HEADER_DRAG_THRESHOLD = 12.dp
 private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
 private val FILTER_HEADER_ICON_TOUCH_SIZE = 48.dp
 
@@ -214,7 +218,6 @@ private data class ReviewWriteTarget(
     val review: Review?,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
@@ -231,7 +234,6 @@ fun HomeScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     val reviewState by reviewVm.state.collectAsStateWithLifecycle()
     val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val density = LocalDensity.current
 
@@ -348,84 +350,94 @@ fun HomeScreen(
     }
 
     val isEmptySheet = state.showEmpty || state.showInitialError
-    val currentIsEmptySheet by rememberUpdatedState(isEmptySheet)
-    val sheetState = rememberStandardBottomSheetState(
-        initialValue = SheetValue.Hidden,
-        skipHiddenState = false,
-        confirmValueChange = { targetValue ->
-            targetValue != SheetValue.Expanded || !currentIsEmptySheet
-        },
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    val listSheetState = remember { AnchoredDraggableState(ListSheetValue.Hidden) }
+    val listSheetDrag = Modifier.anchoredDraggable(
+        state = listSheetState,
+        orientation = Orientation.Vertical,
+        flingBehavior = AnchoredDraggableDefaults.flingBehavior(listSheetState),
     )
-    val scaffoldState = rememberBottomSheetScaffoldState(sheetState)
-    var scaffoldSize by remember { mutableStateOf(IntSize.Zero) }
+    val peekHeightPx = with(density) { LIST_SHEET_PEEK_HEIGHT.toPx() }
 
-    LaunchedEffect(state.surfaceState, isEmptySheet) {
-        when (state.surfaceState) {
-            HomeSurfaceState.Navigation, HomeSurfaceState.Detail -> sheetState.hide()
-            HomeSurfaceState.PartialList -> sheetState.partialExpand()
-            HomeSurfaceState.FullList -> if (isEmptySheet) sheetState.partialExpand() else sheetState.expand()
-        }
+    LaunchedEffect(listSheetState) {
+        snapshotFlow { listSheetState.settledValue }
+            .drop(1)
+            .collect { vm.onIntent(HomeIntent.OnListSheetSettled(it.toSurfaceState())) }
     }
-    LaunchedEffect(sheetState, state.showEmpty, state.showInitialError) {
-        snapshotFlow { sheetState.currentValue }.drop(1).collect { value ->
-            when (value) {
-                SheetValue.Hidden -> if (state.surfaceState != HomeSurfaceState.Detail) {
-                    vm.onIntent(HomeIntent.OnListCollapse)
-                }
-
-                SheetValue.PartiallyExpanded -> if (state.surfaceState == HomeSurfaceState.FullList) {
-                    vm.onIntent(HomeIntent.OnListCollapse)
-                }
-
-                SheetValue.Expanded -> if (state.showEmpty || state.showInitialError) {
-                    sheetState.partialExpand()
-                } else {
-                    vm.onIntent(HomeIntent.OnListExpand)
-                }
-            }
-        }
+    // 컨테이너 크기는 onSizeChanged가 잡지만 목록이 비는 건 크기 변화가 아니라서 여기서 앵커를 다시 만든다.
+    // updateAnchors는 같은 앵커면 아무것도 하지 않아 onSizeChanged와 겹쳐 불려도 안전하다.
+    LaunchedEffect(isEmptySheet, containerSize.height) {
+        if (containerSize.height <= 0) return@LaunchedEffect
+        listSheetState.updateAnchors(
+            listSheetAnchors(
+                containerHeightPx = containerSize.height,
+                peekHeightPx = peekHeightPx,
+                allowFull = !isEmptySheet,
+            ),
+        )
+    }
+    LaunchedEffect(state.surfaceState, isEmptySheet, containerSize.height) {
+        if (containerSize.height <= 0) return@LaunchedEffect
+        val target = state.surfaceState.toListSheetValue(allowFull = !isEmptySheet)
+        if (listSheetState.settledValue != target) listSheetState.animateTo(target)
     }
 
-    val sheetOffsetPx by remember {
-        derivedStateOf { runCatching { sheetState.requireOffset() }.getOrDefault(scaffoldSize.height.toFloat()) }
+    // 아래 람다들은 반드시 layout/draw 스코프 안에서만 호출한다. 컴포지션에서 읽으면 드래그 한 프레임마다
+    // HomeScreen 전체가(지도 AndroidView 포함) recompose 된다.
+    val listSheetOffsetPx: () -> Float = {
+        listSheetState.offset.takeIf { !it.isNaN() } ?: containerSize.height.toFloat()
     }
-    val visibleSheetHeightPx = BottomSheetViewportPolicy.bottomPaddingPx(
-        mapHeightPx = scaffoldSize.height,
-        sheetTopPx = sheetOffsetPx,
-    )
-    val visibleSheetHeight = with(density) {
-        visibleSheetHeightPx.toDp()
+    val visibleSheetHeightPx: () -> Float = {
+        BottomSheetViewportPolicy.bottomPaddingPx(
+            mapHeightPx = containerSize.height,
+            sheetTopPx = listSheetOffsetPx(),
+        ).toFloat()
     }
-    val sheetExpansionProgress = with(density) {
-        val partialSheetOffsetPx = (scaffoldSize.height - 380.dp.toPx()).coerceAtLeast(0f)
-        if (partialSheetOffsetPx == 0f) {
-            1f
-        } else {
-            ((partialSheetOffsetPx - sheetOffsetPx) / partialSheetOffsetPx).coerceIn(0f, 1f)
-        }
+    val listSheetProgress: () -> Float = {
+        ListSheetAnchorPolicy.expansionProgress(
+            offsetPx = listSheetOffsetPx(),
+            partialOffsetPx = (containerSize.height - peekHeightPx).coerceAtLeast(0f),
+        )
     }
+    val listHeaderHeightPx: Density.() -> Float = {
+        lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, listSheetProgress()).toPx()
+    }
+    val listViewportHeightPx: Density.() -> Float = {
+        (visibleSheetHeightPx() - listHeaderHeightPx()).coerceAtLeast(0f)
+    }
+
     val navigationInsetPx = WindowInsets.navigationBars.getBottom(density)
     val navigationInset = with(density) { navigationInsetPx.toDp() }
     val selectedDetailPlaceId = state.selectedPlace?.id
-    val bottomControlOffset = with(density) {
-        if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
-            val parkingHeightPx = parkingSheetLayout
-                .takeIf { it.placeId == selectedDetailPlaceId }
-                ?.currentHeightPx
-                ?: 0
-            maxOf(68.dp, parkingHeightPx.toDp() + 12.dp - navigationInset)
-        } else if (visibleSheetHeight > 0.dp) {
-            maxOf(68.dp, visibleSheetHeight + 12.dp - navigationInset)
+    val bottomControlOffsetPx: Density.() -> Float = {
+        val minimum = BOTTOM_CONTROL_MIN_OFFSET.toPx()
+        val sheetHeightPx =
+            if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.PARKING) {
+                parkingSheetLayout
+                    .takeIf { it.placeId == selectedDetailPlaceId }
+                    ?.currentHeightPx
+                    ?.toFloat()
+                    ?: 0f
+            } else {
+                visibleSheetHeightPx()
+            }
+        if (sheetHeightPx > 0f) {
+            maxOf(minimum, sheetHeightPx + BOTTOM_CONTROL_SHEET_GAP.toPx() - navigationInsetPx)
         } else {
-            68.dp
+            minimum
         }
     }
-    val listViewportHeight = (
-        visibleSheetHeight - lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, sheetExpansionProgress)
-        ).coerceAtLeast(0.dp)
+
+    // 지도 패딩은 드래그 중에는 건드리지 않는다. setPadding/마커 재렌더는 네이티브 호출이라
+    // 프레임마다 부르면 그대로 드랍으로 이어진다. 정착한 앵커 기준 값만 쓴다.
+    val settledSheetInsetPx = when (listSheetState.settledValue) {
+        ListSheetValue.Hidden -> 0
+        ListSheetValue.Partial -> peekHeightPx.roundToInt().coerceAtMost(containerSize.height)
+        ListSheetValue.Full -> containerSize.height
+    }
     val mapContentBottomPaddingPx = when {
         state.surfaceState == HomeSurfaceState.PartialList ||
-            state.surfaceState == HomeSurfaceState.FullList -> visibleSheetHeightPx
+            state.surfaceState == HomeSurfaceState.FullList -> settledSheetInsetPx
         state.surfaceState == HomeSurfaceState.Navigation -> bottomNavigationHeightPx
         state.surfaceState != HomeSurfaceState.Detail -> 0
         state.selectedPlace?.type == PlaceType.COURSE -> courseDetailSheetHeightPx
@@ -436,7 +448,7 @@ fun HomeScreen(
         else -> 0
     }
     val clusterFitPaddingPx = with(density) { CLUSTER_FIT_PADDING_DP.dp.roundToPx() }
-    val mapBrandOffset = maxOf(0.dp, 68.dp + navigationInset - 4.dp)
+    val mapBrandOffset = maxOf(0.dp, BOTTOM_CONTROL_MIN_OFFSET + navigationInset - 4.dp)
     val mapScaleBarOffset = (mapBrandOffset - 2.dp).coerceAtLeast(0.dp)
 
     LaunchedEffect(
@@ -776,66 +788,10 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(contentPadding),
+                    .padding(contentPadding)
+                    .onSizeChanged { containerSize = it },
             ) {
-                BottomSheetScaffold(
-                    modifier = Modifier.onSizeChanged { scaffoldSize = it },
-                    scaffoldState = scaffoldState,
-                    sheetPeekHeight = 380.dp,
-                    sheetShape = RoundedCornerShape(
-                        topStart = 20.dp * (1f - sheetExpansionProgress),
-                        topEnd = 20.dp * (1f - sheetExpansionProgress),
-                    ),
-                    sheetContainerColor = RodiTheme.colors.white,
-                    sheetShadowElevation = 8.dp,
-                    sheetSwipeEnabled = false,
-                    sheetDragHandle = null,
-                    sheetContent = {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(),
-                        ) {
-                            if (!state.showEmpty && !state.showInitialError) {
-                                ListSheetHeader(
-                                    expansionProgress = sheetExpansionProgress,
-                                    onExpand = { vm.onIntent(HomeIntent.OnListExpand) },
-                                    onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
-                                    onFilterClick = { vm.onIntent(HomeIntent.OnFilterOpen) },
-                                )
-                            }
-                            when {
-                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(listViewportHeight),
-                                )
-
-                                state.showEmpty || state.showInitialError -> PlaceEmptyContent(
-                                    isInitialError = state.showInitialError,
-                                    onHandleDragDown = { scope.launch { sheetState.hide() } },
-                                )
-                                else -> key(state.placeListGeneration) {
-                                    PlaceListContent(
-                                        places = state.places,
-                                        onPlaceClick = {
-                                            vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
-                                        },
-                                        onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
-                                        isNextPageLoading = state.isNextPageLoading,
-                                        topContentPadding = lerp(
-                                            0.dp,
-                                            FULL_LIST_CONTENT_TOP_PADDING,
-                                            sheetExpansionProgress,
-                                        ),
-                                        modifier = Modifier.height(listViewportHeight),
-                                    )
-                                }
-                            }
-                        }
-                    },
-                ) {
-                    Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize()) {
                         key(mapRetryKey) {
                             val mapView = rememberMapViewWithLifecycle()
                             AndroidView(
@@ -1015,7 +971,7 @@ fun HomeScreen(
                                         HomeSurfaceState.FullList,
                                         -> kakaoMap?.viewportAboveBottomInsetOrNull(
                                             size = mapViewSize,
-                                            bottomInsetPx = visibleSheetHeightPx,
+                                            bottomInsetPx = visibleSheetHeightPx().roundToInt(),
                                         )
 
                                         else -> currentViewport
@@ -1038,7 +994,7 @@ fun HomeScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .navigationBarsPadding()
-                                .padding(bottom = bottomControlOffset),
+                                .offset { IntOffset(0, -bottomControlOffsetPx().roundToInt()) },
                         ) {
                             MapListButton(
                                 onClick = { vm.onIntent(HomeIntent.OnListOpen) },
@@ -1053,7 +1009,8 @@ fun HomeScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .navigationBarsPadding()
-                                .padding(end = 12.dp, bottom = bottomControlOffset),
+                                .padding(end = 12.dp)
+                                .offset { IntOffset(0, -bottomControlOffsetPx().roundToInt()) },
                         ) {
                             MyLocationButton(
                                 isActive = isAtCurrentLocation,
@@ -1093,6 +1050,62 @@ fun HomeScreen(
                                 .onSizeChanged { bottomNavigationHeightPx = it.height },
                         ) {
                             bottomNavigation()
+                        }
+                }
+
+                // 앵커가 잡히기 전에는 offset이 NaN이라 시트가 펼쳐진 위치에 그려진다. 첫 측정 전까지 미룬다.
+                if (containerSize.height > 0) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .offset { IntOffset(0, listSheetOffsetPx().roundToInt()) }
+                            .graphicsLayer {
+                                val radius = LIST_SHEET_CORNER_RADIUS.toPx() * (1f - listSheetProgress())
+                                shape = RoundedCornerShape(topStart = radius, topEnd = radius)
+                                clip = true
+                                shadowElevation = LIST_SHEET_SHADOW_ELEVATION.toPx()
+                            }
+                            .background(RodiTheme.colors.white),
+                    ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            if (!isEmptySheet) {
+                                ListSheetHeader(
+                                    expansionProgress = listSheetProgress,
+                                    isExpanded = state.surfaceState == HomeSurfaceState.FullList,
+                                    onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
+                                    onFilterClick = { vm.onIntent(HomeIntent.OnFilterOpen) },
+                                    modifier = Modifier
+                                        .layoutHeightPx { listHeaderHeightPx() }
+                                        .then(listSheetDrag),
+                                )
+                            }
+                            when {
+                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .layoutHeightPx { listViewportHeightPx() },
+                                )
+
+                                isEmptySheet -> PlaceEmptyContent(
+                                    isInitialError = state.showInitialError,
+                                    dragHandleModifier = listSheetDrag,
+                                )
+
+                                else -> key(state.placeListGeneration) {
+                                    PlaceListContent(
+                                        places = state.places,
+                                        onPlaceClick = {
+                                            vm.onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
+                                        },
+                                        onLoadNextPage = { vm.onIntent(HomeIntent.OnLoadNextPage) },
+                                        isNextPageLoading = state.isNextPageLoading,
+                                        topContentPadding = {
+                                            lerp(0.dp, FULL_LIST_CONTENT_TOP_PADDING, listSheetProgress())
+                                        },
+                                        modifier = Modifier.layoutHeightPx { listViewportHeightPx() },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1138,10 +1151,29 @@ fun HomeScreen(
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
+                        // 상세가 바뀔 때마다 새 상태를 만들어 항상 Visible(offset 0)에서 시작하게 한다.
+                        // 하나를 재사용하면 드래그로 닫은 뒤 다음 상세가 화면 밖 오프셋에서 열린다.
+                        val detailSheetState = remember(selectedDetailPlaceId) {
+                            AnchoredDraggableState(DetailSheetValue.Visible)
+                        }
+                        val detailSheetDrag = Modifier.anchoredDraggable(
+                            state = detailSheetState,
+                            orientation = Orientation.Vertical,
+                            flingBehavior = AnchoredDraggableDefaults.flingBehavior(detailSheetState),
+                        )
+                        LaunchedEffect(detailSheetState) {
+                            snapshotFlow { detailSheetState.settledValue }
+                                .drop(1)
+                                .collect { if (it == DetailSheetValue.Dismissed) dragDismissDetail() }
+                        }
                         Surface(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
+                                .offset {
+                                    IntOffset(0, detailSheetState.offset.takeIf { !it.isNaN() }?.roundToInt() ?: 0)
+                                }
+                                .onSizeChanged { detailSheetState.updateAnchors(detailSheetAnchors(it.height)) }
                                 .then(
                                     if (selectedPlace?.type == PlaceType.PARKING) {
                                         Modifier
@@ -1163,24 +1195,24 @@ fun HomeScreen(
                         ) {
                             when {
                                 state.isDetailLoading -> PlaceDetailLoading(
-                                    onHandleDragDown = dragDismissDetail,
+                                    dragHandleModifier = detailSheetDrag,
                                 )
 
-                            selectedPlace?.type == PlaceType.PARKING -> ParkingDetailContent(
-                                place = selectedPlace,
-                                isBookmarkUpdating = state.isBookmarkUpdating,
-                                onDismiss = dismissDetail,
-                                onHandleDragDown = dragDismissDetail,
-                                onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-                                onNavigate = {
-                                    vm.onIntent(
-                                        HomeIntent.OnNavigateClick(
-                                            kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
-                                            kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
-                                        ),
-                                    )
-                                },
-                            )
+                                selectedPlace?.type == PlaceType.PARKING -> ParkingDetailContent(
+                                    place = selectedPlace,
+                                    isBookmarkUpdating = state.isBookmarkUpdating,
+                                    onDismiss = dismissDetail,
+                                    dragHandleModifier = detailSheetDrag,
+                                    onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
+                                    onNavigate = {
+                                        vm.onIntent(
+                                            HomeIntent.OnNavigateClick(
+                                                kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
+                                                kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                            ),
+                                        )
+                                    },
+                                )
                             }
                         }
                     }
@@ -1445,64 +1477,27 @@ private fun PlaceListParkingLoadingItem() {
     }
 }
 
+private fun titleCenteringProgress(expansionProgress: Float): Float =
+    ((expansionProgress - LIST_TITLE_CENTERING_START) / (1f - LIST_TITLE_CENTERING_START))
+        .coerceIn(0f, 1f)
+
 @Composable
 private fun ListSheetHeader(
-    expansionProgress: Float,
-    onExpand: () -> Unit,
+    expansionProgress: () -> Float,
+    isExpanded: Boolean,
     onBack: () -> Unit,
     onFilterClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    val density = LocalDensity.current
-    var titleWidthPx by remember { mutableIntStateOf(0) }
-    val dragThresholdPx = with(density) { LIST_HEADER_DRAG_THRESHOLD.toPx() }
-    val titleCenteringProgress = (
-            (expansionProgress - LIST_TITLE_CENTERING_START) / (1f - LIST_TITLE_CENTERING_START)
-            ).coerceIn(0f, 1f)
-    val titleTopPadding = lerp(24.dp, 40.dp, expansionProgress)
-    val handleAlpha = (1f - expansionProgress / LIST_TITLE_CENTERING_START).coerceIn(0f, 1f)
-
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(lerp(PARTIAL_LIST_HEADER_HEIGHT, FULL_LIST_HEADER_HEIGHT, expansionProgress))
-            .pointerInput(expansionProgress, dragThresholdPx) {
-                var totalDrag = 0f
-                var actionTriggered = false
-                detectVerticalDragGestures(
-                    onDragStart = {
-                        totalDrag = 0f
-                        actionTriggered = false
-                    },
-                    onVerticalDrag = { change, dragAmount ->
-                        if (actionTriggered) return@detectVerticalDragGestures
-                        totalDrag += dragAmount
-                        when {
-                            totalDrag <= -dragThresholdPx && expansionProgress < 1f -> {
-                                actionTriggered = true
-                                change.consume()
-                                onExpand()
-                            }
-
-                            totalDrag >= dragThresholdPx -> {
-                                actionTriggered = true
-                                change.consume()
-                                onBack()
-                            }
-                        }
-                    },
-                )
-            },
-    ) {
-        val titleWidth = with(density) { titleWidthPx.toDp() }
-        val centeredTitleStart = (maxWidth - titleWidth) / 2
-        val titleTranslation = with(density) { (centeredTitleStart - 16.dp).toPx() }
-
+    Box(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 10.dp)
                 .size(width = 60.dp, height = 4.dp)
-                .graphicsLayer { alpha = handleAlpha }
+                .graphicsLayer {
+                    alpha = (1f - expansionProgress() / LIST_TITLE_CENTERING_START).coerceIn(0f, 1f)
+                }
                 .background(RodiTheme.colors.handleBar, RoundedCornerShape(2.dp)),
         )
         Icon(
@@ -1511,11 +1506,11 @@ private fun ListSheetHeader(
             tint = RodiTheme.colors.black,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(start = 16.dp, top = 40.dp)
+                .padding(start = LIST_HEADER_HORIZONTAL_PADDING, top = FULL_LIST_TITLE_TOP_PADDING)
                 .size(24.dp)
                 .clip(CircleShape)
-                .graphicsLayer { alpha = titleCenteringProgress }
-                .clickable(enabled = titleCenteringProgress == 1f, onClick = onBack),
+                .graphicsLayer { alpha = titleCenteringProgress(expansionProgress()) }
+                .clickable(enabled = isExpanded, onClick = onBack),
         )
         FilterHeaderIconButton(
             painter = painterResource(R.drawable.ic_filter_top),
@@ -1524,11 +1519,11 @@ private fun ListSheetHeader(
             visualBottomInset = 0.dp,
             backgroundColor = null,
             onClick = onFilterClick,
-            enabled = titleCenteringProgress == 1f,
+            enabled = isExpanded,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(end = 4.dp, top = 16.dp)
-                .graphicsLayer { alpha = titleCenteringProgress }
+                .graphicsLayer { alpha = titleCenteringProgress(expansionProgress()) }
         )
         FilterHeaderIconButton(
             painter = painterResource(R.drawable.ic_filter),
@@ -1537,21 +1532,35 @@ private fun ListSheetHeader(
             visualBottomInset = 1.dp,
             backgroundColor = RodiTheme.colors.gray100,
             onClick = onFilterClick,
-            enabled = titleCenteringProgress == 0f,
+            enabled = !isExpanded,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(end = 4.dp)
-                .graphicsLayer { alpha = 1f - titleCenteringProgress }
+                .graphicsLayer { alpha = 1f - titleCenteringProgress(expansionProgress()) }
         )
         Text(
             text = "추천 목록",
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,
-            onTextLayout = { titleWidthPx = it.size.width },
+            maxLines = 1,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(start = 16.dp, top = titleTopPadding)
-                .graphicsLayer { translationX = titleTranslation * titleCenteringProgress },
+                .padding(start = LIST_HEADER_HORIZONTAL_PADDING, top = PARTIAL_LIST_TITLE_TOP_PADDING)
+                .graphicsLayer {
+                    translationY =
+                        (FULL_LIST_TITLE_TOP_PADDING - PARTIAL_LIST_TITLE_TOP_PADDING).toPx() * expansionProgress()
+                }
+                .layout { measurable, constraints ->
+                    // 부모 폭은 여기서 직접 알 수 없지만, start 패딩만큼 줄어든 제약에서 되돌릴 수 있다.
+                    val startPadding = LIST_HEADER_HORIZONTAL_PADDING.roundToPx()
+                    val placeable = measurable.measure(constraints)
+                    val centeredStart = (constraints.maxWidth + startPadding - placeable.width) / 2
+                    val shift = (centeredStart - startPadding) *
+                        titleCenteringProgress(expansionProgress())
+                    layout(placeable.width, placeable.height) {
+                        placeable.place(shift.roundToInt(), 0)
+                    }
+                },
         )
     }
 }
@@ -1667,10 +1676,11 @@ private fun PartialListHeaderPreview() {
     RodiTheme {
         Surface(color = RodiTheme.colors.white) {
             ListSheetHeader(
-                expansionProgress = 0f,
-                onExpand = {},
+                expansionProgress = { 0f },
+                isExpanded = false,
                 onBack = {},
                 onFilterClick = {},
+                modifier = Modifier.height(PARTIAL_LIST_HEADER_HEIGHT),
             )
         }
     }
@@ -1682,10 +1692,11 @@ private fun FullListHeaderPreview() {
     RodiTheme {
         Surface(color = RodiTheme.colors.white) {
             ListSheetHeader(
-                expansionProgress = 1f,
-                onExpand = {},
+                expansionProgress = { 1f },
+                isExpanded = true,
                 onBack = {},
                 onFilterClick = {},
+                modifier = Modifier.height(FULL_LIST_HEADER_HEIGHT),
             )
         }
     }

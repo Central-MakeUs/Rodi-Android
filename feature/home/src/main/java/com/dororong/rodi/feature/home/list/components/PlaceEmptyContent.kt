@@ -19,13 +19,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
-import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
+import com.dororong.rodi.feature.home.components.SheetHandle
 
 @Composable
 fun PlaceEmptyContent(
     isInitialError: Boolean,
-    onHandleDragDown: () -> Unit = {},
     modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
@@ -33,10 +33,7 @@ fun PlaceEmptyContent(
             .heightIn(min = 375.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        DismissibleSheetHandle(
-            onDragDown = onHandleDragDown,
-            modifier = Modifier.height(22.dp),
-        )
+        SheetHandle(modifier = Modifier.height(22.dp).then(dragHandleModifier))
         Column(
             modifier = Modifier
                 .fillMaxWidth()

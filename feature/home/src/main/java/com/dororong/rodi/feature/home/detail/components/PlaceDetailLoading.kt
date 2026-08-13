@@ -19,22 +19,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.components.DismissibleSheetHandle
+import com.dororong.rodi.feature.home.components.SheetHandle
 
 @Composable
 fun PlaceDetailLoading(
-    onHandleDragDown: () -> Unit = {},
     modifier: Modifier = Modifier,
+    dragHandleModifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(240.dp),
     ) {
-        DismissibleSheetHandle(
-            onDragDown = onHandleDragDown,
-            modifier = Modifier.height(24.dp),
-        )
+        SheetHandle(modifier = Modifier.height(24.dp).then(dragHandleModifier))
         Column(
             modifier = Modifier
                 .fillMaxWidth()

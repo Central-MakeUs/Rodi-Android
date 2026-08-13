@@ -252,12 +252,39 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnListOpen)
         assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        vm.onIntent(HomeIntent.OnListExpand)
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
         assertEquals(HomeSurfaceState.FullList, vm.state.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
         assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
         assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+    }
+
+    @Test
+    fun `sheet dragged from full straight to hidden lands on navigation`() {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+
+        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+    }
+
+    @Test
+    fun `late list sheet settle event does not override an open detail`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 40L)
+        coEvery { deps.getDetail(40L) } returns Result.success(place)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(40L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+
+        assertEquals(HomeSurfaceState.Detail, vm.state.value.surfaceState)
+        assertEquals(40L, vm.state.value.selectedPlaceId)
+        assertEquals(place, vm.state.value.selectedPlace)
+        assertFalse(vm.state.value.isDetailLoading)
     }
 
     @Test
