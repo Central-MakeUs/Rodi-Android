@@ -164,7 +164,7 @@ fun LevelReviewsOverlay(
                 }
             }
 
-            HorizontalDivider(color = RodiTheme.colors.gray200)
+            HorizontalDivider(color = RodiTheme.colors.gray100)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

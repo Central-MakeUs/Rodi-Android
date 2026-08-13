@@ -83,7 +83,13 @@ fun LevelReviewSection(
 
         if (!hasReview) {
             Spacer(Modifier.height(12.dp))
-            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
+            WriteReviewPrompt(
+                showLevelSelector = !isEmpty,
+                selectedLevel = selectedLevel,
+                onSelectLevel = onSelectLevel,
+                scrollState = scrollState,
+                onWriteReviewClick = onWriteReviewClick,
+            )
         } else {
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
@@ -101,7 +107,13 @@ fun LevelReviewSection(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(color = RodiTheme.colors.gray100)
             Spacer(Modifier.height(12.dp))
-            WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
+            WriteReviewPrompt(
+                showLevelSelector = false,
+                selectedLevel = selectedLevel,
+                onSelectLevel = onSelectLevel,
+                scrollState = scrollState,
+                onWriteReviewClick = onWriteReviewClick,
+            )
         }
 
         Spacer(
@@ -268,42 +280,65 @@ internal fun LevelDropdown(
                 onSelectLevel(levels[index])
             },
             onDismissRequest = { expanded = false },
+            menuWidth = 103.dp,
             scrollState = scrollState,
         )
     }
 }
 
 @Composable
-private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
+private fun WriteReviewPrompt(
+    showLevelSelector: Boolean,
+    selectedLevel: OnboardingLevel,
+    onSelectLevel: (OnboardingLevel) -> Unit,
+    scrollState: ScrollableState?,
+    onWriteReviewClick: () -> Unit,
+) {
     val buttonShape = RoundedCornerShape(8.dp)
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .height(124.dp),
     ) {
-        Text(
-            text = "여러분의 연습 경험을 공유해주세요!",
-            modifier = Modifier.width(177.dp),
-            style = RodiTheme.typography.caption1Medium,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-        )
-        Row(
+        if (showLevelSelector) {
+            LevelDropdown(
+                selectedLevel = selectedLevel,
+                onSelectLevel = onSelectLevel,
+                scrollState = scrollState,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 12.dp, end = 16.dp),
+            )
+        }
+        Column(
             modifier = Modifier
-                .width(177.dp)
-                .clip(buttonShape)
-                .border(1.dp, RodiTheme.colors.primary600, buttonShape)
-                .clickable(onClick = onWriteReviewClick)
-                .padding(horizontal = 20.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.Center,
+                .fillMaxWidth()
+                .padding(top = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "후기 쓰기",
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.primary600,
+                text = "여러분의 연습 경험을 공유해주세요!",
+                modifier = Modifier.width(177.dp),
+                style = RodiTheme.typography.caption1Medium,
+                color = RodiTheme.colors.gray600,
+                textAlign = TextAlign.Center,
             )
+            Row(
+                modifier = Modifier
+                    .width(177.dp)
+                    .clip(buttonShape)
+                    .border(1.dp, RodiTheme.colors.primary600, buttonShape)
+                    .clickable(onClick = onWriteReviewClick)
+                    .padding(horizontal = 20.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "후기 쓰기",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.primary600,
+                )
+            }
         }
     }
 }
