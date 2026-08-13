@@ -163,7 +163,10 @@ private fun SummaryRow(
     scrollState: ScrollableState?,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(30.dp),
+        modifier = Modifier.fillMaxWidth(),
+        // Figma는 이 통계 묶음 전체를 섹션 우측 끝에 붙인다("전체보기"·"자세히 보기" 등 다른
+        // 우측 정렬 요소와 같은 라인). spacedBy(30dp)로 안쪽 간격은 유지하면서 묶음 자체를 끝으로 민다.
+        horizontalArrangement = Arrangement.spacedBy(30.dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
