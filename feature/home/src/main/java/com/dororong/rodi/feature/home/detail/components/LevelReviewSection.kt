@@ -84,7 +84,11 @@ fun LevelReviewSection(
         }
 
         if (!hasReview) {
+            // Figma 두 빈 상태(후기 아예 없음 / 선택한 레벨만 없음) 모두 헤더와 프롬프트 사이에
+            // 얇은 구분선이 있다. WriteReviewPrompt 내부의 top padding(32dp)이 구분선~문구 간격을
+            // 이미 맞춰주므로 divider 뒤에 별도 Spacer는 두지 않는다.
             Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = RodiTheme.colors.gray100)
             WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
         } else {
             Spacer(Modifier.height(12.dp))
