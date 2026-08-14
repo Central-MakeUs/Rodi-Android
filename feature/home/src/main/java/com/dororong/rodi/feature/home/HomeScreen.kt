@@ -308,7 +308,7 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
-    var hasRestoredSavedViewport by remember { mutableStateOf(false) }
+    var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
     fun updateCurrentViewport(viewport: MapViewport?) {
         currentViewport = viewport
     }
@@ -631,10 +631,10 @@ fun HomeScreen(
 
     LaunchedEffect(kakaoMap, mapViewSize) {
         val map = kakaoMap ?: return@LaunchedEffect
-        if (mapViewSize.width <= 0 || mapViewSize.height <= 0 || hasRestoredSavedViewport) {
+        if (mapViewSize.width <= 0 || mapViewSize.height <= 0 || restoredViewportMap === map) {
             return@LaunchedEffect
         }
-        hasRestoredSavedViewport = true
+        restoredViewportMap = map
         val viewport = currentViewport ?: return@LaunchedEffect
         hasCenteredInitialLocation = true
         map.moveCamera(
