@@ -13,7 +13,6 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
-import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.camera.CameraAnimation
@@ -40,16 +39,12 @@ fun KakaoMap.clearCourse() {
 
 fun KakaoMap.renderPlaceCourseMarkers(context: Context, place: PlaceDetail) {
     clearCourse()
-    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEach { waypoint ->
-        val icon = when (waypoint.type) {
-            PlaceWaypointType.START -> R.drawable.ic_pin_start
-            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
-            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
-        }
+    val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = LatLng.from(waypoint.point.lat, waypoint.point.lng),
-            iconRes = icon,
+            iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
         )
     }
@@ -62,21 +57,29 @@ fun KakaoMap.renderPlaceCourse(
     snappedPoints: List<LatLng> = emptyList(),
 ) {
     clearCourse()
-    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEachIndexed { index, waypoint ->
-        val icon = when (waypoint.type) {
-            PlaceWaypointType.START -> R.drawable.ic_pin_start
-            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
-            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
-        }
+    val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = snappedPoints.getOrNull(index)
                 ?: LatLng.from(waypoint.point.lat, waypoint.point.lng),
-            iconRes = icon,
+            iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
         )
     }
     if (routePoints.size >= 2) drawRouteLine(routePoints)
+}
+
+/**
+ * 서버 `waypoint.type`을 그대로 신뢰하지 않고 정렬된 순서(첫 번째=출발, 마지막=도착)로
+ * 아이콘을 정한다. 순환 코스처럼 출발·도착이 같은 지점인 경우 서버가 두 지점의 type을
+ * 요청마다 다르게 줄 가능성이 있어, sequence 순서만으로 결정해야 같은 코스를 다시 열어도
+ * 항상 같은 그림이 나온다.
+ */
+private fun waypointIconRes(index: Int, lastIndex: Int): Int = when {
+    index == 0 -> R.drawable.ic_pin_start
+    index == lastIndex -> R.drawable.ic_pin_arrival
+    else -> R.drawable.ic_pin_waypoint
 }
 
 /**
@@ -92,6 +95,12 @@ fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, topPaddingPx: Int, bot
     if (routePoints.size >= 2) fitTo(routePoints)
 }
 
+/**
+ * [index]는 waypoint.sequence다. rank로도 그대로 쓴다 — 순환 코스처럼 출발·도착 지점이
+ * 거의 겹치면 Kakao 지도가 겹친 라벨 중 어느 걸 위에 그릴지 보장하지 않아서, 열 때마다
+ * 다른 핀이 보이는 것처럼 깜빡이는 문제가 있었다. sequence가 큰(나중) 지점을 항상 위에
+ * 그리게 고정하면 같은 코스는 언제 열어도 같은 그림이 나온다.
+ */
 private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: Int, index: Int) {
     val manager = labelManager ?: return
     val layer = detailLabelLayer() ?: return
@@ -101,6 +110,7 @@ private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: In
     val options = LabelOptions.from(position)
         .setStyles(styles)
         .setTag(index)
+        .setRank(index.toLong())
     layer.addLabel(options)
 }
 
