@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.source.remote.model.review.CursorPageReviewRe
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormOptionResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportRequest
+import com.dororong.rodi.core.data.source.remote.model.review.ReviewDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
@@ -15,6 +16,7 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
@@ -68,6 +70,22 @@ fun ReviewResponse.toDomain(): Review? {
         createdAt = parseServerTimestamp(createdAt),
     )
 }
+
+fun ReviewDetailResponse.toDomain() = ReviewDetail(
+    reviewId = reviewId,
+    placeId = placeId,
+    placeName = placeName,
+    isRecommended = isRecommended,
+    difficulty = difficulty.toNullableEnum<ReviewDifficulty>("difficulty"),
+    congestion = congestion.toNullableEnum<ReviewCongestion>("congestion"),
+    practiceMethod = practiceMethod.toPracticeMethodOrNull(),
+    content = content,
+    caution = caution,
+    isEditable = isEditable,
+    isHidden = isHidden,
+    isVerifiedVisit = isVerifiedVisit,
+    createdAt = parseServerTimestamp(createdAt),
+)
 
 fun ReviewSummaryResponse.toDomain() = ReviewSummary(
     level = when (level) {

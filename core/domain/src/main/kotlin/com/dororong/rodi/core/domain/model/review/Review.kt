@@ -39,6 +39,22 @@ data class Review(
     val createdAt: Instant,
 )
 
+data class ReviewDetail(
+    val reviewId: Long,
+    val placeId: Long,
+    val placeName: String,
+    val isRecommended: Boolean,
+    val difficulty: ReviewDifficulty?,
+    val congestion: ReviewCongestion?,
+    val practiceMethod: PracticeMethod?,
+    val content: String?,
+    val caution: String?,
+    val isEditable: Boolean,
+    val isHidden: Boolean,
+    val isVerifiedVisit: Boolean,
+    val createdAt: Instant,
+)
+
 data class ReviewDraft(
     val isRecommended: Boolean,
     val difficulty: ReviewDifficulty,

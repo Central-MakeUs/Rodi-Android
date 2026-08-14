@@ -51,6 +51,23 @@ data class ReviewCreatedResponse(
 )
 
 @Serializable
+data class ReviewDetailResponse(
+    val reviewId: Long,
+    val placeId: Long,
+    val placeName: String,
+    val isRecommended: Boolean,
+    val difficulty: String? = null,
+    val congestion: String? = null,
+    val practiceMethod: String? = null,
+    val content: String? = null,
+    val caution: String? = null,
+    val isEditable: Boolean,
+    val isHidden: Boolean,
+    val isVerifiedVisit: Boolean,
+    val createdAt: String,
+)
+
+@Serializable
 data class ReviewSummaryResponse(
     val level: String? = null,
     // 2026-08-13 Swagger 재대조 결과 totalCount는 더 이상 없다 — levelReviewCount(선택 레벨

@@ -6,13 +6,13 @@ import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
-import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
-import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +26,7 @@ import kotlinx.coroutines.launch
 class ReviewWriteViewModel @Inject constructor(
     private val createReview: CreateReviewUseCase,
     private val updateReview: UpdateReviewUseCase,
-    private val getPlaceReviews: GetPlaceReviewsUseCase,
+    private val getReview: GetReviewUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReviewWriteUiState())
     val state: StateFlow<ReviewWriteUiState> = _state.asStateFlow()
@@ -56,30 +56,21 @@ class ReviewWriteViewModel @Inject constructor(
         )
         viewModelScope.launch {
             try {
-                findReview(placeId, reviewId)
+                getReview(reviewId)
                     .onSuccess { review ->
-                        if (review == null) {
-                            _state.update {
-                                it.copy(
-                                    isInitializing = false,
-                                    initializationErrorMessage = "수정할 후기를 불러오지 못했어요.",
-                                )
-                            }
-                        } else {
-                            val initial = review.toInitialValues()
-                            _state.update {
-                                it.copy(
-                                    original = initial,
-                                    isRecommended = initial.isRecommended,
-                                    difficulty = initial.difficulty,
-                                    congestion = initial.congestion,
-                                    caution = initial.caution.orEmpty(),
-                                    practiceMethod = initial.practiceMethod,
-                                    content = initial.content.orEmpty(),
-                                    isInitializing = false,
-                                    initializationErrorMessage = null,
-                                )
-                            }
+                        val initial = review.toInitialValues()
+                        _state.update {
+                            it.copy(
+                                original = initial,
+                                isRecommended = initial.isRecommended,
+                                difficulty = initial.difficulty,
+                                congestion = initial.congestion,
+                                caution = initial.caution.orEmpty(),
+                                practiceMethod = initial.practiceMethod,
+                                content = initial.content.orEmpty(),
+                                isInitializing = false,
+                                initializationErrorMessage = null,
+                            )
                         }
                     }
                     .onFailure { error ->
@@ -102,18 +93,6 @@ class ReviewWriteViewModel @Inject constructor(
         }
     }
 
-    private suspend fun findReview(placeId: Long, reviewId: Long): Result<Review?> {
-        var cursor: String? = null
-        while (true) {
-            val page = getPlaceReviews(placeId, ReviewLevelFilter.All, cursor, PAGE_SIZE)
-                .getOrElse { return Result.failure(it) }
-            page.items.firstOrNull { it.reviewId == reviewId }?.let { return Result.success(it) }
-            if (!page.hasNext || page.nextCursor == null || page.nextCursor == cursor) {
-                return Result.success(null)
-            }
-            cursor = page.nextCursor
-        }
-    }
     fun selectRecommend(value: Boolean) = _state.update { it.copy(isRecommended = value) }
     fun selectDifficulty(value: ReviewDifficulty) = _state.update { it.copy(difficulty = value) }
     fun selectCongestion(value: ReviewCongestion) = _state.update { it.copy(congestion = value) }
@@ -153,11 +132,18 @@ class ReviewWriteViewModel @Inject constructor(
         content = content,
     )
 
+    private fun ReviewDetail.toInitialValues() = ReviewWriteInitialValues(
+        isRecommended = isRecommended,
+        difficulty = difficulty,
+        congestion = congestion,
+        caution = caution,
+        practiceMethod = practiceMethod,
+        content = content,
+    )
+
     private fun Throwable.reviewErrorMessage(): String = when (this) {
         is ReviewException.LevelRequired -> "레벨 진단을 마쳐야 후기를 남길 수 있어요."
         is ReviewException.LevelChanged -> "레벨이 바뀌어서 이 후기는 수정할 수 없어요."
         else -> userMessage()
     }
 }
-
-private const val PAGE_SIZE = 50

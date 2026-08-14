@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
+import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
@@ -46,6 +47,10 @@ class ReviewRepositoryImpl @Inject constructor(
         authenticatedRequest { accessToken ->
             api.getSummary("Bearer $accessToken", placeId, level.toQueryValue()).requireData().toDomain()
         }
+
+    override suspend fun getReview(reviewId: Long): ReviewDetail = authenticatedRequest { accessToken ->
+        api.getReview("Bearer $accessToken", reviewId).requireData().toDomain()
+    }
 
     override suspend fun createReview(placeId: Long, draft: ReviewDraft): Long =
         authenticatedRequest(operation = ReviewOperation.CREATE) { accessToken ->

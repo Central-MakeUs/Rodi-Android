@@ -4,13 +4,12 @@ import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
-import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
-import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
-import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -38,7 +37,7 @@ class ReviewWriteViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val createReview = mockk<CreateReviewUseCase>()
     private val updateReview = mockk<UpdateReviewUseCase>()
-    private val getPlaceReviews = mockk<GetPlaceReviewsUseCase>()
+    private val getReview = mockk<GetReviewUseCase>()
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -150,7 +149,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `method is required before submitting`() = runTest(dispatcher) {
+    fun `practice method is required before completing`() = runTest(dispatcher) {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         completeBasics(viewModel)
@@ -162,10 +161,31 @@ class ReviewWriteViewModelTest {
         coVerify(exactly = 0) { createReview(any(), any()) }
 
         viewModel.selectPracticeMethod(PracticeMethod.SOLO)
-        assertFalse(viewModel.state.value.canSubmit)
-
-        viewModel.updateContent("좋은 코스예요")
         assertTrue(viewModel.state.value.canSubmit)
+
+        viewModel.selectPracticeMethod(PracticeMethod.WITH_COMPANION)
+        assertTrue(viewModel.state.value.canSubmit)
+    }
+
+    @Test
+    fun `practice method can submit without review content`() = runTest(dispatcher) {
+        val expected = draft().copy(
+            practiceMethod = PracticeMethod.WITH_COMPANION,
+            content = null,
+            caution = null,
+        )
+        coEvery { createReview(PLACE_ID, expected) } returns Result.success(31L)
+        val viewModel = viewModel()
+        viewModel.start(PLACE_ID, PLACE_NAME)
+        completeBasics(viewModel)
+        viewModel.next()
+        viewModel.selectPracticeMethod(PracticeMethod.WITH_COMPANION)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.value.isSubmitted)
+        coVerify(exactly = 1) { createReview(PLACE_ID, expected) }
     }
 
     @Test
@@ -180,10 +200,8 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review id restores the edit form from the place reviews`() = runTest(dispatcher) {
-        coEvery {
-            getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50)
-        } returns Result.success(CursorPage(listOf(review()), false, null, 1))
+    fun `review id restores the edit form from the review detail`() = runTest(dispatcher) {
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
@@ -193,31 +211,12 @@ class ReviewWriteViewModelTest {
         assertEquals(REVIEW_ID, viewModel.state.value.editingReviewId)
         assertEquals("좋은 코스예요", viewModel.state.value.content)
         assertFalse(viewModel.state.value.isDirty)
-    }
-
-    @Test
-    fun `review id lookup follows the next cursor page`() = runTest(dispatcher) {
-        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.success(
-            CursorPage(emptyList(), true, "next", 2),
-        )
-        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, "next", 50) } returns Result.success(
-            CursorPage(listOf(review()), false, null, 2),
-        )
-        val viewModel = viewModel()
-
-        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
-        advanceUntilIdle()
-
-        assertFalse(viewModel.state.value.isInitializing)
-        assertEquals("좋은 코스예요", viewModel.state.value.content)
-        coVerify(exactly = 1) { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, "next", 50) }
+        coVerify(exactly = 1) { getReview(REVIEW_ID) }
     }
 
     @Test
     fun `missing review id exposes initialization error`() = runTest(dispatcher) {
-        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.success(
-            CursorPage(emptyList(), false, null, 0),
-        )
+        coEvery { getReview(REVIEW_ID) } returns Result.failure(ReviewException.NotFound("404"))
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
@@ -230,9 +229,7 @@ class ReviewWriteViewModelTest {
 
     @Test
     fun `review lookup failure exposes initialization error`() = runTest(dispatcher) {
-        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } returns Result.failure(
-            IllegalStateException("offline"),
-        )
+        coEvery { getReview(REVIEW_ID) } returns Result.failure(IllegalStateException("offline"))
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
@@ -245,9 +242,7 @@ class ReviewWriteViewModelTest {
 
     @Test
     fun `review lookup cancellation propagates after initialization stops`() = runTest(dispatcher) {
-        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.All, null, 50) } coAnswers {
-            throw CancellationException("취소")
-        }
+        coEvery { getReview(REVIEW_ID) } coAnswers { throw CancellationException("취소") }
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
@@ -330,7 +325,7 @@ class ReviewWriteViewModelTest {
         assertEquals("레벨이 바뀌어서 이 후기는 수정할 수 없어요.", viewModel.state.value.errorMessage)
     }
 
-    private fun viewModel() = ReviewWriteViewModel(createReview, updateReview, getPlaceReviews)
+    private fun viewModel() = ReviewWriteViewModel(createReview, updateReview, getReview)
 
     private fun completeBasics(viewModel: ReviewWriteViewModel) {
         viewModel.selectRecommend(true)
@@ -369,6 +364,22 @@ class ReviewWriteViewModelTest {
         isMine = true,
         isEditable = true,
         isHidden = false,
+        createdAt = Instant.EPOCH,
+    )
+
+    private fun reviewDetail() = ReviewDetail(
+        reviewId = REVIEW_ID,
+        placeId = PLACE_ID,
+        placeName = PLACE_NAME,
+        isRecommended = true,
+        difficulty = ReviewDifficulty.NORMAL,
+        congestion = ReviewCongestion.QUIET,
+        practiceMethod = PracticeMethod.SOLO,
+        content = "좋은 코스예요",
+        caution = "자전거를 조심하세요",
+        isEditable = true,
+        isHidden = false,
+        isVerifiedVisit = true,
         createdAt = Instant.EPOCH,
     )
 
