@@ -50,6 +50,12 @@
   클라이언트가 `difficultyCounts`로 이미 같은 규칙을 계산 중이라 당장 필요하지 않았다. `levelReviewCount`도
   아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 원문 노출(`else` 분기) 정리도 남아있다.
   `placeId 106`의 테스트 후기 2건 정리는 여전히 미확인.
+
+  **남은 작업**
+  - [ ] `topDifficulty` 서버 필드 매핑·노출 여부 결정
+  - [ ] `levelReviewCount` UI 사용 여부 검토
+  - [ ] `ReviewRepositoryImpl.toReviewException`의 예외 원문 fallback 제거
+  - [ ] 관련 후기 테스트의 성공·실패·취소 경로 검토 및 정리
 - [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
   가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**

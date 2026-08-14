@@ -32,7 +32,7 @@ fun HomeSearchBar(
         modifier = modifier
             .fillMaxWidth()
             .height(46.dp)
-            .semantics { contentDescription = "지역 검색" },
+            .semantics { contentDescription = "지역 또는 코스 검색" },
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = RodiTheme.colors.white,

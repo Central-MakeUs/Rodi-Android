@@ -1,5 +1,7 @@
 package com.dororong.rodi.core.data.mock
 
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * 서버에 아직 없는 API를 화면에서 미리 확인할 때 쓴다. 등록된 경로만 로컬 JSON으로 가로채고,
  * 그 외 요청은 실서버로 그대로 나간다 — 전체 API를 목으로 바꾸는 게 아니다.
@@ -16,9 +18,10 @@ package com.dororong.rodi.core.data.mock
  * ```
  */
 object MockResponseRegistry {
+    @Volatile
     var enabled: Boolean = false
 
-    private val mocks = mutableMapOf<String, String>()
+    private val mocks = ConcurrentHashMap<String, String>()
 
     /** [path]는 요청 URL의 끝부분과 일치하는지로 비교한다(쿼리스트링 무시). 버전 프리픽스 없이 적는다. */
     fun set(path: String, json: String) {

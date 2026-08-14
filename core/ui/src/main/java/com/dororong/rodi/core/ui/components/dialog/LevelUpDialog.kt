@@ -2,10 +2,12 @@ package com.dororong.rodi.core.ui.components.dialog
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -15,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,21 +27,31 @@ import com.dororong.rodi.core.ui.R
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
+private val LEVEL_UP_DIALOG_HEIGHT = 388.dp
+private val LEVEL_UP_DIALOG_SCREEN_MARGIN = 32.dp
+
 @Composable
 fun LevelUpDialog(
     level: OnboardingLevel,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    val availableDialogHeight = (LocalConfiguration.current.screenHeightDp.dp - LEVEL_UP_DIALOG_SCREEN_MARGIN)
+        .coerceAtLeast(0.dp)
     RodiDialog(
         onDismissRequest = onDismissRequest,
         modifier = Modifier
             .width(290.dp)
-            .height(388.dp),
+            .heightIn(
+                min = minOf(LEVEL_UP_DIALOG_HEIGHT, availableDialogHeight),
+                max = availableDialogHeight,
+            ),
         contentPadding = PaddingValues(0.dp),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(

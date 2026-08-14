@@ -55,6 +55,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.mapSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -167,6 +170,7 @@ import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.map.viewportAboveBottomInsetOrNull
 import com.dororong.rodi.feature.home.map.visibleViewportOrNull
 import com.dororong.rodi.feature.home.map.boundsOrNull
+import com.dororong.rodi.feature.home.map.applyMapContentPadding
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
 import com.kakao.vectormap.GestureType
@@ -222,6 +226,29 @@ private data class ReviewWriteTarget(
     val review: Review?,
 )
 
+private val mapViewportSaver: Saver<MapViewport?, Any> = mapSaver(
+    save = { viewport ->
+        viewport?.let {
+            mapOf(
+                "northEastLat" to it.northEast.lat,
+                "northEastLng" to it.northEast.lng,
+                "southWestLat" to it.southWest.lat,
+                "southWestLng" to it.southWest.lng,
+            )
+        } ?: emptyMap()
+    },
+    restore = { saved ->
+        val northEastLat = saved["northEastLat"] as? Double ?: return@mapSaver null
+        val northEastLng = saved["northEastLng"] as? Double ?: return@mapSaver null
+        val southWestLat = saved["southWestLat"] as? Double ?: return@mapSaver null
+        val southWestLng = saved["southWestLng"] as? Double ?: return@mapSaver null
+        MapViewport(
+            northEast = GeoPoint(northEastLat, northEastLng),
+            southWest = GeoPoint(southWestLat, southWestLng),
+        )
+    },
+)
+
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
@@ -243,8 +270,10 @@ fun HomeScreen(
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
-    var mapZoomLevel by remember { mutableIntStateOf(DEFAULT_ZOOM) }
-    var currentViewport by remember { mutableStateOf<MapViewport?>(null) }
+    var mapZoomLevel by rememberSaveable { mutableIntStateOf(DEFAULT_ZOOM) }
+    var currentViewport by rememberSaveable(stateSaver = mapViewportSaver) {
+        mutableStateOf<MapViewport?>(null)
+    }
     var pendingMapSearch by remember { mutableStateOf<PendingMapSearch?>(null) }
     var activeClusterMemberIds by remember { mutableStateOf<Set<Long>?>(null) }
     var mapSearchGeneration by remember { mutableStateOf(0L) }
@@ -267,9 +296,9 @@ fun HomeScreen(
         )
     }
     var isAtCurrentLocation by remember { mutableStateOf(false) }
-    var hasUserMovedMap by remember { mutableStateOf(false) }
-    var hasUserChosenMapViewport by remember { mutableStateOf(false) }
-    var hasCenteredInitialLocation by remember { mutableStateOf(false) }
+    var hasUserMovedMap by rememberSaveable { mutableStateOf(false) }
+    var hasUserChosenMapViewport by rememberSaveable { mutableStateOf(false) }
+    var hasCenteredInitialLocation by rememberSaveable { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
@@ -279,6 +308,10 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
+    var hasRestoredSavedViewport by remember { mutableStateOf(false) }
+    fun updateCurrentViewport(viewport: MapViewport?) {
+        currentViewport = viewport
+    }
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -596,6 +629,26 @@ fun HomeScreen(
         }
     }
 
+    LaunchedEffect(kakaoMap, mapViewSize) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        if (mapViewSize.width <= 0 || mapViewSize.height <= 0 || hasRestoredSavedViewport) {
+            return@LaunchedEffect
+        }
+        hasRestoredSavedViewport = true
+        val viewport = currentViewport ?: return@LaunchedEffect
+        hasCenteredInitialLocation = true
+        map.moveCamera(
+            CameraUpdateFactory.newCenterPosition(
+                LatLng.from(
+                    (viewport.northEast.lat + viewport.southWest.lat) / 2,
+                    (viewport.northEast.lng + viewport.southWest.lng) / 2,
+                ),
+                mapZoomLevel,
+            ),
+            CameraAnimation.from(0),
+        )
+    }
+
     LaunchedEffect(kakaoMap, mapViewSize, currentLocation, initialLocationState) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (!InitialViewportSearchPolicy.canDispatch(
@@ -608,7 +661,7 @@ fun HomeScreen(
             return@LaunchedEffect
         }
         val viewport = map.viewportOrNull(mapViewSize) ?: return@LaunchedEffect
-        currentViewport = viewport
+        updateCurrentViewport(viewport)
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
@@ -766,9 +819,15 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(kakaoMap, mapBrandOffset, mapScaleBarOffset, mapContentBottomPaddingPx) {
+    LaunchedEffect(
+        kakaoMap,
+        mapContentTopPaddingPx,
+        mapBrandOffset,
+        mapScaleBarOffset,
+        mapContentBottomPaddingPx,
+    ) {
         val map = kakaoMap ?: return@LaunchedEffect
-        map.setPadding(0, 0, 0, mapContentBottomPaddingPx)
+        map.applyMapContentPadding(mapContentTopPaddingPx, mapContentBottomPaddingPx)
         val mapPaddingCompensationPx = -mapContentBottomPaddingPx.toFloat()
         val brandBottomPx = with(density) { mapBrandOffset.toPx() } + mapPaddingCompensationPx
         val scaleBarBottomPx = with(density) { mapScaleBarOffset.toPx() } + mapPaddingCompensationPx
@@ -819,7 +878,6 @@ fun HomeScreen(
                                         object : KakaoMapReadyCallback() {
                                             override fun onMapReady(map: KakaoMap) {
                                                 kakaoMap = map
-                                                map.setPadding(0, 0, 0, 0)
                                                 map.setCameraMinLevel(MIN_ZOOM)
                                                 map.setGestureEnable(GestureType.Rotate, false)
                                                 map.setGestureEnable(GestureType.RotateZoom, false)
@@ -838,7 +896,7 @@ fun HomeScreen(
                                                 map.setOnCameraMoveEndListener { movedMap, _, _ ->
                                                     mapZoomLevel = movedMap.zoomLevel
                                                     movedMap.viewportOrNull(mapViewSize)?.let { viewport ->
-                                                        currentViewport = viewport
+                                                        updateCurrentViewport(viewport)
                                                         val pending = pendingMapSearch
                                                         if (
                                                             pending != null &&

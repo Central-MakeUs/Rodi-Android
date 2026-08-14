@@ -23,12 +23,6 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
-/**
- * `touchSize`(기본 48dp)가 `layoutSize`(기본 24dp)보다 커서, 실제 터치/리플 영역은 레이아웃이
- * 차지하는 자리 밖으로 넘친다. `verticalScroll`처럼 뷰포트를 클리핑하는 컨테이너의 가장자리에
- * 놓이면 이 오버플로가 잘려 리플이 반쪽만 보인다 — `touchSize`/`layoutSize`뿐 아니라
- * `rippleRadius`도 함께 박스 크기에 맞춰야 완전히 없어진다(코스 상세 닫기 버튼에서 실제로 겪음).
- */
 @Composable
 fun RodiIconButton(
     painter: Painter,
@@ -37,8 +31,6 @@ fun RodiIconButton(
     iconSize: Dp = 24.dp,
     touchSize: Dp = 48.dp,
     layoutSize: Dp = 24.dp,
-    // 스크롤 뷰포트 가장자리처럼 클리핑되는 자리에 놓일 때 오버플로를 없애려면 touchSize/2보다
-    // 작은 값을 넘긴다. 기본값은 손가락 크기를 보장하는 기존 동작 그대로다.
     rippleRadius: Dp = maxOf(touchSize / 2, 24.dp),
     contentDescription: String? = null,
     tint: Color = Color.Unspecified,
