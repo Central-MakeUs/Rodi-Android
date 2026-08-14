@@ -3,7 +3,7 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
-import com.dororong.rodi.core.data.source.remote.model.auth.AuthTokenResponse
+import com.dororong.rodi.core.data.source.remote.model.auth.TokenRefreshResponse
 import com.dororong.rodi.core.data.source.remote.model.auth.LogoutRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginRequest
@@ -282,14 +282,14 @@ class AuthRepositoryImplTest {
         provider = provider,
     )
 
-    private fun tokenEnvelope(isNewMember: Boolean) = ApiEnvelope(
+    private fun tokenEnvelope(isOnboarded: Boolean) = ApiEnvelope(
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
-        data = AuthTokenResponse(
+        data = TokenRefreshResponse(
             accessToken = "access-new",
             refreshToken = "refresh-new",
-            isNewMember = isNewMember,
+            isOnboarded = isOnboarded,
         ),
     )
 
