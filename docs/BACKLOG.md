@@ -100,7 +100,9 @@
   내비를 띄우고 실제로는 안 갔거나, 앱을 아예 안 열면 감지되지 않는다.
   서버 방문 인증 API 또는 Geofencing+WorkManager가 준비되면 교체한다.
   (목록 API에 `isVerifiedVisit`가 생기면 후기 카드의 방문인증 칩도 함께.)
-- [ ] **장소 상세 조회 실패 시 에러 피드백 부재** — `HomeViewModel.openPlace()`가 `getPlaceDetailUseCase` 실패 시 조용히 리스트/지도로 되돌아가므로 `HomeEffect.ShowSnackbar(error.userMessage())`를 보내도록 보강 필요.
+- [x] **장소 상세 조회 실패 시 에러 피드백 부재** — 재확인(2026-08-14) 결과 이미 해결돼 있다.
+  `HomeViewModel.openPlace()`의 `onFailure`가 `_effect.send(HomeEffect.ShowSnackbar(error.userMessage()))`를
+  호출 중.
 - [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
   API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, `OnboardingRepositoryImpl`/
   `MemberRepositoryImpl`/`PlaceRepositoryImpl`(+`ReviewRepositoryImpl`) 각각이 401을 잡아
@@ -147,6 +149,12 @@
   - 컴포넌트 네이밍은 프로젝트 프리픽스 통일(`Pickle*` → Rodi라면 `Rodi*`), `components/<종류>/model/`
     하위에 Type/Size 등 sealed 모델 분리
   - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
+- [ ] **`CourseRepository`/`SampleCourses`/`GetCoursesUseCase` 죽은 코드 정리 필요 (2026-08-14 발견)** —
+  `CourseRepositoryImpl.getCourses()`가 서버 대신 하드코딩된 `SampleCourses.RODI_COURSES`를
+  그대로 반환한다. 하지만 `GetCoursesUseCase`를 호출하는 화면이 하나도 없다 — 실제 코스 목록은
+  `PlaceApi` 기반 검색/상세 경로로 이미 대체됐고, 이쪽은 초기 PoC 잔재로 보인다. 릴리스 빌드에
+  섞여 나가진 않지만(호출부가 없어 도달 불가) 죽은 코드라 헷갈릴 수 있다 — 완전히 제거하거나,
+  아직 쓸 곳이 있다면 실제 API로 교체할 것.
 
 ## 마이페이지 개편 후속
 - [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
