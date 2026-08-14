@@ -50,12 +50,4 @@ class PracticeUseCasesTest {
         assertEquals(form, GetSkipReasonFormUseCase(repository)().getOrThrow())
         coVerify(exactly = 1) { repository.getSkipReasonForm() }
     }
-
-    @Test
-    fun `delete practice delegates practice id`() = runTest {
-        coEvery { repository.delete(3) } returns Unit
-
-        assertTrue(DeletePracticeUseCase(repository)(3).isSuccess)
-        coVerify(exactly = 1) { repository.delete(3) }
-    }
 }

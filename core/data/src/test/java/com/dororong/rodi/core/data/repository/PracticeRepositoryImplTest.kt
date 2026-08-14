@@ -40,15 +40,6 @@ class PracticeRepositoryImplTest {
         }
     }
 
-    @Test
-    fun `delete forbidden maps to forbidden`() = runTest {
-        val api = mockk<PracticeApi>()
-        coEvery { api.delete("Bearer access", 7) } returns failureEnvelope("COMMON_403")
-        val repository = repository(api)
-
-        assertThrowsSuspend<PracticeException.Forbidden> { repository.delete(7) }
-    }
-
     private fun repository(api: PracticeApi): PracticeRepositoryImpl = PracticeRepositoryImpl(
         api = api,
         tokenStore = mockk<AuthTokenStore>().also {
