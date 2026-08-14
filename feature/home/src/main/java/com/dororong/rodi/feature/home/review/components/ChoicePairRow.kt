@@ -11,10 +11,12 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,20 +42,28 @@ fun ChoicePairRow(
 
 @Composable
 private fun RowScope.Choice(label: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = Modifier
             .weight(1f)
             .height(32.dp)
+            .clip(shape)
             .background(
                 color = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.white,
-                shape = RoundedCornerShape(8.dp),
+                shape = shape,
             )
             .border(
                 width = 1.dp,
                 color = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
-                shape = RoundedCornerShape(8.dp),
+                shape = shape,
             )
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton),
+            .selectable(
+                selected = selected,
+                interactionSource = null,
+                indication = ripple(bounded = true),
+                role = Role.RadioButton,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Text(

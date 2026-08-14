@@ -115,7 +115,13 @@ private fun ScaleTouchTarget(
     Box(
         modifier = Modifier
             .size(ScaleTouchSize)
-            .selectable(selected = selected, onClick = onClick, role = Role.RadioButton)
+            .selectable(
+                selected = selected,
+                interactionSource = null,
+                indication = null,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
             .semantics {
                 contentDescription = label
             },
