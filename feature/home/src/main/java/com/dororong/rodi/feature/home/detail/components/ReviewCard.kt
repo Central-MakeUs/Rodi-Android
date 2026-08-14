@@ -100,6 +100,7 @@ fun ReviewCard(
                         )
                     },
                     onDismissRequest = { menuExpanded = false },
+                    menuWidth = 75.dp,
                     scrollState = scrollState,
                 )
             }

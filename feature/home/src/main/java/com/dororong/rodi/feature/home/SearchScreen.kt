@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -57,6 +59,7 @@ import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -119,7 +122,8 @@ private fun SearchScreenContent(
         modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
         SearchInput(
             query = state.query,
@@ -176,13 +180,11 @@ private fun SearchInput(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
+        RodiIconButton(
             painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
             contentDescription = "뒤로가기",
             tint = RodiTheme.colors.black,
-            modifier = Modifier
-                .size(24.dp)
-                .clickable(onClick = onBack),
         )
         BasicTextField(
             value = query,
@@ -225,7 +227,16 @@ private fun RecentSearchList(
 ) {
     when {
         isLoading -> RecentSearchSkeletonList(modifier)
-        searches.isEmpty() -> Unit
+        searches.isEmpty() -> Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "최근 검색 내역이 없습니다",
+                style = RodiTheme.typography.body1Medium,
+                color = RodiTheme.colors.gray600,
+            )
+        }
         else -> LazyColumn(modifier = modifier.fillMaxWidth()) {
             item(key = "recent_search_header") {
                 Row(
@@ -241,12 +252,19 @@ private fun RecentSearchList(
                         style = RodiTheme.typography.caption2Medium,
                         color = RodiTheme.colors.gray700,
                     )
-                    Text(
-                        text = "전체삭제",
-                        style = RodiTheme.typography.caption2Medium,
-                        color = RodiTheme.colors.gray500,
-                        modifier = Modifier.clickable(enabled = !isDeletingAll, onClick = onDeleteAll),
-                    )
+                    // 글자 높이(약 16dp)만큼만 클릭 영역이 잡혀 있던 걸 헤더 행 전체 높이(24dp)로 넓힌다.
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .clickable(enabled = !isDeletingAll, onClick = onDeleteAll),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "전체삭제",
+                            style = RodiTheme.typography.caption2Medium,
+                            color = RodiTheme.colors.gray500,
+                        )
+                    }
                 }
             }
             items(searches, key = RecentSearch::id) { search ->
@@ -259,16 +277,13 @@ private fun RecentSearchList(
                     },
                     onClick = { onSearchClick(search) },
                     trailingContent = {
-                        Icon(
+                        RodiIconButton(
                             painter = painterResource(R.drawable.ic_x),
+                            onClick = { onDelete(search.id) },
+                            enabled = search.id !in deletingIds && !isDeletingAll,
+                            iconSize = 20.dp,
                             contentDescription = "최근 검색어 삭제",
                             tint = RodiTheme.colors.black,
-                            modifier = Modifier
-                                .size(20.dp)
-                                .clickable(
-                                    enabled = search.id !in deletingIds && !isDeletingAll,
-                                    onClick = { onDelete(search.id) },
-                                ),
                         )
                     },
                 )

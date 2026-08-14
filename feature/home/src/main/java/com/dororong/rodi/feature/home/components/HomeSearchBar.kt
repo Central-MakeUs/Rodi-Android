@@ -32,7 +32,7 @@ fun HomeSearchBar(
         modifier = modifier
             .fillMaxWidth()
             .height(46.dp)
-            .semantics { contentDescription = "지역 검색" },
+            .semantics { contentDescription = "지역 또는 코스 검색" },
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = RodiTheme.colors.white,
@@ -50,7 +50,7 @@ fun HomeSearchBar(
                 modifier = Modifier.size(24.dp),
             )
             Text(
-                text = searchKeyword ?: "시/군/구로 검색하기",
+                text = searchKeyword ?: "시/군/구/코스명으로 검색하기",
                 style = RodiTheme.typography.body2Medium,
                 color = if (searchKeyword == null) RodiTheme.colors.gray500 else RodiTheme.colors.black,
             )

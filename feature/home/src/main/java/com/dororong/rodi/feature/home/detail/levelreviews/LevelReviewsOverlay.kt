@@ -94,16 +94,16 @@ fun LevelReviewsOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)
-                    .padding(horizontal = 4.dp),
+                    .height(56.dp),
             ) {
                 RodiIconButton(
                     painter = painterResource(com.dororong.rodi.core.ui.R.drawable.ic_chevron_left),
                     onClick = onClose,
-                    iconSize = 20.dp,
                     contentDescription = "뒤로가기",
                     tint = RodiTheme.colors.black,
-                    modifier = Modifier.align(Alignment.CenterStart),
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 16.dp),
                 )
                 Text(
                     text = "레벨별 후기",
@@ -164,7 +164,7 @@ fun LevelReviewsOverlay(
                 }
             }
 
-            HorizontalDivider(color = RodiTheme.colors.gray200)
+            HorizontalDivider(color = RodiTheme.colors.gray100)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

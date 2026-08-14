@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.BuildConfig
+import com.dororong.rodi.core.data.mock.MockResponseInterceptor
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
@@ -41,7 +42,13 @@ object NetworkModule {
                 HttpLoggingInterceptor.Level.NONE
             }
         }
-        return OkHttpClient.Builder()
+        val builder = OkHttpClient.Builder()
+        if (BuildConfig.DEBUG) {
+            // MockResponseRegistry.enabled가 true고 경로가 등록돼 있을 때만 가로챈다. 서버에
+            // 아직 없는 API를 화면에서 미리 확인할 때 쓴다 — 릴리스에는 아예 붙지 않는다.
+            builder.addInterceptor(MockResponseInterceptor())
+        }
+        return builder
             .addInterceptor(logging)
             .connectTimeout(10, TimeUnit.SECONDS)
             .readTimeout(10, TimeUnit.SECONDS)

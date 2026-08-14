@@ -31,6 +31,7 @@ fun RodiIconButton(
     iconSize: Dp = 24.dp,
     touchSize: Dp = 48.dp,
     layoutSize: Dp = 24.dp,
+    rippleRadius: Dp = maxOf(touchSize / 2, 24.dp),
     contentDescription: String? = null,
     tint: Color = Color.Unspecified,
     enabled: Boolean = true,
@@ -62,7 +63,7 @@ fun RodiIconButton(
                 interactionSource = interactionSource,
                 indication = ripple(
                     bounded = false,
-                    radius = maxOf(touchSize / 2, 24.dp),
+                    radius = rippleRadius,
                 ),
                 onClick = onClick,
             ),

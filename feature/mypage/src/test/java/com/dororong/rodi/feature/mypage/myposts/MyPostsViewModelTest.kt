@@ -4,6 +4,7 @@ import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -26,6 +27,7 @@ class MyPostsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val deleteReview = mockk<DeleteReviewUseCase>()
     private val getMyReviews = mockk<GetMyReviewsUseCase>()
+    private val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
     private val post = MyPost(1, "장소", Review(1, 1, "닉네임", OnboardingLevel.SEED, true, null, null, null, "내용", null, true, true, false, Instant.EPOCH))
 
     @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
@@ -35,7 +37,8 @@ class MyPostsViewModelTest {
     fun `successful deletion removes post`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } returns Result.success(Unit)
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
-        val viewModel = MyPostsViewModel(deleteReview, getMyReviews)
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews, getPracticeRecords)
         viewModel.replacePosts(listOf(post))
         viewModel.delete(post)
         advanceUntilIdle()
@@ -46,7 +49,8 @@ class MyPostsViewModelTest {
     fun `failed deletion keeps post and exposes error`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } returns Result.failure(IllegalStateException("실패"))
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
-        val viewModel = MyPostsViewModel(deleteReview, getMyReviews)
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews, getPracticeRecords)
         viewModel.replacePosts(listOf(post))
         viewModel.delete(post)
         advanceUntilIdle()
@@ -58,7 +62,8 @@ class MyPostsViewModelTest {
     fun `cancellation during deletion is not exposed as an error`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } coAnswers { throw CancellationException("취소") }
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
-        val viewModel = MyPostsViewModel(deleteReview, getMyReviews)
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews, getPracticeRecords)
         viewModel.replacePosts(listOf(post))
 
         viewModel.delete(post)
@@ -68,5 +73,34 @@ class MyPostsViewModelTest {
         }
 
         assertEquals(null, viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `practice record CTA is enabled only when a practice record exists`() = runTest(dispatcher) {
+        coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(
+            CursorPage(
+                listOf(
+                    com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
+                        practiceId = 1L,
+                        placeId = 1L,
+                        placeName = "장소",
+                        practiceTypes = emptyList(),
+                        visitCount = 0,
+                        visitedAt = null,
+                        isVerified = false,
+                        hasReview = false,
+                    ),
+                ),
+                false,
+                null,
+                1,
+            ),
+        )
+
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews, getPracticeRecords)
+        advanceUntilIdle()
+
+        assertEquals(true, viewModel.uiState.value.hasPracticeRecords)
     }
 }

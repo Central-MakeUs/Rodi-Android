@@ -53,6 +53,17 @@
 - **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
   widthDp = 360)` + `RodiTheme { }` 래핑으로 최소 1개(variant/상태가 여러 개면 그만큼) 작성한다.
   기존 예시는 `RodiButton.kt`/`RodiSnackbar.kt` 참고.
+- **서버 응답 파싱 오류는 기본값만 채워 덮지 말 것**: `MissingFieldException` 등 역직렬화 예외가 나오면,
+  먼저 라이브 Swagger(`https://api.stillstar.store/v3/api-docs`)를 다시 받아 실제 필드명·구조가
+  바뀌었는지 대조한다. 필드에 기본값만 넣어 크래시를 막으면 파싱은 성공해도 그 필드가 항상
+  기본값으로 조용히 틀리게 채워질 수 있다(예: `totalCount`가 `totalReviewCount`로 개명됐는데
+  기본값 0만 채웠다가 "전체보기" 노출 조건이 항상 거짓이 된 사례, 2026-08-13). enum 값도 같은
+  이유로 반드시 Swagger 원문과 1:1 대조한다.
+- **`Dialog`/`Popup` 기반 컴포저블은 `LocalInspectionMode` 분기 필수**: `Dialog`/`Popup`은 별도
+  윈도우로 뜨기 때문에 IDE `@Preview`에서 실제 앱과 다르게(또는 아예 안) 그려진다.
+  `if (LocalInspectionMode.current) { 내용만 직접 그리기 } else { Dialog(...) { 내용 } }`으로
+  분기해 프리뷰에서는 진짜 `Dialog`/`Popup`을 띄우지 않고 내용 Composable을 그대로 그린다.
+  참고 구현: `core/ui/.../dialog/RodiDialog.kt`.
 
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.

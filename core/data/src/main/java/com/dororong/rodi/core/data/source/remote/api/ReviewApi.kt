@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.source.remote.model.review.CursorPageReviewRe
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewCreatedResponse
+import com.dororong.rodi.core.data.source.remote.model.review.ReviewDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -40,6 +41,12 @@ interface ReviewApi {
         @Path("placeId") placeId: Long,
         @Query("level") level: String?,
     ): ApiEnvelope<ReviewSummaryResponse>
+
+    @GET("reviews/{reviewId}")
+    suspend fun getReview(
+        @Header("Authorization") authorization: String,
+        @Path("reviewId") reviewId: Long,
+    ): ApiEnvelope<ReviewDetailResponse>
 
     @PUT("reviews/{reviewId}")
     suspend fun updateReview(

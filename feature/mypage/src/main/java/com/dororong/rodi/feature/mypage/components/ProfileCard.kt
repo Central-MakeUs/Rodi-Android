@@ -82,7 +82,7 @@ private val QuadraticEaseOut = Easing { fraction -> 1f - (1f - fraction) * (1f -
 internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
     val colors = RodiTheme.colors
     val practiceTitle = if (profile.level == OnboardingLevel.NAVIGATOR) "추천 활동" else "추천 연습 유형"
-    val drivingGoal = profile.drivingGoal.ifBlank { "ex) 나만의 운전 목표를 입력해보세요 !" }
+    val drivingGoal = profile.drivingGoal.ifBlank { "나만의 운전 목표를 입력해보세요 !" }
     val drivingGoalColor = if (profile.drivingGoal.isBlank()) RodiTheme.colors.gray500 else RodiTheme.colors.black
     val density = LocalDensity.current
     val isInPreview = LocalInspectionMode.current

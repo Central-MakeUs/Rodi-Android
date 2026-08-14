@@ -80,6 +80,33 @@ class MyPageViewModelTest {
     }
 
     @Test
+    fun `practice records retain the order returned by the server`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val first = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
+            practiceId = 2L,
+            placeId = 20L,
+            placeName = "두 번째 장소",
+            practiceTypes = emptyList(),
+            visitCount = 1,
+            visitedAt = null,
+            isVerified = false,
+            hasReview = false,
+        )
+        val second = first.copy(practiceId = 1L, placeId = 10L, placeName = "첫 번째 장소")
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(first, second), false, null, 2))
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L, 1L), viewModel.uiState.value.practiceRecords.map { it.practiceId })
+    }
+
+    @Test
     fun `practice record failure is preserved separately from profile state`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()

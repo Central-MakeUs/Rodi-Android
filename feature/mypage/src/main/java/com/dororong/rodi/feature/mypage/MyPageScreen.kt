@@ -225,7 +225,7 @@ private fun MyPageProfileCardLoadingContent() {
                     RodiSkeleton(modifier = Modifier.width(92.dp).height(20.dp), color = RodiTheme.colors.gray200)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         RodiSkeleton(modifier = Modifier.width(28.dp).height(12.dp), color = RodiTheme.colors.gray200)
-                        RodiSkeleton(modifier = Modifier.width(56.dp).height(16.dp), color = RodiTheme.colors.gray200)
+                        MyPageLevelChipSkeleton()
                     }
                 }
             }
@@ -247,6 +247,17 @@ private fun MyPageProfileCardLoadingContent() {
             }
         }
     }
+}
+
+@Composable
+private fun MyPageLevelChipSkeleton() {
+    RodiSkeleton(
+        modifier = Modifier
+            .width(56.dp)
+            .height(21.dp),
+        shape = RoundedCornerShape(4.dp),
+        color = RodiTheme.colors.gray200,
+    )
 }
 
 @Composable
@@ -286,7 +297,7 @@ private fun MyPageContent(
             count = profile.savedPlaceCount,
             onClick = onSavedCoursesClick,
         )
-        MyPageNavigationRow(text = "내 게시글", onClick = onMyPostsClick)
+        MyPageNavigationRow(text = "내 활동", onClick = onMyPostsClick)
         // 바텀 네비게이션이 sibling overlay로 얹히므로 그 높이만큼 자리를 비워둔다.
         // RodiBottomNavigation은 `navigationBarsPadding().height(56.dp)` 순서라 실제 높이가
         // navInset + 56dp다. 여기서 순서를 뒤집으면 Spacer가 56dp로 고정돼 마지막 행이 가려진다.

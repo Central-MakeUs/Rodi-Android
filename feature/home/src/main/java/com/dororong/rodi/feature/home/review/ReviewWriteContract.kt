@@ -34,7 +34,7 @@ data class ReviewWriteUiState(
     val errorMessage: String? = null,
 ) {
     val canGoNext get() = isRecommended != null && difficulty != null && congestion != null
-    val canSubmit get() = initializationErrorMessage == null && canGoNext && practiceMethod != null && content.isNotBlank() && !isSubmitting
+    val canSubmit get() = initializationErrorMessage == null && canGoNext && practiceMethod != null && !isSubmitting
     val isDirty: Boolean
         get() {
             val initial = original
@@ -59,13 +59,12 @@ data class ReviewWriteUiState(
         val selectedDifficulty = difficulty ?: return null
         val selectedCongestion = congestion ?: return null
         val selectedMethod = practiceMethod ?: return null
-        if (content.isBlank()) return null
         return com.dororong.rodi.core.domain.model.review.ReviewDraft(
             isRecommended = recommended,
             difficulty = selectedDifficulty,
             congestion = selectedCongestion,
             practiceMethod = selectedMethod,
-            content = content,
+            content = content.takeIf(String::isNotBlank),
             caution = caution.takeIf(String::isNotBlank),
         )
     }

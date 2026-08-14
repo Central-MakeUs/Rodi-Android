@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateDrivingGoalUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -51,7 +52,7 @@ class DrivingGoalViewModel @Inject constructor(
     }
 
     fun updateGoal(goal: String) {
-        _uiState.update { it.copy(goal = goal.take(DRIVING_GOAL_MAX_LENGTH)) }
+        _uiState.update { it.copy(goal = goal.takeGraphemes(DRIVING_GOAL_MAX_LENGTH)) }
     }
 
     fun save() {

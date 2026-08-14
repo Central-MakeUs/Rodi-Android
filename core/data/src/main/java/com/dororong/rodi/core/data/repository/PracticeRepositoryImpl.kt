@@ -52,12 +52,6 @@ class PracticeRepositoryImpl @Inject constructor(
         api.getSkipReasonForm(authorization).requireData().toDomain()
     }
 
-    override suspend fun delete(practiceId: Long) {
-        authenticatedRequest { authorization ->
-            api.delete(authorization, practiceId).requireSuccess()
-        }
-    }
-
     private suspend fun <T> authenticatedRequest(
         canRefresh: Boolean = true,
         block: suspend (String) -> T,

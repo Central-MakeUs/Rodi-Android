@@ -1,12 +1,12 @@
 package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
-import com.dororong.rodi.core.data.source.remote.model.auth.AuthTokenResponse
 import com.dororong.rodi.core.data.source.remote.model.auth.LogoutRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.OAuthLoginRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginRequest
 import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginResponse
 import com.dororong.rodi.core.data.source.remote.model.auth.TokenRefreshRequest
+import com.dororong.rodi.core.data.source.remote.model.auth.TokenRefreshResponse
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.POST
@@ -20,7 +20,7 @@ interface AuthApi {
     ): ApiEnvelope<SocialLoginResponse>
 
     @POST("auth/token/refresh")
-    suspend fun reissue(@Body request: TokenRefreshRequest): ApiEnvelope<AuthTokenResponse>
+    suspend fun reissue(@Body request: TokenRefreshRequest): ApiEnvelope<TokenRefreshResponse>
 
     @POST("auth/oauth/{provider}/restore")
     suspend fun restore(

@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.source.remote.model.review.CursorPageReviewRe
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormOptionResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportRequest
+import com.dororong.rodi.core.data.source.remote.model.review.ReviewDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
@@ -15,6 +16,7 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
+import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
@@ -69,12 +71,31 @@ fun ReviewResponse.toDomain(): Review? {
     )
 }
 
+fun ReviewDetailResponse.toDomain() = ReviewDetail(
+    reviewId = reviewId,
+    placeId = placeId,
+    placeName = placeName,
+    isRecommended = isRecommended,
+    difficulty = difficulty.toNullableEnum<ReviewDifficulty>("difficulty"),
+    congestion = congestion.toNullableEnum<ReviewCongestion>("congestion"),
+    practiceMethod = practiceMethod.toPracticeMethodOrNull(),
+    content = content,
+    caution = caution,
+    isEditable = isEditable,
+    isHidden = isHidden,
+    isVerifiedVisit = isVerifiedVisit,
+    createdAt = parseServerTimestamp(createdAt),
+)
+
 fun ReviewSummaryResponse.toDomain() = ReviewSummary(
     level = when (level) {
         null, "ALL" -> null
         else -> level.toEnumOrNull<OnboardingLevel>("level")
     },
-    totalCount = totalCount,
+    // 서버 totalReviewCount(전체 레벨 합산)를 도메인 totalCount로 그대로 옮긴다. 이름은
+    // 도메인 쪽 기존 계약을 유지한다 — 소비하는 곳(전체보기 노출 판단)엔 "레벨 무관 총 후기 수"면
+    // 충분해서 굳이 이름까지 바꿔 여러 파일을 건드릴 필요는 없다.
+    totalCount = totalReviewCount,
     recommendCount = recommendCount,
     notRecommendCount = notRecommendCount,
     difficultyCounts = difficultyCounts.toEnumMap<ReviewDifficulty>("difficultyCounts"),

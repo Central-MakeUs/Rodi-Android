@@ -84,8 +84,6 @@ fun CourseDetailContent(
                         painter = painterResource(R.drawable.ic_x),
                         onClick = onDismiss,
                         iconSize = 20.dp,
-                        touchSize = 48.dp,
-                        layoutSize = 23.dp,
                         contentDescription = "닫기",
                         tint = RodiTheme.colors.black,
                     )

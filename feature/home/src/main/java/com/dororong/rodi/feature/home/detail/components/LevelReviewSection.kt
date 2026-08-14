@@ -59,7 +59,6 @@ fun LevelReviewSection(
     scrollState: ScrollableState? = null,
 ) {
     val topDifficulty = difficultyCounts.topDifficulty()
-    val isEmpty = totalCount == 0L
     val hasReview = review != null
 
     Column(modifier) {
@@ -69,12 +68,15 @@ fun LevelReviewSection(
         ) {
             SectionHeader(showAllLink = totalCount > 0, onAllClick = onAllClick)
 
-            if (hasReview && topDifficulty != null) {
+            // 코스에 후기가 하나라도 있으면(다른 레벨 포함) 요약 노출. difficultyCounts는 선택한
+            // 레벨 기준이라 이걸로 노출 여부를 걸면 후기 없는 레벨로 바꿀 때마다 요약이 통째로
+            // 사라진다 — totalCount(레벨 무관 전체 후기 수)로 판단해야 한다.
+            if (totalCount > 0) {
                 SummaryRow(
                     recommendCount = recommendCount,
                     selectedLevel = selectedLevel,
                     topDifficulty = topDifficulty,
-                    topDifficultyCount = difficultyCounts[topDifficulty] ?: 0L,
+                    topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
                 )
@@ -82,7 +84,11 @@ fun LevelReviewSection(
         }
 
         if (!hasReview) {
+            // Figma 두 빈 상태(후기 아예 없음 / 선택한 레벨만 없음) 모두 헤더와 프롬프트 사이에
+            // 얇은 구분선이 있다. WriteReviewPrompt 내부의 top padding(32dp)이 구분선~문구 간격을
+            // 이미 맞춰주므로 divider 뒤에 별도 Spacer는 두지 않는다.
             Spacer(Modifier.height(12.dp))
+            HorizontalDivider(color = RodiTheme.colors.gray100)
             WriteReviewPrompt(onWriteReviewClick = onWriteReviewClick)
         } else {
             Spacer(Modifier.height(12.dp))
@@ -154,12 +160,14 @@ private fun SectionHeader(
 private fun SummaryRow(
     recommendCount: Long,
     selectedLevel: OnboardingLevel,
-    topDifficulty: ReviewDifficulty,
+    // 선택한 레벨에 후기가 없으면 null — 그 레벨만의 최다 난이도가 없다는 뜻이라 칩 없이 "0명"만 보여준다.
+    topDifficulty: ReviewDifficulty?,
     topDifficultyCount: Long,
     onSelectLevel: (OnboardingLevel) -> Unit,
     scrollState: ScrollableState?,
 ) {
     Row(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -198,7 +206,9 @@ private fun SummaryRow(
         )
 
         Column(
-            modifier = Modifier.width(202.dp),
+            // 남은 폭을 전부 차지해야 안쪽 Row의 SpaceBetween이 레벨 드롭다운을 섹션 우측 끝까지
+            // 밀어낸다. "추천해요"·"난이도" 라벨은 그대로 좌측에 붙어있는다.
+            modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
@@ -221,7 +231,9 @@ private fun SummaryRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                DifficultyChip(difficulty = topDifficulty, emphasized = false)
+                if (topDifficulty != null) {
+                    DifficultyChip(difficulty = topDifficulty, emphasized = false)
+                }
                 Text(
                     text = "${topDifficultyCount}명",
                     style = RodiTheme.typography.body1SemiBold,
@@ -268,6 +280,7 @@ internal fun LevelDropdown(
                 onSelectLevel(levels[index])
             },
             onDismissRequest = { expanded = false },
+            menuWidth = 103.dp,
             scrollState = scrollState,
         )
     }
@@ -276,34 +289,40 @@ internal fun LevelDropdown(
 @Composable
 private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
     val buttonShape = RoundedCornerShape(8.dp)
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .height(124.dp),
     ) {
-        Text(
-            text = "여러분의 연습 경험을 공유해주세요!",
-            modifier = Modifier.width(177.dp),
-            style = RodiTheme.typography.caption1Medium,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-        )
-        Row(
+        Column(
             modifier = Modifier
-                .width(177.dp)
-                .clip(buttonShape)
-                .border(1.dp, RodiTheme.colors.primary600, buttonShape)
-                .clickable(onClick = onWriteReviewClick)
-                .padding(horizontal = 20.dp, vertical = 7.dp),
-            horizontalArrangement = Arrangement.Center,
+                .fillMaxWidth()
+                .padding(top = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "후기 쓰기",
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.primary600,
+                text = "여러분의 연습 경험을 공유해주세요!",
+                modifier = Modifier.width(177.dp),
+                style = RodiTheme.typography.caption1Medium,
+                color = RodiTheme.colors.gray600,
+                textAlign = TextAlign.Center,
             )
+            Row(
+                modifier = Modifier
+                    .width(177.dp)
+                    .clip(buttonShape)
+                    .border(1.dp, RodiTheme.colors.primary600, buttonShape)
+                    .clickable(onClick = onWriteReviewClick)
+                    .padding(horizontal = 20.dp, vertical = 7.dp),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "후기 쓰기",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.primary600,
+                )
+            }
         }
     }
 }
@@ -374,5 +393,14 @@ private fun LevelReviewSectionNoReviewWithSummaryDataPreview() = PreviewSection(
     totalCount = 30,
     recommendCount = 15,
     difficultyCounts = mapOf(ReviewDifficulty.NORMAL to 8L, ReviewDifficulty.HARD to 3L),
+    review = null,
+)
+
+@Preview(name = "레벨별 후기 - 선택한 레벨은 후기 0건(다른 레벨은 있음)", showBackground = true, widthDp = 375)
+@Composable
+private fun LevelReviewSectionSelectedLevelEmptyPreview() = PreviewSection(
+    totalCount = 30,
+    recommendCount = 15,
+    difficultyCounts = emptyMap(),
     review = null,
 )

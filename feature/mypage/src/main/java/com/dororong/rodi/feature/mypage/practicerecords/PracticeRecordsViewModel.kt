@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.mypage.practicerecords
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
-import com.dororong.rodi.core.domain.usecase.practice.DeletePracticeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
@@ -22,14 +21,11 @@ data class PracticeRecordsUiState(
     val hasNextPage: Boolean = false,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
-    val deletingPracticeId: Long? = null,
-    val deleteErrorMessage: String? = null,
 )
 
 @HiltViewModel
 class PracticeRecordsViewModel @Inject constructor(
     private val getPracticeRecords: GetPracticeRecordsUseCase,
-    private val deletePractice: DeletePracticeUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(PracticeRecordsUiState())
     val uiState: StateFlow<PracticeRecordsUiState> = _uiState.asStateFlow()
@@ -94,45 +90,6 @@ class PracticeRecordsViewModel @Inject constructor(
                     }
                 }
         }
-    }
-
-    fun delete(record: PracticeRecord) {
-        if (_uiState.value.deletingPracticeId != null) return
-        viewModelScope.launch {
-            _uiState.update { it.copy(deletingPracticeId = record.practiceId, deleteErrorMessage = null) }
-            try {
-                deletePractice(record.practiceId)
-                    .onSuccess {
-                        _uiState.update { current ->
-                            current.copy(
-                                records = current.records.filterNot { it.practiceId == record.practiceId },
-                                totalCount = current.totalCount?.dec(),
-                                deletingPracticeId = null,
-                            )
-                        }
-                    }
-                    .onFailure { error ->
-                        _uiState.update {
-                            it.copy(
-                                deletingPracticeId = null,
-                                deleteErrorMessage = error.message ?: "연습기록을 삭제하지 못했어요.",
-                            )
-                        }
-                    }
-            } finally {
-                _uiState.update { current ->
-                    if (current.deletingPracticeId == record.practiceId) {
-                        current.copy(deletingPracticeId = null)
-                    } else {
-                        current
-                    }
-                }
-            }
-        }
-    }
-
-    fun consumeDeleteError() {
-        _uiState.update { it.copy(deleteErrorMessage = null) }
     }
 
     private fun setInitialLoading() {

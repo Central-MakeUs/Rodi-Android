@@ -19,6 +19,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.R
 
@@ -35,14 +36,12 @@ internal fun DrivingGoalTopBar(
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
+        RodiIconButton(
             painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
             contentDescription = "뒤로가기",
             tint = RodiTheme.colors.black,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(24.dp)
-                .clickable(onClick = onBack),
+            modifier = Modifier.align(Alignment.CenterStart),
         )
         Text(
             text = "운전 목표",

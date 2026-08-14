@@ -171,7 +171,7 @@ fun CourseDetailSheet(
                     shadowElevation = 4.dp,
                 ) {
                     Column {
-                        HorizontalDivider(color = RodiTheme.colors.gray200)
+                        HorizontalDivider(color = RodiTheme.colors.gray100)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -213,16 +213,15 @@ private fun SheetTopBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(TopBarHeight)
-                    .padding(horizontal = 4.dp),
+                    .height(TopBarHeight),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 RodiIconButton(
                     painter = painterResource(com.dororong.rodi.core.ui.R.drawable.ic_chevron_left),
                     onClick = onCollapse,
-                    iconSize = 20.dp,
                     contentDescription = "접기",
                     tint = RodiTheme.colors.black,
+                    modifier = Modifier.padding(start = 16.dp),
                 )
             }
         }

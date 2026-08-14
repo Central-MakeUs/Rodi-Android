@@ -79,9 +79,16 @@ fun KakaoMap.renderPlaceCourse(
     if (routePoints.size >= 2) drawRouteLine(routePoints)
 }
 
-/** [renderCourse]가 그린 경로에 카메라를 맞춘다. */
-fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, bottomPaddingPx: Int) {
-    setPadding(0, 0, 0, bottomPaddingPx)
+/**
+ * [renderCourse]가 그린 경로에 카메라를 맞춘다. topPaddingPx는 지도 위에 떠 있는 검색창(상태
+ * 표시줄 포함) 높이다 — 빠지면 세로로 긴 경로의 출발지·도착지 마커가 검색창 뒤로 가려진다.
+ */
+internal fun KakaoMap.applyMapContentPadding(topPaddingPx: Int, bottomPaddingPx: Int) {
+    setPadding(0, topPaddingPx, 0, bottomPaddingPx)
+}
+
+fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, topPaddingPx: Int, bottomPaddingPx: Int) {
+    applyMapContentPadding(topPaddingPx, bottomPaddingPx)
     if (routePoints.size >= 2) fitTo(routePoints)
 }
 
@@ -131,7 +138,7 @@ private fun KakaoMap.fitTo(points: List<LatLng>) {
 
 /** 단일 지점(주차장 등)을 시트가 제외된 지도 가시 영역의 중앙에 맞춘다. */
 fun KakaoMap.focusOn(position: LatLng, zoomLevel: Int, bottomPaddingPx: Int) {
-    setPadding(0, 0, 0, bottomPaddingPx)
+    applyMapContentPadding(topPaddingPx = 0, bottomPaddingPx = bottomPaddingPx)
     moveCamera(CameraUpdateFactory.newCenterPosition(position, zoomLevel), CameraAnimation.from(400))
 }
 

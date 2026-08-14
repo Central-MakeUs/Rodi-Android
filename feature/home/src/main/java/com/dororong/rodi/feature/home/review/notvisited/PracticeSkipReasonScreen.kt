@@ -41,6 +41,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.domain.model.practice.PracticeException
 import com.dororong.rodi.core.domain.model.practice.SkipReasonForm
 import com.dororong.rodi.core.domain.model.practice.SkipReasonOption
@@ -103,7 +104,7 @@ class PracticeSkipReasonViewModel @Inject constructor(
             current.copy(
                 selectedOptionCode = option.code,
                 detail = if (option.requiresTextInput) {
-                    current.detail.take(option.textInputMaxLength ?: current.detail.length)
+                    option.textInputMaxLength?.let(current.detail::takeGraphemes) ?: current.detail
                 } else {
                     ""
                 },
@@ -114,7 +115,7 @@ class PracticeSkipReasonViewModel @Inject constructor(
 
     fun updateDetail(detail: String) {
         val maxLength = _state.value.selectedOption()?.textInputMaxLength
-        _state.update { it.copy(detail = detail.take(maxLength ?: detail.length), errorMessage = null) }
+        _state.update { it.copy(detail = maxLength?.let(detail::takeGraphemes) ?: detail, errorMessage = null) }
     }
 
     fun submit() {

@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.detail
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
@@ -57,13 +58,13 @@ class CourseReviewViewModel @Inject constructor(
                     recommendCount = allSummary.getOrNull()?.recommendCount ?: 0,
                     difficultyCounts = mineSummary.getOrNull()?.difficultyCounts.orEmpty(),
                     latestReviews = latest.getOrNull()?.items.orEmpty(),
-                    errorMessage = error?.message,
+                    errorMessage = error?.userMessage(),
                 )
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
                 if (_state.value.placeId == placeId) {
-                    _state.update { it.copy(isLoading = false, errorMessage = error.message) }
+                    _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) }
                 }
             }
         }
@@ -103,7 +104,7 @@ class CourseReviewViewModel @Inject constructor(
                     isLoading = false,
                     difficultyCounts = summary.getOrNull()?.difficultyCounts.orEmpty(),
                     latestReviews = latest.getOrNull()?.items.orEmpty(),
-                    errorMessage = summary.exceptionOrNull()?.message ?: latest.exceptionOrNull()?.message,
+                    errorMessage = (summary.exceptionOrNull() ?: latest.exceptionOrNull())?.userMessage(),
                 )
             }
         }
@@ -132,7 +133,7 @@ class CourseReviewViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { error -> _state.update { it.copy(errorMessage = error.message) } }
+                .onFailure { error -> _state.update { it.copy(errorMessage = error.userMessage()) } }
         }
     }
 
@@ -156,7 +157,7 @@ class CourseReviewViewModel @Inject constructor(
                         }
                     }
                 }
-                .onFailure { error -> _state.update { it.copy(isNextPageLoading = false, errorMessage = error.message) } }
+                .onFailure { error -> _state.update { it.copy(isNextPageLoading = false, errorMessage = error.userMessage()) } }
         }
     }
 

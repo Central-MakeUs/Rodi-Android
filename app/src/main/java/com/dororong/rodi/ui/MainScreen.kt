@@ -1,5 +1,6 @@
 package com.dororong.rodi.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -13,6 +14,7 @@ import androidx.activity.compose.LocalActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
 import androidx.navigation3.ui.NavDisplay
@@ -69,7 +71,7 @@ fun MainScreen(
                     if (route == HomeRoute) {
                         homeViewModel.onIntent(HomeIntent.OnListOpen)
                     } else {
-                        backStack[backStack.lastIndex] = HomeRoute
+                        backStack.popMyPage()
                     }
                 },
                 onMyClick = {
@@ -77,6 +79,10 @@ fun MainScreen(
                 },
             )
         }
+    }
+
+    BackHandler(enabled = currentRoute == MyPageRoute) {
+        backStack.popMyPage()
     }
 
     Box(Modifier.fillMaxSize()) {
@@ -95,7 +101,7 @@ fun MainScreen(
                     HomeRoute -> NavEntry(key) {
                         HomeScreen(
                             onMyPageClick = {
-                                backStack[backStack.lastIndex] = MyPageRoute
+                                backStack.pushMyPage()
                             },
                             onSearchClick = { origin ->
                                 backStack.add(SearchRoute(origin.lat, origin.lng))
@@ -197,4 +203,12 @@ fun MainScreen(
             Box(Modifier.align(Alignment.BottomCenter)) { bottomNavigation() }
         }
     }
+}
+
+internal fun MutableList<NavKey>.pushMyPage() {
+    add(MyPageRoute)
+}
+
+internal fun MutableList<NavKey>.popMyPage() {
+    if (lastOrNull() == MyPageRoute) removeAt(lastIndex)
 }

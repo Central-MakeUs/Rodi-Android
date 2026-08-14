@@ -4,7 +4,7 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
-- [ ] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
+- [x] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
   (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
   `GET /places/{placeId}/reviews/summary`·`?level=ALL`·`GET /places/{placeId}/reviews?size=1`이
   전부 200을 반환하지만 방금 만든 후기가 응답에 없다. 클라이언트 재조회 배선(`CourseReviewViewModel.refresh()`)은
@@ -41,13 +41,27 @@
   같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
   그대로 실어 보냄)도 `AuthErrorMapper`(`876f3142`)·`PracticeRepositoryImpl`과 같은 패턴이라
   이 작업과 함께 고치는 게 맞다.
-- [ ] 주차장도 연습 목록에 담을지 기획 확인 필요
+
+  **2026-08-13 부분 해결.** 지난 QA 라운드에서 "totalCount 오류 토스트"를 크래시만 막고 넘어갔다가
+  (기본값 0L만 채움), 이번에 Swagger를 다시 대조해 진짜 원인을 잡았다. `ReviewSummaryResponse`를
+  `levelReviewCount`/`totalReviewCount`에 맞추고 도메인 `totalCount`를 `totalReviewCount`에서
+  옮기도록 매퍼를 고쳤다 — 이제 파싱은 항상 성공하고 "전체보기" 링크도 실제 후기 수를 반영한다.
+  **남은 범위**: `topDifficulty`(서버가 동률까지 계산해 내려주는 신규 필드)는 매핑하지 않았다 —
+  클라이언트가 `difficultyCounts`로 이미 같은 규칙을 계산 중이라 당장 필요하지 않았다. `levelReviewCount`도
+  아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 원문 노출(`else` 분기) 정리도 남아있다.
+  `placeId 106`의 테스트 후기 2건 정리는 여전히 미확인.
+
+  **남은 작업**
+  - [ ] `topDifficulty` 서버 필드 매핑·노출 여부 결정
+  - [ ] `levelReviewCount` UI 사용 여부 검토
+  - [ ] `ReviewRepositoryImpl.toReviewException`의 예외 원문 fallback 제거
+  - [ ] 관련 후기 테스트의 성공·실패·취소 경로 검토 및 정리
+- [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
+  가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
-- [ ] **차단목록 빈 상태 문구 부재** — 차단한 사용자가 0명이면 상단바 아래가 완전히 백지다
-  (`feature/settings/.../blocked/BlockedMembersScreen.kt`의 `BlockedMembersContent`가 빈
-  `LazyColumn`만 그린다). 로딩·에러 상태는 있는데 빈 상태만 없다. 마이페이지 연습기록의
-  "아직 연습기록이 없어요!" 같은 문구가 필요하다. 2026-08-12 기기 검증 중 발견.
+- [x] **차단목록 빈 상태 문구 부재** — `BlockedMembersEmpty()`로 반영 완료(`b0ebd754`, QA
+  라운드). Figma("차단한 사람 없을 때", node 3659:67282)와 문구·스타일 일치 확인(2026-08-13).
 
 - [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
   `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
@@ -70,10 +84,17 @@
   앱이 정책 상수를 하드코딩하지 않아도 된다(`ApiEnvelope`에 `data` 필드가 이미 있다).
   그때까지 이 구간은 디자인의 "재가입 가능 날짜를 불러오지 못했어요." 토스트 + 새로고침으로 폴백.
   요청은 넣어둔 상태(2026-08-12).
-- [ ] **미방문 사유 제출 API 연동** — RV-01의 "안 했어요" → 미방문 사유 화면은 만들어뒀지만
-  **서버에 제출 API가 없어 제출이 스텁**이다(`feature/home/.../review/notvisited/`).
-  사유 5종도 서버 계약이 없어 클라이언트 enum(`NotVisitedReason`)으로 두었다.
-  API가 나오면 enum을 `core:domain`으로 승격하고 UseCase를 배선한다.
+
+  **2026-08-13 재확인 — 여전히 대기 중.** 현재 로그인 응답 Swagger엔 `rejoinableAt`이 없고
+  `withdrawalRequestedAt`/`recoverableUntil`만 있다(`SocialLoginResponse.kt`). 로컬은
+  `recoverableUntil`까지는 이미 받고 있지만 화면에 날짜를 표시하는 곳은 없다 — 연결 누락이
+  아니라 애초에 서버 필드가 없어서 못 붙인 상태. 백엔드가 "`recoverableUntil`을 재가입 기준으로
+  쓴다"고 확정하면 새 필드 없이도 바로 연결 가능하니, 필드 추가 대신 그 방향으로 정리될 수도 있다.
+- [x] **미방문 사유 제출 API 연동** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/skip-reason`이
+  최신 Swagger에 있고 `PracticeApi.submitSkipReason` → `PracticeRepositoryImpl` →
+  `SubmitSkipReasonUseCase` → `PracticeSkipReasonViewModel.submit()`까지 전부 실제 API를
+  호출하도록 배선돼 있다(스텁 아님). 이 항목을 작성한 시점 이후 API가 나와서 바로 연동된 것으로
+  보인다.
 - [ ] **연습 방문 감지를 서버/지오펜싱 기반으로 교체** — 현재 RV-01 트리거는 "내비 실행 시각을
   로컬에 저장(`PracticeSessionPreference`) → 앱 재진입 시 10분 경과 판정" 휴리스틱이다.
   내비를 띄우고 실제로는 안 갔거나, 앱을 아예 안 열면 감지되지 않는다.
@@ -132,7 +153,10 @@
 - [x] **내 후기 목록 API 연동** — `GET /members/me/reviews`를 내 게시글 화면에 커서 페이징으로 연결했다.
 - [x] **차단 목록 조회 API 연동** — `GET /members/me/blocks`를 차단목록 화면에 커서 페이징으로 연결했다.
 - [x] **레벨 진행률(누적 주행거리) 필드 연동** — `MyPageResponse.levelProgress`를 프로필 카드 진행바와 거리 텍스트에 연결했다.
-- [ ] **레벨업 감지 트리거 연결** — 레벨업 팝업 UI만 구현되어 호출부가 없다.
+- [x] **레벨업 감지 트리거 연결** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/visits`
+  응답의 `levelUp`/`newLevel`을 `HomeViewModel.recordPracticeVisit()`이 `state.levelUp`으로
+  넘기고, `HomeScreen.kt`가 이 값으로 `LevelUpDialog`를 띄운다. 실제 승급은 서버가 누적 거리
+  기준으로 `levelUp: true`를 내려줄 때만 발생한다(GPS 인증 거리는 Phase A라 항상 생략).
 - [ ] **후기 "좋아요" 기능 유무 확인** — 후기 수정 안내 문구가 좋아요 초기화를 언급하지만 현재 앱에는 좋아요 기능이 없다.
 - [ ] **설정 `데이터 출처` 항목 존치 여부** — 최신 디자인에는 빠졌으나 공공데이터 출처 표기 의무 가능성이 있어 유지했다.
 

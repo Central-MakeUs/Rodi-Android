@@ -1,9 +1,11 @@
 package com.dororong.rodi.core.domain.model.practice
 
+import com.dororong.rodi.core.common.UserMessageProvider
+
 sealed class PracticeException(
-    message: String,
+    override val userMessage: String,
     cause: Throwable? = null,
-) : RuntimeException(message, cause) {
+) : RuntimeException(userMessage, cause), UserMessageProvider {
     class AuthenticationRequired(message: String, cause: Throwable? = null) : PracticeException(message, cause)
     class Forbidden(message: String, cause: Throwable? = null) : PracticeException(message, cause)
     class SkipReasonAlreadySubmitted(message: String, cause: Throwable? = null) : PracticeException(message, cause)

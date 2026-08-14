@@ -8,7 +8,6 @@ import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitRes
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -39,10 +38,4 @@ interface PracticeApi {
     suspend fun getSkipReasonForm(
         @Header("Authorization") authorization: String,
     ): ApiEnvelope<FormResponse>
-
-    @DELETE("practices/{practiceId}")
-    suspend fun delete(
-        @Header("Authorization") authorization: String,
-        @Path("practiceId") practiceId: Long,
-    ): ApiEnvelope<JsonObject>
 }

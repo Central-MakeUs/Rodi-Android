@@ -9,5 +9,4 @@ interface PracticeRepository {
     suspend fun recordVisit(practiceId: Long, certifiedDistanceMeters: Int? = null): PracticeVisitResult
     suspend fun submitSkipReason(practiceId: Long, reason: String, detail: String?)
     suspend fun getSkipReasonForm(): SkipReasonForm
-    suspend fun delete(practiceId: Long)
 }
