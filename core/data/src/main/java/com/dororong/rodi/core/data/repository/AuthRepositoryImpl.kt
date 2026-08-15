@@ -19,6 +19,7 @@ import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -36,6 +37,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val json: Json,
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
+    private val practiceSessionRepository: PracticeSessionRepository,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
     private val sessionExpired = MutableStateFlow(false)
@@ -118,6 +120,9 @@ class AuthRepositoryImpl @Inject constructor(
         refreshToken: String,
         invalidatePracticeRecordCache: Boolean = true,
     ) {
+        if (invalidatePracticeRecordCache) {
+            practiceSessionRepository.clear()
+        }
         if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
@@ -128,6 +133,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     private suspend fun clearTokens() {
+        practiceSessionRepository.clear()
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }

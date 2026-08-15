@@ -34,6 +34,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
+import com.dororong.rodi.feature.mypage.practicerecords.reviewAction
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -47,6 +48,7 @@ internal fun PracticeRecordSection(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val visitedRecords = records.filter { it.status == PracticeStatus.VISITED }
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -63,7 +65,7 @@ internal fun PracticeRecordSection(
                 style = RodiTheme.typography.body1SemiBold,
                 color = RodiTheme.colors.black,
             )
-            if (records.isNotEmpty()) {
+            if (visitedRecords.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
@@ -102,7 +104,7 @@ internal fun PracticeRecordSection(
                     )
                 }
             }
-        } else if (records.isEmpty()) {
+        } else if (visitedRecords.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -130,7 +132,7 @@ internal fun PracticeRecordSection(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                records.forEach { record ->
+                visitedRecords.forEach { record ->
                     PracticeRecordCard(
                         record = record,
                         onWriteReviewClick = { onWriteReviewClick(record.placeId, record.placeName) },
@@ -146,6 +148,7 @@ private fun PracticeRecordCard(
     record: PracticeRecord,
     onWriteReviewClick: () -> Unit,
 ) {
+    val reviewAction = record.reviewAction
     val shape = RoundedCornerShape(8.dp)
     Column(
         modifier = Modifier
@@ -183,18 +186,18 @@ private fun PracticeRecordCard(
             }
         }
         Surface(
-            onClick = onWriteReviewClick,
-            enabled = !record.hasReview,
+            onClick = { if (reviewAction.isEnabled) onWriteReviewClick() },
+            enabled = reviewAction.isEnabled,
             shape = RoundedCornerShape(8.dp),
-            color = if (record.hasReview) RodiTheme.colors.gray300 else RodiTheme.colors.white,
-            border = if (record.hasReview) null else BorderStroke(1.dp, RodiTheme.colors.primary600),
+            color = if (reviewAction.isEnabled) RodiTheme.colors.white else RodiTheme.colors.gray300,
+            border = if (reviewAction.isEnabled) BorderStroke(1.dp, RodiTheme.colors.primary600) else null,
             modifier = Modifier.fillMaxWidth().height(32.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Text(
-                    text = if (record.hasReview) "작성 완료" else "후기 작성",
+                    text = reviewAction.label,
                     style = RodiTheme.typography.body3Medium,
-                    color = if (record.hasReview) RodiTheme.colors.gray500 else RodiTheme.colors.primary600,
+                    color = if (reviewAction.isEnabled) RodiTheme.colors.primary600 else RodiTheme.colors.gray500,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -204,12 +207,10 @@ private fun PracticeRecordCard(
 
 private val RecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
 
-// visitedAt은 방문(VISITED)에서만 채워진다. 미방문 사유를 제출해도 NOT_VISITED로 남을 뿐
-// visitedAt은 비어 있어, visitedAt만으로 분기하면 미방문 처리한 항목이 계속 "방문 예정"으로 보인다.
 private fun PracticeRecord.recordStatusLabel(): String = when {
-    visitedAt != null -> RecordDateFormatter.format(visitedAt)
-    status == PracticeStatus.NOT_VISITED -> "미방문"
-    else -> "방문 예정"
+    status == PracticeStatus.VISITED && visitedAt != null -> RecordDateFormatter.format(visitedAt)
+    status == PracticeStatus.VISITED -> "방문 완료"
+    else -> ""
 }
 
 private val PreviewRecords = listOf(
@@ -222,6 +223,7 @@ private val PreviewRecords = listOf(
         practiceTypes = listOf(PracticeType.ROUNDABOUT, PracticeType.HIGHWAY_ENTRY),
         isVerified = true,
         hasReview = false,
+        status = PracticeStatus.VISITED,
     ),
     PracticeRecord(
         practiceId = 2,
@@ -232,6 +234,18 @@ private val PreviewRecords = listOf(
         practiceTypes = listOf(PracticeType.LANE_CHANGE, PracticeType.PARKING),
         isVerified = true,
         hasReview = true,
+        status = PracticeStatus.VISITED,
+    ),
+    PracticeRecord(
+        practiceId = 3,
+        placeId = 3,
+        placeName = "망원 공영주차장",
+        visitedAt = Instant.parse("2026-05-08T00:00:00Z"),
+        visitCount = 1,
+        practiceTypes = listOf(PracticeType.PARKING),
+        isVerified = true,
+        hasReview = false,
+        status = PracticeStatus.VISITED,
     ),
 )
 

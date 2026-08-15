@@ -120,6 +120,7 @@ private fun MyReview.toMyPost() = MyPost(
         isEditable = isEditable,
         isHidden = isHidden,
         createdAt = createdAt,
+        isVerifiedVisit = isVerifiedVisit,
     ),
 )
 

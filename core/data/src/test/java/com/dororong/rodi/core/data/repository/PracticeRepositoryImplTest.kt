@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.PracticeApi
+import com.dororong.rodi.core.data.source.remote.model.practice.PracticeRegisterResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeSkipReasonRequest
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -14,6 +15,8 @@ import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class PracticeRepositoryImplTest {
@@ -22,11 +25,26 @@ class PracticeRepositoryImplTest {
         val api = mockk<PracticeApi>()
         coEvery { api.recordVisit("Bearer access", 7, PracticeVisitRequest(null)) } returns
             ApiEnvelope(true, "COMMON_200", "성공", practiceVisitResponse())
-        val repository = repository(api)
+        val cache = PracticeRecordPresenceCache()
+        val repository = repository(api, cache)
 
         val result = repository.recordVisit(7)
 
         assertEquals(1, result.visitCount)
+        assertTrue(cache.get() == true)
+    }
+
+    @Test
+    fun `registering a planned practice does not mark record presence`() = runTest {
+        val api = mockk<PracticeApi>()
+        coEvery { api.register("Bearer access", 7) } returns
+            ApiEnvelope(true, "COMMON_200", "성공", PracticeRegisterResponse(practiceId = 11))
+        val cache = PracticeRecordPresenceCache()
+        val repository = repository(api, cache)
+
+        repository.register(7)
+
+        assertNull(cache.get())
     }
 
     @Test
@@ -41,13 +59,16 @@ class PracticeRepositoryImplTest {
         }
     }
 
-    private fun repository(api: PracticeApi): PracticeRepositoryImpl = PracticeRepositoryImpl(
+    private fun repository(
+        api: PracticeApi,
+        cache: PracticeRecordPresenceCache = PracticeRecordPresenceCache(),
+    ): PracticeRepositoryImpl = PracticeRepositoryImpl(
         api = api,
         tokenStore = mockk<AuthTokenStore>().also {
             coEvery { it.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         },
         authRepository = mockk<AuthRepository>(),
-        practiceRecordPresenceCache = PracticeRecordPresenceCache(),
+        practiceRecordPresenceCache = cache,
     )
 
     private fun practiceVisitResponse() = com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse(

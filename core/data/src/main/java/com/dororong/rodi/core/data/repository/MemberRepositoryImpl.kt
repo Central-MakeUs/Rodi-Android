@@ -15,8 +15,10 @@ import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.member.BlockedMember
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -28,6 +30,7 @@ class MemberRepositoryImpl @Inject constructor(
     private val authRepository: AuthRepository,
     private val json: Json,
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
+    private val practiceSessionRepository: PracticeSessionRepository,
 ) : MemberRepository {
     override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
         memberApi.getMyPage(authorization).requireData().toDomain()
@@ -36,21 +39,50 @@ class MemberRepositoryImpl @Inject constructor(
     override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
         if (cursor == null) {
             practiceRecordPresenceCache.withRefresh {
+                practiceRecordPresenceCache.clear()
                 memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
-                    .also { page -> practiceRecordPresenceCache.set(page.items.isNotEmpty()) }
+                    .also { page -> updatePracticeRecordPresence(page, canProveAbsence = true) }
             }
         } else {
             memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+                .also { page -> updatePracticeRecordPresence(page, canProveAbsence = false) }
         }
     }
 
     override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoad {
         authenticatedRequest { authorization ->
-            memberApi.getPracticeRecords(authorization, size = 1, cursor = null)
-                .requireData()
-                .toDomain()
-                .items
-                .isNotEmpty()
+            practiceRecordPresenceCache.clear()
+            var cursor: String? = null
+            var hasVisitedRecord = false
+            while (true) {
+                val page = memberApi.getPracticeRecords(
+                    authorization = authorization,
+                    size = PRACTICE_PRESENCE_PAGE_SIZE,
+                    cursor = cursor,
+                ).requireData().toDomain()
+                updatePracticeRecordPresence(page, canProveAbsence = cursor == null)
+                if (page.items.any { it.status == PracticeStatus.VISITED }) {
+                    hasVisitedRecord = true
+                    break
+                }
+
+                val nextCursor = page.nextCursor
+                if (!page.hasNext || nextCursor == null || nextCursor == cursor) {
+                    break
+                }
+                cursor = nextCursor
+            }
+            hasVisitedRecord
+        }
+    }
+
+    private fun updatePracticeRecordPresence(
+        page: CursorPage<PracticeRecordItem>,
+        canProveAbsence: Boolean,
+    ) {
+        when {
+            page.items.any { it.status == PracticeStatus.VISITED } -> practiceRecordPresenceCache.set(true)
+            canProveAbsence && !page.hasNext -> practiceRecordPresenceCache.set(false)
         }
     }
 
@@ -88,6 +120,7 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun withdraw() {
         authenticatedRequest { authorization -> memberApi.withdraw(authorization).requireSuccess() }
+        practiceSessionRepository.clear()
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
@@ -96,6 +129,7 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun hardDelete() {
         authenticatedRequest { authorization -> memberApi.hardDelete(authorization).requireSuccess() }
+        practiceSessionRepository.clear()
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
@@ -136,3 +170,5 @@ class MemberRepositoryImpl @Inject constructor(
     private fun ApiEnvelope<*>.asException(): AuthException =
         if (code.contains("401")) AuthException.NotAuthenticated(message) else toAuthException()
 }
+
+private const val PRACTICE_PRESENCE_PAGE_SIZE = 20

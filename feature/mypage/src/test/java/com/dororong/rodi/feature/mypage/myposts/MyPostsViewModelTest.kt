@@ -30,7 +30,7 @@ class MyPostsViewModelTest {
     private val deleteReview = mockk<DeleteReviewUseCase>()
     private val getMyReviews = mockk<GetMyReviewsUseCase>()
     private val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
-    private val post = MyPost(1, "장소", Review(1, 1, "닉네임", OnboardingLevel.SEED, true, null, null, null, "내용", null, true, true, false, Instant.EPOCH))
+    private val post = MyPost(1, "장소", Review(1, 1, "닉네임", OnboardingLevel.SEED, true, null, null, null, "내용", null, true, true, false, Instant.EPOCH, false))
 
     @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
     @AfterEach fun tearDown() = Dispatchers.resetMain()

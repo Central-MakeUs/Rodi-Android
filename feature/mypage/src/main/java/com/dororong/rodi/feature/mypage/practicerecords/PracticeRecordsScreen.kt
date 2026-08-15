@@ -77,26 +77,27 @@ private fun PracticeRecordsContent(
     onWriteReviewClick: (Long, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val visitedRecords = state.records.filter { it.status == PracticeStatus.VISITED }
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             SubPageTopBar(title = "연습기록", onBack = onBack)
             val listState = rememberLazyListState()
-            LaunchedEffect(listState, state.records.size, state.hasNextPage) {
+            LaunchedEffect(listState, visitedRecords.size, state.hasNextPage) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                    .map { index -> index != null && index >= state.records.lastIndex - 2 }
+                    .map { index -> index != null && index >= visitedRecords.lastIndex - 2 }
                     .distinctUntilChanged()
                     .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
             }
             when {
                 state.isLoading -> PracticeRecordsLoading()
                 state.initialError != null -> PracticeRecordsError(state.initialError, onRetry)
-                state.records.isEmpty() -> PracticeRecordsEmpty()
+                visitedRecords.isEmpty() -> PracticeRecordsEmpty()
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
                 ) {
-                    items(state.records, key = PracticeRecord::practiceId) { record ->
+                    items(visitedRecords, key = PracticeRecord::practiceId) { record ->
                         PracticeRecordListItem(record, onWriteReviewClick)
                     }
                     if (state.isLoadingMore || state.nextPageError != null) {
@@ -138,6 +139,7 @@ private fun PracticeRecordListItem(
     record: PracticeRecord,
     onWriteReviewClick: (Long, String) -> Unit,
 ) {
+    val reviewAction = record.reviewAction
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -176,18 +178,20 @@ private fun PracticeRecordListItem(
             }
         }
         OutlinedButton(
-            onClick = { onWriteReviewClick(record.placeId, record.placeName) },
-            enabled = !record.hasReview,
+            onClick = {
+                if (reviewAction.isEnabled) onWriteReviewClick(record.placeId, record.placeName)
+            },
+            enabled = reviewAction.isEnabled,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(32.dp),
             shape = RoundedCornerShape(8.dp),
-            border = if (record.hasReview) null else BorderStroke(1.dp, RodiTheme.colors.primary600),
+            border = if (reviewAction.isEnabled) BorderStroke(1.dp, RodiTheme.colors.primary600) else null,
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = RodiTheme.colors.primary600,
                 disabledContainerColor = RodiTheme.colors.gray300,
                 disabledContentColor = RodiTheme.colors.gray500,
             ),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-        ) { Text(if (record.hasReview) "작성 완료" else "후기 작성", style = RodiTheme.typography.body3Medium) }
+        ) { Text(reviewAction.label, style = RodiTheme.typography.body3Medium) }
         HorizontalDivider(modifier = Modifier.padding(top = 16.dp), color = RodiTheme.colors.gray100)
     }
 }
@@ -252,17 +256,15 @@ private fun PracticeRecordsNextPageFooter(
 
 private val PracticeRecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
 
-// visitedAt은 방문(VISITED)에서만 채워진다. 미방문 사유를 제출해도 NOT_VISITED로 남을 뿐
-// visitedAt은 비어 있어, visitedAt만으로 분기하면 미방문 처리한 항목이 계속 "방문 예정"으로 보인다.
 private fun PracticeRecord.recordStatusLabel(): String = when {
-    visitedAt != null -> PracticeRecordDateFormatter.format(visitedAt)
-    status == PracticeStatus.NOT_VISITED -> "미방문"
-    else -> "방문 예정"
+    status == PracticeStatus.VISITED && visitedAt != null -> PracticeRecordDateFormatter.format(visitedAt)
+    status == PracticeStatus.VISITED -> "방문 완료"
+    else -> ""
 }
 
 private val PreviewPracticeRecords = listOf(
-    PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
-    PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
+    PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false, PracticeStatus.VISITED),
+    PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true, PracticeStatus.VISITED),
 )
 
 @Preview(name = "연습기록 목록", showBackground = true, widthDp = 375, heightDp = 812)

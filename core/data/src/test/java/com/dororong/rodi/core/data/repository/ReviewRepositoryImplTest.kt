@@ -163,16 +163,12 @@ class ReviewRepositoryImplTest {
         reviewId = 1,
         memberId = 2,
         nickname = "로디",
-        memberLevel = "ROOKIE",
-        isRecommended = true,
-        difficulty = "VERY_EASY",
-        congestion = "QUIET",
         practiceMethod = "SOLO",
         content = "좋아요",
-        caution = null,
         isMine = false,
         isEditable = false,
         isHidden = false,
+        isVerifiedVisit = true,
         createdAt = "2026-08-08T00:00:00Z",
     )
 

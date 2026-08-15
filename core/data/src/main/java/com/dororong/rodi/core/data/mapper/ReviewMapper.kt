@@ -44,32 +44,29 @@ fun ReviewDraft.toRequest() = ReviewRequest(
 fun ReportSubmission.toRequest() = ReportRequest(reason, detail, detailConsistent)
 
 fun CursorPageReviewResponse.toDomain() = CursorPage(
-    items = items.mapNotNull(ReviewResponse::toDomain),
+    items = items.map(ReviewResponse::toDomain),
     hasNext = hasNext,
     nextCursor = nextCursor,
     totalCount = totalCount,
 )
 
-fun ReviewResponse.toDomain(): Review? {
-    val mappedLevel = memberLevel.toEnumOrNull<OnboardingLevel>("memberLevel")
-    if (mappedLevel == null) return null
-    return Review(
-        reviewId = reviewId,
-        memberId = memberId,
-        nickname = nickname,
-        memberLevel = mappedLevel,
-        isRecommended = isRecommended,
-        difficulty = difficulty.toNullableEnum<ReviewDifficulty>("difficulty"),
-        congestion = congestion.toNullableEnum<ReviewCongestion>("congestion"),
-        practiceMethod = practiceMethod.toPracticeMethodOrNull(),
-        content = content,
-        caution = caution,
-        isMine = isMine,
-        isEditable = isEditable,
-        isHidden = isHidden,
-        createdAt = parseServerTimestamp(createdAt),
-    )
-}
+fun ReviewResponse.toDomain() = Review(
+    reviewId = reviewId,
+    memberId = memberId,
+    nickname = nickname,
+    memberLevel = null,
+    isRecommended = null,
+    difficulty = null,
+    congestion = null,
+    practiceMethod = practiceMethod.toPracticeMethodOrNull(),
+    content = content,
+    caution = null,
+    isMine = isMine,
+    isEditable = isEditable,
+    isHidden = isHidden,
+    createdAt = parseServerTimestamp(createdAt),
+    isVerifiedVisit = isVerifiedVisit,
+)
 
 fun ReviewDetailResponse.toDomain() = ReviewDetail(
     reviewId = reviewId,

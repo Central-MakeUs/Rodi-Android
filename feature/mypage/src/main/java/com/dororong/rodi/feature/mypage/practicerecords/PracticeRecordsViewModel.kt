@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.practicerecords
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -44,22 +45,7 @@ class PracticeRecordsViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.value = PracticeRecordsUiState(isLoading = true)
-            getPracticeRecords(cursor = null, size = PAGE_SIZE)
-                .onSuccess { page ->
-                    _uiState.value = PracticeRecordsUiState(
-                        records = page.items,
-                        isLoading = false,
-                        hasNextPage = page.hasNext,
-                        nextCursor = page.nextCursor,
-                        totalCount = page.totalCount,
-                    )
-                }
-                .onFailure { error ->
-                    _uiState.value = PracticeRecordsUiState(
-                        isLoading = false,
-                        initialError = error.message ?: "연습기록을 불러오지 못했어요.",
-                    )
-                }
+            loadPageChain(initial = true, cursor = null, existingRecords = emptyList())
         }
     }
 
@@ -69,54 +55,68 @@ class PracticeRecordsViewModel @Inject constructor(
         if (!current.hasNextPage || current.isLoadingMore || loadJob?.isActive == true) return
         loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true, nextPageError = null) }
-            getPracticeRecords(cursor = cursor, size = PAGE_SIZE)
-                .onSuccess { page ->
-                    _uiState.update { latest ->
-                        latest.copy(
-                            records = (latest.records + page.items).distinctBy(PracticeRecord::practiceId),
-                            isLoadingMore = false,
-                            hasNextPage = page.hasNext,
-                            nextCursor = page.nextCursor,
-                            totalCount = page.totalCount ?: latest.totalCount,
-                        )
-                    }
-                }
-                .onFailure { error ->
-                    _uiState.update {
-                        it.copy(
-                            isLoadingMore = false,
-                            nextPageError = error.message ?: "다음 연습기록을 불러오지 못했어요.",
-                        )
-                    }
-                }
+            loadPageChain(initial = false, cursor = cursor, existingRecords = current.records)
         }
     }
 
-    private fun setInitialLoading() {
-        _uiState.update { it.copy(isLoading = true, initialError = null) }
-    }
+    private suspend fun loadPageChain(
+        initial: Boolean,
+        cursor: String?,
+        existingRecords: List<PracticeRecord>,
+    ) {
+        var requestCursor = cursor
+        var records = existingRecords
+        var pageHasNext = false
+        var nextCursor: String? = null
+        var totalCount: Long? = null
 
-    private fun setInitialError(message: String) {
-        _uiState.update { it.copy(isLoading = false, initialError = message) }
-    }
+        while (true) {
+            val pageResult = getPracticeRecords(cursor = requestCursor, size = PAGE_SIZE)
+            if (pageResult.isFailure) {
+                val errorMessage = pageResult.exceptionOrNull()?.message
+                    ?: if (initial) "연습기록을 불러오지 못했어요." else "다음 연습기록을 불러오지 못했어요."
+                if (initial) {
+                    _uiState.value = PracticeRecordsUiState(
+                        isLoading = false,
+                        initialError = errorMessage,
+                    )
+                } else {
+                    _uiState.update {
+                        it.copy(isLoadingMore = false, nextPageError = errorMessage)
+                    }
+                }
+                return
+            }
 
-    private fun setNextPageError(message: String) {
-        _uiState.update { it.copy(isLoadingMore = false, nextPageError = message) }
-    }
+            val page = pageResult.getOrThrow()
+            val visibleItems = page.items.filter { it.status == PracticeStatus.VISITED }
+            records = (records + visibleItems).distinctBy(PracticeRecord::practiceId)
+            totalCount = page.totalCount ?: totalCount
+            nextCursor = page.nextCursor
+            pageHasNext = page.hasNext && nextCursor != null && nextCursor != requestCursor
 
-    private fun appendPage(page: List<PracticeRecord>, hasNextPage: Boolean, initial: Boolean) {
-        if (initial) loadJob?.cancel()
-        _uiState.update { current ->
-            val records = if (initial) page.distinctBy(PracticeRecord::practiceId)
-            else (current.records + page).distinctBy(PracticeRecord::practiceId)
-            current.copy(
+            if (visibleItems.isNotEmpty() || !pageHasNext) break
+            requestCursor = nextCursor
+        }
+
+        if (initial) {
+            _uiState.value = PracticeRecordsUiState(
                 records = records,
                 isLoading = false,
-                isLoadingMore = false,
-                initialError = null,
-                nextPageError = null,
-                hasNextPage = hasNextPage,
+                hasNextPage = pageHasNext,
+                nextCursor = nextCursor,
+                totalCount = totalCount,
             )
+        } else {
+            _uiState.update {
+                it.copy(
+                    records = records,
+                    isLoadingMore = false,
+                    hasNextPage = pageHasNext,
+                    nextCursor = nextCursor,
+                    totalCount = totalCount ?: it.totalCount,
+                )
+            }
         }
     }
 }

@@ -51,6 +51,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import java.time.Instant
 
 data class MyPageProfile(
@@ -231,10 +232,16 @@ private fun MyPageProfileCardLoadingContent() {
                 .fillMaxSize()
                 .padding(start = 11.dp, top = 15.dp, end = 11.dp),
         ) {
-            Row(modifier = Modifier.height(90.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(90.dp),
+            ) {
                 RodiSkeleton(modifier = Modifier.size(90.dp), color = RodiTheme.colors.gray200)
                 Column(
-                    modifier = Modifier.padding(start = 15.dp, top = 12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 15.dp, top = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     RodiSkeleton(modifier = Modifier.width(92.dp).height(20.dp), color = RodiTheme.colors.gray200)
@@ -255,9 +262,12 @@ private fun MyPageProfileCardLoadingContent() {
             Spacer(Modifier.height(12.dp))
             RodiSkeleton(modifier = Modifier.width(42.dp).height(12.dp), color = RodiTheme.colors.gray200)
             Spacer(Modifier.height(4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                RodiSkeleton(modifier = Modifier.width(188.dp).height(19.dp), color = RodiTheme.colors.gray200)
-                Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                RodiSkeleton(modifier = Modifier.weight(1f).height(19.dp), color = RodiTheme.colors.gray200)
+                Spacer(Modifier.width(4.dp))
                 RodiSkeleton(modifier = Modifier.size(12.dp), color = RodiTheme.colors.gray200)
             }
         }
@@ -371,8 +381,8 @@ private fun MyPageContentPreview() {
             onWriteReviewClick = { _, _ -> },
             onPracticeRecordsRetry = {},
             practiceRecords = listOf(
-                PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
-                PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
+                PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false, PracticeStatus.VISITED),
+                PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true, PracticeStatus.VISITED),
             ),
         )
     }

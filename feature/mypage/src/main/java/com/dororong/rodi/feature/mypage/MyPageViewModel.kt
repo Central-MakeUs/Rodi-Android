@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.recommendations
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.member.HardDeleteAccountUseCase
@@ -58,7 +59,9 @@ class MyPageViewModel @Inject constructor(
                 val profileDeferred = async { getMyPage() }
                 val recordsDeferred = async { getPracticeRecords(size = 4) }
                 val recordsResult = recordsDeferred.await()
-                val records = recordsResult.getOrNull()?.items.orEmpty().map { it.toFeatureModel() }
+                val records = recordsResult.getOrNull()?.items.orEmpty()
+                    .filter { it.status == PracticeStatus.VISITED }
+                    .map { it.toFeatureModel() }
                 val recordsErrorMessage = recordsResult.exceptionOrNull()
                     ?.userMessage("연습기록을 불러오지 못했어요.")
                 profileDeferred.await()
@@ -116,10 +119,7 @@ private fun MyPage.toUiProfile() = MyPageProfile(
     practiceTypes = level.recommendations,
     drivingGoal = drivingGoal.orEmpty(),
     savedPlaceCount = savedPlaceCount,
-    progress = levelProgress.nextLevelKm?.let { nextLevelKm ->
-        ((levelProgress.totalDistanceKm - levelProgress.currentLevelStartKm) /
-            (nextLevelKm - levelProgress.currentLevelStartKm)).toFloat().coerceIn(0f, 1f)
-    } ?: 1f,
+    progress = (levelProgress.progressPercent / 100f).coerceIn(0f, 1f),
     distanceLabel = "${levelProgress.totalDistanceKm.roundToInt()}km",
 )
 

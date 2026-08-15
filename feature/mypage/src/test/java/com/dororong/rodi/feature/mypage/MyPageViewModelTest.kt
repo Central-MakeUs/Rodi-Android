@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage
 
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
+import com.dororong.rodi.core.domain.model.member.LevelProgress
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
@@ -34,6 +35,34 @@ class MyPageViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
+    fun `server progress percent drives the profile gauge`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getMyPage() } returns Result.success(
+            MyPage(
+                nickname = "서버 닉네임",
+                level = OnboardingLevel.ROOKIE,
+                recommendationTags = emptyList(),
+                drivingGoal = null,
+                savedPlaceCount = 0,
+                levelProgress = LevelProgress(
+                    totalDistanceKm = 0.0,
+                    currentLevelStartKm = 0.0,
+                    nextLevelKm = 100.0,
+                    progressPercent = 42,
+                ),
+            ),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(0.42f, viewModel.uiState.value.profile.progress)
+    }
+
+    @Test
     fun `server my page is rendered with canonical recommendations`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
@@ -54,7 +83,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `practice record status survives the mypage feature model mapping`() = runTest(dispatcher) {
+    fun `mypage keeps visited records and removes invisible statuses`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val notVisited = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
@@ -68,7 +97,13 @@ class MyPageViewModelTest {
             hasReview = true,
             status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.NOT_VISITED,
         )
-        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(notVisited), false, null, 1))
+        val visited = notVisited.copy(
+            practiceId = 10L,
+            placeName = "방문한 장소",
+            visitedAt = java.time.Instant.EPOCH,
+            status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
+        )
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(notVisited, visited), false, null, 2))
         coEvery { getMyPage() } returns Result.success(
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0),
         )
@@ -77,8 +112,9 @@ class MyPageViewModelTest {
         viewModel.refresh()
         advanceUntilIdle()
 
+        assertEquals(listOf(10L), viewModel.uiState.value.practiceRecords.map { it.practiceId })
         assertEquals(
-            com.dororong.rodi.core.domain.model.practice.PracticeStatus.NOT_VISITED,
+            com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
             viewModel.uiState.value.practiceRecords.single().status,
         )
     }
@@ -96,6 +132,7 @@ class MyPageViewModelTest {
             visitedAt = null,
             isVerified = false,
             hasReview = false,
+            status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
         )
         val second = first.copy(practiceId = 1L, placeId = 10L, placeName = "첫 번째 장소")
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(first, second), false, null, 2))

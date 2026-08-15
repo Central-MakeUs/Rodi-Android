@@ -11,6 +11,7 @@ import com.dororong.rodi.core.data.repository.RecentSearchRepositoryImpl
 import com.dororong.rodi.core.data.repository.ReviewRepositoryImpl
 import com.dororong.rodi.core.data.repository.PracticeRepositoryImpl
 import com.dororong.rodi.core.data.source.local.datastore.PracticePromptDismissalStore
+import com.dororong.rodi.core.data.source.local.datastore.ActivePracticeSessionStore
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
@@ -22,6 +23,7 @@ import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.repository.ReviewRepository
 import com.dororong.rodi.core.domain.repository.PracticeRepository
 import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -68,6 +70,12 @@ abstract class DataModule {
     abstract fun bindPracticePromptDismissalRepository(
         impl: PracticePromptDismissalStore,
     ): PracticePromptDismissalRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPracticeSessionRepository(
+        impl: ActivePracticeSessionStore,
+    ): PracticeSessionRepository
 
     companion object {
         @Provides

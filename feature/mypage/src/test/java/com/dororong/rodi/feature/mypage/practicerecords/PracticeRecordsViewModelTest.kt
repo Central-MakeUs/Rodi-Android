@@ -2,8 +2,10 @@ package com.dororong.rodi.feature.mypage.practicerecords
 
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.place.CursorPage
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
@@ -24,7 +26,7 @@ import org.junit.jupiter.api.Test
 class PracticeRecordsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
-    private val first = PracticeRecord(1, 1, "장소", listOf(PracticeType.PARKING), 1, Instant.EPOCH, true, false)
+    private val first = PracticeRecord(1, 1, "장소", listOf(PracticeType.ROUNDABOUT), 1, Instant.EPOCH, true, false, PracticeStatus.VISITED)
 
     @BeforeEach fun setUp() {
         Dispatchers.setMain(dispatcher)
@@ -54,6 +56,23 @@ class PracticeRecordsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(1L, 2L), viewModel.uiState.value.records.map { it.practiceId })
+    }
+
+    @Test
+    fun `initial load skips invisible statuses before reaching a visited record`() = runTest(dispatcher) {
+        coEvery { getPracticeRecords(null, 20) } returns Result.success(
+            CursorPage(listOf(first.copy(status = PracticeStatus.PLANNED)), true, "next", 2),
+        )
+        coEvery { getPracticeRecords("next", 20) } returns Result.success(
+            CursorPage(listOf(first.copy(practiceId = 2)), false, null, 2),
+        )
+
+        val viewModel = PracticeRecordsViewModel(getPracticeRecords)
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L), viewModel.uiState.value.records.map { it.practiceId })
+        coVerify(exactly = 1) { getPracticeRecords(null, 20) }
+        coVerify(exactly = 1) { getPracticeRecords("next", 20) }
     }
 
     @Test

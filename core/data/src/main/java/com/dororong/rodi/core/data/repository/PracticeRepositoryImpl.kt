@@ -26,9 +26,7 @@ class PracticeRepositoryImpl @Inject constructor(
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
 ) : PracticeRepository {
     override suspend fun register(placeId: Long): Practice = authenticatedRequest { authorization ->
-        api.register(authorization, placeId).requireData().toDomain().also {
-            practiceRecordPresenceCache.set(true)
-        }
+        api.register(authorization, placeId).requireData().toDomain()
     }
 
     override suspend fun recordVisit(
@@ -39,7 +37,9 @@ class PracticeRepositoryImpl @Inject constructor(
             authorization = authorization,
             practiceId = practiceId,
             request = PracticeVisitRequest(certifiedDistanceMeters),
-        ).requireData().toDomain()
+        ).requireData().toDomain().also {
+            practiceRecordPresenceCache.set(true)
+        }
     }
 
     override suspend fun submitSkipReason(practiceId: Long, reason: String, detail: String?) {

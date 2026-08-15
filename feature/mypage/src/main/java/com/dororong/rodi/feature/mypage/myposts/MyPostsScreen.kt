@@ -1,6 +1,5 @@
 package com.dororong.rodi.feature.mypage.myposts
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -54,6 +53,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
@@ -168,10 +168,10 @@ private fun MyPostsContent(
         RodiAlertDialog(
             title = "정말 삭제하시겠습니까?",
             description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.",
-            dismissText = "취소",
-            confirmText = "삭제하기",
-            onDismiss = { deleteTarget = null },
-            onConfirm = { deleteTarget = null; onDelete(target) },
+            dismissText = "삭제하기",
+            confirmText = "취소",
+            onDismiss = { deleteTarget = null; onDelete(target) },
+            onConfirm = { deleteTarget = null },
             onDismissRequest = { deleteTarget = null },
         )
     }
@@ -332,20 +332,13 @@ private fun MyPostsEmpty(
     onPracticeRecordsClick: () -> Unit,
     showPracticeRecordsButton: Boolean,
 ) {
-    Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(R.drawable.illust_my_activity_empty),
-                contentDescription = null,
-                modifier = Modifier.size(60.dp),
-            )
-            Text(
-                "아직 작성한 후기가 없어요!",
-                style = RodiTheme.typography.headline1,
-                color = RodiTheme.colors.gray600,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-            Text("다녀온 코스의 경험을 기록해보세요.", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))
+    RodiIllustratedEmptyState(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        painter = painterResource(R.drawable.illust_my_activity_empty),
+        imageSize = 60.dp,
+        title = "아직 작성한 후기가 없어요!",
+        description = "다녀온 코스의 경험을 기록해보세요.",
+        footer = {
             if (showPracticeRecordsButton) {
                 OutlinedButton(
                     onClick = onPracticeRecordsClick,
@@ -355,8 +348,8 @@ private fun MyPostsEmpty(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
                 ) { Text("연습기록 보러가기", style = RodiTheme.typography.body3Medium) }
             }
-        }
-    }
+        },
+    )
 }
 
 private val MyPostDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
@@ -365,12 +358,12 @@ private val PreviewPosts = listOf(
     MyPost(
         placeId = 1,
         placeName = "망원한강공원",
-        review = Review(1, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.EASY, ReviewCongestion.QUIET, PracticeMethod.SOLO, "차선 변경 연습에 좋아요.", null, true, true, false, Instant.parse("2026-05-10T00:00:00Z")),
+        review = Review(1, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.EASY, ReviewCongestion.QUIET, PracticeMethod.SOLO, "차선 변경 연습에 좋아요.", null, true, true, false, Instant.parse("2026-05-10T00:00:00Z"), true),
     ),
     MyPost(
         placeId = 2,
         placeName = "용산구 교차로",
-        review = Review(2, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.NORMAL, ReviewCongestion.NORMAL, PracticeMethod.WITH_COMPANION, "회전 구간은 천천히 진입하세요.", null, true, true, false, Instant.parse("2026-05-08T00:00:00Z")),
+        review = Review(2, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.NORMAL, ReviewCongestion.NORMAL, PracticeMethod.WITH_COMPANION, "회전 구간은 천천히 진입하세요.", null, true, true, false, Instant.parse("2026-05-08T00:00:00Z"), true),
     ),
 )
 
@@ -423,7 +416,7 @@ private fun MyPostsMenuPreview() = RodiTheme {
 @Preview(name = "내 활동 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsDeletePreview() = RodiTheme {
-    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "취소", confirmText = "삭제하기", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
+    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "삭제하기", confirmText = "취소", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
 }
 
 @Preview(name = "내 활동 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)
