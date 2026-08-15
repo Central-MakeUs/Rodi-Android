@@ -158,6 +158,7 @@ import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.markMapLoaded
+import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
@@ -730,21 +731,22 @@ fun HomeScreen(
         mapViewSize,
         mapContentBottomPaddingPx,
         mapBitmapStyle,
+        currentViewport,
         state.searchedQuery,
         activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        val searchedViewport = state.searchedQuery?.let { MapViewport(it.northEast, it.southWest) }
-        if (state.coordinates.isEmpty() || searchedViewport == null) {
+        val markerViewport = markerViewportOrNull(currentViewport, state.searchedQuery)
+        if (state.coordinates.isEmpty() || markerViewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { markerViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
