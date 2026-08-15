@@ -6,7 +6,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -32,6 +31,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 
 enum class RodiBottomNavigationDestination {
     Home,
+    Register,
     My,
 }
 
@@ -41,6 +41,7 @@ fun RodiBottomNavigation(
     onHomeClick: () -> Unit,
     onMyClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRegisterClick: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -52,8 +53,10 @@ fun RodiBottomNavigation(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .height(56.dp),
-            horizontalArrangement = Arrangement.Center,
+                .height(56.dp)
+                .padding(horizontal = 62.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top,
         ) {
             RodiBottomNavigationItem(
                 icon = R.drawable.ic_nav_home,
@@ -61,7 +64,12 @@ fun RodiBottomNavigation(
                 selected = selectedDestination == RodiBottomNavigationDestination.Home,
                 onClick = onHomeClick,
             )
-            Spacer(Modifier.width(68.dp))
+            RodiBottomNavigationItem(
+                icon = R.drawable.ic_nav_register,
+                label = "등록",
+                selected = selectedDestination == RodiBottomNavigationDestination.Register,
+                onClick = onRegisterClick,
+            )
             RodiBottomNavigationItem(
                 icon = R.drawable.ic_nav_my,
                 label = "마이",
@@ -116,6 +124,7 @@ private fun RodiBottomNavigationPreview() {
         RodiBottomNavigation(
             selectedDestination = RodiBottomNavigationDestination.Home,
             onHomeClick = {},
+            onRegisterClick = {},
             onMyClick = {},
         )
     }

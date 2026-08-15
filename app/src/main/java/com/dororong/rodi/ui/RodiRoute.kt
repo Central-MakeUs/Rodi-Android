@@ -16,6 +16,9 @@ data object MainRoute : NavKey
 data object HomeRoute : NavKey
 
 @Serializable
+data object CourseRegistrationFlowRoute : NavKey
+
+@Serializable
 data class SearchRoute(
     val latitude: Double,
     val longitude: Double,
@@ -38,6 +41,7 @@ internal fun NavKey.toClarityScreenName(): String? = when (this) {
     EntryRoute -> "Onboarding"
     MainRoute -> null
     HomeRoute -> "Home"
+    CourseRegistrationFlowRoute -> "CourseRegistration"
     is SearchRoute -> "Search"
     MyPageRoute -> "MyPage"
     DrivingGoalRoute -> "DrivingGoal"
