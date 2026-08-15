@@ -294,6 +294,7 @@ fun MainScreen(
                         MyPostsScreen(
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                             onPracticeRecordsClick = { backStack.add(PracticeRecordsRoute) },
+                            onRegisterCourseClick = { requestCourseRegistration() },
                             onEditReviewClick = { post ->
                                 backStack.add(ReviewWriteRoute(post.placeId, post.placeName, post.review.reviewId))
                             },
