@@ -32,6 +32,15 @@ class MemberRepositoryImpl @Inject constructor(
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
     private val practiceSessionRepository: PracticeSessionRepository,
 ) : MemberRepository {
+    override suspend fun completeCourseTutorial() {
+        authenticatedRequest { authorization ->
+            memberApi.completeCourseTutorial(authorization).requireData()
+        }
+        if (!tokenStore.markCourseTutorialCompleted()) {
+            throw AuthException.Unknown("튜토리얼 완료 상태를 저장하지 못했습니다.")
+        }
+    }
+
     override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
         memberApi.getMyPage(authorization).requireData().toDomain()
     }
@@ -128,6 +137,7 @@ class MemberRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        tokenStore.clearCourseRegistrationData()
         practiceRecordPresenceCache.clear()
     }
 
@@ -137,6 +147,7 @@ class MemberRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        tokenStore.clearCourseRegistrationData()
         practiceRecordPresenceCache.clear()
     }
 

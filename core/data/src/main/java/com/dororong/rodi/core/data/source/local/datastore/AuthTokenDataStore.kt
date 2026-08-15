@@ -34,6 +34,7 @@ class AuthTokenDataStore @Inject constructor(
                 accessToken = tokenEncryption.decrypt(tokens.accessToken, ACCESS_TOKEN_AAD),
                 refreshToken = tokenEncryption.decrypt(tokens.refreshToken, REFRESH_TOKEN_AAD),
                 provider = tokenEncryption.decrypt(tokens.provider, PROVIDER_AAD),
+                isCourseTutorialCompleted = tokens.isCourseTutorialCompleted,
             )
         } catch (_: TokenEncryptionException) {
             clear()
@@ -59,6 +60,7 @@ class AuthTokenDataStore @Inject constructor(
             accessToken = tokenEncryption.encrypt(tokens.accessToken, ACCESS_TOKEN_AAD),
             refreshToken = tokenEncryption.encrypt(tokens.refreshToken, REFRESH_TOKEN_AAD),
             provider = tokenEncryption.encrypt(tokens.provider, PROVIDER_AAD),
+            isCourseTutorialCompleted = tokens.isCourseTutorialCompleted,
         )
         context.authTokenDataStore.edit { preferences ->
             preferences[KEY_TOKENS] = json.encodeToString(encryptedTokens)
@@ -86,6 +88,7 @@ class AuthTokenDataStore @Inject constructor(
         val accessToken: EncryptedPayload,
         val refreshToken: EncryptedPayload,
         val provider: EncryptedPayload,
+        val isCourseTutorialCompleted: Boolean = false,
     )
 
     private companion object {

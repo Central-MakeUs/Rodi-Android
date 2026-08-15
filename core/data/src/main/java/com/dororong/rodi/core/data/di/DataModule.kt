@@ -2,6 +2,10 @@ package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.repository.AuthRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRepositoryImpl
+import com.dororong.rodi.core.data.repository.CourseRegistrationRepositoryImpl
+import com.dororong.rodi.core.data.repository.CourseRegistrationRouteRepositoryImpl
+import com.dororong.rodi.core.data.repository.CourseDraftRepositoryImpl
+import com.dororong.rodi.core.data.repository.CourseLocationRepositoryImpl
 import com.dororong.rodi.core.data.repository.EntryRepositoryImpl
 import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.repository.CachedPlaceRepository
@@ -14,6 +18,10 @@ import com.dororong.rodi.core.data.source.local.datastore.PracticePromptDismissa
 import com.dororong.rodi.core.data.source.local.datastore.ActivePracticeSessionStore
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
+import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
+import com.dororong.rodi.core.domain.repository.CourseRegistrationRouteRepository
+import com.dororong.rodi.core.domain.repository.CourseDraftRepository
+import com.dororong.rodi.core.domain.repository.CourseLocationRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
@@ -37,6 +45,20 @@ import java.time.Clock
 abstract class DataModule {
     @Binds
     abstract fun bindCourseRepository(impl: CourseRepositoryImpl): CourseRepository
+
+    @Binds
+    abstract fun bindCourseRegistrationRepository(impl: CourseRegistrationRepositoryImpl): CourseRegistrationRepository
+
+    @Binds
+    abstract fun bindCourseRegistrationRouteRepository(
+        impl: CourseRegistrationRouteRepositoryImpl,
+    ): CourseRegistrationRouteRepository
+
+    @Binds
+    abstract fun bindCourseDraftRepository(impl: CourseDraftRepositoryImpl): CourseDraftRepository
+
+    @Binds
+    abstract fun bindCourseLocationRepository(impl: CourseLocationRepositoryImpl): CourseLocationRepository
 
     @Binds
     abstract fun bindNaviPreferenceRepository(impl: NaviPreferenceRepositoryImpl): NaviPreferenceRepository
