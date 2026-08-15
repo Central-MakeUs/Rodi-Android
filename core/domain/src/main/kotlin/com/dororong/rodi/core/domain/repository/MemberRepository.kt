@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.model.place.PracticeType
 interface MemberRepository {
     suspend fun getMyPage(): MyPage
     suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem>
+    suspend fun hasPracticeRecords(): Boolean
     suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview>
     suspend fun getBlockedMembers(cursor: String?, size: Int): CursorPage<BlockedMember>
     suspend fun updateDrivingGoal(drivingGoal: String)

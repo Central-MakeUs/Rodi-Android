@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
@@ -26,13 +27,31 @@ class MemberRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
     private val json: Json,
+    private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
 ) : MemberRepository {
     override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
         memberApi.getMyPage(authorization).requireData().toDomain()
     }
 
     override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
-        memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+        if (cursor == null) {
+            practiceRecordPresenceCache.withRefresh {
+                memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+                    .also { page -> practiceRecordPresenceCache.set(page.items.isNotEmpty()) }
+            }
+        } else {
+            memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+        }
+    }
+
+    override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoad {
+        authenticatedRequest { authorization ->
+            memberApi.getPracticeRecords(authorization, size = 1, cursor = null)
+                .requireData()
+                .toDomain()
+                .items
+                .isNotEmpty()
+        }
     }
 
     override suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview> = authenticatedRequest { authorization ->
@@ -72,6 +91,7 @@ class MemberRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        practiceRecordPresenceCache.clear()
     }
 
     override suspend fun hardDelete() {
@@ -79,6 +99,7 @@ class MemberRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        practiceRecordPresenceCache.clear()
     }
 
     private suspend fun <T> authenticatedRequest(

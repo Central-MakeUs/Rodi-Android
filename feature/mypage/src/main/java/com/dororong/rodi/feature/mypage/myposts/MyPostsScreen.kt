@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -54,6 +55,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
@@ -125,7 +127,7 @@ private fun MyPostsContent(
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             PostsTopBar(onBack = onBack)
             when {
-                state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("불러오는 중…", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600) }
+                state.isLoading -> MyPostsLoading()
                 state.errorMessage != null && state.posts.isEmpty() -> MyPostsError(
                     message = state.errorMessage,
                     onRetry = { onClearError(); onLoadInitial() },
@@ -171,6 +173,61 @@ private fun MyPostsContent(
             onDismiss = { deleteTarget = null },
             onConfirm = { deleteTarget = null; onDelete(target) },
             onDismissRequest = { deleteTarget = null },
+        )
+    }
+}
+
+@Composable
+private fun MyPostsLoading() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 24.dp),
+    ) {
+        repeat(4) { MyPostSkeletonRow() }
+    }
+}
+
+@Composable
+private fun MyPostSkeletonRow() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RodiSkeleton(modifier = Modifier.width(128.dp).height(20.dp))
+            Spacer(Modifier.weight(1f))
+            RodiSkeleton(
+                modifier = Modifier.size(28.dp),
+                shape = RoundedCornerShape(14.dp),
+            )
+        }
+        RodiSkeleton(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .width(48.dp)
+                .height(12.dp),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(37.dp)
+                .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            RodiSkeleton(
+                modifier = Modifier
+                    .fillMaxWidth(0.82f)
+                    .height(14.dp),
+                shape = RoundedCornerShape(4.dp),
+            )
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 14.dp),
+            color = RodiTheme.colors.gray100,
         )
     }
 }
@@ -322,6 +379,21 @@ private val PreviewPosts = listOf(
 private fun MyPostsListPreview() = RodiTheme {
     MyPostsContent(
         state = MyPostsUiState(posts = PreviewPosts),
+        onBack = {},
+        onPracticeRecordsClick = {},
+        onEditReviewClick = {},
+        onLoadInitial = {},
+        onLoadNext = {},
+        onClearError = {},
+        onDelete = {},
+    )
+}
+
+@Preview(name = "내 활동 로딩", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun MyPostsLoadingPreview() = RodiTheme {
+    MyPostsContent(
+        state = MyPostsUiState(isLoading = true),
         onBack = {},
         onPracticeRecordsClick = {},
         onEditReviewClick = {},

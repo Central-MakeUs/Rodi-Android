@@ -1,10 +1,13 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
@@ -41,7 +44,7 @@ class MemberRepositoryImplTest {
                 savedPlaceCount = 12,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         val result = repository.getMyPage()
 
@@ -58,7 +61,7 @@ class MemberRepositoryImplTest {
         coEvery {
             memberApi.updateMe("Bearer access", MemberUpdateRequest("   "))
         } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         repository.updateDrivingGoal("   ")
 
@@ -76,7 +79,7 @@ class MemberRepositoryImplTest {
                 FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
             )
         } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         repository.updateFilterTags(
             listOf(PracticeType.STRAIGHT, PracticeType.PARKING, PracticeType.INTERSECTION),
@@ -107,7 +110,7 @@ class MemberRepositoryImplTest {
             message = "성공",
             data = buildJsonObject { },
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         repository.blockMember(7)
         repository.unblockMember(7)
@@ -126,7 +129,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_400",
             message = "자기 자신은 차단할 수 없습니다.",
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         assertThrowsSuspend<AuthException.InvalidRequest> { repository.blockMember(7) }
     }
@@ -135,7 +138,7 @@ class MemberRepositoryImplTest {
     fun `driving goal longer than thirty characters is rejected before request`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         assertThrowsSuspend<IllegalArgumentException> {
             repository.updateDrivingGoal("가".repeat(31))
@@ -155,7 +158,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         repository.withdraw()
 
@@ -168,7 +171,7 @@ class MemberRepositoryImplTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         val exception = assertThrowsSuspend<AuthException.NotAuthenticated> { repository.withdraw() }
 
@@ -182,7 +185,7 @@ class MemberRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         coEvery { memberApi.withdraw("Bearer access") } throws CancellationException("cancelled")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         assertThrowsSuspend<CancellationException> { repository.withdraw() }
     }
@@ -198,7 +201,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         repository.hardDelete()
 
@@ -211,11 +214,55 @@ class MemberRepositoryImplTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache())
 
         val exception = assertThrowsSuspend<AuthException.NotAuthenticated> { repository.hardDelete() }
 
         assertEquals("로그인 세션이 없습니다.", exception.message)
         coVerify(exactly = 0) { memberApi.hardDelete(any()) }
+    }
+
+    @Test
+    fun `practice presence reuses the successful first page fetch`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val cache = PracticeRecordPresenceCache()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 4, null) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CursorPagePracticeItemResponse(
+                items = listOf(PracticeItemResponse(1, 1, "장소")),
+                totalCount = 1,
+            ),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, cache)
+
+        repository.getPracticeRecords(cursor = null, size = 4)
+
+        assertEquals(true, repository.hasPracticeRecords())
+        coVerify(exactly = 1) { memberApi.getPracticeRecords("Bearer access", 4, null) }
+        coVerify(exactly = 0) { memberApi.getPracticeRecords("Bearer access", 1, null) }
+    }
+
+    @Test
+    fun `practice presence is fetched once and then cached on a cache miss`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val cache = PracticeRecordPresenceCache()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 1, null) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CursorPagePracticeItemResponse(),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, cache)
+
+        assertEquals(false, repository.hasPracticeRecords())
+        assertEquals(false, repository.hasPracticeRecords())
+
+        coVerify(exactly = 1) { memberApi.getPracticeRecords("Bearer access", 1, null) }
     }
 }

@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.PracticeApi
@@ -46,6 +47,7 @@ class PracticeRepositoryImplTest {
             coEvery { it.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         },
         authRepository = mockk<AuthRepository>(),
+        practiceRecordPresenceCache = PracticeRecordPresenceCache(),
     )
 
     private fun practiceVisitResponse() = com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse(

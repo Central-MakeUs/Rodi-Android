@@ -3,8 +3,8 @@ package com.dororong.rodi.feature.mypage.myposts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.member.MyReview
-import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 
 @HiltViewModel
 class MyPostsViewModel @Inject constructor(
@@ -32,27 +31,22 @@ class MyPostsViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             _uiState.value = MyPostsUiState(isLoading = true)
-            val reviews = async { getMyReviews(cursor = null, size = PAGE_SIZE) }
-            val practices = async { getPracticeRecords(cursor = null, size = 1) }
-            val reviewResult = reviews.await()
-            val practiceResult = practices.await()
-            reviewResult
-                .onSuccess { page ->
-                    _uiState.value = MyPostsUiState(
-                        posts = page.items.map(MyReview::toMyPost),
-                        hasPracticeRecords = practiceResult.getOrNull()?.items?.isNotEmpty() == true,
-                        isLoading = false,
-                        nextCursor = page.nextCursor,
-                        hasNext = page.hasNext,
-                    )
-                }
-                .onFailure { error ->
-                    _uiState.value = MyPostsUiState(
-                        isLoading = false,
-                        hasPracticeRecords = practiceResult.getOrNull()?.items?.isNotEmpty() == true,
-                        errorMessage = error.message ?: "후기를 불러오지 못했어요.",
-                    )
-                }
+            val reviewResult = getMyReviews(cursor = null, size = PAGE_SIZE)
+            val page = reviewResult.getOrNull()
+            if (page != null) {
+                _uiState.value = MyPostsUiState(
+                    posts = page.items.map(MyReview::toMyPost),
+                    hasPracticeRecords = page.items.isEmpty() && loadPracticeRecordPresence(),
+                    isLoading = false,
+                    nextCursor = page.nextCursor,
+                    hasNext = page.hasNext,
+                )
+            } else {
+                _uiState.value = MyPostsUiState(
+                    isLoading = false,
+                    errorMessage = reviewResult.exceptionOrNull()?.message ?: "후기를 불러오지 못했어요.",
+                )
+            }
         }
     }
 
@@ -84,19 +78,28 @@ class MyPostsViewModel @Inject constructor(
 
     fun delete(post: MyPost) {
         viewModelScope.launch {
-            deleteReview(post.review.reviewId)
-                .onSuccess {
-                    _uiState.update { state -> state.copy(posts = state.posts.filterNot { it.review.reviewId == post.review.reviewId }) }
+            val deleteResult = deleteReview(post.review.reviewId)
+            if (deleteResult.isSuccess) {
+                val remainingPosts = _uiState.value.posts.filterNot { it.review.reviewId == post.review.reviewId }
+                _uiState.update { state -> state.copy(posts = remainingPosts) }
+                if (remainingPosts.isEmpty()) {
+                    val hasPracticeRecords = loadPracticeRecordPresence()
+                    _uiState.update { state -> state.copy(hasPracticeRecords = hasPracticeRecords) }
                 }
-                .onFailure { error ->
-                    _uiState.update { it.copy(errorMessage = error.message ?: "후기를 삭제하지 못했어요.") }
+            } else {
+                _uiState.update {
+                    it.copy(errorMessage = deleteResult.exceptionOrNull()?.message ?: "후기를 삭제하지 못했어요.")
                 }
+            }
         }
     }
 
     fun clearError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
+
+    private suspend fun loadPracticeRecordPresence(): Boolean =
+        getPracticeRecords.hasAny().getOrNull() == true
 }
 
 private fun MyReview.toMyPost() = MyPost(

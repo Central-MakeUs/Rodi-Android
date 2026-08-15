@@ -8,4 +8,8 @@ class GetPracticeRecordsUseCase @Inject constructor(private val repository: Memb
     suspend operator fun invoke(cursor: String? = null, size: Int = 20) = runSuspendCatching {
         repository.getPracticeRecords(cursor, size)
     }
+
+    suspend fun hasAny() = runSuspendCatching {
+        repository.hasPracticeRecords()
+    }
 }

@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.authRequest
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toAccountRestoreResult
@@ -34,6 +35,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
     private val tokenStore: AuthTokenStore,
     private val json: Json,
+    private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
     private val sessionExpired = MutableStateFlow(false)
@@ -74,7 +76,11 @@ class AuthRepositoryImpl @Inject constructor(
 
             try {
                 val body = refreshRequest(currentTokens.refreshToken)
-                saveTokens(body.accessToken, body.refreshToken)
+                saveTokens(
+                    accessToken = body.accessToken,
+                    refreshToken = body.refreshToken,
+                    invalidatePracticeRecordCache = false,
+                )
             } catch (exception: AuthException.SessionRevoked) {
                 try {
                     clearTokens()
@@ -107,9 +113,16 @@ class AuthRepositoryImpl @Inject constructor(
         clearTokens()
     }
 
-    private suspend fun saveTokens(accessToken: String, refreshToken: String) {
+    private suspend fun saveTokens(
+        accessToken: String,
+        refreshToken: String,
+        invalidatePracticeRecordCache: Boolean = true,
+    ) {
         if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
+        }
+        if (invalidatePracticeRecordCache) {
+            practiceRecordPresenceCache.clear()
         }
         sessionExpired.value = false
     }
@@ -118,6 +131,7 @@ class AuthRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        practiceRecordPresenceCache.clear()
     }
 
     private suspend fun <T> request(block: suspend () -> T): T = json.authRequest(block)
