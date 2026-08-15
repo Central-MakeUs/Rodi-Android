@@ -224,6 +224,7 @@ fun RodiAlertDialog(
 fun RodiUnsavedChangesDialog(
     onContinueWriting: () -> Unit,
     onExit: () -> Unit,
+    dismissible: Boolean = true,
 ) {
     RodiDialog(
         onDismissRequest = onContinueWriting,
@@ -231,6 +232,7 @@ fun RodiUnsavedChangesDialog(
             .width(280.dp)
             .height(226.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 32.dp),
+        dismissible = dismissible,
     ) {
         Text(
             text = "작성 중인 화면을 나갈까요?",
