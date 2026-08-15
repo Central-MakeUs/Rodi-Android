@@ -17,4 +17,5 @@ interface MemberRepository {
     suspend fun blockMember(memberId: Long)
     suspend fun unblockMember(memberId: Long)
     suspend fun withdraw()
+    suspend fun hardDelete()
 }

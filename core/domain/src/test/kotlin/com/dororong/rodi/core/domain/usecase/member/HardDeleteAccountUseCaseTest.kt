@@ -1,0 +1,75 @@
+package com.dororong.rodi.core.domain.usecase.member
+
+import com.dororong.rodi.core.domain.repository.MemberRepository
+import com.dororong.rodi.core.domain.usecase.onboarding.ClearOnboardingDataUseCase
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.coVerifyOrder
+import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+
+class HardDeleteAccountUseCaseTest {
+    @Test
+    fun `returns success when repository hard deletes account`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.hardDelete() } returns Unit
+        coEvery { clearOnboardingData() } returns Unit
+
+        val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
+
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            repository.hardDelete()
+            clearOnboardingData()
+        }
+    }
+
+    @Test
+    fun `does not clear local data when hard delete fails`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.hardDelete() } throws IllegalStateException("server error")
+
+        val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
+
+        assertTrue(result.isFailure)
+        coVerify { repository.hardDelete() }
+        coVerify(exactly = 0) { clearOnboardingData() }
+    }
+
+    @Test
+    fun `propagates cancellation without clearing local data`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.hardDelete() } throws CancellationException("cancelled")
+
+        try {
+            HardDeleteAccountUseCase(repository, clearOnboardingData)()
+        } catch (_: CancellationException) {
+            coVerify { repository.hardDelete() }
+            coVerify(exactly = 0) { clearOnboardingData() }
+            return@runTest
+        }
+        throw AssertionError("CancellationException should be rethrown")
+    }
+
+    @Test
+    fun `returns failure when local onboarding cleanup fails after hard delete`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.hardDelete() } returns Unit
+        coEvery { clearOnboardingData() } throws IllegalStateException("local cleanup failed")
+
+        val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
+
+        assertTrue(result.isFailure)
+        coVerifyOrder {
+            repository.hardDelete()
+            clearOnboardingData()
+        }
+    }
+}

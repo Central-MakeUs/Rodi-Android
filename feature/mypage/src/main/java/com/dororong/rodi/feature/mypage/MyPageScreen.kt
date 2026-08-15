@@ -48,6 +48,7 @@ import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import java.time.Instant
@@ -70,6 +71,8 @@ fun MyPageScreen(
     onPracticeRecordsClick: () -> Unit,
     onMyPostsClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
+    isDebugBuild: Boolean = false,
+    onSessionEnded: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel = hiltViewModel(),
 ) {
@@ -82,6 +85,15 @@ fun MyPageScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            MyPageEffect.HardDeleteCompleted -> onSessionEnded()
+            is MyPageEffect.ShowError -> snackbarHostState.show(
+                RodiSnackbarData(message = effect.message),
+            )
+        }
     }
 
     LaunchedEffect(uiState.errorMessage, uiState.profile.nickname) {
@@ -110,6 +122,9 @@ fun MyPageScreen(
                 practiceRecords = uiState.practiceRecords,
                 practiceRecordsErrorMessage = uiState.practiceRecordsErrorMessage,
                 onPracticeRecordsRetry = viewModel::refresh,
+                showDebugTools = isDebugBuild,
+                onHardDeleteClick = viewModel::hardDelete,
+                isHardDeleteSubmitting = uiState.isHardDeleteSubmitting,
             )
         }
         RodiSnackbarHost(snackbarHostState)
@@ -272,6 +287,9 @@ private fun MyPageContent(
     practiceRecords: List<PracticeRecord> = emptyList(),
     practiceRecordsErrorMessage: String? = null,
     onPracticeRecordsRetry: () -> Unit,
+    showDebugTools: Boolean = false,
+    onHardDeleteClick: () -> Unit = {},
+    isHardDeleteSubmitting: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -298,6 +316,14 @@ private fun MyPageContent(
             onClick = onSavedCoursesClick,
         )
         MyPageNavigationRow(text = "내 활동", onClick = onMyPostsClick)
+        if (showDebugTools) {
+            RodiButton(
+                text = if (isHardDeleteSubmitting) "DEBUG 계정 삭제 중..." else "DEBUG 계정 즉시 삭제",
+                onClick = onHardDeleteClick,
+                enabled = !isHardDeleteSubmitting,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
         // 바텀 네비게이션이 sibling overlay로 얹히므로 그 높이만큼 자리를 비워둔다.
         // RodiBottomNavigation은 `navigationBarsPadding().height(56.dp)` 순서라 실제 높이가
         // navInset + 56dp다. 여기서 순서를 뒤집으면 Spacer가 56dp로 고정돼 마지막 행이 가려진다.

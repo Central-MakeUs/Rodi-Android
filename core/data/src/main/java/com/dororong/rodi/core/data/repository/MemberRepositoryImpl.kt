@@ -74,6 +74,13 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun hardDelete() {
+        authenticatedRequest { authorization -> memberApi.hardDelete(authorization).requireSuccess() }
+        if (!tokenStore.clear()) {
+            throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+        }
+    }
+
     private suspend fun <T> authenticatedRequest(
         canRefresh: Boolean = true,
         block: suspend (String) -> T,

@@ -143,6 +143,8 @@ fun MainScreen(
                             onWriteReviewClick = { placeId, placeName ->
                                 backStack.add(ReviewWriteRoute(placeId, placeName))
                             },
+                            isDebugBuild = BuildConfig.DEBUG,
+                            onSessionEnded = onSessionEnded,
                         )
                     }
                     PracticeRecordsRoute -> NavEntry(key) {

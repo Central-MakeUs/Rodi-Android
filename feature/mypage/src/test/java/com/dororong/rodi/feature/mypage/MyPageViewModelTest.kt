@@ -5,12 +5,16 @@ import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.member.HardDeleteAccountUseCase
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -38,7 +42,7 @@ class MyPageViewModelTest {
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, listOf("OUTDATED"), "골목길", 7),
         )
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -69,7 +73,7 @@ class MyPageViewModelTest {
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0),
         )
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -99,7 +103,7 @@ class MyPageViewModelTest {
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0),
         )
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -115,7 +119,7 @@ class MyPageViewModelTest {
             MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), "골목길", 7),
         )
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -132,7 +136,7 @@ class MyPageViewModelTest {
             Result.success(MyPage("서버 닉네임", OnboardingLevel.SEED, emptyList(), null, 3)),
             Result.failure(IllegalStateException("새로고침 실패")),
         )
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
 
         viewModel.refresh()
         advanceUntilIdle()
@@ -157,7 +161,7 @@ class MyPageViewModelTest {
             SerializationException("Field 'nickname' is required for type with serial name 'MyPageResponse'"),
         )
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
@@ -171,10 +175,51 @@ class MyPageViewModelTest {
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { getMyPage() } returns Result.failure(AuthException.Network("네트워크 연결을 확인해주세요."))
 
-        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
         viewModel.refresh()
         advanceUntilIdle()
 
         assertEquals("네트워크 연결을 확인해주세요.", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `hard delete emits completion after the account is deleted`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
+        coEvery { hardDeleteAccount() } returns Result.success(Unit)
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, hardDeleteAccount)
+        val effect = async { viewModel.effect.first() }
+
+        viewModel.hardDelete()
+        assertEquals(true, viewModel.uiState.value.isHardDeleteSubmitting)
+        advanceUntilIdle()
+
+        assertEquals(MyPageEffect.HardDeleteCompleted, effect.await())
+        assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
+        coVerify(exactly = 1) { hardDeleteAccount() }
+    }
+
+    @Test
+    fun `hard delete exposes failure and prevents duplicate requests while submitting`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
+        coEvery { hardDeleteAccount() } returns Result.failure(
+            AuthException.Network("계정 삭제 요청에 실패했어요."),
+        )
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, hardDeleteAccount)
+        val effect = async { viewModel.effect.first() }
+
+        viewModel.hardDelete()
+        viewModel.hardDelete()
+        advanceUntilIdle()
+
+        assertEquals(
+            MyPageEffect.ShowError("계정 삭제 요청에 실패했어요."),
+            effect.await(),
+        )
+        assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
+        coVerify(exactly = 1) { hardDeleteAccount() }
     }
 }

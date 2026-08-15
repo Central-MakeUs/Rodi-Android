@@ -186,4 +186,36 @@ class MemberRepositoryImplTest {
 
         assertThrowsSuspend<CancellationException> { repository.withdraw() }
     }
+
+    @Test
+    fun `hard delete sends bearer access token and clears session after success`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.hardDelete("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+        )
+        coEvery { tokenStore.clear() } returns true
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        repository.hardDelete()
+
+        coVerify { memberApi.hardDelete("Bearer access") }
+        coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `hard delete does not call api without a session`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns null
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        val exception = assertThrowsSuspend<AuthException.NotAuthenticated> { repository.hardDelete() }
+
+        assertEquals("로그인 세션이 없습니다.", exception.message)
+        coVerify(exactly = 0) { memberApi.hardDelete(any()) }
+    }
 }
