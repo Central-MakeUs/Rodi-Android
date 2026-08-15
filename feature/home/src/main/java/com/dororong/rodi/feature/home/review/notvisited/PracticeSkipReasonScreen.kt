@@ -52,6 +52,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiUnsavedChangesDialog
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -319,6 +320,7 @@ private fun PracticeSkipReasonContent(
                         NotVisitedDetailInput(
                             value = detail,
                             placeholder = selectedOption.textInputPlaceholder ?: "이유를 입력해주세요",
+                            maxGraphemes = selectedOption.textInputMaxLength ?: Int.MAX_VALUE,
                             onValueChange = onDetailChange,
                         )
                     }
@@ -341,14 +343,16 @@ private fun PracticeSkipReasonContent(
 private fun NotVisitedDetailInput(
     value: String,
     placeholder: String,
+    maxGraphemes: Int,
     onValueChange: (String) -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val textFieldState = rememberGraphemeTextFieldState(value, maxGraphemes, onValueChange)
 
     BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = textFieldState.value,
+        onValueChange = textFieldState.onValueChange,
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         singleLine = true,
         interactionSource = interactionSource,
@@ -368,7 +372,7 @@ private fun NotVisitedDetailInput(
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart,
             ) {
-                if (value.isEmpty()) {
+                if (textFieldState.value.text.isEmpty()) {
                     Text(
                         text = placeholder,
                         style = RodiTheme.typography.body3Medium,

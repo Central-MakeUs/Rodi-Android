@@ -11,8 +11,10 @@ import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
-import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceWaypoint
+import com.dororong.rodi.feature.home.R
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.camera.CameraAnimation
@@ -25,11 +27,20 @@ import com.kakao.vectormap.route.RouteLineSegment
 import com.kakao.vectormap.route.RouteLineStyle
 import com.kakao.vectormap.route.RouteLineStyles
 import com.kakao.vectormap.route.RouteLineStylesSet
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
 private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
 private const val ROUTE_LINE_WIDTH = 10f
 private const val FIT_PADDING_PX = 140
+private const val ENDPOINT_OVERLAP_THRESHOLD_METERS = 2.0
+private const val OVERLAPPED_START_ANCHOR_X = 0.25f
+private const val OVERLAPPED_DESTINATION_ANCHOR_X = 0.75f
+private const val PIN_ANCHOR_Y = 1f
+private const val EARTH_RADIUS_METERS = 6_371_000.0
 
 /** 지도에서 코스 관련 레이어(마커·경로선)를 모두 지운다. */
 fun KakaoMap.clearCourse() {
@@ -40,12 +51,14 @@ fun KakaoMap.clearCourse() {
 fun KakaoMap.renderPlaceCourseMarkers(context: Context, place: PlaceDetail) {
     clearCourse()
     val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    val endpointsOverlap = waypoints.haveOverlappingEndpoints()
     waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = LatLng.from(waypoint.point.lat, waypoint.point.lng),
             iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
+            anchorX = endpointAnchorX(index, waypoints.lastIndex, endpointsOverlap),
         )
     }
 }
@@ -58,6 +71,7 @@ fun KakaoMap.renderPlaceCourse(
 ) {
     clearCourse()
     val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    val endpointsOverlap = waypoints.haveOverlappingEndpoints()
     waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
@@ -65,9 +79,33 @@ fun KakaoMap.renderPlaceCourse(
                 ?: LatLng.from(waypoint.point.lat, waypoint.point.lng),
             iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
+            anchorX = endpointAnchorX(index, waypoints.lastIndex, endpointsOverlap),
         )
     }
     if (routePoints.size >= 2) drawRouteLine(routePoints)
+}
+
+private fun List<PlaceWaypoint>.haveOverlappingEndpoints(): Boolean {
+    if (size < 2) return false
+    return first().point.distanceMetersTo(last().point) <= ENDPOINT_OVERLAP_THRESHOLD_METERS
+}
+
+private fun endpointAnchorX(index: Int, lastIndex: Int, endpointsOverlap: Boolean): Float? = when {
+    !endpointsOverlap -> null
+    index == 0 -> OVERLAPPED_START_ANCHOR_X
+    index == lastIndex -> OVERLAPPED_DESTINATION_ANCHOR_X
+    else -> null
+}
+
+private fun GeoPoint.distanceMetersTo(other: GeoPoint): Double {
+    val latitudeDelta = Math.toRadians(other.lat - lat)
+    val longitudeDelta = Math.toRadians(other.lng - lng)
+    val startLatitude = Math.toRadians(lat)
+    val endLatitude = Math.toRadians(other.lat)
+    val haversine = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
+        cos(startLatitude) * cos(endLatitude) *
+        sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
+    return 2 * EARTH_RADIUS_METERS * atan2(sqrt(haversine), sqrt(1 - haversine))
 }
 
 /**
@@ -101,11 +139,19 @@ fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, topPaddingPx: Int, bot
  * 다른 핀이 보이는 것처럼 깜빡이는 문제가 있었다. sequence가 큰(나중) 지점을 항상 위에
  * 그리게 고정하면 같은 코스는 언제 열어도 같은 그림이 나온다.
  */
-private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: Int, index: Int) {
+private fun KakaoMap.addMarkerAt(
+    context: Context,
+    position: LatLng,
+    iconRes: Int,
+    index: Int,
+    anchorX: Float?,
+) {
     val manager = labelManager ?: return
     val layer = detailLabelLayer() ?: return
     val bitmap = context.vectorToBitmap(iconRes, sizeDp = 34)
-    val style = LabelStyle.from(bitmap)
+    val style = LabelStyle.from(bitmap).apply {
+        anchorX?.let { setAnchorPoint(it, PIN_ANCHOR_Y) }
+    }
     val styles = manager.addLabelStyles(LabelStyles.from(style))
     val options = LabelOptions.from(position)
         .setStyles(styles)

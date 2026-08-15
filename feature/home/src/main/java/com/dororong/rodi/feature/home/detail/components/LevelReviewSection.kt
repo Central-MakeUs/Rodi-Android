@@ -37,6 +37,7 @@ import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
+import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 import java.time.Instant
@@ -79,6 +80,7 @@ fun LevelReviewSection(
                     topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
+                    modifier = Modifier.padding(horizontal = RodiSpacing.xl),
                 )
             }
         }
@@ -165,9 +167,10 @@ private fun SummaryRow(
     topDifficultyCount: Long,
     onSelectLevel: (OnboardingLevel) -> Unit,
     scrollState: ScrollableState?,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -342,6 +345,7 @@ private val previewSectionReview = Review(
     isEditable = false,
     isHidden = false,
     createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    isVerifiedVisit = true,
 )
 
 @Composable

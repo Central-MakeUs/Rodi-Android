@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.review
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
@@ -10,6 +11,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
+import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
@@ -97,21 +99,33 @@ class ReviewWriteViewModel @Inject constructor(
     fun selectDifficulty(value: ReviewDifficulty) = _state.update { it.copy(difficulty = value) }
     fun selectCongestion(value: ReviewCongestion) = _state.update { it.copy(congestion = value) }
     fun selectPracticeMethod(value: PracticeMethod) = _state.update { it.copy(practiceMethod = value) }
-    fun updateCaution(value: String) = _state.update { it.copy(caution = value.take(50)) }
-    fun updateContent(value: String) = _state.update { it.copy(content = value.take(150)) }
+    fun updateCaution(value: String) = _state.update { it.copy(caution = value.takeGraphemes(50)) }
+    fun updateContent(value: String) = _state.update { it.copy(content = value.takeGraphemes(150)) }
     fun next() { if (_state.value.canGoNext) _state.update { it.copy(step = ReviewWriteStep.Detail) } }
     fun back() = _state.update { it.copy(step = ReviewWriteStep.Basics) }
     fun submit() {
         val current = _state.value
-        if (current.isSubmitting) return
+        if (current.isSubmitting || current.isSubmitted || current.isCompletionHandled) return
         val draft = current.draftOrNull() ?: return
 
         viewModelScope.launch {
             _state.update { it.copy(isSubmitting = true, errorMessage = null) }
-            val result = current.editingReviewId?.let { updateReview(it, draft) }
-                ?: createReview(current.placeId, draft)
-            result.onSuccess {
-                _state.update { it.copy(isSubmitting = false, isSubmitted = true) }
+            val result = current.editingReviewId?.let { reviewId ->
+                updateReview(reviewId, draft).map { reviewId }
+            } ?: createReview(current.placeId, draft)
+            result.onSuccess { reviewId ->
+                _state.update {
+                    it.copy(
+                        isSubmitting = false,
+                        isSubmitted = true,
+                        submittedResult = ReviewSubmissionResult(
+                            placeId = current.placeId,
+                            reviewId = reviewId,
+                            draft = draft,
+                            isEditing = current.editingReviewId != null,
+                        ),
+                    )
+                }
             }.onFailure { error ->
                 _state.update {
                     it.copy(
@@ -123,6 +137,17 @@ class ReviewWriteViewModel @Inject constructor(
         }
     }
     fun consumeError() = _state.update { it.copy(errorMessage = null) }
+
+    fun consumeSubmittedResult(): ReviewSubmissionResult? {
+        val current = _state.value
+        val result = current.submittedResult ?: return null
+        _state.value = current.copy(
+            isSubmitted = false,
+            submittedResult = null,
+            isCompletionHandled = true,
+        )
+        return result
+    }
     private fun Review.toInitialValues() = ReviewWriteInitialValues(
         isRecommended = isRecommended,
         difficulty = difficulty,

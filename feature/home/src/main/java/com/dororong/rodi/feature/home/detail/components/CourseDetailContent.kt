@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.place.PracticeTagRow
+import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.R
@@ -42,119 +43,127 @@ fun CourseDetailContent(
     onSummaryHeightChanged: (Int) -> Unit = {},
 ) {
     val course = place.course ?: return
+    val cautionText = course.cautions.filter(String::isNotBlank).joinToString(" ･ ")
     Column(
         modifier = modifier
             .fillMaxWidth(),
     ) {
-        Column(Modifier.onSizeChanged { onSummaryHeightChanged(it.height) }) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Column(
+            modifier = Modifier
+                .onSizeChanged { onSummaryHeightChanged(it.height) }
+                .padding(top = if (showCloseButton) 0.dp else RodiSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(if (showCloseButton) RodiSpacing.sm else 12.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(RodiSpacing.sm)) {
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = RodiSpacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = place.name,
-                        style = RodiTheme.typography.headline1,
-                        color = RodiTheme.colors.black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.ic_bookmark_detail),
-                        contentDescription = null,
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Text(
-                        text = place.bookmarkCount.toString(),
-                        style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.gray700,
-                    )
-                }
-                if (showCloseButton) {
-                    RodiIconButton(
-                        painter = painterResource(R.drawable.ic_x),
-                        onClick = onDismiss,
-                        iconSize = 20.dp,
-                        contentDescription = "닫기",
-                        tint = RodiTheme.colors.black,
-                    )
-                } else {
-                    Spacer(Modifier.size(48.dp))
-                }
-            }
-
-            Column(
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = course.distanceMeters.toDistanceText(),
-                        style = RodiTheme.typography.body1SemiBold,
-                        color = RodiTheme.colors.primary600,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "주행거리",
-                        style = RodiTheme.typography.caption1Medium,
-                        color = RodiTheme.colors.gray800,
-                    )
-                }
-                PracticeTagRow(place.practiceTypes)
-                val cautionText = course.cautions.filter(String::isNotBlank).joinToString(" ･ ")
-                if (cautionText.isNotEmpty()) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_alert_triangle),
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(14.dp),
-                        )
                         Text(
-                            text = cautionText,
-                            style = RodiTheme.typography.caption1Medium,
-                            color = RodiTheme.colors.secondary400,
+                            text = place.name,
+                            style = RodiTheme.typography.headline1,
+                            color = RodiTheme.colors.black,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            painter = painterResource(R.drawable.ic_bookmark_detail),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Spacer(Modifier.width(2.dp))
+                        Text(
+                            text = place.bookmarkCount.toString(),
+                            style = RodiTheme.typography.body3Medium,
+                            color = RodiTheme.colors.gray700,
                         )
                     }
+                    if (showCloseButton) {
+                        RodiIconButton(
+                            painter = painterResource(R.drawable.ic_x),
+                            onClick = onDismiss,
+                            iconSize = 20.dp,
+                            contentDescription = "닫기",
+                            tint = RodiTheme.colors.black,
+                        )
+                    } else {
+                        Spacer(Modifier.width(48.dp))
+                    }
                 }
-                if (course.description.isNotBlank()) {
-                    Text(
-                        text = course.description,
-                        style = RodiTheme.typography.caption1Regular,
-                        color = RodiTheme.colors.gray700,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(RodiTheme.colors.gray100, RoundedCornerShape(8.dp))
-                            .padding(10.dp),
-                    )
+
+                Column(
+                    modifier = Modifier.padding(horizontal = RodiSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(RodiSpacing.sm),
+                ) {
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = course.distanceMeters.toDistanceText(),
+                            style = RodiTheme.typography.body1SemiBold,
+                            color = RodiTheme.colors.primary600,
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "주행거리",
+                            style = RodiTheme.typography.caption1Medium,
+                            color = RodiTheme.colors.gray800,
+                        )
+                    }
+                    PracticeTagRow(place.practiceTypes)
+                    if (cautionText.isNotEmpty()) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_alert_triangle),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(14.dp),
+                            )
+                            Text(
+                                text = cautionText,
+                                style = RodiTheme.typography.caption1Medium,
+                                color = RodiTheme.colors.secondary400,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            if (course.description.isNotBlank()) {
+                Text(
+                    text = course.description,
+                    style = RodiTheme.typography.caption1Regular,
+                    color = RodiTheme.colors.gray700,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = RodiSpacing.md)
+                        .background(RodiTheme.colors.gray100, RoundedCornerShape(8.dp))
+                        .padding(10.dp),
+                )
+            }
         }
 
+        Spacer(Modifier.height(RodiSpacing.lg))
         RouteInfoSection(course.waypoints)
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(RodiSpacing.lg))
         HorizontalDivider(
             thickness = 2.dp,
             color = RodiTheme.colors.gray100,
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(RodiSpacing.md))
         reviewContent()
     }
 }

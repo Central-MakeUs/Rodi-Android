@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState
@@ -78,10 +79,11 @@ private fun ReviewContentBlock(
                 onValueChange = onContent,
                 placeholder = "자유롭게 후기를 작성해주세요.",
                 multiline = true,
+                maxGraphemes = 150,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = content.length.toString(),
+                    text = content.graphemeLength().toString(),
                     style = RodiTheme.typography.body3Medium,
                     color = RodiTheme.colors.gray600,
                 )
@@ -93,7 +95,7 @@ private fun ReviewContentBlock(
             }
             if (isEditing) {
                 Text(
-                    text = "레벨이 변경되면 후기를 수정할 수 없으며, 수정 시 기존 좋아요가 초기화돼요.",
+                    text = "레벨이 변경되면 해당 후기를 수정할 수 없어요.",
                     style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.gray600,
                     modifier = Modifier.fillMaxWidth(),
@@ -125,4 +127,18 @@ private fun ReviewWriteDetailCompanionPreview() = RodiTheme {
 @Composable
 private fun ReviewWriteDetailContentPreview() = RodiTheme {
     ReviewWriteDetail(ReviewWriteUiState(content = "초보 운전자도 연습하기 편했어요."), {}, {})
+}
+
+@Preview(name = "후기 수정 - 안내 문구", showBackground = true, widthDp = 375)
+@Composable
+private fun ReviewWriteDetailEditingPreview() = RodiTheme {
+    ReviewWriteDetail(
+        state = ReviewWriteUiState(
+            practiceMethod = PracticeMethod.SOLO,
+            content = "초보 운전자도 연습하기 편했어요.",
+        ),
+        onPracticeMethod = {},
+        onContent = {},
+        isEditing = true,
+    )
 }

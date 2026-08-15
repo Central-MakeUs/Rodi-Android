@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.entry.content
 
 import com.dororong.rodi.feature.entry.component.EntryScaffold
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -23,11 +25,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
+import com.dororong.rodi.core.ui.components.RodiOrderBadge
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -127,12 +133,22 @@ private fun PracticeSituationQuestion(
         ) {
             PracticeSituation.entries.forEach { situation ->
                 val order = selected.indexOf(situation).takeIf { it >= 0 }?.plus(1)
-                RodiSelectableChip(
-                    text = situation.label,
-                    selected = selected.contains(situation),
-                    order = order,
-                    onClick = { onToggle(situation) },
-                )
+                Box {
+                    RodiSelectableChip(
+                        text = situation.label,
+                        selected = selected.contains(situation),
+                        onClick = { onToggle(situation) },
+                    )
+                    order?.let {
+                        RodiOrderBadge(
+                            order = it,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 6.dp, y = (-6).dp)
+                                .zIndex(1f),
+                        )
+                    }
+                }
             }
         }
     }
@@ -167,12 +183,13 @@ private fun GoalQuestion(
     goal: String,
     onGoalChange: (String) -> Unit,
 ) {
+    val textFieldState = rememberGraphemeTextFieldState(goal, MAX_GOAL_LENGTH, onGoalChange)
     Column(Modifier.fillMaxWidth()) {
         Text("이루고 싶은 운전 목표를 입력해주세요.", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
         Spacer(Modifier.height(RodiSpacing.sm))
         OutlinedTextField(
-            value = goal,
-            onValueChange = { onGoalChange(it.take(MAX_GOAL_LENGTH)) },
+            value = textFieldState.value,
+            onValueChange = textFieldState.onValueChange,
             modifier = Modifier.fillMaxWidth(),
             minLines = 1,
             maxLines = 2,
@@ -195,7 +212,7 @@ private fun GoalQuestion(
         )
         Spacer(Modifier.height(4.dp))
         Text(
-            "${goal.length}/$MAX_GOAL_LENGTH",
+            "${textFieldState.value.text.graphemeLength()}/$MAX_GOAL_LENGTH",
             style = RodiTheme.typography.body3Medium,
             color = RodiTheme.colors.gray600,
             modifier = Modifier.align(Alignment.End),

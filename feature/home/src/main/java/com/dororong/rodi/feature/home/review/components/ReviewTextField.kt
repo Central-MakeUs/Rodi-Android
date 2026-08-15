@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
 @Composable
@@ -29,13 +30,15 @@ fun ReviewTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     multiline: Boolean,
+    maxGraphemes: Int,
     modifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
+    val textFieldState = rememberGraphemeTextFieldState(value, maxGraphemes, onValueChange)
     BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = textFieldState.value,
+        onValueChange = textFieldState.onValueChange,
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         modifier = modifier
             .fillMaxWidth()
@@ -58,7 +61,7 @@ fun ReviewTextField(
                     ),
                 contentAlignment = if (multiline) Alignment.TopStart else Alignment.CenterStart,
             ) {
-                if (value.isEmpty()) {
+                if (textFieldState.value.text.isEmpty()) {
                     Text(
                         text = placeholder,
                         style = RodiTheme.typography.body3Medium,
@@ -74,20 +77,20 @@ fun ReviewTextField(
 @Preview(name = "후기 입력 - 안내", showBackground = true, widthDp = 375)
 @Composable
 private fun ReviewTextFieldPlaceholderPreview() = RodiTheme {
-    ReviewTextField("", {}, "자유롭게 후기를 작성해주세요.", multiline = true)
+    ReviewTextField("", {}, "자유롭게 후기를 작성해주세요.", multiline = true, maxGraphemes = 150)
 }
 
 @Preview(name = "후기 입력 - 작성", showBackground = true, widthDp = 375)
 @Composable
 private fun ReviewTextFieldFilledPreview() = RodiTheme {
-    ReviewTextField("초보 운전자가 연습하기 좋았어요.", {}, "", multiline = true)
+    ReviewTextField("초보 운전자가 연습하기 좋았어요.", {}, "", multiline = true, maxGraphemes = 150)
 }
 
 @Preview(name = "후기 입력 - 최대 글자", showBackground = true, widthDp = 375)
 @Composable
 private fun ReviewTextFieldMaxPreview() = RodiTheme {
     Column {
-        ReviewTextField("후기 ".repeat(50), {}, "", multiline = true)
+        ReviewTextField("후기 ".repeat(50), {}, "", multiline = true, maxGraphemes = 150)
         Text(
             text = "150/150",
             modifier = Modifier.fillMaxWidth(),

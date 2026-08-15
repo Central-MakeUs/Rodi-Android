@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -118,8 +119,9 @@ import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.NotificationPermissionDialog
+import com.dororong.rodi.feature.home.review.PracticeContinueDialog
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -309,7 +311,24 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
+    var ownReviewActionToastMessage by remember { mutableStateOf<String?>(null) }
     var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
+    fun handleReportReviewClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 신고할 수 없습니다"
+        } else {
+            reviewToReport = review
+        }
+    }
+
+    fun handleBlockMemberClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 차단할 수 없습니다"
+        } else {
+            reviewToBlock = review
+        }
+    }
+
     fun updateCurrentViewport(viewport: MapViewport?) {
         currentViewport = viewport
     }
@@ -347,6 +366,11 @@ fun HomeScreen(
     ) { result ->
         permissionGranted = result.values.any { it }
         if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted))
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -566,6 +590,17 @@ fun HomeScreen(
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
+        }
+    }
+    CollectEffect(vm.permissionEffect) { effect ->
+        when (effect) {
+            HomePermissionEffect.RequestNotificationPermission -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
+                }
+            }
         }
     }
 
@@ -1208,8 +1243,8 @@ fun HomeScreen(
                                         onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
                                         onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
                                         onDeleteReviewClick = { reviewToDelete = it },
-                                        onReportReviewClick = { reviewToReport = it },
-                                        onBlockMemberClick = { reviewToBlock = it },
+                                        onReportReviewClick = ::handleReportReviewClick,
+                                        onBlockMemberClick = ::handleBlockMemberClick,
                                         scrollState = sheetScrollState,
                                     )
                                 }
@@ -1338,8 +1373,8 @@ fun HomeScreen(
             },
             onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
             onDeleteReviewClick = { reviewToDelete = it },
-            onReportReviewClick = { reviewToReport = it },
-            onBlockMemberClick = { reviewToBlock = it },
+            onReportReviewClick = ::handleReportReviewClick,
+            onBlockMemberClick = ::handleBlockMemberClick,
         )
     }
     reviewToReport?.let { review ->
@@ -1355,8 +1390,9 @@ fun HomeScreen(
             placeName = target.placeName,
             editingReviewId = target.review?.reviewId,
             onClose = { reviewToWrite = null },
-            onCompleted = {
+            onCompleted = { result ->
                 reviewToWrite = null
+                reviewVm.onReviewSubmitted(result)
                 reviewVm.refresh()
             },
             modifier = Modifier.fillMaxSize(),
@@ -1374,10 +1410,20 @@ fun HomeScreen(
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (state.isPracticeSkipReasonVisible && state.notVisitedPracticeId != null) {
-        PracticeSkipReasonScreen(
-            practiceId = requireNotNull(state.notVisitedPracticeId),
-            onClose = { vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed) },
+    state.activePracticeSession
+        ?.takeIf { state.isPracticeContinueDialogVisible }
+        ?.let { session ->
+            PracticeContinueDialog(
+                placeName = session.placeName,
+                onContinue = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+                onStop = { vm.onIntent(HomeIntent.OnPracticeStopMeasurement) },
+                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+            )
+        }
+    if (state.isNotificationPermissionRationaleVisible) {
+        NotificationPermissionDialog(
+            onAllow = { vm.onIntent(HomeIntent.OnNotificationPermissionAllow) },
+            onRouteOnly = { vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly) },
         )
     }
     state.levelUp?.let { level ->
@@ -1439,6 +1485,12 @@ fun HomeScreen(
                 snackbarHostState.show(RodiSnackbarData(message = reviewActionsState.deleteErrorMessage ?: "후기를 삭제할 수 없습니다."))
                 reviewActionsVm.consumeDeleteResult()
             }
+        }
+    }
+    LaunchedEffect(ownReviewActionToastMessage) {
+        ownReviewActionToastMessage?.let { message ->
+            snackbarHostState.show(RodiSnackbarData(message = message))
+            ownReviewActionToastMessage = null
         }
     }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.

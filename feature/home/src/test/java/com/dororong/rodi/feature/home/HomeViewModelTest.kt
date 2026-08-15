@@ -6,18 +6,17 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
-import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.practice.Practice
-import com.dororong.rodi.core.domain.model.practice.PracticeStatus
+import com.dororong.rodi.core.domain.model.practice.ActivePracticeSession
 import com.dororong.rodi.core.domain.model.practice.PracticeVisitResult
-import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
@@ -31,21 +30,25 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
-import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.entry.GetNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.entry.MarkNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ClearActivePracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.practice.RecordPracticeVisitUseCase
 import com.dororong.rodi.core.domain.usecase.practice.RegisterPracticeUseCase
+import com.dororong.rodi.core.domain.usecase.practice.SaveActivePracticeSessionUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -59,7 +62,11 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -670,154 +677,167 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `resuming with a planned practice shows its review prompt for a member`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+    fun `resuming before ten minutes shows continue dialog from local session`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:09:59Z"))
+        coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertEquals(practice, vm.state.value.practicePrompt)
-        coVerify(exactly = 1) { deps.getPracticeRecords(null, 20) }
-    }
-
-    @Test
-    fun `dismissed practice prompt does not come back on the next resume`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
-        val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
-        advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
-
-        vm.onIntent(HomeIntent.OnAppResumed)
-        advanceUntilIdle()
-
+        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
         assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.getActiveSession() }
     }
 
     @Test
-    fun `dismissed practice ids are persisted and skip reason state is view model backed`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+    fun `exactly ten minutes shows visited prompt`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertEquals(session.placeName, vm.state.value.practicePrompt?.placeName)
+    }
+
+    @Test
+    fun `continue hides early dialog but keeps session for the next resume`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
+        coVerify(exactly = 2) { deps.getActiveSession() }
+        coVerify(exactly = 0) { deps.clearActiveSession() }
+    }
+
+    @Test
+    fun `stop clears only local session and never calls practice APIs`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+        vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
         advanceUntilIdle()
 
+        assertNull(vm.state.value.activePracticeSession)
         assertNull(vm.state.value.practicePrompt)
-        assertTrue(vm.state.value.isPracticeSkipReasonVisible)
-        assertEquals(practice.practiceId, vm.state.value.notVisitedPracticeId)
-        coVerify(exactly = 1) { deps.dismissedPractice.dismiss(practice.practiceId) }
-
-        vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed)
-
-        assertFalse(vm.state.value.isPracticeSkipReasonVisible)
-        assertNull(vm.state.value.notVisitedPracticeId)
+        coVerify(exactly = 1) { deps.clearActiveSession() }
+        coVerify(exactly = 0) { deps.registerPractice(any()) }
+        coVerify(exactly = 0) { deps.recordPracticeVisit(any()) }
     }
 
     @Test
-    fun `latest planned practice lookup wins over an older response`() = runTest(dispatcher) {
+    fun `first navigation shows rationale before system permission and does not register`() = runTest(dispatcher) {
         val deps = Dependencies()
-        val older = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
-        val newer = CompletableDeferred<Result<CursorPage<PracticeRecordItem>>>()
-        val oldPractice = practiceRecord(status = PracticeStatus.PLANNED)
-        val newPractice = oldPractice.copy(practiceId = 20L)
-        var requestCount = 0
-        coEvery { deps.getPracticeRecords(null, 20) } coAnswers {
-            requestCount += 1
-            if (requestCount == 1) {
-                withContext(NonCancellable) { older.await() }
-            } else {
-                newer.await()
-            }
-        }
-        val vm = deps.viewModel()
-
-        vm.onIntent(HomeIntent.OnAppResumed)
-        runCurrent()
-        vm.onIntent(HomeIntent.OnAppResumed)
-        runCurrent()
-
-        newer.complete(Result.success(CursorPage(listOf(newPractice), false, null, 1)))
-        runCurrent()
-        older.complete(Result.success(CursorPage(listOf(oldPractice), false, null, 1)))
-        advanceUntilIdle()
-
-        assertEquals(newPractice, vm.state.value.practicePrompt)
-    }
-
-    @Test
-    fun `registering the same place again makes the prompt eligible once more`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
-        coEvery { deps.registerPractice(any()) } returns Result.success(
-            Practice(
-                practiceId = practice.practiceId,
-                status = PracticeStatus.PLANNED,
-                visitCount = 0,
-                requiredDistanceMeters = 0,
-            ),
-        )
+        every { deps.notificationRequested() } returns flowOf(false)
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
 
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        coVerify(exactly = 0) { deps.registerPractice(any()) }
+        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+    }
+
+    @Test
+    fun `route only decision launches navigation without creating local session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val notificationRequested = MutableStateFlow(false)
+        every { deps.notificationRequested() } returns notificationRequested
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly)
+            advanceUntilIdle()
+            assertEquals(HomeEffect.LaunchKakaoMap(navigationPlace()), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 0) { deps.markNotificationRequested() }
+
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        coVerify(exactly = 0) { deps.markNotificationRequested() }
+    }
+
+    @Test
+    fun `allowing notification permission starts local session after permission callback`() = runTest(dispatcher) {
+        val start = Instant.parse("2026-08-15T00:00:00Z")
+        val deps = Dependencies(Clock.fixed(start, ZoneOffset.UTC))
+        val notificationRequested = MutableStateFlow(false)
+        every { deps.notificationRequested() } returns notificationRequested
+        coEvery { deps.markNotificationRequested() } coAnswers {
+            notificationRequested.value = true
+        }
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnAppResumed)
+
+        vm.permissionEffect.test {
+            vm.onIntent(HomeIntent.OnNotificationPermissionAllow)
+            advanceUntilIdle()
+            assertEquals(HomePermissionEffect.RequestNotificationPermission, awaitItem())
+            coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertEquals(start, vm.state.value.activePracticeSession?.startedAt)
+        coVerify(exactly = 1) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 1) { deps.markNotificationRequested() }
+
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        assertEquals(practice, vm.state.value.practicePrompt)
+        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.state.value.pendingPracticeNavigation)
+        coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
 
     @Test
-    fun `guest resume does not request a practice prompt`() = runTest(dispatcher) {
-        val deps = Dependencies(loggedIn = false)
-        val vm = deps.viewModel()
-
-        vm.onIntent(HomeIntent.OnAppResumed)
-        advanceUntilIdle()
-
-        assertNull(vm.state.value.practicePrompt)
-        coVerify(exactly = 0) { deps.getPracticeRecords(any(), any()) }
-    }
-
-    @Test
-    fun `responding to a practice prompt records a visit`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
-        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns Result.success(visitResult())
-        val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
-        advanceUntilIdle()
-
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
-        advanceUntilIdle()
-
-        assertNull(vm.state.value.practicePrompt)
-        coVerify(exactly = 1) { deps.recordPracticeVisit(practice.practiceId) }
-    }
-
-    @Test
-    fun `level up visit updates state and opens the review effect`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
-        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns
-            Result.success(visitResult(levelUp = true, newLevel = OnboardingLevel.ROOKIE))
+    fun `successful visit registers then visits and opens review for a course`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(101L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.recordPracticeVisit(101L) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -825,50 +845,211 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.OnPracticePromptVisited)
             advanceUntilIdle()
-
-            assertEquals(OnboardingLevel.ROOKIE, vm.state.value.levelUp)
-            assertEquals(HomeEffect.OpenPracticeReview(practice.placeId, practice.placeName), awaitItem())
+            assertEquals(HomeEffect.OpenPracticeReview(session.placeId, session.placeName), awaitItem())
             cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        coVerifyOrder {
+            deps.registerPractice(session.placeId)
+            deps.saveActiveSession(any())
+            deps.recordPracticeVisit(101L)
+            deps.saveActiveSession(any())
+            deps.clearActiveSession()
         }
     }
 
     @Test
-    fun `failed and cancelled visits clear progress state`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        val practice = practiceRecord(status = PracticeStatus.PLANNED)
-        coEvery { deps.getPracticeRecords(null, 20) } returns Result.success(CursorPage(listOf(practice), false, null, 1))
+    fun `session persistence failure after register does not abandon the immediate visit`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(104L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
+        coEvery { deps.recordPracticeVisit(104L) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        coEvery { deps.recordPracticeVisit(practice.practiceId) } returns Result.failure(IllegalStateException("실패"))
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
-        advanceUntilIdle()
-        assertFalse(vm.state.value.isPracticeActionInProgress)
-
-        coEvery { deps.recordPracticeVisit(practice.practiceId) } throws CancellationException("취소")
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeActionInProgress)
+        coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
+        coVerify(exactly = 1) { deps.recordPracticeVisit(104L) }
+        assertNull(vm.state.value.activePracticeSession)
     }
 
     @Test
-    fun `launching an installed navigation app registers the course practice`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+    fun `registered id stays in memory when persistence and visit both fail`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(106L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
+        coEvery { deps.recordPracticeVisit(106L) } returnsMany listOf(
+            Result.failure(IllegalStateException("방문 기록 실패")),
+            Result.success(visitResult()),
+        )
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
 
-        coVerify(exactly = 1) { deps.registerPractice(19L) }
+        assertEquals(106L, vm.state.value.activePracticeSession?.practiceId)
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
+        coVerify(exactly = 2) { deps.recordPracticeVisit(106L) }
+        assertNull(vm.state.value.activePracticeSession)
     }
 
     @Test
-    fun `install picker does not start a practice session`() = runTest(dispatcher) {
+    fun `transient clear failure is retried after a successful visit`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        var clearCalls = 0
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(105L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.recordPracticeVisit(105L) } returns Result.success(visitResult())
+        coEvery { deps.clearActiveSession() } coAnswers {
+            clearCalls += 1
+            if (clearCalls == 1) throw IllegalStateException("일시적인 저장 실패")
+        }
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        assertEquals(2, clearCalls)
+        assertNull(vm.state.value.activePracticeSession)
+    }
+
+    @Test
+    fun `completed marker prevents duplicate visit when local clear keeps failing`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val originalSession = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns originalSession
+        coEvery { deps.registerPractice(originalSession.placeId) } returns Result.success(
+            Practice(107L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.saveActiveSession(any()) } returns Unit
+        coEvery { deps.recordPracticeVisit(107L) } returns Result.success(visitResult())
+        coEvery { deps.clearActiveSession() } throws IllegalStateException("정리 실패")
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        val completedSession = originalSession.copy(practiceId = 107L, isCompleted = true)
+        coVerify(exactly = 1) { deps.saveActiveSession(completedSession) }
+        assertNull(vm.state.value.activePracticeSession)
+        coEvery { deps.getActiveSession() } returns completedSession
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.recordPracticeVisit(107L) }
+    }
+
+    @Test
+    fun `failed visit keeps registered id and retries without registering again`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(101L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.recordPracticeVisit(101L) } returnsMany listOf(
+            Result.failure(IllegalStateException("실패")),
+            Result.success(visitResult()),
+        )
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+        assertEquals(101L, vm.state.value.activePracticeSession?.practiceId)
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
+        coVerify(exactly = 2) { deps.recordPracticeVisit(101L) }
+        assertNull(vm.state.value.activePracticeSession)
+    }
+
+    @Test
+    fun `parking visit clears session without opening review`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(
+            startedAt = Instant.parse("2026-08-15T00:00:00Z"),
+            placeType = PlaceType.PARKING,
+        )
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(102L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.recordPracticeVisit(102L) } returns Result.success(visitResult())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.activePracticeSession)
+    }
+
+    @Test
+    fun `duplicate visited taps while request is in flight perform one request`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        val pendingVisit = CompletableDeferred<Result<PracticeVisitResult>>()
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(103L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        coEvery { deps.recordPracticeVisit(103L) } coAnswers { pendingVisit.await() }
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        runCurrent()
+        coVerify(exactly = 1) { deps.recordPracticeVisit(103L) }
+        pendingVisit.complete(Result.success(visitResult()))
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `guest resume does not read an active session`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.activePracticeSession)
+        coVerify(exactly = 0) { deps.getActiveSession() }
+    }
+
+    @Test
+    fun `install picker does not start a local practice session`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
@@ -878,25 +1059,15 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false))
         advanceUntilIdle()
 
-        coVerify(exactly = 0) { deps.registerPractice(any()) }
+        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
     }
 
-    @Test
-    fun `launching navigation for a parking place also registers the practice`() = runTest(dispatcher) {
-        val deps = Dependencies()
-        coEvery { deps.getDetail(19L) } returns Result.success(parkingNavigationPlace())
-        val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
-        advanceUntilIdle()
-
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
-        advanceUntilIdle()
-
-        coVerify(exactly = 1) { deps.registerPractice(19L) }
-    }
 }
 
-private class Dependencies(loggedIn: Boolean = true) {
+private class Dependencies(
+    val clock: Clock = Clock.fixed(Instant.parse("2026-08-15T00:00:00Z"), ZoneOffset.UTC),
+    loggedIn: Boolean = true,
+) {
     val coordinates = mockk<GetPlaceCoordinatesUseCase>()
     val refreshCoordinates = mockk<RefreshPlaceCoordinatesUseCase>()
     val getPlaces = mockk<GetPlacesUseCase>()
@@ -911,25 +1082,34 @@ private class Dependencies(loggedIn: Boolean = true) {
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
     val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
     val registerPractice = mockk<RegisterPracticeUseCase>()
-    val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
     val recordPracticeVisit = mockk<RecordPracticeVisitUseCase>()
-    val dismissedPractice = mockk<PracticePromptDismissalRepository>()
+    val getActiveSession = mockk<GetActivePracticeSessionUseCase>()
+    val saveActiveSession = mockk<SaveActivePracticeSessionUseCase>()
+    val clearActiveSession = mockk<ClearActivePracticeSessionUseCase>()
+    val notificationRequested = mockk<GetNotificationPermissionRequestedUseCase>()
+    val markNotificationRequested = mockk<MarkNotificationPermissionRequestedUseCase>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
-        coEvery { refreshCoordinates() } returns Result.failure(IllegalStateException("offline"))
+        coEvery { refreshCoordinates() } returns Result.success(emptyList())
         coEvery { refreshPlaces(any(), any(), any()) } returns Result.failure(IllegalStateException("offline"))
         coEvery { authSession() } returns AuthSession(loggedIn, false)
         coEvery { getNaviAlways() } returns null
         coEvery { setNaviAlways(any()) } returns Unit
         coEvery { registerPractice(any()) } returns Result.success(
-            Practice(practiceId = 19L, status = PracticeStatus.PLANNED, visitCount = 0, requiredDistanceMeters = 0),
+            Practice(
+                practiceId = 19L,
+                status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED,
+                visitCount = 0,
+                requiredDistanceMeters = 0,
+            ),
         )
-        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
-        coEvery { recordPracticeVisit(any(), any()) } returns Result.success(visitResult())
-        coEvery { dismissedPractice.readDismissedPracticeIds() } returns emptySet()
-        coEvery { dismissedPractice.dismiss(any()) } returns Unit
-        coEvery { dismissedPractice.restore(any()) } returns Unit
+        coEvery { recordPracticeVisit(any()) } returns Result.success(visitResult())
+        coEvery { getActiveSession() } returns null
+        coEvery { saveActiveSession(any()) } returns Unit
+        coEvery { clearActiveSession() } returns Unit
+        every { notificationRequested() } returns flowOf(true)
+        coEvery { markNotificationRequested() } returns Unit
     }
 
     fun viewModel() = HomeViewModel(
@@ -947,9 +1127,13 @@ private class Dependencies(loggedIn: Boolean = true) {
         setNaviAlwaysUseCase = setNaviAlways,
         updateFilterTagsUseCase = updateFilterTags,
         registerPracticeUseCase = registerPractice,
-        getPracticeRecordsUseCase = getPracticeRecords,
         recordPracticeVisitUseCase = recordPracticeVisit,
-        practicePromptDismissalRepository = dismissedPractice,
+        getActivePracticeSessionUseCase = getActiveSession,
+        saveActivePracticeSessionUseCase = saveActiveSession,
+        clearActivePracticeSessionUseCase = clearActiveSession,
+        getNotificationPermissionRequestedUseCase = notificationRequested,
+        markNotificationPermissionRequestedUseCase = markNotificationRequested,
+        clock = clock,
     )
 }
 
@@ -959,17 +1143,19 @@ private fun query(offset: Double = 0.0) = PlaceViewportQuery(
     origin = GeoPoint(37.5 + offset, 126.5 + offset),
 )
 
-private fun practiceRecord(status: PracticeStatus) = PracticeRecordItem(
-    practiceId = 19L,
+private fun activeSession(
+    startedAt: Instant,
+    placeType: PlaceType = PlaceType.COURSE,
+    practiceId: Long? = null,
+) = ActivePracticeSession(
     placeId = 27L,
     placeName = "강남역 주변 코스",
-    practiceTypes = listOf(PracticeType.STRAIGHT),
-    visitCount = 0,
-    visitedAt = null,
-    isVerified = false,
-    hasReview = false,
-    status = status,
+    placeType = placeType,
+    startedAt = startedAt,
+    practiceId = practiceId,
 )
+
+private fun clockAt(value: String): Clock = Clock.fixed(Instant.parse(value), ZoneOffset.UTC)
 
 private fun visitResult(
     levelUp: Boolean = false,

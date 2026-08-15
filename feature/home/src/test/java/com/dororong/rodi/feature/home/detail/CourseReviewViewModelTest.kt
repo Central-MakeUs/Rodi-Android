@@ -3,13 +3,17 @@ package com.dororong.rodi.feature.home.detail
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.place.CursorPage
+import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
+import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewSummaryUseCase
 import io.mockk.coEvery
@@ -28,7 +32,9 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CourseReviewViewModelTest {
@@ -37,6 +43,8 @@ class CourseReviewViewModelTest {
     private val getReviewSummary = mockk<GetReviewSummaryUseCase>()
     private val getPlaceReviews = mockk<GetPlaceReviewsUseCase>()
     private val getAuthSession = mockk<GetAuthSessionUseCase>()
+    private val getMyPage = mockk<GetMyPageUseCase>()
+    private val clock = Clock.fixed(Instant.parse("2026-08-15T12:00:00Z"), ZoneOffset.UTC)
 
     @BeforeEach
     fun setUp() = Dispatchers.setMain(dispatcher)
@@ -44,7 +52,7 @@ class CourseReviewViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = CourseReviewViewModel(getReviewSummary, getPlaceReviews, getAuthSession)
+    private fun viewModel() = CourseReviewViewModel(getReviewSummary, getPlaceReviews, getAuthSession, getMyPage, clock)
 
     private fun loggedIn() {
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = false)
@@ -260,6 +268,138 @@ class CourseReviewViewModelTest {
         assertTrue(vm.state.value.reviews.none { it.memberId == 1L })
     }
 
+    @Test
+    fun `submitted review stays visible when immediate refresh returns stale data`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 5, recommend = 0))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 5, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+        coEvery { getMyPage() } returns Result.success(myPage())
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.onReviewSubmitted(submission())
+        advanceUntilIdle()
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
+        assertEquals(6L, vm.state.value.totalCount)
+        assertEquals(1L, vm.state.value.recommendCount)
+        assertEquals("초보초보", vm.state.value.latestReviews.single().nickname)
+        assertEquals("후기 내용", vm.state.value.latestReviews.single().content)
+        assertEquals(clock.instant(), vm.state.value.latestReviews.single().createdAt)
+    }
+
+    @Test
+    fun `repeated submission notification does not duplicate or double count`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, any()) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+        coEvery { getMyPage() } returns Result.success(myPage())
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        val result = submission()
+        vm.onReviewSubmitted(result)
+        vm.onReviewSubmitted(result)
+        advanceUntilIdle()
+
+        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
+        assertEquals(1L, vm.state.value.totalCount)
+        coVerify(exactly = 1) { getMyPage() }
+    }
+
+    @Test
+    fun `optimistic counts stay isolated when loading another place`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 5, recommend = 0))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 5, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+        coEvery { getReviewSummary(SECOND_PLACE_ID, any()) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
+        coEvery { getPlaceReviews(SECOND_PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+        coEvery { getMyPage() } returns Result.success(myPage())
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.onReviewSubmitted(submission())
+        advanceUntilIdle()
+
+        vm.load(SECOND_PLACE_ID)
+        advanceUntilIdle()
+        assertEquals(SECOND_PLACE_ID, vm.state.value.placeId)
+        assertEquals(0L, vm.state.value.totalCount)
+        assertEquals(0L, vm.state.value.recommendCount)
+
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        assertEquals(6L, vm.state.value.totalCount)
+        assertEquals(1L, vm.state.value.recommendCount)
+    }
+
+    @Test
+    fun `removeReview decrements visible total and recommend counts`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 2, recommend = 1))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 1))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.removeReview(1L)
+
+        assertTrue(vm.state.value.latestReviews.isEmpty())
+        assertEquals(1L, vm.state.value.totalCount)
+        assertEquals(0L, vm.state.value.recommendCount)
+    }
+
+    @Test
+    fun `network review replaces optimistic review without duplication`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(
+            Result.success(summary(level = null, total = 0, recommend = 0)),
+            Result.success(summary(level = null, total = 1, recommend = 1)),
+        )
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returnsMany listOf(
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0)),
+            Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 1)),
+        )
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returnsMany listOf(
+            Result.success(page(emptyList())),
+            Result.success(page(listOf(review(REVIEW_ID, content = "후기 내용")))),
+        )
+        coEvery { getMyPage() } returns Result.success(myPage())
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.onReviewSubmitted(submission())
+        advanceUntilIdle()
+        vm.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
+        assertEquals(1L, vm.state.value.totalCount)
+        assertEquals("초보초보", vm.state.value.latestReviews.single().nickname)
+    }
+
     private fun summary(
         level: OnboardingLevel?,
         total: Long,
@@ -296,9 +436,42 @@ class CourseReviewViewModelTest {
         isEditable = false,
         isHidden = false,
         createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+        isVerifiedVisit = true,
+    )
+
+    private fun review(id: Long, content: String) = review(id).copy(
+        nickname = "초보초보",
+        memberId = -1L,
+        isMine = true,
+        isEditable = true,
+        content = content,
+    )
+
+    private fun myPage() = MyPage(
+        nickname = "초보초보",
+        level = OnboardingLevel.SEED,
+        recommendationTags = emptyList(),
+        drivingGoal = null,
+        savedPlaceCount = 0,
+    )
+
+    private fun submission() = ReviewSubmissionResult(
+        placeId = PLACE_ID,
+        reviewId = REVIEW_ID,
+        draft = ReviewDraft(
+            isRecommended = true,
+            difficulty = ReviewDifficulty.VERY_EASY,
+            congestion = ReviewCongestion.QUIET,
+            practiceMethod = PracticeMethod.SOLO,
+            content = "후기 내용",
+            caution = null,
+        ),
+        isEditing = false,
     )
 
     private companion object {
         const val PLACE_ID = 42L
+        const val SECOND_PLACE_ID = 43L
+        const val REVIEW_ID = 31L
     }
 }

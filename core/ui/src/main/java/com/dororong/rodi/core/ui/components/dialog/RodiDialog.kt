@@ -19,6 +19,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -119,9 +120,16 @@ fun RodiAlertDialog(
     showCloseButton: Boolean = false,
     titleContent: (@Composable () -> Unit)? = null,
 ) {
+    val usesCompactActionSpacing = LocalDensity.current.fontScale > 1f
+    val horizontalContentPadding = if (usesCompactActionSpacing) 12.dp else 24.dp
+
     RodiDialog(
         onDismissRequest = onDismissRequest,
         modifier = modifier.width(280.dp),
+        contentPadding = PaddingValues(
+            horizontal = horizontalContentPadding,
+            vertical = 24.dp,
+        ),
         dismissible = dismissible,
         showCloseButton = showCloseButton,
     ) {
@@ -165,7 +173,9 @@ fun RodiAlertDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (usesCompactActionSpacing) 4.dp else 8.dp,
+                ),
             ) {
                 RodiButton(
                     text = dismissText,
@@ -173,12 +183,20 @@ fun RodiAlertDialog(
                     modifier = Modifier.weight(1f),
                     variant = RodiButtonVariant.Secondary,
                     enabled = enabled,
+                    contentPadding = PaddingValues(
+                        horizontal = if (usesCompactActionSpacing) 0.dp else 4.dp,
+                        vertical = 8.dp,
+                    ),
                 )
                 RodiButton(
                     text = confirmText,
                     onClick = onConfirm,
                     modifier = Modifier.weight(1f),
                     enabled = enabled,
+                    contentPadding = PaddingValues(
+                        horizontal = if (usesCompactActionSpacing) 0.dp else 4.dp,
+                        vertical = 8.dp,
+                    ),
                 )
             }
         }
@@ -311,6 +329,21 @@ private fun RodiAlertDialogClosePreview() {
             onDismissRequest = {},
             title = "닫을 수 있는 팝업",
             showCloseButton = true,
+        )
+    }
+}
+
+@Preview(name = "Dialog - choice narrow large text", showBackground = true, widthDp = 280, fontScale = 1.5f)
+@Composable
+private fun RodiAlertDialogChoiceLargeTextPreview() {
+    RodiTheme {
+        RodiAlertDialog(
+            confirmText = "다녀왔어요",
+            onConfirm = {},
+            onDismissRequest = {},
+            dismissText = "안 했어요",
+            onDismiss = {},
+            title = "연습은 잘 다녀오셨나요?",
         )
     }
 }

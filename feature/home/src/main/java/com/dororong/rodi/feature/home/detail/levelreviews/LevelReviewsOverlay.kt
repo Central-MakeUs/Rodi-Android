@@ -291,4 +291,5 @@ private val previewOverlayReview = Review(
     isEditable = false,
     isHidden = false,
     createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    isVerifiedVisit = true,
 )
