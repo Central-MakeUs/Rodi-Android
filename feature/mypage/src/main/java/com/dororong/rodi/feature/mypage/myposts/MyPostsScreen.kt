@@ -244,24 +244,28 @@ private fun MyPostRow(
             }
         }
         Text(MyPostDateFormatter.format(post.review.createdAt), style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 4.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .height(37.dp)
-                .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
-                .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                text = post.review.content.orEmpty().ifBlank { "작성한 후기 내용이 없어요." },
-                style = RodiTheme.typography.caption1Regular,
-                color = RodiTheme.colors.gray700,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        post.review.content
+            ?.takeIf { it.isNotBlank() }
+            ?.let { content ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(37.dp)
+                        .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
+                        .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Text(
+                        text = content,
+                        style = RodiTheme.typography.caption1Regular,
+                        color = RodiTheme.colors.gray700,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         HorizontalDivider(modifier = Modifier.padding(top = 14.dp), color = RodiTheme.colors.gray100)
     }
 }
