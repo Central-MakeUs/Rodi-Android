@@ -103,6 +103,7 @@ dependencies {
     implementation(project(":feature:entry"))
     implementation(project(":feature:home"))
     implementation(project(":feature:mypage"))
+    implementation(project(":feature:course-registration"))
     implementation(project(":feature:settings"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
