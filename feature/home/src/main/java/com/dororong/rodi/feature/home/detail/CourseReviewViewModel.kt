@@ -223,6 +223,9 @@ class CourseReviewViewModel @Inject constructor(
                 },
             )
         }
+        if (removedReview?.isRecommended == null && placeId != null) {
+            refreshRecommendCount(placeId)
+        }
     }
 
     fun onReviewSubmitted(result: ReviewSubmissionResult) {
@@ -257,7 +260,6 @@ class CourseReviewViewModel @Inject constructor(
                         key,
                         optimisticReviews.getValue(key).copy(
                             nickname = myPage.nickname,
-                            memberLevel = myPage.level,
                         ),
                     )
                 }
@@ -269,6 +271,17 @@ class CourseReviewViewModel @Inject constructor(
         val placeId = _state.value.placeId ?: return
         _state.update { it.copy(placeId = null) }
         load(placeId)
+    }
+
+    private fun refreshRecommendCount(placeId: Long) {
+        summaryJob?.cancel()
+        summaryJob = viewModelScope.launch {
+            getReviewSummary(placeId, ReviewLevelFilter.All).onSuccess { summary ->
+                if (_state.value.placeId == placeId) {
+                    _state.update { it.copy(recommendCount = summary.recommendCount) }
+                }
+            }
+        }
     }
 
     private fun cancelReviewPageLoads() {

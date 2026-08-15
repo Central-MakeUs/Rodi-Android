@@ -830,6 +830,32 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `session save failure routes without starting a local measurement`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+            advanceUntilIdle()
+
+            assertEquals(
+                HomeEffect.ShowSnackbar("연습 측정을 시작하지 못해 경로만 안내합니다."),
+                awaitItem(),
+            )
+            assertEquals(HomeEffect.LaunchKakaoMap(navigationPlace()), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.state.value.pendingPracticeNavigation)
+        coVerify(exactly = 3) { deps.saveActiveSession(any()) }
+    }
+
+    @Test
     fun `successful visit registers then visits and opens review for a course`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))

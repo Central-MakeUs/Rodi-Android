@@ -120,16 +120,24 @@ class AuthRepositoryImpl @Inject constructor(
         refreshToken: String,
         invalidatePracticeRecordCache: Boolean = true,
     ) {
-        if (invalidatePracticeRecordCache) {
-            practiceSessionRepository.clear()
-        }
         if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
         if (invalidatePracticeRecordCache) {
+            clearPracticeSessionSafely()
             practiceRecordPresenceCache.clear()
         }
         sessionExpired.value = false
+    }
+
+    private suspend fun clearPracticeSessionSafely() {
+        try {
+            practiceSessionRepository.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            // A stale local session must not make a successful authentication fail.
+        }
     }
 
     private suspend fun clearTokens() {

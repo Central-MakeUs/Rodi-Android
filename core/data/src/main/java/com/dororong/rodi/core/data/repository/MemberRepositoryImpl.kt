@@ -49,12 +49,15 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoad {
+    override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoadOrNull {
         authenticatedRequest { authorization ->
             practiceRecordPresenceCache.clear()
             var cursor: String? = null
             var hasVisitedRecord = false
-            while (true) {
+            var reachedEnd = false
+            var pageCount = 0
+            while (pageCount < MAX_PRACTICE_PRESENCE_PAGES) {
+                pageCount++
                 val page = memberApi.getPracticeRecords(
                     authorization = authorization,
                     size = PRACTICE_PRESENCE_PAGE_SIZE,
@@ -68,13 +71,14 @@ class MemberRepositoryImpl @Inject constructor(
 
                 val nextCursor = page.nextCursor
                 if (!page.hasNext || nextCursor == null || nextCursor == cursor) {
+                    reachedEnd = true
                     break
                 }
                 cursor = nextCursor
             }
-            hasVisitedRecord
+            if (hasVisitedRecord || reachedEnd) hasVisitedRecord else null
         }
-    }
+    } ?: false
 
     private fun updatePracticeRecordPresence(
         page: CursorPage<PracticeRecordItem>,
@@ -172,3 +176,4 @@ class MemberRepositoryImpl @Inject constructor(
 }
 
 private const val PRACTICE_PRESENCE_PAGE_SIZE = 20
+private const val MAX_PRACTICE_PRESENCE_PAGES = 5

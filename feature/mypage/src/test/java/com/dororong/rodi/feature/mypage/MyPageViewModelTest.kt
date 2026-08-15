@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -258,5 +259,22 @@ class MyPageViewModelTest {
         )
         assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
         coVerify(exactly = 1) { hardDeleteAccount() }
+    }
+
+    @Test
+    fun `hard delete clears submitting state when cancelled`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
+        coEvery { hardDeleteAccount() } coAnswers { throw CancellationException("취소") }
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, hardDeleteAccount)
+
+        viewModel.hardDelete()
+        try {
+            advanceUntilIdle()
+        } catch (_: CancellationException) {
+        }
+
+        assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
     }
 }

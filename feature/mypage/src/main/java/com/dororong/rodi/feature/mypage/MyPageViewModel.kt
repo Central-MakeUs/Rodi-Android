@@ -91,17 +91,17 @@ class MyPageViewModel @Inject constructor(
         if (_uiState.value.isHardDeleteSubmitting) return
         _uiState.update { it.copy(isHardDeleteSubmitting = true) }
         viewModelScope.launch {
-            hardDeleteAccount()
-                .onSuccess {
-                    _uiState.update { it.copy(isHardDeleteSubmitting = false) }
-                    _effect.send(MyPageEffect.HardDeleteCompleted)
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isHardDeleteSubmitting = false) }
-                    _effect.send(
-                        MyPageEffect.ShowError(error.userMessage("계정을 삭제하지 못했어요.")),
-                    )
-                }
+            try {
+                hardDeleteAccount()
+                    .onSuccess { _effect.send(MyPageEffect.HardDeleteCompleted) }
+                    .onFailure { error ->
+                        _effect.send(
+                            MyPageEffect.ShowError(error.userMessage("계정을 삭제하지 못했어요.")),
+                        )
+                    }
+            } finally {
+                _uiState.update { it.copy(isHardDeleteSubmitting = false) }
+            }
         }
     }
 }

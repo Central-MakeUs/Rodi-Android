@@ -371,6 +371,46 @@ class CourseReviewViewModelTest {
     }
 
     @Test
+    fun `removeReview refreshes the summary when the network review has no recommendation value`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(
+            Result.success(summary(level = null, total = 1, recommend = 1)),
+            Result.success(summary(level = null, total = 0, recommend = 0)),
+        )
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 1))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L).copy(isRecommended = null))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.removeReview(1L)
+        advanceUntilIdle()
+
+        assertEquals(0L, vm.state.value.recommendCount)
+        coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
+    }
+
+    @Test
+    fun `optimistic review keeps the selected level when profile level differs`() = runTest(dispatcher) {
+        loggedIn()
+        coEvery { getReviewSummary(PLACE_ID, any()) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(emptyList()))
+        coEvery { getMyPage() } returns Result.success(myPage().copy(level = OnboardingLevel.ROOKIE))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+        vm.onReviewSubmitted(submission())
+        advanceUntilIdle()
+
+        assertEquals(OnboardingLevel.SEED, vm.state.value.latestReviews.single().memberLevel)
+    }
+
+    @Test
     fun `network review replaces optimistic review without duplication`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(

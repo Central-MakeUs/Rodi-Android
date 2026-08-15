@@ -3,8 +3,9 @@ package com.dororong.rodi.feature.mypage.myposts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.member.MyReview
+import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
-import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.member.HasPracticeRecordsUseCase
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -19,7 +20,7 @@ import kotlinx.coroutines.Job
 class MyPostsViewModel @Inject constructor(
     private val deleteReview: DeleteReviewUseCase,
     private val getMyReviews: GetMyReviewsUseCase,
-    private val getPracticeRecords: GetPracticeRecordsUseCase,
+    private val hasPracticeRecordsUseCase: HasPracticeRecordsUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MyPostsUiState())
     val uiState: StateFlow<MyPostsUiState> = _uiState.asStateFlow()
@@ -32,21 +33,34 @@ class MyPostsViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             _uiState.value = MyPostsUiState(isLoading = true)
             val reviewResult = getMyReviews(cursor = null, size = PAGE_SIZE)
-            val page = reviewResult.getOrNull()
-            if (page != null) {
-                _uiState.value = MyPostsUiState(
-                    posts = page.items.map(MyReview::toMyPost),
-                    hasPracticeRecords = page.items.isEmpty() && loadPracticeRecordPresence(),
-                    isLoading = false,
-                    nextCursor = page.nextCursor,
-                    hasNext = page.hasNext,
-                )
-            } else {
-                _uiState.value = MyPostsUiState(
-                    isLoading = false,
-                    errorMessage = reviewResult.exceptionOrNull()?.message ?: "후기를 불러오지 못했어요.",
-                )
+            var cursor: String? = null
+            var page: CursorPage<MyReview>? = null
+            val posts = mutableListOf<MyPost>()
+            while (true) {
+                val result = if (cursor == null) reviewResult else getMyReviews(cursor, PAGE_SIZE)
+                val loadedPage = result.getOrNull()
+                if (loadedPage == null) {
+                    _uiState.value = MyPostsUiState(
+                        isLoading = false,
+                        errorMessage = result.exceptionOrNull()?.message ?: "후기를 불러오지 못했어요.",
+                    )
+                    return@launch
+                }
+                page = loadedPage
+                posts += loadedPage.items.map(MyReview::toMyPost)
+                val nextCursor = loadedPage.nextCursor
+                val hasNext = loadedPage.hasNext && nextCursor != null && nextCursor != cursor
+                if (posts.isNotEmpty() || !hasNext) break
+                cursor = nextCursor
             }
+            val loadedPage = requireNotNull(page)
+            _uiState.value = MyPostsUiState(
+                posts = posts.distinctBy { it.review.reviewId },
+                hasPracticeRecords = posts.isEmpty() && loadPracticeRecordPresence(),
+                isLoading = false,
+                nextCursor = loadedPage.nextCursor,
+                hasNext = loadedPage.hasNext && loadedPage.nextCursor != null && loadedPage.nextCursor != cursor,
+            )
         }
     }
 
@@ -81,10 +95,15 @@ class MyPostsViewModel @Inject constructor(
             val deleteResult = deleteReview(post.review.reviewId)
             if (deleteResult.isSuccess) {
                 val remainingPosts = _uiState.value.posts.filterNot { it.review.reviewId == post.review.reviewId }
+                val shouldLoadNextPage = remainingPosts.isEmpty() && _uiState.value.hasNext
                 _uiState.update { state -> state.copy(posts = remainingPosts) }
                 if (remainingPosts.isEmpty()) {
-                    val hasPracticeRecords = loadPracticeRecordPresence()
-                    _uiState.update { state -> state.copy(hasPracticeRecords = hasPracticeRecords) }
+                    if (shouldLoadNextPage) {
+                        loadInitial()
+                    } else {
+                        val hasPracticeRecords = loadPracticeRecordPresence()
+                        _uiState.update { state -> state.copy(hasPracticeRecords = hasPracticeRecords) }
+                    }
                 }
             } else {
                 _uiState.update {
@@ -99,7 +118,7 @@ class MyPostsViewModel @Inject constructor(
     }
 
     private suspend fun loadPracticeRecordPresence(): Boolean =
-        getPracticeRecords.hasAny().getOrNull() == true
+        hasPracticeRecordsUseCase().getOrNull() == true
 }
 
 private fun MyReview.toMyPost() = MyPost(

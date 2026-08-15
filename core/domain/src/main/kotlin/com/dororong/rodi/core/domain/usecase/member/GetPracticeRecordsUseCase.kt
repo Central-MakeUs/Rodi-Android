@@ -16,16 +16,18 @@ class GetPracticeRecordsUseCase @Inject constructor(private val repository: Memb
             var requestCursor = cursor
             var requestSize = size
             var page: CursorPage<PracticeRecordItem>
+            var requestedPageCount = 0
 
             do {
                 page = repository.getPracticeRecords(requestCursor, requestSize)
+                requestedPageCount++
                 visibleItems += page.items.filter { it.status == PracticeStatus.VISITED }
 
                 val nextCursor = page.nextCursor
                 val canRequestNextPage = page.hasNext &&
                     nextCursor != null &&
                     nextCursor != requestCursor
-                if (visibleItems.size >= size || !canRequestNextPage) break
+                if (visibleItems.size >= size || !canRequestNextPage || requestedPageCount >= MAX_PAGE_REQUESTS) break
                 requestCursor = nextCursor
                 requestSize = (size - visibleItems.size).coerceAtLeast(1)
             } while (true)
@@ -40,7 +42,7 @@ class GetPracticeRecordsUseCase @Inject constructor(private val repository: Memb
             )
     }
 
-    suspend fun hasAny() = runSuspendCatching {
-        repository.hasPracticeRecords()
+    private companion object {
+        const val MAX_PAGE_REQUESTS = 5
     }
 }

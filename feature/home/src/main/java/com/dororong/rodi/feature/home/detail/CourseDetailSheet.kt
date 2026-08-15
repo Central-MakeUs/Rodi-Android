@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -133,6 +134,7 @@ fun CourseDetailSheet(
     }
 
     val isExpanded = sheetState.currentValue == CourseSheetAnchor.Expanded
+    val showBottomBar = anchorsReady && sheetState.currentValue != CourseSheetAnchor.Dismissed
     BackHandler(enabled = isExpanded) {
         scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) }
     }
@@ -199,6 +201,7 @@ fun CourseDetailSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .offset { IntOffset(0, -sheetOffsetPx()) }
+                            .graphicsLayer { alpha = if (showBottomBar) 1f else 0f }
                             .onSizeChanged { bottomBarHeightPx = it.height },
                         color = RodiTheme.colors.white,
                         shadowElevation = 4.dp,

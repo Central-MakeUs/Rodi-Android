@@ -80,6 +80,19 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `login succeeds when stale practice session cleanup fails`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
+        coEvery { practiceSessionRepository.clear() } throws IOException("local storage unavailable")
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        assertTrue(repository.loginWithKakao("kakao-token") is LoginResult.Success)
+        coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao") }
+    }
+
+    @Test
     fun `reissueToken rotates current refresh token`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
@@ -138,6 +151,7 @@ class AuthRepositoryImplTest {
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -160,6 +174,7 @@ class AuthRepositoryImplTest {
 
         expiration.await()
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -178,6 +193,7 @@ class AuthRepositoryImplTest {
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         assertTrue(repository.observeSessionExpiration().first())
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -195,6 +211,7 @@ class AuthRepositoryImplTest {
 
         assertTrue(repository.observeSessionExpiration().first())
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -233,6 +250,7 @@ class AuthRepositoryImplTest {
 
         assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -273,7 +291,7 @@ class AuthRepositoryImplTest {
 
         repository.logout()
 
-        coVerify { practiceSessionRepository.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
         coVerify { tokenStore.clear() }
     }
 

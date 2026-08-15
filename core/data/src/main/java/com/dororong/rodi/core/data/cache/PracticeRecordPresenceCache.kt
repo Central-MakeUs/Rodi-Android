@@ -22,13 +22,29 @@ class PracticeRecordPresenceCache @Inject constructor() {
         cachedValue = null
     }
 
-    suspend fun getOrLoad(loader: suspend () -> Boolean): Boolean {
+    /**
+     * Returns the cached value or loads and caches one value.
+     *
+     * The loader runs while this cache is locked and must not call [withRefresh]
+     * or another loading method on this cache.
+     */
+    suspend fun getOrLoad(loader: suspend () -> Boolean): Boolean =
+        getOrLoadOrNull { loader() } ?: false
+
+    /**
+     * Like [getOrLoad], but a null result means that the loader could not prove
+     * either state and must not be cached.
+     */
+    suspend fun getOrLoadOrNull(loader: suspend () -> Boolean?): Boolean? {
         cachedValue?.let { return it }
         return mutex.withLock {
             cachedValue?.let { return@withLock it }
-            loader().also(::set)
+            val value = loader()
+            if (value != null) set(value)
+            value
         }
     }
 
+    /** The block must not call another method that acquires this cache's mutex. */
     suspend fun <T> withRefresh(block: suspend () -> T): T = mutex.withLock { block() }
 }

@@ -23,13 +23,17 @@ fun rememberGraphemeTextFieldState(
     onTextChange: (String) -> Unit,
 ): GraphemeTextFieldState {
     var value by remember {
-        mutableStateOf(TextFieldValue(text, selection = TextRange(text.length)))
+        mutableStateOf(normalizeGraphemeTextFieldValue(text, maxGraphemes))
     }
     val latestOnTextChange by rememberUpdatedState(onTextChange)
 
-    LaunchedEffect(text) {
-        if (value.text != text) {
-            value = TextFieldValue(text, selection = TextRange(text.length))
+    LaunchedEffect(text, maxGraphemes) {
+        val normalizedValue = normalizeGraphemeTextFieldValue(text, maxGraphemes)
+        if (value != normalizedValue) {
+            value = normalizedValue
+        }
+        if (normalizedValue.text != text) {
+            latestOnTextChange(normalizedValue.text)
         }
     }
 
@@ -45,6 +49,9 @@ fun rememberGraphemeTextFieldState(
         },
     )
 }
+
+internal fun normalizeGraphemeTextFieldValue(text: String, maxGraphemes: Int): TextFieldValue =
+    TextFieldValue(text, selection = TextRange(text.length)).limitGraphemes(maxGraphemes)
 
 internal fun TextFieldValue.limitGraphemes(maxGraphemes: Int): TextFieldValue {
     val limitedText = text.takeGraphemes(maxGraphemes)

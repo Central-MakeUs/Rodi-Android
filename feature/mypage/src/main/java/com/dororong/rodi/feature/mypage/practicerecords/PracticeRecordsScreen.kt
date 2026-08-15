@@ -82,15 +82,16 @@ private fun PracticeRecordsContent(
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             SubPageTopBar(title = "연습기록", onBack = onBack)
             val listState = rememberLazyListState()
-            LaunchedEffect(listState, visitedRecords.size, state.hasNextPage) {
+            LaunchedEffect(listState, state.records.size, state.hasNextPage) {
                 snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
-                    .map { index -> index != null && index >= visitedRecords.lastIndex - 2 }
+                    .map { index -> index != null && index >= state.records.lastIndex - 2 }
                     .distinctUntilChanged()
                     .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
             }
             when {
                 state.isLoading -> PracticeRecordsLoading()
                 state.initialError != null -> PracticeRecordsError(state.initialError, onRetry)
+                visitedRecords.isEmpty() && state.hasNextPage -> PracticeRecordsLoading()
                 visitedRecords.isEmpty() -> PracticeRecordsEmpty()
                 else -> LazyColumn(
                     state = listState,

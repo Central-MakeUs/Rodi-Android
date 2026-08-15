@@ -788,8 +788,20 @@ class HomeViewModel @Inject constructor(
             saveActivePracticeSessionWithRetry(session)
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Throwable) {
-            _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+        } catch (_: Throwable) {
+            _state.update {
+                it.copy(
+                    activePracticeSession = null,
+                    practicePrompt = null,
+                    isPracticeContinueDialogVisible = false,
+                    isNotificationPermissionRationaleVisible = false,
+                    pendingPracticeNavigation = null,
+                    isPracticeLaunchInProgress = false,
+                )
+            }
+            _effect.send(HomeEffect.ShowSnackbar("연습 측정을 시작하지 못해 경로만 안내합니다."))
+            _effect.send(pending.navigationEffect())
+            return
         }
         _state.update {
             it.copy(

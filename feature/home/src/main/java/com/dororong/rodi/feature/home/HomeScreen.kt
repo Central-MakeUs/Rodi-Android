@@ -167,6 +167,7 @@ import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
 import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
+import com.dororong.rodi.feature.home.map.RouteLineColors
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
@@ -814,6 +815,7 @@ fun HomeScreen(
         selectedDetailPlaceId,
         state.selectedRoute,
         mapContentBottomPaddingPx,
+        colors,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState != HomeSurfaceState.Detail || mapContentBottomPaddingPx <= 0) {
@@ -847,6 +849,10 @@ fun HomeScreen(
                         place = place,
                         routePoints = routePoints,
                         snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                        routeLineColors = RouteLineColors(
+                            lineColor = colors.primary600.toArgb(),
+                            strokeColor = colors.primary800.toArgb(),
+                        ),
                     )
                     if (mapContentBottomPaddingPx > 0) {
                         map.fitCourseToScreen(routePoints, mapContentTopPaddingPx, mapContentBottomPaddingPx)

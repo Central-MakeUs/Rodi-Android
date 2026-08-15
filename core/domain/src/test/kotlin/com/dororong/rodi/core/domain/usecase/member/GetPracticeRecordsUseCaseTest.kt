@@ -41,11 +41,21 @@ class GetPracticeRecordsUseCaseTest {
     }
 
     @Test
-    fun `presence follows the repository visited-only contract`() = kotlinx.coroutines.test.runTest {
-        coEvery { repository.hasPracticeRecords() } returns true
+    fun `page traversal is bounded when no visible record is found`() = kotlinx.coroutines.test.runTest {
+        coEvery { repository.getPracticeRecords(null, 1) } returns pageFor(null, "cursor-1")
+        coEvery { repository.getPracticeRecords("cursor-1", 1) } returns pageFor("cursor-1", "cursor-2")
+        coEvery { repository.getPracticeRecords("cursor-2", 1) } returns pageFor("cursor-2", "cursor-3")
+        coEvery { repository.getPracticeRecords("cursor-3", 1) } returns pageFor("cursor-3", "cursor-4")
+        coEvery { repository.getPracticeRecords("cursor-4", 1) } returns pageFor("cursor-4", "cursor-5")
 
-        assertTrue(useCase.hasAny().getOrThrow())
-        coVerify(exactly = 1) { repository.hasPracticeRecords() }
+        val result = useCase(cursor = null, size = 1).getOrThrow()
+
+        assertEquals(emptyList<PracticeRecordItem>(), result.items)
+        assertTrue(result.hasNext)
+        assertEquals("cursor-5", result.nextCursor)
+        coVerify(exactly = 1) { repository.getPracticeRecords(null, 1) }
+        coVerify(exactly = 1) { repository.getPracticeRecords("cursor-4", 1) }
+        coVerify(exactly = 0) { repository.getPracticeRecords("cursor-5", 1) }
     }
 
     private fun record(id: Long, status: PracticeStatus) = PracticeRecordItem(
@@ -58,5 +68,12 @@ class GetPracticeRecordsUseCaseTest {
         isVerified = status == PracticeStatus.VISITED,
         hasReview = false,
         status = status,
+    )
+
+    private fun pageFor(cursor: String?, nextCursor: String) = CursorPage(
+        items = listOf(record((cursor?.removePrefix("cursor-")?.toLongOrNull() ?: 0L) + 1, PracticeStatus.PLANNED)),
+        hasNext = true,
+        nextCursor = nextCursor,
+        totalCount = 10,
     )
 }

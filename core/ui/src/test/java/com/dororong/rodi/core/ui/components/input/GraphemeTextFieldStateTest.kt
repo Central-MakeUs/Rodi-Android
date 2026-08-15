@@ -9,6 +9,22 @@ import org.junit.jupiter.api.Test
 class GraphemeTextFieldStateTest {
 
     @Test
+    fun `initial value is normalized before the text field is displayed`() {
+        val normalized = normalizeGraphemeTextFieldValue("A😁B", maxGraphemes = 2)
+
+        assertEquals("A😁", normalized.text)
+        assertEquals(TextRange(3), normalized.selection)
+    }
+
+    @Test
+    fun `changing max graphemes normalizes the externally supplied value`() {
+        val normalized = normalizeGraphemeTextFieldValue("안녕😁", maxGraphemes = 2)
+
+        assertEquals("안녕", normalized.text)
+        assertEquals(TextRange(2), normalized.selection)
+    }
+
+    @Test
     fun `surrogate pair is limited as one grapheme`() {
         val normalized = TextFieldValue("A😁B", selection = TextRange(4)).limitGraphemes(2)
 

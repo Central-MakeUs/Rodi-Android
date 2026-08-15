@@ -169,35 +169,52 @@ fun RodiAlertDialog(
                 )
             }
         } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(
-                    if (usesCompactActionSpacing) 4.dp else 8.dp,
-                ),
-            ) {
-                RodiButton(
-                    text = dismissText,
-                    onClick = onDismiss ?: onDismissRequest,
-                    modifier = Modifier.weight(1f),
-                    variant = RodiButtonVariant.Secondary,
-                    enabled = enabled,
-                    contentPadding = PaddingValues(
-                        horizontal = if (usesCompactActionSpacing) 0.dp else 4.dp,
-                        vertical = 8.dp,
-                    ),
-                )
-                RodiButton(
-                    text = confirmText,
-                    onClick = onConfirm,
-                    modifier = Modifier.weight(1f),
-                    enabled = enabled,
-                    contentPadding = PaddingValues(
-                        horizontal = if (usesCompactActionSpacing) 0.dp else 4.dp,
-                        vertical = 8.dp,
-                    ),
-                )
+            if (usesCompactActionSpacing) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    RodiButton(
+                        text = dismissText,
+                        onClick = onDismiss ?: onDismissRequest,
+                        modifier = Modifier.fillMaxWidth(),
+                        variant = RodiButtonVariant.Secondary,
+                        enabled = enabled,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+                    )
+                    RodiButton(
+                        text = confirmText,
+                        onClick = onConfirm,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = enabled,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 8.dp),
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    RodiButton(
+                        text = dismissText,
+                        onClick = onDismiss ?: onDismissRequest,
+                        modifier = Modifier.weight(1f),
+                        variant = RodiButtonVariant.Secondary,
+                        enabled = enabled,
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    )
+                    RodiButton(
+                        text = confirmText,
+                        onClick = onConfirm,
+                        modifier = Modifier.weight(1f),
+                        enabled = enabled,
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+                    )
+                }
             }
         }
     }

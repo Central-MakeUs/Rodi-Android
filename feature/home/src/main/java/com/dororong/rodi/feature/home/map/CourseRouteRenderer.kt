@@ -10,7 +10,6 @@ import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.toColorInt
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceWaypoint
@@ -32,8 +31,6 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
-private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
 private const val ROUTE_LINE_WIDTH = 10f
 private const val FIT_PADDING_PX = 140
 private const val ENDPOINT_OVERLAP_THRESHOLD_METERS = 2.0
@@ -41,6 +38,11 @@ private const val OVERLAPPED_START_ANCHOR_X = 0.25f
 private const val OVERLAPPED_DESTINATION_ANCHOR_X = 0.75f
 private const val PIN_ANCHOR_Y = 1f
 private const val EARTH_RADIUS_METERS = 6_371_000.0
+
+data class RouteLineColors(
+    @get:ColorInt val lineColor: Int,
+    @get:ColorInt val strokeColor: Int,
+)
 
 /** 지도에서 코스 관련 레이어(마커·경로선)를 모두 지운다. */
 fun KakaoMap.clearCourse() {
@@ -68,6 +70,7 @@ fun KakaoMap.renderPlaceCourse(
     place: PlaceDetail,
     routePoints: List<LatLng>,
     snappedPoints: List<LatLng> = emptyList(),
+    routeLineColors: RouteLineColors,
 ) {
     clearCourse()
     val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
@@ -82,7 +85,7 @@ fun KakaoMap.renderPlaceCourse(
             anchorX = endpointAnchorX(index, waypoints.lastIndex, endpointsOverlap),
         )
     }
-    if (routePoints.size >= 2) drawRouteLine(routePoints)
+    if (routePoints.size >= 2) drawRouteLine(routePoints, routeLineColors)
 }
 
 private fun List<PlaceWaypoint>.haveOverlappingEndpoints(): Boolean {
@@ -170,14 +173,14 @@ private fun Context.vectorToBitmap(@DrawableRes iconRes: Int, sizeDp: Int): Bitm
     return bm
 }
 
-private fun KakaoMap.drawRouteLine(points: List<LatLng>) {
+private fun KakaoMap.drawRouteLine(points: List<LatLng>, colors: RouteLineColors) {
     if (points.size < 2) return
     val manager = routeLineManager ?: return
     val style = RouteLineStyle.from(
         ROUTE_LINE_WIDTH,
-        ROUTE_LINE_COLOR.toColorInt(),
+        colors.lineColor,
         2f,
-        ROUTE_LINE_STROKE_COLOR.toColorInt(),
+        colors.strokeColor,
     )
     val stylesSet = RouteLineStylesSet.from(RouteLineStyles.from(style))
     val segment = RouteLineSegment.from(points).setStyles(stylesSet.getStyles(0))

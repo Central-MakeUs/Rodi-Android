@@ -229,6 +229,20 @@ class MemberRepositoryImplTest {
     }
 
     @Test
+    fun `hard delete propagates cancellation`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.hardDelete("Bearer access") } throws CancellationException("cancelled")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        assertThrowsSuspend<CancellationException> { repository.hardDelete() }
+
+        coVerify(exactly = 0) { practiceSessionRepository.clear() }
+        coVerify(exactly = 0) { tokenStore.clear() }
+    }
+
+    @Test
     fun `practice presence reuses the successful first page fetch`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
@@ -330,6 +344,25 @@ class MemberRepositoryImplTest {
     }
 
     @Test
+    fun `practice presence does not cache absence when the page scan reaches its safety limit`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 20, null) } returns practicePresencePage("cursor-1")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 20, "cursor-1") } returns practicePresencePage("cursor-2")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 20, "cursor-2") } returns practicePresencePage("cursor-3")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 20, "cursor-3") } returns practicePresencePage("cursor-4")
+        coEvery { memberApi.getPracticeRecords("Bearer access", 20, "cursor-4") } returns practicePresencePage("cursor-5")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        assertFalse(repository.hasPracticeRecords())
+        assertFalse(repository.hasPracticeRecords())
+
+        coVerify(exactly = 2) { memberApi.getPracticeRecords("Bearer access", 20, null) }
+        coVerify(exactly = 2) { memberApi.getPracticeRecords("Bearer access", 20, "cursor-4") }
+    }
+
+    @Test
     fun `a non-initial page without visits does not overwrite a true presence cache`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
@@ -352,4 +385,15 @@ class MemberRepositoryImplTest {
         coVerify(exactly = 1) { memberApi.getPracticeRecords("Bearer access", 4, "last") }
         coVerify(exactly = 0) { memberApi.getPracticeRecords("Bearer access", 20, null) }
     }
+
+    private fun practicePresencePage(nextCursor: String) = ApiEnvelope(
+        isSuccess = true,
+        code = "COMMON_200",
+        message = "성공",
+        data = CursorPagePracticeItemResponse(
+            items = listOf(PracticeItemResponse(1, 1, "예정 장소", status = "PLANNED")),
+            hasNext = true,
+            nextCursor = nextCursor,
+        ),
+    )
 }

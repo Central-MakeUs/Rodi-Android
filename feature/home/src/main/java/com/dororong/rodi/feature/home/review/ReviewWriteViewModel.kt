@@ -108,8 +108,8 @@ class ReviewWriteViewModel @Inject constructor(
         if (current.isSubmitting || current.isSubmitted || current.isCompletionHandled) return
         val draft = current.draftOrNull() ?: return
 
+        _state.update { it.copy(isSubmitting = true, errorMessage = null) }
         viewModelScope.launch {
-            _state.update { it.copy(isSubmitting = true, errorMessage = null) }
             val result = current.editingReviewId?.let { reviewId ->
                 updateReview(reviewId, draft).map { reviewId }
             } ?: createReview(current.placeId, draft)
