@@ -7,6 +7,7 @@ import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPageMyReviewItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPageBlockedMemberItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.CourseTutorialCompletionResponse
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -19,6 +20,10 @@ import retrofit2.http.PUT
 import retrofit2.http.Query
 
 interface MemberApi {
+    @PATCH("members/me/course-tutorial")
+    suspend fun completeCourseTutorial(
+        @Header("Authorization") authorization: String,
+    ): ApiEnvelope<CourseTutorialCompletionResponse>
     @GET("members/me")
     suspend fun getMyPage(@Header("Authorization") authorization: String): ApiEnvelope<MyPageResponse>
 

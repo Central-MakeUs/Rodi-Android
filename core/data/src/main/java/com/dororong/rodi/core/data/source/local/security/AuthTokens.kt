@@ -4,6 +4,7 @@ data class AuthTokens(
     val accessToken: String,
     val refreshToken: String,
     val provider: String,
+    val isCourseTutorialCompleted: Boolean = false,
 ) {
     val isKakaoProvider: Boolean get() = provider == KAKAO_PROVIDER
 }
