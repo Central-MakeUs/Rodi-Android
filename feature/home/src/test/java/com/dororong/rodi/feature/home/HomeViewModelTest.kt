@@ -1105,7 +1105,7 @@ class HomeViewModelTest {
 
     @Test
     fun `not visited registers the practice and opens skip reason`() = runTest(dispatcher) {
-        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
@@ -1114,6 +1114,7 @@ class HomeViewModelTest {
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
+        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
 
         vm.effect.test {
             vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
