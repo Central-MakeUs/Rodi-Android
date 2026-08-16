@@ -15,10 +15,11 @@ class DrivingProgressAccumulator(
     fun add(sample: DrivingLocationSample): Double {
         if (sample.accuracyMeters !in 0f..maxAccuracyMeters) return traveledDistanceMeters
         val previous = previousSample
-        previousSample = sample
         if (previous == null || sample.elapsedRealtimeMillis <= previous.elapsedRealtimeMillis) {
+            if (previous == null) previousSample = sample
             return traveledDistanceMeters
         }
+        previousSample = sample
         val movement = previous.point.distanceTo(sample.point)
         if (movement in minMovementMeters..maxMovementMeters) {
             traveledDistanceMeters += movement

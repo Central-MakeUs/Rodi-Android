@@ -23,6 +23,18 @@ class DrivingProgressAccumulatorTest {
         assertEquals(moved, inaccurateIgnored)
     }
 
+    @Test
+    fun outOfOrderSampleDoesNotReplaceTheBaseline() {
+        val accumulator = DrivingProgressAccumulator()
+
+        accumulator.add(sample(37.5, 2_000))
+        val outOfOrder = accumulator.add(sample(37.5, 1_000))
+        val moved = accumulator.add(sample(37.5001, 3_000))
+
+        assertEquals(0.0, outOfOrder)
+        assertTrue(moved in 10.0..12.5)
+    }
+
     private fun sample(
         latitude: Double,
         time: Long,
