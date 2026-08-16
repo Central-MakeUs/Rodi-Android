@@ -134,7 +134,9 @@ fun CourseDetailSheet(
     }
 
     val isExpanded = sheetState.currentValue == CourseSheetAnchor.Expanded
-    val showBottomBar = anchorsReady && sheetState.currentValue != CourseSheetAnchor.Dismissed
+    val showBottomBar = anchorsReady &&
+        sheetState.currentValue != CourseSheetAnchor.Dismissed &&
+        sheetState.targetValue != CourseSheetAnchor.Dismissed
     BackHandler(enabled = isExpanded) {
         scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) }
     }
@@ -200,7 +202,13 @@ fun CourseDetailSheet(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .offset { IntOffset(0, -sheetOffsetPx()) }
+                            .offset {
+                                if (showBottomBar) {
+                                    IntOffset(0, -sheetOffsetPx())
+                                } else {
+                                    IntOffset(0, containerHeightPx)
+                                }
+                            }
                             .graphicsLayer { alpha = if (showBottomBar) 1f else 0f }
                             .onSizeChanged { bottomBarHeightPx = it.height },
                         color = RodiTheme.colors.white,
@@ -219,11 +227,12 @@ fun CourseDetailSheet(
                                 BookmarkButton(
                                     isBookmarked = place.isBookmarked,
                                     onClick = onBookmarkClick,
-                                    enabled = !isBookmarkUpdating,
+                                    enabled = showBottomBar && !isBookmarkUpdating,
                                 )
                                 RodiButton(
                                     text = "연습하러 가기",
                                     onClick = onNavigate,
+                                    enabled = showBottomBar,
                                     modifier = Modifier.weight(1f),
                                 )
                             }
