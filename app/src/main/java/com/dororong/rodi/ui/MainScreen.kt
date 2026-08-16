@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -12,6 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.LocalActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -36,6 +40,7 @@ import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecordsScreen
 import com.dororong.rodi.feature.mypage.myposts.MyPostsScreen
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 import dagger.hilt.android.EntryPointAccessors
 
@@ -51,12 +56,23 @@ fun MainScreen(
     }
     val currentRouteState = rememberUpdatedState(currentRoute)
     val homeViewModel: HomeViewModel = hiltViewModel()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val activity = LocalActivity.current
     val kakaoLoginManager = remember(activity) {
         activity?.let {
             EntryPointAccessors.fromActivity(it, KakaoLoginManagerEntryPoint::class.java)
                 .kakaoLoginManager()
         }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.onIntent(HomeIntent.OnAppResumed)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val bottomNavigation = remember {
         movableContentOf {
@@ -107,6 +123,9 @@ fun MainScreen(
                                 backStack.add(SearchRoute(origin.lat, origin.lng))
                             },
                             onGuestSignUp = onGuestSignUp,
+                            onPracticeSkipReasonClick = { practiceId ->
+                                backStack.add(PracticeSkipReasonRoute(practiceId))
+                            },
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
@@ -162,6 +181,12 @@ fun MainScreen(
                             onEditReviewClick = { post ->
                                 backStack.add(ReviewWriteRoute(post.placeId, post.placeName, post.review.reviewId))
                             },
+                        )
+                    }
+                    is PracticeSkipReasonRoute -> NavEntry(key) {
+                        PracticeSkipReasonScreen(
+                            practiceId = key.practiceId,
+                            onClose = { backStack.removeAt(backStack.lastIndex) },
                         )
                     }
                     is ReviewWriteRoute -> NavEntry(key) {

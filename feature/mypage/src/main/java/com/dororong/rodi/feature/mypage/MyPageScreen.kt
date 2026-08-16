@@ -25,7 +25,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
@@ -44,6 +46,7 @@ import com.dororong.rodi.feature.mypage.components.ProfileCard
 import com.dororong.rodi.feature.mypage.components.PracticeRecordSection
 import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -80,6 +83,7 @@ fun MyPageScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val snackbarHostState = remember { RodiSnackbarHostState() }
+    var showHardDeleteConfirm by remember { mutableStateOf(false) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
@@ -124,11 +128,26 @@ fun MyPageScreen(
                 practiceRecordsErrorMessage = uiState.practiceRecordsErrorMessage,
                 onPracticeRecordsRetry = viewModel::refresh,
                 showDebugTools = isDebugBuild,
-                onHardDeleteClick = viewModel::hardDelete,
+                onHardDeleteClick = { showHardDeleteConfirm = true },
                 isHardDeleteSubmitting = uiState.isHardDeleteSubmitting,
             )
         }
         RodiSnackbarHost(snackbarHostState)
+        if (showHardDeleteConfirm) {
+            RodiAlertDialog(
+                title = "DEBUG 계정을 즉시 삭제할까요?",
+                description = "되돌릴 수 없어요. 지금 로그인된 계정이 바로 삭제됩니다.",
+                confirmText = "삭제",
+                dismissText = "취소",
+                enabled = !uiState.isHardDeleteSubmitting,
+                onConfirm = {
+                    showHardDeleteConfirm = false
+                    viewModel.hardDelete()
+                },
+                onDismiss = { showHardDeleteConfirm = false },
+                onDismissRequest = { showHardDeleteConfirm = false },
+            )
+        }
     }
 }
 

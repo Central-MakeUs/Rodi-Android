@@ -119,11 +119,20 @@ class HomeViewModel @Inject constructor(
                 force = true,
                 clearMapMovementGeneration = mapMovementGeneration,
             )
-            is HomeIntent.OnResearch -> loadFirstPage(
-                query = intent.query,
-                force = true,
-                clearMapMovementGeneration = mapMovementGeneration,
-            )
+            is HomeIntent.OnResearch -> {
+                _state.update {
+                    if (it.surfaceState == HomeSurfaceState.Navigation) {
+                        it.copy(surfaceState = HomeSurfaceState.PartialList)
+                    } else {
+                        it
+                    }
+                }
+                loadFirstPage(
+                    query = intent.query,
+                    force = true,
+                    clearMapMovementGeneration = mapMovementGeneration,
+                )
+            }
             HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
             HomeIntent.OnListCollapse -> collapseList()
             is HomeIntent.OnListSheetSettled -> settleListSheet(intent.surface)
@@ -137,7 +146,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
             HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()
             HomeIntent.OnPracticePromptVisited -> recordPracticeVisit()
-            HomeIntent.OnPracticePromptNotVisited -> stopPracticeMeasurement()
+            HomeIntent.OnPracticePromptNotVisited -> openPracticeSkipReason()
             HomeIntent.OnPracticePromptDismiss -> dismissPracticePrompt()
             HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
             HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
@@ -877,11 +886,24 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun dismissPracticePrompt() {
-        _state.update {
-            it.copy(
-                practicePrompt = null,
-                isPracticeContinueDialogVisible = false,
-            )
+        if (_state.value.isPracticeActionInProgress) return
+        viewModelScope.launch {
+            try {
+                // 로컬 세션을 지우지 않으면 다음 앱 재진입 때 loadActivePracticeSession()이
+                // 같은 세션을 다시 읽어 방문 확인 프롬프트가 그대로 재등장한다.
+                clearActivePracticeSessionWithRetry()
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+            }
         }
     }
 
@@ -901,6 +923,49 @@ class HomeViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+            }
+        }
+    }
+
+    private fun openPracticeSkipReason() {
+        val session = _state.value.activePracticeSession ?: return
+        if (_state.value.isPracticeActionInProgress) return
+        _state.update { it.copy(isPracticeActionInProgress = true) }
+        viewModelScope.launch {
+            try {
+                val practiceId = session.practiceId ?: run {
+                    registerPracticeUseCase(session.placeId).getOrElse { error ->
+                        _state.update { it.copy(isPracticeActionInProgress = false) }
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                        return@launch
+                    }.practiceId
+                }
+                try {
+                    clearActivePracticeSessionWithRetry()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                        isPracticeActionInProgress = false,
+                    )
+                }
+                _effect.send(HomeEffect.OpenPracticeSkipReason(practiceId))
+            } finally {
+                _state.update { current ->
+                    if (current.isPracticeActionInProgress) {
+                        current.copy(isPracticeActionInProgress = false)
+                    } else {
+                        current
+                    }
+                }
             }
         }
     }
@@ -961,6 +1026,8 @@ class HomeViewModel @Inject constructor(
                     }
                     if (session.placeType == PlaceType.COURSE) {
                         _effect.send(HomeEffect.OpenPracticeReview(session.placeId, session.placeName))
+                    } else {
+                        _effect.send(HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"))
                     }
                 }.onFailure { error ->
                     _state.update { it.copy(isPracticeActionInProgress = false) }

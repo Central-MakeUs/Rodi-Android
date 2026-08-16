@@ -58,7 +58,9 @@ class HardDeleteAccountUseCaseTest {
     }
 
     @Test
-    fun `returns failure when local onboarding cleanup fails after hard delete`() = runTest {
+    fun `still returns success when local onboarding cleanup fails after hard delete`() = runTest {
+        // 계정 삭제(되돌릴 수 없음)는 이미 끝났다. 그 뒤 로컬 정리 실패를 "삭제 실패"로
+        // 보고하면 사용자가 이미 지워진 계정으로 재시도를 반복하게 된다.
         val repository = mockk<MemberRepository>()
         val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
         coEvery { repository.hardDelete() } returns Unit
@@ -66,10 +68,29 @@ class HardDeleteAccountUseCaseTest {
 
         val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
 
-        assertTrue(result.isFailure)
+        assertTrue(result.isSuccess)
         coVerifyOrder {
             repository.hardDelete()
             clearOnboardingData()
         }
+    }
+
+    @Test
+    fun `propagates cancellation from local onboarding cleanup`() = runTest {
+        val repository = mockk<MemberRepository>()
+        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
+        coEvery { repository.hardDelete() } returns Unit
+        coEvery { clearOnboardingData() } throws CancellationException("cancelled")
+
+        try {
+            HardDeleteAccountUseCase(repository, clearOnboardingData)()
+        } catch (_: CancellationException) {
+            coVerifyOrder {
+                repository.hardDelete()
+                clearOnboardingData()
+            }
+            return@runTest
+        }
+        throw AssertionError("CancellationException should be rethrown")
     }
 }

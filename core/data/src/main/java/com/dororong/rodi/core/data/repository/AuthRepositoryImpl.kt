@@ -130,13 +130,19 @@ class AuthRepositoryImpl @Inject constructor(
         sessionExpired.value = false
     }
 
+    // 계정 전환 시 이전 계정의 연습 세션이 다음 로그인 계정에 노출되면 안 되므로 몇 번은
+    // 재시도한다. 그래도 실패하면(그래도 흔치 않다) 로그인 자체는 막지 않는다 — 로컬 캐시
+    // 하나 못 지웠다고 로그인이 실패하는 게 더 나쁘다.
     private suspend fun clearPracticeSessionSafely() {
-        try {
-            practiceSessionRepository.clear()
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (_: Throwable) {
-            // A stale local session must not make a successful authentication fail.
+        repeat(PRACTICE_SESSION_CLEAR_ATTEMPTS) { attempt ->
+            try {
+                practiceSessionRepository.clear()
+                return
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (exception: Throwable) {
+                if (attempt == PRACTICE_SESSION_CLEAR_ATTEMPTS - 1) return
+            }
         }
     }
 
@@ -185,5 +191,6 @@ class AuthRepositoryImpl @Inject constructor(
     private companion object {
         const val HTTP_UNAUTHORIZED = 401
         const val SESSION_EXPIRED_MESSAGE = "로그인 정보가 만료되었습니다."
+        const val PRACTICE_SESSION_CLEAR_ATTEMPTS = 3
     }
 }

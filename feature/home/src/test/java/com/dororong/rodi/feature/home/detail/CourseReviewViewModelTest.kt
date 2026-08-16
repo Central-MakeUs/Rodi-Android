@@ -351,10 +351,14 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `removeReview decrements visible total and recommend counts`() = runTest(dispatcher) {
+    fun `removeReview decrements visible total and refreshes recommend count from the server`() = runTest(dispatcher) {
+        // 목록 응답은 isRecommended를 안 주므로(서버 스키마 변경) 지운 후기가 추천이었는지
+        // 로컬에서 알 수 없다 — removeReview는 항상 서버 요약을 다시 받아 recommendCount를 맞춘다.
         loggedIn()
-        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
-            Result.success(summary(level = null, total = 2, recommend = 1))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(
+            Result.success(summary(level = null, total = 2, recommend = 1)),
+            Result.success(summary(level = null, total = 1, recommend = 0)),
+        )
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
             Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 1))
         coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
@@ -364,10 +368,12 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
         vm.removeReview(1L)
+        advanceUntilIdle()
 
         assertTrue(vm.state.value.latestReviews.isEmpty())
         assertEquals(1L, vm.state.value.totalCount)
         assertEquals(0L, vm.state.value.recommendCount)
+        coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
     }
 
     @Test

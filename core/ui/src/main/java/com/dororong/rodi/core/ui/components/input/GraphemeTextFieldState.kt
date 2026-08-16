@@ -28,7 +28,7 @@ fun rememberGraphemeTextFieldState(
     val latestOnTextChange by rememberUpdatedState(onTextChange)
 
     LaunchedEffect(text, maxGraphemes) {
-        val normalizedValue = normalizeGraphemeTextFieldValue(text, maxGraphemes)
+        val normalizedValue = value.syncWithExternalText(text, maxGraphemes)
         if (value != normalizedValue) {
             value = normalizedValue
         }
@@ -52,6 +52,11 @@ fun rememberGraphemeTextFieldState(
 
 internal fun normalizeGraphemeTextFieldValue(text: String, maxGraphemes: Int): TextFieldValue =
     TextFieldValue(text, selection = TextRange(text.length)).limitGraphemes(maxGraphemes)
+
+internal fun TextFieldValue.syncWithExternalText(text: String, maxGraphemes: Int): TextFieldValue {
+    val normalizedValue = normalizeGraphemeTextFieldValue(text, maxGraphemes)
+    return if (this.text == normalizedValue.text) this else normalizedValue
+}
 
 internal fun TextFieldValue.limitGraphemes(maxGraphemes: Int): TextFieldValue {
     val limitedText = text.takeGraphemes(maxGraphemes)

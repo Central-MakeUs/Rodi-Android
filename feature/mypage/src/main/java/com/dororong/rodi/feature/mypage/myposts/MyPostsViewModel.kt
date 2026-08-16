@@ -99,7 +99,9 @@ class MyPostsViewModel @Inject constructor(
                 _uiState.update { state -> state.copy(posts = remainingPosts) }
                 if (remainingPosts.isEmpty()) {
                     if (shouldLoadNextPage) {
-                        loadInitial()
+                        // 방금 보던 페이지가 통째로 비었을 뿐 아직 더 불러올 페이지가 있으므로,
+                        // loadInitial()로 처음부터 다시 부르면 사용자가 있던 위치가 사라진다.
+                        loadNextPage()
                     } else {
                         val hasPracticeRecords = loadPracticeRecordPresence()
                         _uiState.update { state -> state.copy(hasPracticeRecords = hasPracticeRecords) }

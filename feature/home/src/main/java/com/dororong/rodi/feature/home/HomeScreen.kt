@@ -84,10 +84,10 @@ import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceType
@@ -259,6 +259,7 @@ fun HomeScreen(
     onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
+    onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
@@ -378,7 +379,6 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
-                vm.onIntent(HomeIntent.OnAppResumed)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -582,6 +582,7 @@ fun HomeScreen(
             is HomeEffect.OpenPracticeReview -> {
                 reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
             }
+            is HomeEffect.OpenPracticeSkipReason -> onPracticeSkipReasonClick(effect.practiceId)
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
@@ -1187,7 +1188,8 @@ fun HomeScreen(
                                 )
                             }
                             when {
-                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
+                                state.listState == HomeListState.Loading ||
+                                    state.listState == HomeListState.Idle -> PlaceListLoadingContent(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layoutHeightPx { listViewportHeightPx() },

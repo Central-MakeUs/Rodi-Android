@@ -254,6 +254,21 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `research opens the partial list from navigation`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnResearch(query()))
+
+        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        advanceUntilIdle()
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+    }
+
+    @Test
     fun `surface transitions navigation partial full partial navigation`() {
         val vm = Dependencies().viewModel()
 
@@ -741,6 +756,29 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `dismissed practice prompt does not come back on the next resume`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+        assertEquals(27L, vm.state.value.practicePrompt?.placeId)
+
+        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.clearActiveSession() }
+
+        coEvery { deps.getActiveSession() } returns null
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.practicePrompt)
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+    }
+
+    @Test
     fun `first navigation shows rationale before system permission and does not register`() = runTest(dispatcher) {
         val deps = Dependencies()
         every { deps.notificationRequested() } returns flowOf(false)
@@ -1034,10 +1072,45 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
-        advanceUntilIdle()
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticePromptVisited)
+            advanceUntilIdle()
+
+            assertEquals(
+                HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"),
+                awaitItem(),
+            )
+            expectNoEvents()
+            cancelAndIgnoreRemainingEvents()
+        }
 
         assertNull(vm.state.value.activePracticeSession)
+    }
+
+    @Test
+    fun `not visited registers the practice and opens skip reason`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getActiveSession() } returns session
+        coEvery { deps.registerPractice(session.placeId) } returns Result.success(
+            Practice(108L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
+        )
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.OpenPracticeSkipReason(108L), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.state.value.practicePrompt)
+        coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
+        coVerify(exactly = 1) { deps.clearActiveSession() }
     }
 
     @Test

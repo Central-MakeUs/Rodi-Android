@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -113,6 +114,7 @@ fun RodiAlertDialog(
     modifier: Modifier = Modifier,
     title: String? = null,
     description: String? = null,
+    descriptionMaxLines: Int = Int.MAX_VALUE,
     dismissText: String? = null,
     onDismiss: (() -> Unit)? = null,
     enabled: Boolean = true,
@@ -151,6 +153,8 @@ fun RodiAlertDialog(
                 style = RodiTheme.typography.body3Medium,
                 color = RodiTheme.colors.gray600,
                 textAlign = TextAlign.Center,
+                maxLines = descriptionMaxLines,
+                overflow = TextOverflow.Clip,
             )
         }
         if (dismissText == null) {

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.Instant
 
 class PracticeRecordTest {
     @Test
@@ -35,6 +36,31 @@ class PracticeRecordTest {
         assertEquals(PracticeRecordReviewAction.PARKING_UNAVAILABLE, action)
         assertFalse(action.isEnabled)
         assertEquals("작성 불가", action.label)
+    }
+
+    @Test
+    fun `visited record exposes the driving date when it has one`() {
+        val dateLabel = courseRecord()
+            .copy(visitedAt = Instant.parse("2026-05-10T12:00:00Z"))
+            .visitedDateLabel()
+
+        assertTrue(dateLabel.matches(Regex("\\d{2}\\.\\d{2}\\.\\d{2}")))
+    }
+
+    @Test
+    fun `visited record without a timestamp falls back to visit status`() {
+        val dateLabel = courseRecord().copy(visitedAt = null).visitedDateLabel()
+
+        assertEquals("방문 완료", dateLabel)
+    }
+
+    @Test
+    fun `non-visited record without a timestamp shows nothing`() {
+        val dateLabel = courseRecord()
+            .copy(visitedAt = null, status = PracticeStatus.NOT_VISITED)
+            .visitedDateLabel()
+
+        assertEquals("", dateLabel)
     }
 
     private fun courseRecord() = PracticeRecord(

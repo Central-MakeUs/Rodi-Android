@@ -130,20 +130,22 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `deleting the last visible review reloads the next review page before checking practice records`() = runTest(dispatcher) {
-        coEvery { getMyReviews(null, 20) } returnsMany listOf(
-            Result.success(CursorPage(
+    fun `deleting the last visible review loads the next page in place instead of restarting from page one`() = runTest(dispatcher) {
+        coEvery { getMyReviews(null, 20) } returns Result.success(
+            CursorPage(
                 listOf(MyReview(1, 1, "장소", "내용", true, false, false, Instant.EPOCH)),
                 true,
                 "next",
                 2,
-            )),
-            Result.success(CursorPage(
+            ),
+        )
+        coEvery { getMyReviews("next", 20) } returns Result.success(
+            CursorPage(
                 listOf(MyReview(2, 2, "다음 장소", "다음 내용", true, false, false, Instant.EPOCH)),
                 false,
                 null,
                 2,
-            )),
+            ),
         )
         coEvery { deleteReview(1) } returns Result.success(Unit)
 
@@ -153,6 +155,8 @@ class MyPostsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(2L), viewModel.uiState.value.posts.map { it.review.reviewId })
+        coVerify(exactly = 1) { getMyReviews(null, 20) }
+        coVerify(exactly = 1) { getMyReviews("next", 20) }
         coVerify(exactly = 0) { hasPracticeRecordsUseCase() }
     }
 }

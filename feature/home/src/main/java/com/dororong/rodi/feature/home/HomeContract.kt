@@ -137,6 +137,7 @@ sealed interface HomeEffect {
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
+    data class OpenPracticeSkipReason(val practiceId: Long) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect

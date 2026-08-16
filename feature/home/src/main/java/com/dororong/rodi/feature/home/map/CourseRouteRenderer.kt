@@ -36,6 +36,7 @@ private const val FIT_PADDING_PX = 140
 private const val ENDPOINT_OVERLAP_THRESHOLD_METERS = 2.0
 private const val OVERLAPPED_START_ANCHOR_X = 0.25f
 private const val OVERLAPPED_DESTINATION_ANCHOR_X = 0.75f
+private const val CENTER_ANCHOR = 0.5f
 private const val PIN_ANCHOR_Y = 1f
 private const val EARTH_RADIUS_METERS = 6_371_000.0
 
@@ -53,14 +54,14 @@ fun KakaoMap.clearCourse() {
 fun KakaoMap.renderPlaceCourseMarkers(context: Context, place: PlaceDetail) {
     clearCourse()
     val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
-    val endpointsOverlap = waypoints.haveOverlappingEndpoints()
+    val overlapAnchors = waypoints.overlapAnchors()
     waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = LatLng.from(waypoint.point.lat, waypoint.point.lng),
             iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
-            anchorX = endpointAnchorX(index, waypoints.lastIndex, endpointsOverlap),
+            anchorX = overlapAnchors[index],
         )
     }
 }
@@ -74,7 +75,7 @@ fun KakaoMap.renderPlaceCourse(
 ) {
     clearCourse()
     val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
-    val endpointsOverlap = waypoints.haveOverlappingEndpoints()
+    val overlapAnchors = waypoints.overlapAnchors()
     waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
@@ -82,22 +83,42 @@ fun KakaoMap.renderPlaceCourse(
                 ?: LatLng.from(waypoint.point.lat, waypoint.point.lng),
             iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
-            anchorX = endpointAnchorX(index, waypoints.lastIndex, endpointsOverlap),
+            anchorX = overlapAnchors[index],
         )
     }
     if (routePoints.size >= 2) drawRouteLine(routePoints, routeLineColors)
 }
 
-private fun List<PlaceWaypoint>.haveOverlappingEndpoints(): Boolean {
-    if (size < 2) return false
-    return first().point.distanceMetersTo(last().point) <= ENDPOINT_OVERLAP_THRESHOLD_METERS
+/**
+ * 좌표가 서로 임계값 이내인 waypoint끼리 묶어, 묶음 안에서만 앵커를 좌우로 고르게 벌린다.
+ * 출발·도착만 겹치는 흔한 경우뿐 아니라 경유지가 셋 이상 같은 지점에 몰리는 경우도 다룬다
+ * (첫/마지막 인덱스만 보던 이전 버전은 중간 경유지가 겹치면 오프셋을 못 줬다).
+ * 반환값은 정렬된 waypoints 리스트 기준 index -> anchorX. 겹치지 않는 waypoint는 키가 없다
+ * (= addMarkerAt에서 SDK 기본 앵커를 그대로 쓴다).
+ */
+private fun List<PlaceWaypoint>.overlapAnchors(): Map<Int, Float> {
+    if (size < 2) return emptyMap()
+    val anchors = mutableMapOf<Int, Float>()
+    val grouped = BooleanArray(size)
+    for (i in indices) {
+        if (grouped[i]) continue
+        val group = mutableListOf(i)
+        for (j in i + 1 until size) {
+            if (!grouped[j] && this[i].point.distanceMetersTo(this[j].point) <= ENDPOINT_OVERLAP_THRESHOLD_METERS) {
+                group += j
+            }
+        }
+        if (group.size < 2) continue
+        group.forEach { grouped[it] = true }
+        group.forEachIndexed { rank, waypointIndex -> anchors[waypointIndex] = overlapAnchorX(rank, group.size) }
+    }
+    return anchors
 }
 
-private fun endpointAnchorX(index: Int, lastIndex: Int, endpointsOverlap: Boolean): Float? = when {
-    !endpointsOverlap -> null
-    index == 0 -> OVERLAPPED_START_ANCHOR_X
-    index == lastIndex -> OVERLAPPED_DESTINATION_ANCHOR_X
-    else -> null
+private fun overlapAnchorX(rank: Int, groupSize: Int): Float {
+    if (groupSize < 2) return CENTER_ANCHOR
+    val span = OVERLAPPED_DESTINATION_ANCHOR_X - OVERLAPPED_START_ANCHOR_X
+    return OVERLAPPED_START_ANCHOR_X + span * rank / (groupSize - 1)
 }
 
 private fun GeoPoint.distanceMetersTo(other: GeoPoint): Double {

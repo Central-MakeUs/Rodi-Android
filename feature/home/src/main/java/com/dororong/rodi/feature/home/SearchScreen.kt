@@ -230,9 +230,10 @@ private fun RecentSearchList(
         isLoading -> RecentSearchSkeletonList(modifier)
         searches.isEmpty() -> Box(
             modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.TopCenter,
         ) {
             Text(
+                modifier = Modifier.padding(top = 180.dp),
                 text = "최근 검색 내역이 없습니다",
                 style = RodiTheme.typography.body1Medium,
                 color = RodiTheme.colors.gray600,

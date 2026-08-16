@@ -69,9 +69,11 @@ class PracticeRecordsViewModel @Inject constructor(
         var pageHasNext = false
         var nextCursor: String? = null
         var totalCount: Long? = null
+        var chainRequests = 0
 
         while (true) {
             val pageResult = getPracticeRecords(cursor = requestCursor, size = PAGE_SIZE)
+            chainRequests++
             if (pageResult.isFailure) {
                 val errorMessage = pageResult.exceptionOrNull()?.message
                     ?: if (initial) "연습기록을 불러오지 못했어요." else "다음 연습기록을 불러오지 못했어요."
@@ -95,7 +97,11 @@ class PracticeRecordsViewModel @Inject constructor(
             nextCursor = page.nextCursor
             pageHasNext = page.hasNext && nextCursor != null && nextCursor != requestCursor
 
-            if (visibleItems.isNotEmpty() || !pageHasNext) break
+            // getPracticeRecords()는 내부적으로도 최대 페이지 수만큼만 스캔하고 멈춘다
+            // (GetPracticeRecordsUseCase.MAX_PAGE_REQUESTS). 방문 기록이 뜨문뜨문 있는
+            // 계정에서 그 내부 스캔이 매번 빈 결과 + hasNext=true로 끝나면, 이 바깥 루프가
+            // 그걸 모르고 계속 재호출해 무제한으로 요청이 쌓일 수 있다 — 바깥도 자체 한도로 막는다.
+            if (visibleItems.isNotEmpty() || !pageHasNext || chainRequests >= MAX_CHAIN_REQUESTS) break
             requestCursor = nextCursor
         }
 
@@ -122,3 +128,4 @@ class PracticeRecordsViewModel @Inject constructor(
 }
 
 private const val PAGE_SIZE = 20
+private const val MAX_CHAIN_REQUESTS = 5

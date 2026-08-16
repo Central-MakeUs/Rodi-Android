@@ -216,14 +216,11 @@ class CourseReviewViewModel @Inject constructor(
                 } else {
                     (it.totalCount - 1).coerceAtLeast(0)
                 },
-                recommendCount = if (removedReview?.isRecommended == true) {
-                    (it.recommendCount - 1).coerceAtLeast(0)
-                } else {
-                    it.recommendCount
-                },
             )
         }
-        if (removedReview?.isRecommended == null && placeId != null) {
+        // 목록 응답은 더 이상 isRecommended를 내려주지 않아(서버 스키마 변경) 로컬 리스트만으로는
+        // 지운 후기가 추천이었는지 알 수 없다 — 항상 서버에서 다시 받아온다.
+        if (removedReview != null && placeId != null) {
             refreshRecommendCount(placeId)
         }
     }

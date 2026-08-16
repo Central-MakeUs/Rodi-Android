@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.detail.components
 
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -29,6 +30,12 @@ class ReviewCardTest {
             listOf("삭제하기"),
             review(isMine = true, isEditable = false).menuItems(),
         )
+    }
+
+    @Test
+    fun `practice method labels reflect how the reviewer arrived`() {
+        assertEquals("혼자 왔어요", PracticeMethod.SOLO.label)
+        assertEquals("동행했어요", PracticeMethod.WITH_COMPANION.label)
     }
 
     private fun review(isMine: Boolean, isEditable: Boolean) = Review(

@@ -167,7 +167,8 @@ private fun MyPostsContent(
     deleteTarget?.let { target ->
         RodiAlertDialog(
             title = "정말 삭제하시겠습니까?",
-            description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.",
+            description = "이 후기는 다른 초보운전자에게도 도움이 되고 있어요. 삭제하면 더 이상 공개되지 않아요.",
+            descriptionMaxLines = 2,
             dismissText = "삭제하기",
             confirmText = "취소",
             onDismiss = { deleteTarget = null; onDelete(target) },
@@ -416,7 +417,7 @@ private fun MyPostsMenuPreview() = RodiTheme {
 @Preview(name = "내 활동 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsDeletePreview() = RodiTheme {
-    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "삭제하기", confirmText = "취소", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
+    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고 있어요. 삭제하면 더 이상 공개되지 않아요.", descriptionMaxLines = 2, dismissText = "삭제하기", confirmText = "취소", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
 }
 
 @Preview(name = "내 활동 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)

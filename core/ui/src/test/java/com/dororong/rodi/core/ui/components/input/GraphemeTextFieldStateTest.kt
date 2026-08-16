@@ -81,6 +81,34 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
+    fun `external text sync preserves composition when the text is unchanged`() {
+        val value = TextFieldValue(
+            text = "ㅂ",
+            selection = TextRange(1),
+            composition = TextRange(0, 1),
+        )
+
+        val normalized = value.syncWithExternalText("ㅂ", maxGraphemes = Int.MAX_VALUE)
+
+        assertEquals(value, normalized)
+    }
+
+    @Test
+    fun `external text sync replaces the value when the text changes`() {
+        val value = TextFieldValue(
+            text = "ㅂ",
+            selection = TextRange(1),
+            composition = TextRange(0, 1),
+        )
+
+        val normalized = value.syncWithExternalText("백", maxGraphemes = Int.MAX_VALUE)
+
+        assertEquals("백", normalized.text)
+        assertEquals(TextRange(1), normalized.selection)
+        assertNull(normalized.composition)
+    }
+
+    @Test
     fun `composition is cleared when it is fully removed by the limit`() {
         val value = TextFieldValue(
             text = "😁A",

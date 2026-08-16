@@ -44,9 +44,8 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.mypage.practicerecords.visitedDateLabel
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -158,7 +157,7 @@ private fun PracticeRecordListItem(
             )
         }
         Text(
-            text = record.recordStatusLabel(),
+            text = record.visitedDateLabel(),
             style = RodiTheme.typography.caption1Medium,
             color = RodiTheme.colors.gray600,
             modifier = Modifier.padding(top = 4.dp),
@@ -253,14 +252,6 @@ private fun PracticeRecordsNextPageFooter(
             }
         }
     }
-}
-
-private val PracticeRecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
-
-private fun PracticeRecord.recordStatusLabel(): String = when {
-    status == PracticeStatus.VISITED && visitedAt != null -> PracticeRecordDateFormatter.format(visitedAt)
-    status == PracticeStatus.VISITED -> "방문 완료"
-    else -> ""
 }
 
 private val PreviewPracticeRecords = listOf(

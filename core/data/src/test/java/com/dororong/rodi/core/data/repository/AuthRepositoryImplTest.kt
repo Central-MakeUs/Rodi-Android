@@ -90,6 +90,7 @@ class AuthRepositoryImplTest {
 
         assertTrue(repository.loginWithKakao("kakao-token") is LoginResult.Success)
         coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao") }
+        coVerify(exactly = 3) { practiceSessionRepository.clear() }
     }
 
     @Test

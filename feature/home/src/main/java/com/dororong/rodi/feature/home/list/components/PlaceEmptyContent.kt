@@ -1,16 +1,21 @@
 package com.dororong.rodi.feature.home.list.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.components.SheetHandle
@@ -27,24 +32,42 @@ fun PlaceEmptyContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 375.dp)
+            .height(380.dp)
             .then(dragHandleModifier),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SheetHandle(modifier = Modifier.height(22.dp))
-        RodiIllustratedEmptyState(
+        SheetHandle(modifier = Modifier.height(24.dp))
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
-            painter = painterResource(R.drawable.illust_course_empty),
-            imageSize = 80.dp,
-            title = if (isInitialError) "장소를 불러오지 못했어요." else "추천할 수 있는 연습 코스를 찾지 못했어요.",
-            description = if (isInitialError) {
-                "네트워크 연결을 확인하고\n잠시 후 다시 시도해주세요."
-            } else {
-                "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요."
-            },
-        )
+                .padding(top = 68.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Image(
+                painter = painterResource(R.drawable.illust_course_empty),
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = if (isInitialError) "장소를 불러오지 못했어요." else "추천할 수 있는 연습 코스를 찾지 못했어요.",
+                style = RodiTheme.typography.headline1,
+                color = RodiTheme.colors.gray600,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = if (isInitialError) {
+                    "네트워크 연결을 확인하고\n잠시 후 다시 시도해주세요."
+                } else {
+                    "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요."
+                },
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray600,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(287.dp),
+            )
+        }
     }
 }
 

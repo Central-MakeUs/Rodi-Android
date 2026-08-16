@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.mapper
 import com.dororong.rodi.core.data.source.remote.model.member.BlockedMemberItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyReviewItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -37,22 +38,40 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `offset-less visitedAt does not break practice mapping`() {
-        val result = practiceItem(visitedAt = OFFSET_LESS).toDomain()
+    fun `offset-less lastActivityAt does not break practice mapping`() {
+        val result = practiceItem(lastActivityAt = OFFSET_LESS).toDomain()
 
         assertEquals(parseServerTimestamp(OFFSET_LESS), result.visitedAt)
     }
 
     @Test
-    fun `absent visitedAt stays null`() {
-        assertNull(practiceItem(visitedAt = null).toDomain().visitedAt)
+    fun `absent lastActivityAt stays null`() {
+        assertNull(practiceItem(lastActivityAt = null).toDomain().visitedAt)
+    }
+
+    @Test
+    fun `lastActivityAt from the member practices response becomes the record date`() {
+        val response = Json.decodeFromString<PracticeItemResponse>(
+            """
+            {
+              "practiceId": 1,
+              "placeId": 10,
+              "placeName": "망원한강공원",
+              "status": "VISITED",
+              "visitCount": 1,
+              "lastActivityAt": "$OFFSET_LESS"
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(parseServerTimestamp(OFFSET_LESS), response.toDomain().visitedAt)
     }
 
     @Test
     fun `known practice status maps to domain status`() {
         assertEquals(
             com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
-            practiceItem(visitedAt = null, status = "VISITED").toDomain().status,
+            practiceItem(lastActivityAt = null, status = "VISITED").toDomain().status,
         )
     }
 
@@ -60,17 +79,17 @@ class MemberMapperTest {
     fun `unknown practice status falls back to planned`() {
         assertEquals(
             com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED,
-            practiceItem(visitedAt = null, status = "UNKNOWN_STATUS").toDomain().status,
+            practiceItem(lastActivityAt = null, status = "UNKNOWN_STATUS").toDomain().status,
         )
     }
 
-    private fun practiceItem(visitedAt: String?, status: String = "PLANNED") = PracticeItemResponse(
+    private fun practiceItem(lastActivityAt: String?, status: String = "PLANNED") = PracticeItemResponse(
         practiceId = 1,
         placeId = 10,
         placeName = "망원한강공원",
         practiceTypes = listOf("ROUNDABOUT"),
         visitCount = 1,
-        visitedAt = visitedAt,
+        lastActivityAt = lastActivityAt,
         status = status,
     )
 
