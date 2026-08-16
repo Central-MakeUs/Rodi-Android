@@ -1,7 +1,6 @@
 package com.dororong.rodi.feature.home
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +46,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,8 +56,10 @@ import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -155,9 +155,9 @@ private fun SearchScreenContent(
                 modifier = Modifier.weight(1f),
             )
 
-            state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim())
-            state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent()
-            state.resultState == SearchResultState.Idle -> SearchEmptyContent(state.query.trim())
+            state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))
+            state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent(Modifier.weight(1f))
+            state.resultState == SearchResultState.Idle -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))
         }
     }
 }
@@ -170,6 +170,7 @@ private fun SearchInput(
     onImeSearch: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val textFieldState = rememberGraphemeTextFieldState(query, Int.MAX_VALUE, onQueryChange)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -187,8 +188,8 @@ private fun SearchInput(
             tint = RodiTheme.colors.black,
         )
         BasicTextField(
-            value = query,
-            onValueChange = onQueryChange,
+            value = textFieldState.value,
+            onValueChange = textFieldState.onValueChange,
             textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
             cursorBrush = SolidColor(RodiTheme.colors.black),
             singleLine = true,
@@ -200,7 +201,7 @@ private fun SearchInput(
                 .semantics { contentDescription = "지역 또는 장소 검색어 입력" },
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) {
-                    if (query.isBlank()) {
+                    if (textFieldState.value.text.isBlank()) {
                         Text(
                             text = "시/군/구/코스명으로 검색하기",
                             style = RodiTheme.typography.body2Medium,
@@ -229,9 +230,10 @@ private fun RecentSearchList(
         isLoading -> RecentSearchSkeletonList(modifier)
         searches.isEmpty() -> Box(
             modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.TopCenter,
         ) {
             Text(
+                modifier = Modifier.padding(top = 180.dp),
                 text = "최근 검색 내역이 없습니다",
                 style = RodiTheme.typography.body1Medium,
                 color = RodiTheme.colors.gray600,
@@ -448,61 +450,25 @@ private fun SearchLoadingContent(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SearchEmptyContent(query: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 136.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.illust_course_empty),
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-        )
-        Text(
-            text = "‘$query’검색 결과가 없어요.",
-            style = RodiTheme.typography.headline1,
-            color = RodiTheme.colors.gray600,
-            modifier = Modifier.padding(top = 20.dp),
-        )
-        Text(
-            text = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구/코스명으로 검색해주세요.",
-            style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
+private fun SearchEmptyContent(query: String, modifier: Modifier = Modifier) {
+    RodiIllustratedEmptyState(
+        modifier = modifier.fillMaxWidth(),
+        painter = painterResource(R.drawable.illust_course_empty),
+        imageSize = 80.dp,
+        title = "‘$query’검색 결과가 없어요.",
+        description = "검색어의 철자가 맞는지 확인해주세요.\n시/군/구/코스명으로 검색해주세요.",
+    )
 }
 
 @Composable
-private fun RegionSearchEmptyContent() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 129.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.illust_course_empty),
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-        )
-        Text(
-            text = "추천할 수 있는 연습 코스를 찾지 못했어요.",
-            style = RodiTheme.typography.headline1,
-            color = RodiTheme.colors.gray600,
-            modifier = Modifier.padding(top = 16.dp),
-        )
-        Text(
-            text = "다른 지역의\n연습 코스를 둘러보세요.",
-            style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.gray600,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
+private fun RegionSearchEmptyContent(modifier: Modifier = Modifier) {
+    RodiIllustratedEmptyState(
+        modifier = modifier.fillMaxWidth(),
+        painter = painterResource(R.drawable.illust_course_empty),
+        imageSize = 80.dp,
+        title = "추천할 수 있는 연습 코스를 찾지 못했어요.",
+        description = "다른 지역의\n연습 코스를 둘러보세요.",
+    )
 }
 
 @Preview(name = "Search - recent", showBackground = true, widthDp = 375, heightDp = 812)

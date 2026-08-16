@@ -69,4 +69,7 @@ interface MemberApi {
 
     @DELETE("members/me")
     suspend fun withdraw(@Header("Authorization") authorization: String): ApiEnvelope<JsonObject>
+
+    @DELETE("members/me/hard")
+    suspend fun hardDelete(@Header("Authorization") authorization: String): ApiEnvelope<JsonObject>
 }

@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
@@ -14,6 +15,7 @@ import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -33,13 +35,14 @@ import java.io.IOException
 
 class AuthRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
+    private val practiceSessionRepository = mockk<PracticeSessionRepository>(relaxed = true)
 
     @Test
     fun `getSession maps atomic token snapshot`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens(provider = "kakao")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val session = repository.getSession()
 
@@ -53,7 +56,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
         coEvery { tokenStore.getRecentProvider() } returns "kakao"
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val session = repository.getSession()
 
@@ -67,12 +70,27 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(true)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.loginWithKakao("kakao-token")
 
         assertEquals(LoginResult.Success(true, "서버 닉네임"), result)
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
+    }
+
+    @Test
+    fun `login succeeds when stale practice session cleanup fails`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
+        coEvery { practiceSessionRepository.clear() } throws IOException("local storage unavailable")
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        assertTrue(repository.loginWithKakao("kakao-token") is LoginResult.Success)
+        coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao") }
+        coVerify(exactly = 3) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -82,7 +100,7 @@ class AuthRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(false)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         repository.reissueToken()
 
@@ -91,11 +109,27 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `reissueToken keeps practice presence cache for the same session`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val cache = PracticeRecordPresenceCache().also { it.set(true) }
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(false)
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, cache, practiceSessionRepository)
+
+        repository.reissueToken()
+
+        assertEquals(true, cache.get())
+        coVerify(exactly = 0) { practiceSessionRepository.clear() }
+    }
+
+    @Test
     fun `reissueToken does not call api without a session`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.NotAuthenticated> { repository.reissueToken() }
 
@@ -113,11 +147,12 @@ class AuthRepositoryImplTest {
             message = "폐기된 토큰입니다.",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -131,7 +166,7 @@ class AuthRepositoryImplTest {
             message = "refresh token이 유효하지 않습니다.",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
         val expiration = async(start = CoroutineStart.UNDISPATCHED) {
             repository.observeSessionExpiration().first { it }
         }
@@ -140,6 +175,7 @@ class AuthRepositoryImplTest {
 
         expiration.await()
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -153,11 +189,12 @@ class AuthRepositoryImplTest {
             message = "refresh token이 유효하지 않습니다.",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         assertTrue(repository.observeSessionExpiration().first())
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -169,12 +206,13 @@ class AuthRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws httpException
         coEvery { tokenStore.clear() } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
         assertTrue(repository.observeSessionExpiration().first())
         coVerify { tokenStore.clear() }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -183,7 +221,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws IOException("offline")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.Network> { repository.reissueToken() }
 
@@ -207,12 +245,13 @@ class AuthRepositoryImplTest {
             ),
         )
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.restoreWithKakao("kakao-token")
 
         assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
 
     @Test
@@ -230,7 +269,7 @@ class AuthRepositoryImplTest {
                 recoverableUntil = "2026-07-16T00:00:00Z",
             ),
         )
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.restoreWithKakao("kakao-token")
 
@@ -249,10 +288,11 @@ class AuthRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         repository.logout()
 
+        coVerify(exactly = 1) { practiceSessionRepository.clear() }
         coVerify { tokenStore.clear() }
     }
 
@@ -261,7 +301,7 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws IOException("offline")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.Network> { repository.loginWithKakao("kakao-token") }
     }
@@ -271,7 +311,7 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws CancellationException("cancelled")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<CancellationException> { repository.loginWithKakao("kakao-token") }
     }

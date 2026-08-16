@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.review
 
+import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
@@ -8,6 +9,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
+import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
@@ -82,6 +84,18 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
+    fun `review fields limit emoji by grapheme count`() {
+        val viewModel = viewModel()
+        viewModel.start(PLACE_ID, PLACE_NAME)
+
+        viewModel.updateCaution("😁".repeat(51))
+        viewModel.updateContent("👨‍👩‍👧‍👦".repeat(151))
+
+        assertEquals(50, viewModel.state.value.caution.graphemeLength())
+        assertEquals(150, viewModel.state.value.content.graphemeLength())
+    }
+
+    @Test
     fun `new form becomes dirty on a partial selection`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -102,7 +116,47 @@ class ReviewWriteViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isSubmitted)
+        assertEquals(
+            ReviewSubmissionResult(
+                placeId = PLACE_ID,
+                reviewId = 31L,
+                draft = expected,
+                isEditing = false,
+            ),
+            viewModel.state.value.submittedResult,
+        )
         coVerify(exactly = 1) { createReview(PLACE_ID, expected) }
+    }
+
+    @Test
+    fun `submitted result is consumed only once`() = runTest(dispatcher) {
+        coEvery { createReview(any(), any()) } returns Result.success(31L)
+        val viewModel = viewModel()
+        viewModel.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(viewModel)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.consumeSubmittedResult())
+        assertNull(viewModel.consumeSubmittedResult())
+        assertFalse(viewModel.state.value.isSubmitted)
+        assertFalse(viewModel.state.value.canSubmit)
+    }
+
+    @Test
+    fun `submitting after success does not create a second review`() = runTest(dispatcher) {
+        coEvery { createReview(any(), any()) } returns Result.success(31L)
+        val viewModel = viewModel()
+        viewModel.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(viewModel)
+
+        viewModel.submit()
+        advanceUntilIdle()
+        viewModel.submit()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { createReview(any(), any()) }
     }
 
     @Test
@@ -280,6 +334,8 @@ class ReviewWriteViewModelTest {
         advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isSubmitted)
+        assertEquals(REVIEW_ID, viewModel.state.value.submittedResult?.reviewId)
+        assertEquals(true, viewModel.state.value.submittedResult?.isEditing)
         coVerify(exactly = 1) { updateReview(REVIEW_ID, expected) }
     }
 
@@ -365,6 +421,7 @@ class ReviewWriteViewModelTest {
         isEditable = true,
         isHidden = false,
         createdAt = Instant.EPOCH,
+        isVerifiedVisit = true,
     )
 
     private fun reviewDetail() = ReviewDetail(

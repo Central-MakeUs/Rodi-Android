@@ -5,16 +5,21 @@ import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.recommendations
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.usecase.member.HardDeleteAccountUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
@@ -26,15 +31,24 @@ data class MyPageUiState(
     val errorMessage: String? = null,
     val practiceRecords: List<PracticeRecord> = emptyList(),
     val practiceRecordsErrorMessage: String? = null,
+    val isHardDeleteSubmitting: Boolean = false,
 )
+
+sealed interface MyPageEffect {
+    data class HardDeleteCompleted(val localCleanupSucceeded: Boolean) : MyPageEffect
+    data class ShowError(val message: String) : MyPageEffect
+}
 
 @HiltViewModel
 class MyPageViewModel @Inject constructor(
     private val getMyPage: GetMyPageUseCase,
     private val getPracticeRecords: GetPracticeRecordsUseCase,
+    private val hardDeleteAccount: HardDeleteAccountUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MyPageUiState())
     val uiState: StateFlow<MyPageUiState> = _uiState.asStateFlow()
+    private val _effect = Channel<MyPageEffect>(Channel.BUFFERED)
+    val effect: Flow<MyPageEffect> = _effect.receiveAsFlow()
     private var loadJob: Job? = null
 
     fun refresh() {
@@ -45,7 +59,9 @@ class MyPageViewModel @Inject constructor(
                 val profileDeferred = async { getMyPage() }
                 val recordsDeferred = async { getPracticeRecords(size = 4) }
                 val recordsResult = recordsDeferred.await()
-                val records = recordsResult.getOrNull()?.items.orEmpty().map { it.toFeatureModel() }
+                val records = recordsResult.getOrNull()?.items.orEmpty()
+                    .filter { it.status == PracticeStatus.VISITED }
+                    .map { it.toFeatureModel() }
                 val recordsErrorMessage = recordsResult.exceptionOrNull()
                     ?.userMessage("연습기록을 불러오지 못했어요.")
                 profileDeferred.await()
@@ -70,6 +86,26 @@ class MyPageViewModel @Inject constructor(
             }
         }
     }
+
+    fun hardDelete() {
+        if (_uiState.value.isHardDeleteSubmitting) return
+        _uiState.update { it.copy(isHardDeleteSubmitting = true) }
+        viewModelScope.launch {
+            try {
+                hardDeleteAccount()
+                    .onSuccess { result ->
+                        _effect.send(MyPageEffect.HardDeleteCompleted(result.localCleanupSucceeded))
+                    }
+                    .onFailure { error ->
+                        _effect.send(
+                            MyPageEffect.ShowError(error.userMessage("계정을 삭제하지 못했어요.")),
+                        )
+                    }
+            } finally {
+                _uiState.update { it.copy(isHardDeleteSubmitting = false) }
+            }
+        }
+    }
 }
 
 /**
@@ -85,10 +121,7 @@ private fun MyPage.toUiProfile() = MyPageProfile(
     practiceTypes = level.recommendations,
     drivingGoal = drivingGoal.orEmpty(),
     savedPlaceCount = savedPlaceCount,
-    progress = levelProgress.nextLevelKm?.let { nextLevelKm ->
-        ((levelProgress.totalDistanceKm - levelProgress.currentLevelStartKm) /
-            (nextLevelKm - levelProgress.currentLevelStartKm)).toFloat().coerceIn(0f, 1f)
-    } ?: 1f,
+    progress = (levelProgress.progressPercent / 100f).coerceIn(0f, 1f),
     distanceLabel = "${levelProgress.totalDistanceKm.roundToInt()}km",
 )
 

@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -211,7 +210,11 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                 ),
         ) {
             Column {
-                Row(modifier = Modifier.height(ProfileCardLayout.profileRowHeight)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ProfileCardLayout.profileRowHeight),
+                ) {
                     Image(
                         painter = painterResource(profile.level.characterImageRes),
                         contentDescription = null,
@@ -220,8 +223,8 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                     )
                     Column(
                         modifier = Modifier
+                            .weight(1f)
                             .padding(start = 15.dp, top = 12.dp)
-                            .width(213.dp),
                     ) {
                         Text(
                             text = profile.nickname,

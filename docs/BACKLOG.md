@@ -4,6 +4,33 @@
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
 
 ## 열린 항목
+
+### ★ 최우선 — UI 회귀 안전망 (2026-08-14 추가)
+> 배경: 이 리포는 **단위 테스트 76개 대비 계측(androidTest) 1개, 스크린샷 테스트 0개**다.
+> 그런데 실제로 터지는 버그는 마커 겹침·시트 드래그 잼·리플 클리핑·드롭다운처럼 전부
+> **단위 테스트가 볼 수 없는 영역**이다. `./gradlew test` 통과가 "검증됨"의 근거로 계속
+> 오용됐고, 그 결과 같은 QA 라운드에서 회귀가 반복됐다. 기능 하나 더 만드는 것보다 이 그물을
+> 먼저 치는 게 이득이 크다.
+
+- [ ] **Roborazzi 스크린샷 테스트 도입 (최우선)** — Compose 화면을 PNG로 고정해 CI에서 diff로
+  회귀를 잡는다. 우선 대상: `core:ui` 공용 컴포넌트(버튼/다이얼로그/스켈레톤), 코스 상세 시트의
+  접힘·펼침 상태, 후기 섹션의 상태별 렌더.
+  **주의 — 착수 전 호환성부터 확인할 것.** 현재 툴체인이 생태계보다 앞서 있다(AGP 9.2.1 /
+  Kotlin 2.2.10). `androidx.baselineprofile`도 stable이 AGP 9.2.1을 지원하지 않아 alpha로
+  고정한 전례가 있다. Roborazzi는 Robolectric 의존이라 같은 문제가 날 수 있으니, 의존성 추가 →
+  `./gradlew test` 전체 통과까지 확인한 뒤에 테스트를 늘린다. 반쯤 붙은 상태로 두면 기존 76개
+  단위 테스트까지 같이 망가진다.
+- [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
+  uiautomator가 이미 붙어 있으므로(`StartupBenchmark.kt` 참고) 테스트만 추가하면 된다.
+  **선결 과제: 로그인 우회 수단이 없다.** 코스 상세까지 가려면 카카오 로그인 → 위치 → 목록
+  선택을 거쳐야 해서 벤치마크가 안정적으로 화면에 도달하지 못한다. 디버그 빌드 전용 진입점
+  (예: 특정 화면으로 바로 가는 deep link, 또는 테스트용 토큰 주입)이 먼저 필요하다.
+  그때까지는 수동으로 `adb shell dumpsys gfxinfo com.dororong.rodi`의 janky frame 비율을
+  수정 전/후 비교하는 방식으로 대체한다.
+- [ ] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격 검토** — 디버그 빌드에 이미 API 목
+  인터셉터가 있다(`core/data/.../mock/`). 위 두 항목 모두 "서버 상태에 의존하지 않는 화면 재현"이
+  필요한데, 이걸 테스트에서 켤 수 있게 하면 스크린샷·벤치마크 양쪽에 쓸 수 있다.
+
 - [x] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
   (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
   `GET /places/{placeId}/reviews/summary`·`?level=ALL`·`GET /places/{placeId}/reviews?size=1`이
@@ -58,6 +85,7 @@
   - [ ] 관련 후기 테스트의 성공·실패·취소 경로 검토 및 정리
 - [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
   가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
+- [ ] 순환 코스 마커 앵커 Y 값 재평가 — 출발·도착 겹침 조건에서 앵커 Y 기준을 동일 조건으로 비교하고, 검증 결과를 반영한다.
 - [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
 
 - [x] **차단목록 빈 상태 문구 부재** — `BlockedMembersEmpty()`로 반영 완료(`b0ebd754`, QA
@@ -155,6 +183,18 @@
   `PlaceApi` 기반 검색/상세 경로로 이미 대체됐고, 이쪽은 초기 PoC 잔재로 보인다. 릴리스 빌드에
   섞여 나가진 않지만(호출부가 없어 도달 불가) 죽은 코드라 헷갈릴 수 있다 — 완전히 제거하거나,
   아직 쓸 곳이 있다면 실제 API로 교체할 것.
+- [ ] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — `ACTION_START`가
+  비동기로 `startDrivingSession()`을 저장하는 도중 `ACTION_STOP`이 먼저 처리되면, 저장되지 않은
+  세션을 `clear()`가 지우지 못하고 뒤늦게 완료된 `startDrivingSession()`이 이미 종료된 세션을
+  ACTIVE로 남길 수 있다. `Mutex`나 단일 명령 처리 코루틴으로 시작·종료를 직렬화해야 함.
+- [ ] **운전 도착 알림 탭 시 도착 흐름 미연결 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
+  `ACTION_OPEN_ARRIVAL`을 붙인 PendingIntent를 만들지만 `MainActivity`/라우팅 어디서도 이 action을
+  소비하지 않는다. 알림을 탭해도 도착 흐름으로 이동하지 않음 — 처리 경로를 연결하거나 미사용
+  action을 제거할 것.
+- [ ] **운전 알림 색상의 Compose 외부 테마 브릿지 검토 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
+  `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
+  참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
+  구독해 정적 필드에 반영)를 검토할 것.
 
 ## 마이페이지 개편 후속
 - [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.

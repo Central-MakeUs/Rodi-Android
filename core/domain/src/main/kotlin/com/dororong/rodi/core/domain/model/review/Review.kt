@@ -25,9 +25,9 @@ enum class PracticeMethod {
 data class Review(
     val reviewId: Long,
     val memberId: Long,
-    val nickname: String,
-    val memberLevel: OnboardingLevel,
-    val isRecommended: Boolean,
+    val nickname: String?,
+    val memberLevel: OnboardingLevel?,
+    val isRecommended: Boolean?,
     val difficulty: ReviewDifficulty?,
     val congestion: ReviewCongestion?,
     val practiceMethod: PracticeMethod?,
@@ -37,6 +37,7 @@ data class Review(
     val isEditable: Boolean,
     val isHidden: Boolean,
     val createdAt: Instant,
+    val isVerifiedVisit: Boolean?,
 )
 
 data class ReviewDetail(

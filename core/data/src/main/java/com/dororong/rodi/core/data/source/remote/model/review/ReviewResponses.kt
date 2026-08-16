@@ -31,17 +31,13 @@ data class CursorPageReviewResponse(
 data class ReviewResponse(
     val reviewId: Long,
     val memberId: Long,
-    val nickname: String,
-    val memberLevel: String,
-    val isRecommended: Boolean,
-    val difficulty: String? = null,
-    val congestion: String? = null,
+    val nickname: String? = null,
     val practiceMethod: String? = null,
     val content: String? = null,
-    val caution: String? = null,
     val isMine: Boolean,
     val isEditable: Boolean,
     val isHidden: Boolean,
+    val isVerifiedVisit: Boolean,
     val createdAt: String,
 )
 

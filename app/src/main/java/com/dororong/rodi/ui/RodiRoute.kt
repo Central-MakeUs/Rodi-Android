@@ -43,6 +43,7 @@ internal fun NavKey.toClarityScreenName(): String? = when (this) {
     DrivingGoalRoute -> "DrivingGoal"
     SavedCoursesRoute -> "SavedCourses"
     SettingsRoute -> "Settings"
+    is PracticeSkipReasonRoute -> "PracticeSkipReason"
     else -> null
 }
 
@@ -51,6 +52,11 @@ data object PracticeRecordsRoute : NavKey
 
 @Serializable
 data object MyPostsRoute : NavKey
+
+@Serializable
+data class PracticeSkipReasonRoute(
+    val practiceId: Long,
+) : NavKey
 
 @Serializable
 data class ReviewWriteRoute(

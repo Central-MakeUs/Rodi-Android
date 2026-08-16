@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.ActivePracticeSession
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -64,11 +65,15 @@ data class HomeUiState(
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
+    val reviewRefreshGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
     val practicePrompt: PracticeRecordItem? = null,
-    val isPracticeSkipReasonVisible: Boolean = false,
-    val notVisitedPracticeId: Long? = null,
+    val activePracticeSession: ActivePracticeSession? = null,
+    val isPracticeContinueDialogVisible: Boolean = false,
     val isPracticeActionInProgress: Boolean = false,
+    val isPracticeLaunchInProgress: Boolean = false,
+    val isNotificationPermissionRationaleVisible: Boolean = false,
+    val pendingPracticeNavigation: PendingPracticeNavigation? = null,
     val levelUp: OnboardingLevel? = null,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
@@ -89,11 +94,16 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnLevelReviewsOpen : HomeIntent
     data object OnLevelReviewsClose : HomeIntent
+    data object OnReviewUpdated : HomeIntent
     data object OnAppResumed : HomeIntent
+    data object OnPracticeContinueMeasurement : HomeIntent
+    data object OnPracticeStopMeasurement : HomeIntent
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
     data object OnPracticePromptDismiss : HomeIntent
-    data object OnPracticeSkipReasonClosed : HomeIntent
+    data object OnNotificationPermissionAllow : HomeIntent
+    data object OnNotificationPermissionRouteOnly : HomeIntent
+    data class OnNotificationPermissionResult(val granted: Boolean) : HomeIntent
     data object OnLevelUpDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
@@ -124,17 +134,33 @@ sealed interface HomeIntent {
 }
 
 sealed interface HomeEffect {
-    data class LaunchKakaoMap(val place: PlaceDetail) : HomeEffect
-    data class LaunchKakaoNavi(val place: PlaceDetail) : HomeEffect
+    data class LaunchKakaoMap(
+        val place: PlaceDetail,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
+    data class LaunchKakaoNavi(
+        val place: PlaceDetail,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
+    data class OpenPracticeSkipReason(val practiceId: Long) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
 }
+
+sealed interface HomePermissionEffect {
+    data object RequestNotificationPermission : HomePermissionEffect
+}
+
+data class PendingPracticeNavigation(
+    val place: PlaceDetail,
+    val app: NaviApp,
+)
 
 sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction

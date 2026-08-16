@@ -27,8 +27,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,16 +41,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.feature.mypage.practicerecords.visitedDateLabel
 import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
@@ -58,6 +64,18 @@ fun PracticeRecordsScreen(
     viewModel: PracticeRecordsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var hasResumed by remember { mutableStateOf(false) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                if (hasResumed) viewModel.refresh()
+                hasResumed = true
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     PracticeRecordsContent(
         state = state,
         onBack = onBack,
@@ -77,6 +95,7 @@ private fun PracticeRecordsContent(
     onWriteReviewClick: (Long, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val visitedRecords = state.records.filter { it.status == PracticeStatus.VISITED }
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
         Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             SubPageTopBar(title = "연습기록", onBack = onBack)
@@ -90,13 +109,14 @@ private fun PracticeRecordsContent(
             when {
                 state.isLoading -> PracticeRecordsLoading()
                 state.initialError != null -> PracticeRecordsError(state.initialError, onRetry)
-                state.records.isEmpty() -> PracticeRecordsEmpty()
+                visitedRecords.isEmpty() && state.hasNextPage -> PracticeRecordsLoading()
+                visitedRecords.isEmpty() -> PracticeRecordsEmpty()
                 else -> LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp),
                 ) {
-                    items(state.records, key = PracticeRecord::practiceId) { record ->
+                    items(visitedRecords, key = PracticeRecord::practiceId) { record ->
                         PracticeRecordListItem(record, onWriteReviewClick)
                     }
                     if (state.isLoadingMore || state.nextPageError != null) {
@@ -138,6 +158,7 @@ private fun PracticeRecordListItem(
     record: PracticeRecord,
     onWriteReviewClick: (Long, String) -> Unit,
 ) {
+    val reviewAction = record.reviewAction
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -155,7 +176,7 @@ private fun PracticeRecordListItem(
             )
         }
         Text(
-            text = record.recordStatusLabel(),
+            text = record.visitedDateLabel(),
             style = RodiTheme.typography.caption1Medium,
             color = RodiTheme.colors.gray600,
             modifier = Modifier.padding(top = 4.dp),
@@ -176,18 +197,20 @@ private fun PracticeRecordListItem(
             }
         }
         OutlinedButton(
-            onClick = { onWriteReviewClick(record.placeId, record.placeName) },
-            enabled = !record.hasReview,
+            onClick = {
+                if (reviewAction.isEnabled) onWriteReviewClick(record.placeId, record.placeName)
+            },
+            enabled = reviewAction.isEnabled,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(32.dp),
             shape = RoundedCornerShape(8.dp),
-            border = if (record.hasReview) null else BorderStroke(1.dp, RodiTheme.colors.primary600),
+            border = if (reviewAction.isEnabled) BorderStroke(1.dp, RodiTheme.colors.primary600) else null,
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = RodiTheme.colors.primary600,
                 disabledContainerColor = RodiTheme.colors.gray300,
                 disabledContentColor = RodiTheme.colors.gray500,
             ),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp),
-        ) { Text(if (record.hasReview) "작성 완료" else "후기 작성", style = RodiTheme.typography.body3Medium) }
+        ) { Text(reviewAction.label, style = RodiTheme.typography.body3Medium) }
         HorizontalDivider(modifier = Modifier.padding(top = 16.dp), color = RodiTheme.colors.gray100)
     }
 }
@@ -250,19 +273,9 @@ private fun PracticeRecordsNextPageFooter(
     }
 }
 
-private val PracticeRecordDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
-
-// visitedAt은 방문(VISITED)에서만 채워진다. 미방문 사유를 제출해도 NOT_VISITED로 남을 뿐
-// visitedAt은 비어 있어, visitedAt만으로 분기하면 미방문 처리한 항목이 계속 "방문 예정"으로 보인다.
-private fun PracticeRecord.recordStatusLabel(): String = when {
-    visitedAt != null -> PracticeRecordDateFormatter.format(visitedAt)
-    status == PracticeStatus.NOT_VISITED -> "미방문"
-    else -> "방문 예정"
-}
-
 private val PreviewPracticeRecords = listOf(
-    PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false),
-    PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true),
+    PracticeRecord(1, 1, "망원한강공원", listOf(PracticeType.ROUNDABOUT), 1, Instant.parse("2026-05-10T00:00:00Z"), true, false, PracticeStatus.VISITED),
+    PracticeRecord(2, 2, "용산구 교차로", listOf(PracticeType.PARKING), 2, Instant.parse("2026-05-09T00:00:00Z"), true, true, PracticeStatus.VISITED),
 )
 
 @Preview(name = "연습기록 목록", showBackground = true, widthDp = 375, heightDp = 812)

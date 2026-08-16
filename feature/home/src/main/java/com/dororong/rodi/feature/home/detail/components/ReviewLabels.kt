@@ -27,8 +27,8 @@ internal val OnboardingLevel.displayName: String
 
 internal val PracticeMethod.label: String
     get() = when (this) {
-        PracticeMethod.SOLO -> "혼자 연습"
-        PracticeMethod.WITH_COMPANION -> "동승자와 연습"
+        PracticeMethod.SOLO -> "혼자 왔어요"
+        PracticeMethod.WITH_COMPANION -> "동행했어요"
     }
 
 /**

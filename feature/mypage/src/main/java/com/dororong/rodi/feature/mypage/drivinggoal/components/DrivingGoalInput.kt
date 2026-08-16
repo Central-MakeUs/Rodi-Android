@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.drivinggoal.DRIVING_GOAL_MAX_LENGTH
 
@@ -44,16 +45,12 @@ internal fun DrivingGoalInput(
     var isFocused by remember { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val textFieldState = rememberGraphemeTextFieldState(value, DRIVING_GOAL_MAX_LENGTH, onValueChange)
 
     Column(modifier = modifier.fillMaxWidth()) {
         BasicTextField(
-            value = value,
-            onValueChange = { updatedValue ->
-                // String.length는 UTF-16 code unit 기준이라 서로게이트 쌍인 이모지(😁 등)를 2로
-                // 센다. 사용자가 인지하는 문자 수로 세야 이모지 하나 입력했다고 글자수가 2씩 늘거나
-                // 30자 제한에 조기 도달하지 않는다.
-                if (updatedValue.graphemeLength() <= DRIVING_GOAL_MAX_LENGTH) onValueChange(updatedValue)
-            },
+            value = textFieldState.value,
+            onValueChange = textFieldState.onValueChange,
             textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
             cursorBrush = SolidColor(RodiTheme.colors.black),
             singleLine = true,
@@ -71,7 +68,11 @@ internal fun DrivingGoalInput(
                 .onFocusChanged { isFocused = it.isFocused }
                 .border(
                     width = 1.dp,
-                    color = if (isFocused || value.isBlank()) RodiTheme.colors.black else RodiTheme.colors.gray300,
+                    color = if (isFocused || textFieldState.value.text.isBlank()) {
+                        RodiTheme.colors.black
+                    } else {
+                        RodiTheme.colors.gray300
+                    },
                     shape = RoundedCornerShape(8.dp),
                 )
                 .padding(horizontal = 16.dp),
@@ -82,7 +83,7 @@ internal fun DrivingGoalInput(
         Row(modifier = Modifier.fillMaxWidth()) {
             Spacer(Modifier.weight(1f))
             Text(
-                text = "${value.graphemeLength()} /30",
+                text = "${textFieldState.value.text.graphemeLength()} /30",
                 style = RodiTheme.typography.caption2Medium,
                 color = RodiTheme.colors.gray500,
                 textAlign = TextAlign.End,

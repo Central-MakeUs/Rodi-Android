@@ -124,5 +124,6 @@ class ReviewUseCasesTest {
         isEditable = false,
         isHidden = false,
         createdAt = Instant.parse("2026-08-08T00:00:00Z"),
+        isVerifiedVisit = true,
     )
 }

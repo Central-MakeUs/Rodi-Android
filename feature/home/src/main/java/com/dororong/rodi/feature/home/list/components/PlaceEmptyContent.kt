@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,11 +32,11 @@ fun PlaceEmptyContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 375.dp)
+            .height(380.dp)
             .then(dragHandleModifier),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        SheetHandle(modifier = Modifier.height(22.dp))
+        SheetHandle(modifier = Modifier.height(24.dp))
         Column(
             modifier = Modifier
                 .fillMaxWidth()

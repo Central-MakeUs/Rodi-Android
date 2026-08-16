@@ -2,6 +2,8 @@ package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.Saver
@@ -81,14 +84,16 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.review.Review
@@ -118,8 +123,9 @@ import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.NotificationPermissionDialog
+import com.dororong.rodi.feature.home.review.PracticeContinueDialog
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -158,12 +164,14 @@ import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.markMapLoaded
+import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
 import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
+import com.dororong.rodi.feature.home.map.RouteLineColors
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
@@ -182,6 +190,7 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
 
@@ -219,6 +228,7 @@ typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit,
 ) -> Unit
+typealias DrivingStartRequest = (PlaceDetail) -> Result<String>
 
 private data class ReviewWriteTarget(
     val placeId: Long,
@@ -255,6 +265,8 @@ fun HomeScreen(
     onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
+    onStartDriving: DrivingStartRequest,
+    onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
@@ -266,6 +278,7 @@ fun HomeScreen(
     val reviewState by reviewVm.state.collectAsStateWithLifecycle()
     val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
@@ -301,6 +314,7 @@ fun HomeScreen(
     var hasCenteredInitialLocation by rememberSaveable { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
+    var pendingDrivingEffect by remember { mutableStateOf<HomeEffect?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
@@ -308,7 +322,24 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
+    var ownReviewActionToastMessage by remember { mutableStateOf<String?>(null) }
     var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
+    fun handleReportReviewClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 신고할 수 없습니다"
+        } else {
+            reviewToReport = review
+        }
+    }
+
+    fun handleBlockMemberClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 차단할 수 없습니다"
+        } else {
+            reviewToBlock = review
+        }
+    }
+
     fun updateCurrentViewport(viewport: MapViewport?) {
         currentViewport = viewport
     }
@@ -341,18 +372,72 @@ fun HomeScreen(
     }
     val currentLocationMarkerColor = RodiTheme.colors.primary600.toArgb()
 
+    suspend fun launchDriving(effect: HomeEffect) {
+        val place = when (effect) {
+            is HomeEffect.LaunchKakaoMap -> effect.place
+            is HomeEffect.LaunchKakaoNavi -> effect.place
+            else -> return
+        }
+        val shouldStartDriving = when (effect) {
+            is HomeEffect.LaunchKakaoMap -> effect.startDriving
+            is HomeEffect.LaunchKakaoNavi -> effect.startDriving
+            else -> false
+        }
+        if (shouldStartDriving) {
+            val startResult = onStartDriving(place)
+            val startError = startResult.exceptionOrNull()
+            if (startError != null) {
+                snackbarHostState.show(
+                    RodiSnackbarData(
+                        message = startError.message
+                            ?: "운전 상태 추적을 시작하지 못했어요. 다시 시도해 주세요.",
+                    ),
+                )
+                return
+            }
+        }
+        when (effect) {
+            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, place)
+            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, place)
+            else -> Unit
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         permissionGranted = result.values.any { it }
         if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
     }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted))
+    }
+    val drivingPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        permissionGranted = context.hasLocationPermission()
+        val pending = pendingDrivingEffect
+        pendingDrivingEffect = null
+        if (pending != null) {
+            scope.launch {
+                val missingPermissions = context.missingDrivingPermissions()
+                if (missingPermissions.isEmpty()) {
+                    launchDriving(pending)
+                } else {
+                    snackbarHostState.show(
+                        RodiSnackbarData(message = missingPermissions.deniedDrivingPermissionMessage()),
+                    )
+                }
+            }
+        }
+    }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
-                vm.onIntent(HomeIntent.OnAppResumed)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -549,13 +634,32 @@ fun HomeScreen(
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
-            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.place)
-            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.place)
+            is HomeEffect.LaunchKakaoMap,
+            is HomeEffect.LaunchKakaoNavi,
+            -> {
+                val shouldStartDriving = when (effect) {
+                    is HomeEffect.LaunchKakaoMap -> effect.startDriving
+                    is HomeEffect.LaunchKakaoNavi -> effect.startDriving
+                    else -> false
+                }
+                if (!shouldStartDriving) {
+                    launchDriving(effect)
+                } else {
+                    val missingPermissions = context.missingDrivingPermissions()
+                    if (missingPermissions.isEmpty()) {
+                        launchDriving(effect)
+                    } else {
+                        pendingDrivingEffect = effect
+                        drivingPermissionLauncher.launch(missingPermissions)
+                    }
+                }
+            }
             is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
             is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
             is HomeEffect.OpenPracticeReview -> {
                 reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
             }
+            is HomeEffect.OpenPracticeSkipReason -> onPracticeSkipReasonClick(effect.practiceId)
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
@@ -565,6 +669,17 @@ fun HomeScreen(
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
+        }
+    }
+    CollectEffect(vm.permissionEffect) { effect ->
+        when (effect) {
+            HomePermissionEffect.RequestNotificationPermission -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
+                }
+            }
         }
     }
 
@@ -730,21 +845,22 @@ fun HomeScreen(
         mapViewSize,
         mapContentBottomPaddingPx,
         mapBitmapStyle,
+        currentViewport,
         state.searchedQuery,
         activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        val searchedViewport = state.searchedQuery?.let { MapViewport(it.northEast, it.southWest) }
-        if (state.coordinates.isEmpty() || searchedViewport == null) {
+        val markerViewport = markerViewportOrNull(currentViewport, state.searchedQuery)
+        if (state.coordinates.isEmpty() || markerViewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { markerViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
@@ -777,6 +893,7 @@ fun HomeScreen(
         selectedDetailPlaceId,
         state.selectedRoute,
         mapContentBottomPaddingPx,
+        colors,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState != HomeSurfaceState.Detail || mapContentBottomPaddingPx <= 0) {
@@ -810,6 +927,10 @@ fun HomeScreen(
                         place = place,
                         routePoints = routePoints,
                         snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                        routeLineColors = RouteLineColors(
+                            lineColor = colors.primary600.toArgb(),
+                            strokeColor = colors.primary800.toArgb(),
+                        ),
                     )
                     if (mapContentBottomPaddingPx > 0) {
                         map.fitCourseToScreen(routePoints, mapContentTopPaddingPx, mapContentBottomPaddingPx)
@@ -1144,7 +1265,8 @@ fun HomeScreen(
                                 )
                             }
                             when {
-                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
+                                state.listState == HomeListState.Loading ||
+                                    state.listState == HomeListState.Idle -> PlaceListLoadingContent(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layoutHeightPx { listViewportHeightPx() },
@@ -1206,8 +1328,8 @@ fun HomeScreen(
                                         onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
                                         onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
                                         onDeleteReviewClick = { reviewToDelete = it },
-                                        onReportReviewClick = { reviewToReport = it },
-                                        onBlockMemberClick = { reviewToBlock = it },
+                                        onReportReviewClick = ::handleReportReviewClick,
+                                        onBlockMemberClick = ::handleBlockMemberClick,
                                         scrollState = sheetScrollState,
                                     )
                                 }
@@ -1336,8 +1458,8 @@ fun HomeScreen(
             },
             onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
             onDeleteReviewClick = { reviewToDelete = it },
-            onReportReviewClick = { reviewToReport = it },
-            onBlockMemberClick = { reviewToBlock = it },
+            onReportReviewClick = ::handleReportReviewClick,
+            onBlockMemberClick = ::handleBlockMemberClick,
         )
     }
     reviewToReport?.let { review ->
@@ -1353,8 +1475,9 @@ fun HomeScreen(
             placeName = target.placeName,
             editingReviewId = target.review?.reviewId,
             onClose = { reviewToWrite = null },
-            onCompleted = {
+            onCompleted = { result ->
                 reviewToWrite = null
+                reviewVm.onReviewSubmitted(result)
                 reviewVm.refresh()
             },
             modifier = Modifier.fillMaxSize(),
@@ -1372,10 +1495,20 @@ fun HomeScreen(
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (state.isPracticeSkipReasonVisible && state.notVisitedPracticeId != null) {
-        PracticeSkipReasonScreen(
-            practiceId = requireNotNull(state.notVisitedPracticeId),
-            onClose = { vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed) },
+    state.activePracticeSession
+        ?.takeIf { state.isPracticeContinueDialogVisible }
+        ?.let { session ->
+            PracticeContinueDialog(
+                placeName = session.placeName,
+                onContinue = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+                onStop = { vm.onIntent(HomeIntent.OnPracticeStopMeasurement) },
+                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+            )
+        }
+    if (state.isNotificationPermissionRationaleVisible) {
+        NotificationPermissionDialog(
+            onAllow = { vm.onIntent(HomeIntent.OnNotificationPermissionAllow) },
+            onRouteOnly = { vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly) },
         )
     }
     state.levelUp?.let { level ->
@@ -1439,12 +1572,21 @@ fun HomeScreen(
             }
         }
     }
+    LaunchedEffect(ownReviewActionToastMessage) {
+        ownReviewActionToastMessage?.let { message ->
+            snackbarHostState.show(RodiSnackbarData(message = message))
+            ownReviewActionToastMessage = null
+        }
+    }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.
     // errorMessage를 비우지는 않는다 — CourseReviewViewModel.load()의 가드가 이 값으로 재시도를 판단한다.
     LaunchedEffect(reviewState.errorMessage) {
         reviewState.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
         }
+    }
+    LaunchedEffect(state.reviewRefreshGeneration) {
+        if (state.reviewRefreshGeneration > 0) reviewVm.refresh()
     }
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(
@@ -1691,6 +1833,29 @@ private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
 private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
+
+private fun Context.missingDrivingPermissions(): Array<String> = buildList {
+    if (!hasLocationPermission()) {
+        add(Manifest.permission.ACCESS_FINE_LOCATION)
+        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+    if (
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(
+            this@missingDrivingPermissions,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        add(Manifest.permission.POST_NOTIFICATIONS)
+    }
+}.toTypedArray()
+
+private fun Array<String>.deniedDrivingPermissionMessage(): String =
+    if (contains(Manifest.permission.POST_NOTIFICATIONS)) {
+        "알림 권한을 허용해야 운전 상태를 안전하게 표시할 수 있어요."
+    } else {
+        "위치 권한을 허용해야 운전 상태를 추적할 수 있어요."
+    }
 
 @Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

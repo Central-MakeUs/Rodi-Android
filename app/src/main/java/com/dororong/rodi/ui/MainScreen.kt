@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -12,6 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.LocalActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -23,6 +27,7 @@ import com.microsoft.clarity.Clarity
 import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
+import com.dororong.rodi.spike.driving.DrivingTrackingController
 import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
@@ -36,6 +41,7 @@ import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecordsScreen
 import com.dororong.rodi.feature.mypage.myposts.MyPostsScreen
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
 import dagger.hilt.android.EntryPointAccessors
 
@@ -51,12 +57,23 @@ fun MainScreen(
     }
     val currentRouteState = rememberUpdatedState(currentRoute)
     val homeViewModel: HomeViewModel = hiltViewModel()
+    val lifecycleOwner = LocalLifecycleOwner.current
     val activity = LocalActivity.current
     val kakaoLoginManager = remember(activity) {
         activity?.let {
             EntryPointAccessors.fromActivity(it, KakaoLoginManagerEntryPoint::class.java)
                 .kakaoLoginManager()
         }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                homeViewModel.onIntent(HomeIntent.OnAppResumed)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val bottomNavigation = remember {
         movableContentOf {
@@ -107,9 +124,20 @@ fun MainScreen(
                                 backStack.add(SearchRoute(origin.lat, origin.lng))
                             },
                             onGuestSignUp = onGuestSignUp,
+                            onPracticeSkipReasonClick = { practiceId ->
+                                backStack.add(PracticeSkipReasonRoute(practiceId))
+                            },
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
+                            },
+                            onStartDriving = { place ->
+                                activity?.let { DrivingTrackingController.start(it, place) }
+                                    ?: Result.failure(
+                                        IllegalStateException(
+                                            "운전 상태 추적을 시작할 수 없어요. 다시 시도해 주세요.",
+                                        ),
+                                    )
                             },
                             bottomNavigation = {
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()
@@ -143,6 +171,8 @@ fun MainScreen(
                             onWriteReviewClick = { placeId, placeName ->
                                 backStack.add(ReviewWriteRoute(placeId, placeName))
                             },
+                            isDebugBuild = BuildConfig.DEBUG,
+                            onSessionEnded = onSessionEnded,
                         )
                     }
                     PracticeRecordsRoute -> NavEntry(key) {
@@ -162,13 +192,22 @@ fun MainScreen(
                             },
                         )
                     }
+                    is PracticeSkipReasonRoute -> NavEntry(key) {
+                        PracticeSkipReasonScreen(
+                            practiceId = key.practiceId,
+                            onClose = { backStack.removeAt(backStack.lastIndex) },
+                        )
+                    }
                     is ReviewWriteRoute -> NavEntry(key) {
                         ReviewWriteScreen(
                             placeId = key.placeId,
                             placeName = key.placeName,
                             editingReviewId = key.reviewId,
                             onClose = { backStack.removeAt(backStack.lastIndex) },
-                            onCompleted = { backStack.removeAt(backStack.lastIndex) },
+                            onCompleted = {
+                                homeViewModel.onIntent(HomeIntent.OnReviewUpdated)
+                                backStack.removeAt(backStack.lastIndex)
+                            },
                         )
                     }
                     DrivingGoalRoute -> NavEntry(key) {

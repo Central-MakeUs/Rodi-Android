@@ -47,6 +47,7 @@ import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
+import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
@@ -241,6 +242,7 @@ private fun ReviewReportContent(
                         ReportDetailInput(
                             value = detail,
                             placeholder = selectedOption.textInputPlaceholder ?: "이유를 작성해주세요",
+                            maxGraphemes = selectedOption.textInputMaxLength ?: Int.MAX_VALUE,
                             onValueChange = onDetailChange,
                         )
                     }
@@ -302,11 +304,13 @@ internal fun ReportReasonRow(
 private fun ReportDetailInput(
     value: String,
     placeholder: String,
+    maxGraphemes: Int,
     onValueChange: (String) -> Unit,
 ) {
+    val textFieldState = rememberGraphemeTextFieldState(value, maxGraphemes, onValueChange)
     BasicTextField(
-        value = value,
-        onValueChange = onValueChange,
+        value = textFieldState.value,
+        onValueChange = textFieldState.onValueChange,
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         singleLine = true,
         cursorBrush = SolidColor(RodiTheme.colors.primary600),
@@ -317,7 +321,7 @@ private fun ReportDetailInput(
             .padding(horizontal = 16.dp),
         decorationBox = { innerTextField ->
             Box(contentAlignment = Alignment.CenterStart) {
-                if (value.isEmpty()) {
+                if (textFieldState.value.text.isEmpty()) {
                     Text(
                         text = placeholder,
                         style = RodiTheme.typography.body3Medium,

@@ -10,10 +10,10 @@ import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import androidx.core.graphics.toColorInt
-import com.dororong.rodi.feature.home.R
+import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
-import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
+import com.dororong.rodi.core.domain.model.place.PlaceWaypoint
+import com.dororong.rodi.feature.home.R
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.camera.CameraAnimation
@@ -26,11 +26,24 @@ import com.kakao.vectormap.route.RouteLineSegment
 import com.kakao.vectormap.route.RouteLineStyle
 import com.kakao.vectormap.route.RouteLineStyles
 import com.kakao.vectormap.route.RouteLineStylesSet
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
-private const val ROUTE_LINE_COLOR = "#5640FF"  // primary600
-private const val ROUTE_LINE_STROKE_COLOR = "#2600B1" // primary800 (내곽선)
 private const val ROUTE_LINE_WIDTH = 10f
 private const val FIT_PADDING_PX = 140
+private const val ENDPOINT_OVERLAP_THRESHOLD_METERS = 2.0
+private const val OVERLAPPED_START_ANCHOR_X = 0.25f
+private const val OVERLAPPED_DESTINATION_ANCHOR_X = 0.75f
+private const val CENTER_ANCHOR = 0.5f
+private const val PIN_ANCHOR_Y = 1f
+private const val EARTH_RADIUS_METERS = 6_371_000.0
+
+data class RouteLineColors(
+    @get:ColorInt val lineColor: Int,
+    @get:ColorInt val strokeColor: Int,
+)
 
 /** 지도에서 코스 관련 레이어(마커·경로선)를 모두 지운다. */
 fun KakaoMap.clearCourse() {
@@ -40,17 +53,15 @@ fun KakaoMap.clearCourse() {
 
 fun KakaoMap.renderPlaceCourseMarkers(context: Context, place: PlaceDetail) {
     clearCourse()
-    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEach { waypoint ->
-        val icon = when (waypoint.type) {
-            PlaceWaypointType.START -> R.drawable.ic_pin_start
-            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
-            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
-        }
+    val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    val overlapAnchors = waypoints.overlapAnchors()
+    waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = LatLng.from(waypoint.point.lat, waypoint.point.lng),
-            iconRes = icon,
+            iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
+            anchorX = overlapAnchors[index],
         )
     }
 }
@@ -60,23 +71,77 @@ fun KakaoMap.renderPlaceCourse(
     place: PlaceDetail,
     routePoints: List<LatLng>,
     snappedPoints: List<LatLng> = emptyList(),
+    routeLineColors: RouteLineColors,
 ) {
     clearCourse()
-    place.course?.waypoints.orEmpty().sortedBy { it.sequence }.forEachIndexed { index, waypoint ->
-        val icon = when (waypoint.type) {
-            PlaceWaypointType.START -> R.drawable.ic_pin_start
-            PlaceWaypointType.VIA -> R.drawable.ic_pin_waypoint
-            PlaceWaypointType.DESTINATION -> R.drawable.ic_pin_arrival
-        }
+    val waypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+    val overlapAnchors = waypoints.overlapAnchors()
+    waypoints.forEachIndexed { index, waypoint ->
         addMarkerAt(
             context = context,
             position = snappedPoints.getOrNull(index)
                 ?: LatLng.from(waypoint.point.lat, waypoint.point.lng),
-            iconRes = icon,
+            iconRes = waypointIconRes(index, waypoints.lastIndex),
             index = waypoint.sequence,
+            anchorX = overlapAnchors[index],
         )
     }
-    if (routePoints.size >= 2) drawRouteLine(routePoints)
+    if (routePoints.size >= 2) drawRouteLine(routePoints, routeLineColors)
+}
+
+/**
+ * 좌표가 서로 임계값 이내인 waypoint끼리 묶어, 묶음 안에서만 앵커를 좌우로 고르게 벌린다.
+ * 출발·도착만 겹치는 흔한 경우뿐 아니라 경유지가 셋 이상 같은 지점에 몰리는 경우도 다룬다
+ * (첫/마지막 인덱스만 보던 이전 버전은 중간 경유지가 겹치면 오프셋을 못 줬다).
+ * 반환값은 정렬된 waypoints 리스트 기준 index -> anchorX. 겹치지 않는 waypoint는 키가 없다
+ * (= addMarkerAt에서 SDK 기본 앵커를 그대로 쓴다).
+ */
+private fun List<PlaceWaypoint>.overlapAnchors(): Map<Int, Float> {
+    if (size < 2) return emptyMap()
+    val anchors = mutableMapOf<Int, Float>()
+    val grouped = BooleanArray(size)
+    for (i in indices) {
+        if (grouped[i]) continue
+        val group = mutableListOf(i)
+        for (j in i + 1 until size) {
+            if (!grouped[j] && this[i].point.distanceMetersTo(this[j].point) <= ENDPOINT_OVERLAP_THRESHOLD_METERS) {
+                group += j
+            }
+        }
+        if (group.size < 2) continue
+        group.forEach { grouped[it] = true }
+        group.forEachIndexed { rank, waypointIndex -> anchors[waypointIndex] = overlapAnchorX(rank, group.size) }
+    }
+    return anchors
+}
+
+private fun overlapAnchorX(rank: Int, groupSize: Int): Float {
+    if (groupSize < 2) return CENTER_ANCHOR
+    val span = OVERLAPPED_DESTINATION_ANCHOR_X - OVERLAPPED_START_ANCHOR_X
+    return OVERLAPPED_START_ANCHOR_X + span * rank / (groupSize - 1)
+}
+
+private fun GeoPoint.distanceMetersTo(other: GeoPoint): Double {
+    val latitudeDelta = Math.toRadians(other.lat - lat)
+    val longitudeDelta = Math.toRadians(other.lng - lng)
+    val startLatitude = Math.toRadians(lat)
+    val endLatitude = Math.toRadians(other.lat)
+    val haversine = sin(latitudeDelta / 2) * sin(latitudeDelta / 2) +
+        cos(startLatitude) * cos(endLatitude) *
+        sin(longitudeDelta / 2) * sin(longitudeDelta / 2)
+    return 2 * EARTH_RADIUS_METERS * atan2(sqrt(haversine), sqrt(1 - haversine))
+}
+
+/**
+ * 서버 `waypoint.type`을 그대로 신뢰하지 않고 정렬된 순서(첫 번째=출발, 마지막=도착)로
+ * 아이콘을 정한다. 순환 코스처럼 출발·도착이 같은 지점인 경우 서버가 두 지점의 type을
+ * 요청마다 다르게 줄 가능성이 있어, sequence 순서만으로 결정해야 같은 코스를 다시 열어도
+ * 항상 같은 그림이 나온다.
+ */
+private fun waypointIconRes(index: Int, lastIndex: Int): Int = when {
+    index == 0 -> R.drawable.ic_pin_start
+    index == lastIndex -> R.drawable.ic_pin_arrival
+    else -> R.drawable.ic_pin_waypoint
 }
 
 /**
@@ -92,15 +157,30 @@ fun KakaoMap.fitCourseToScreen(routePoints: List<LatLng>, topPaddingPx: Int, bot
     if (routePoints.size >= 2) fitTo(routePoints)
 }
 
-private fun KakaoMap.addMarkerAt(context: Context, position: LatLng, iconRes: Int, index: Int) {
+/**
+ * [index]는 waypoint.sequence다. rank로도 그대로 쓴다 — 순환 코스처럼 출발·도착 지점이
+ * 거의 겹치면 Kakao 지도가 겹친 라벨 중 어느 걸 위에 그릴지 보장하지 않아서, 열 때마다
+ * 다른 핀이 보이는 것처럼 깜빡이는 문제가 있었다. sequence가 큰(나중) 지점을 항상 위에
+ * 그리게 고정하면 같은 코스는 언제 열어도 같은 그림이 나온다.
+ */
+private fun KakaoMap.addMarkerAt(
+    context: Context,
+    position: LatLng,
+    iconRes: Int,
+    index: Int,
+    anchorX: Float?,
+) {
     val manager = labelManager ?: return
     val layer = detailLabelLayer() ?: return
     val bitmap = context.vectorToBitmap(iconRes, sizeDp = 34)
-    val style = LabelStyle.from(bitmap)
+    val style = LabelStyle.from(bitmap).apply {
+        anchorX?.let { setAnchorPoint(it, PIN_ANCHOR_Y) }
+    }
     val styles = manager.addLabelStyles(LabelStyles.from(style))
     val options = LabelOptions.from(position)
         .setStyles(styles)
         .setTag(index)
+        .setRank(index.toLong())
     layer.addLabel(options)
 }
 
@@ -114,14 +194,14 @@ private fun Context.vectorToBitmap(@DrawableRes iconRes: Int, sizeDp: Int): Bitm
     return bm
 }
 
-private fun KakaoMap.drawRouteLine(points: List<LatLng>) {
+private fun KakaoMap.drawRouteLine(points: List<LatLng>, colors: RouteLineColors) {
     if (points.size < 2) return
     val manager = routeLineManager ?: return
     val style = RouteLineStyle.from(
         ROUTE_LINE_WIDTH,
-        ROUTE_LINE_COLOR.toColorInt(),
+        colors.lineColor,
         2f,
-        ROUTE_LINE_STROKE_COLOR.toColorInt(),
+        colors.strokeColor,
     )
     val stylesSet = RouteLineStylesSet.from(RouteLineStyles.from(style))
     val segment = RouteLineSegment.from(points).setStyles(stylesSet.getStyles(0))

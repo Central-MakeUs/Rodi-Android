@@ -16,6 +16,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val MAX_CACHED_LOCATION_AGE_MILLIS = 2 * 60 * 1000L
@@ -38,17 +39,21 @@ suspend fun Context.awaitCurrentLocation(
 }
 
 @SuppressLint("MissingPermission")
-fun Context.currentLocationUpdates(): Flow<LatLng> = callbackFlow {
+fun Context.currentLocationUpdates(): Flow<LatLng> =
+    rawCurrentLocationUpdates().map { LatLng.from(it.latitude, it.longitude) }
+
+@SuppressLint("MissingPermission")
+fun Context.rawCurrentLocationUpdates(): Flow<Location> = callbackFlow {
     if (!hasLocationPermission()) {
         close()
         return@callbackFlow
     }
 
-    val client = LocationServices.getFusedLocationProviderClient(this@currentLocationUpdates)
+    val client = LocationServices.getFusedLocationProviderClient(this@rawCurrentLocationUpdates)
     val callback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.lastLocation?.let { location ->
-                trySend(LatLng.from(location.latitude, location.longitude))
+                trySend(location)
             }
         }
     }
@@ -60,7 +65,7 @@ fun Context.currentLocationUpdates(): Flow<LatLng> = callbackFlow {
     client.lastLocation.addOnSuccessListener { location ->
         location
             ?.takeIf(Location::isFreshEnough)
-            ?.let { trySend(LatLng.from(it.latitude, it.longitude)) }
+            ?.let { trySend(it) }
     }
     client.requestLocationUpdates(request, callback, Looper.getMainLooper())
     awaitClose { client.removeLocationUpdates(callback) }

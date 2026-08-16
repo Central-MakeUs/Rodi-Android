@@ -37,6 +37,7 @@ import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
+import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 import java.time.Instant
@@ -79,6 +80,10 @@ fun LevelReviewSection(
                     topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
+                    // 왼쪽은 "추천해요"를 기존 위치에 두기 위해 xl만큼 더 들여쓰고, 오른쪽은
+                    // 부모 Column의 16dp만 남겨 레벨 드롭다운이 다른 우측 정렬 요소(전체보기 등)와
+                    // 같은 우측 여백으로 붙게 한다.
+                    modifier = Modifier.padding(start = RodiSpacing.xl),
                 )
             }
         }
@@ -165,9 +170,10 @@ private fun SummaryRow(
     topDifficultyCount: Long,
     onSelectLevel: (OnboardingLevel) -> Unit,
     scrollState: ScrollableState?,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -221,6 +227,7 @@ private fun SummaryRow(
                     style = RodiTheme.typography.body2SemiBold,
                     color = RodiTheme.colors.gray800,
                 )
+                Spacer(modifier = Modifier.weight(1f))
                 LevelDropdown(
                     selectedLevel = selectedLevel,
                     onSelectLevel = onSelectLevel,
@@ -342,6 +349,7 @@ private val previewSectionReview = Review(
     isEditable = false,
     isHidden = false,
     createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    isVerifiedVisit = true,
 )
 
 @Composable

@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -164,13 +165,24 @@ private fun PermissionSettingsContent(
 
 @Composable
 private fun PermissionRow(title: String, granted: Boolean, description: String, onClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 24.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
-            Text(if (granted) "허용됨" else "허용 안 됨", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
-            Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.padding(start = 8.dp).size(20.dp))
+            Text(title, style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(if (granted) "허용됨" else "허용 안 됨", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
+                Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.size(20.dp))
+            }
         }
-        Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))
+        Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600)
     }
 }
 
