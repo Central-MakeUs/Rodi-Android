@@ -8,18 +8,26 @@ import kotlinx.coroutines.sync.withLock
 @Singleton
 class PracticeRecordPresenceCache @Inject constructor() {
     private val mutex = Mutex()
+    private val cacheLock = Any()
 
     @Volatile
     private var cachedValue: Boolean? = null
 
-    fun get(): Boolean? = cachedValue
+    private var generation = 0L
+
+    fun get(): Boolean? = synchronized(cacheLock) { cachedValue }
 
     fun set(value: Boolean) {
-        cachedValue = value
+        synchronized(cacheLock) {
+            cachedValue = value
+        }
     }
 
     fun clear() {
-        cachedValue = null
+        synchronized(cacheLock) {
+            generation++
+            cachedValue = null
+        }
     }
 
     /**
@@ -36,15 +44,35 @@ class PracticeRecordPresenceCache @Inject constructor() {
      * either state and must not be cached.
      */
     suspend fun getOrLoadOrNull(loader: suspend () -> Boolean?): Boolean? {
-        cachedValue?.let { return it }
+        get()?.let { return it }
         return mutex.withLock {
-            cachedValue?.let { return@withLock it }
+            synchronized(cacheLock) { cachedValue }?.let { return@withLock it }
+            val loadGeneration = synchronized(cacheLock) { generation }
             val value = loader()
-            if (value != null) set(value)
+            synchronized(cacheLock) {
+                if (generation == loadGeneration) {
+                    if (value != null) cachedValue = value
+                } else {
+                    cachedValue = null
+                }
+            }
             value
         }
     }
 
     /** The block must not call another method that acquires this cache's mutex. */
-    suspend fun <T> withRefresh(block: suspend () -> T): T = mutex.withLock { block() }
+    suspend fun <T> withRefresh(block: suspend () -> T): T = mutex.withLock {
+        val refreshGeneration = synchronized(cacheLock) {
+            generation++
+            cachedValue = null
+            generation
+        }
+        try {
+            block()
+        } finally {
+            synchronized(cacheLock) {
+                if (generation != refreshGeneration) cachedValue = null
+            }
+        }
+    }
 }
