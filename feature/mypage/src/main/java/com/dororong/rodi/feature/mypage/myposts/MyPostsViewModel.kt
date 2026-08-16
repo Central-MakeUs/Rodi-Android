@@ -25,18 +25,22 @@ class MyPostsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(MyPostsUiState())
     val uiState: StateFlow<MyPostsUiState> = _uiState.asStateFlow()
     private var loadJob: Job? = null
+    private val loadedCursors = mutableSetOf<String?>()
 
     init { loadInitial() }
 
     fun loadInitial() {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
+            loadedCursors.clear()
             _uiState.value = MyPostsUiState(isLoading = true)
             val reviewResult = getMyReviews(cursor = null, size = PAGE_SIZE)
             var cursor: String? = null
             var page: CursorPage<MyReview>? = null
             val posts = mutableListOf<MyPost>()
+            val visitedCursors = mutableSetOf<String?>()
             while (true) {
+                if (!visitedCursors.add(cursor)) break
                 val result = if (cursor == null) reviewResult else getMyReviews(cursor, PAGE_SIZE)
                 val loadedPage = result.getOrNull()
                 if (loadedPage == null) {
@@ -49,17 +53,24 @@ class MyPostsViewModel @Inject constructor(
                 page = loadedPage
                 posts += loadedPage.items.map(MyReview::toMyPost)
                 val nextCursor = loadedPage.nextCursor
-                val hasNext = loadedPage.hasNext && nextCursor != null && nextCursor != cursor
+                val hasNext = loadedPage.hasNext &&
+                    nextCursor != null &&
+                    nextCursor != cursor &&
+                    nextCursor !in visitedCursors
                 if (posts.isNotEmpty() || !hasNext) break
                 cursor = nextCursor
             }
             val loadedPage = requireNotNull(page)
+            loadedCursors += visitedCursors
             _uiState.value = MyPostsUiState(
                 posts = posts.distinctBy { it.review.reviewId },
                 hasPracticeRecords = posts.isEmpty() && loadPracticeRecordPresence(),
                 isLoading = false,
                 nextCursor = loadedPage.nextCursor,
-                hasNext = loadedPage.hasNext && loadedPage.nextCursor != null && loadedPage.nextCursor != cursor,
+                hasNext = loadedPage.hasNext &&
+                    loadedPage.nextCursor != null &&
+                    loadedPage.nextCursor != cursor &&
+                    loadedPage.nextCursor !in visitedCursors,
             )
         }
     }
@@ -68,20 +79,36 @@ class MyPostsViewModel @Inject constructor(
         val current = _uiState.value
         val cursor = current.nextCursor ?: return
         if (!current.hasNext || current.isLoadingMore || loadJob?.isActive == true) return
+        if (!loadedCursors.add(cursor)) {
+            _uiState.update { it.copy(hasNext = false, nextCursor = null) }
+            return
+        }
         loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingMore = true, errorMessage = null) }
             getMyReviews(cursor = cursor, size = PAGE_SIZE)
                 .onSuccess { page ->
+                    val nextCursor = page.nextCursor
                     _uiState.update { latest ->
                         latest.copy(
                             posts = (latest.posts + page.items.map(MyReview::toMyPost)).distinctBy { it.review.reviewId },
-                            nextCursor = page.nextCursor,
-                            hasNext = page.hasNext,
+                            nextCursor = nextCursor,
+                            hasNext = page.hasNext &&
+                                nextCursor != null &&
+                                nextCursor != cursor &&
+                                nextCursor !in loadedCursors,
                             isLoadingMore = false,
                         )
                     }
                 }
-                .onFailure { error -> _uiState.update { it.copy(isLoadingMore = false, errorMessage = error.message ?: "다음 후기를 불러오지 못했어요.") } }
+                .onFailure { error ->
+                    loadedCursors.remove(cursor)
+                    _uiState.update {
+                        it.copy(
+                            isLoadingMore = false,
+                            errorMessage = error.message ?: "다음 후기를 불러오지 못했어요.",
+                        )
+                    }
+                }
         }
     }
 

@@ -159,4 +159,27 @@ class MyPostsViewModelTest {
         coVerify(exactly = 1) { getMyReviews("next", 20) }
         coVerify(exactly = 0) { hasPracticeRecordsUseCase() }
     }
+
+    @Test
+    fun `empty review pages stop when cursors cycle`() = runTest(dispatcher) {
+        coEvery { getMyReviews(null, 20) } returns Result.success(
+            CursorPage(emptyList(), true, "cursor-a", 0),
+        )
+        coEvery { getMyReviews("cursor-a", 20) } returns Result.success(
+            CursorPage(emptyList(), true, "cursor-b", 0),
+        )
+        coEvery { getMyReviews("cursor-b", 20) } returns Result.success(
+            CursorPage(emptyList(), true, "cursor-a", 0),
+        )
+        coEvery { hasPracticeRecordsUseCase() } returns Result.success(false)
+
+        val viewModel = MyPostsViewModel(deleteReview, getMyReviews, hasPracticeRecordsUseCase)
+        advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.hasNext)
+        assertEquals(false, viewModel.uiState.value.hasPracticeRecords)
+        coVerify(exactly = 1) { getMyReviews(null, 20) }
+        coVerify(exactly = 1) { getMyReviews("cursor-a", 20) }
+        coVerify(exactly = 1) { getMyReviews("cursor-b", 20) }
+    }
 }
