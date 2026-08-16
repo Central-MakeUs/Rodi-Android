@@ -139,6 +139,9 @@ fun MainScreen(
                                         ),
                                     )
                             },
+                            onStopDriving = {
+                                activity?.let { DrivingTrackingController.stop(it) }
+                            },
                             bottomNavigation = {
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()
                             },
