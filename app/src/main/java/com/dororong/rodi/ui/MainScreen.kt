@@ -27,6 +27,7 @@ import com.microsoft.clarity.Clarity
 import com.dororong.rodi.BuildConfig
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
+import com.dororong.rodi.spike.driving.DrivingTrackingController
 import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
@@ -129,6 +130,14 @@ fun MainScreen(
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
+                            },
+                            onStartDriving = { place ->
+                                activity?.let { DrivingTrackingController.start(it, place) }
+                                    ?: Result.failure(
+                                        IllegalStateException(
+                                            "운전 상태 추적을 시작할 수 없어요. 다시 시도해 주세요.",
+                                        ),
+                                    )
                             },
                             bottomNavigation = {
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()

@@ -134,8 +134,14 @@ sealed interface HomeIntent {
 }
 
 sealed interface HomeEffect {
-    data class LaunchKakaoMap(val place: PlaceDetail) : HomeEffect
-    data class LaunchKakaoNavi(val place: PlaceDetail) : HomeEffect
+    data class LaunchKakaoMap(
+        val place: PlaceDetail,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
+    data class LaunchKakaoNavi(
+        val place: PlaceDetail,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect

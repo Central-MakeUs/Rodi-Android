@@ -778,7 +778,7 @@ class HomeViewModel @Inject constructor(
                     isPracticeLaunchInProgress = false,
                 )
             }
-            _effect.send(pending.navigationEffect())
+            _effect.send(pending.navigationEffect(startDriving = false))
         }
     }
 
@@ -812,7 +812,7 @@ class HomeViewModel @Inject constructor(
                 )
             }
             _effect.send(HomeEffect.ShowSnackbar("연습 측정을 시작하지 못해 경로만 안내합니다."))
-            _effect.send(pending.navigationEffect())
+            _effect.send(pending.navigationEffect(startDriving = false))
             return
         }
         _state.update {
@@ -1101,9 +1101,11 @@ class HomeViewModel @Inject constructor(
     }
 }
 
-private fun PendingPracticeNavigation.navigationEffect(): HomeEffect = when (app) {
-    NaviApp.KAKAOMAP -> HomeEffect.LaunchKakaoMap(place)
-    NaviApp.KAKAONAVI -> HomeEffect.LaunchKakaoNavi(place)
+private fun PendingPracticeNavigation.navigationEffect(
+    startDriving: Boolean = true,
+): HomeEffect = when (app) {
+    NaviApp.KAKAOMAP -> HomeEffect.LaunchKakaoMap(place, startDriving)
+    NaviApp.KAKAONAVI -> HomeEffect.LaunchKakaoNavi(place, startDriving)
 }
 
 private fun ActivePracticeSession.toPracticeRecordItem() = PracticeRecordItem(

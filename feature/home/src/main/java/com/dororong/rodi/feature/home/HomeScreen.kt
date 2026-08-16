@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home
 
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.Saver
@@ -82,6 +84,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -90,6 +93,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.review.Review
@@ -186,6 +190,7 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
 
@@ -223,6 +228,7 @@ typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit,
 ) -> Unit
+typealias DrivingStartRequest = (PlaceDetail) -> Result<String>
 
 private data class ReviewWriteTarget(
     val placeId: Long,
@@ -259,6 +265,7 @@ fun HomeScreen(
     onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
+    onStartDriving: DrivingStartRequest,
     onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
@@ -271,6 +278,7 @@ fun HomeScreen(
     val reviewState by reviewVm.state.collectAsStateWithLifecycle()
     val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
@@ -306,6 +314,7 @@ fun HomeScreen(
     var hasCenteredInitialLocation by rememberSaveable { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
+    var pendingDrivingEffect by remember { mutableStateOf<HomeEffect?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
@@ -363,6 +372,37 @@ fun HomeScreen(
     }
     val currentLocationMarkerColor = RodiTheme.colors.primary600.toArgb()
 
+    suspend fun launchDriving(effect: HomeEffect) {
+        val place = when (effect) {
+            is HomeEffect.LaunchKakaoMap -> effect.place
+            is HomeEffect.LaunchKakaoNavi -> effect.place
+            else -> return
+        }
+        val shouldStartDriving = when (effect) {
+            is HomeEffect.LaunchKakaoMap -> effect.startDriving
+            is HomeEffect.LaunchKakaoNavi -> effect.startDriving
+            else -> false
+        }
+        if (shouldStartDriving) {
+            val startResult = onStartDriving(place)
+            val startError = startResult.exceptionOrNull()
+            if (startError != null) {
+                snackbarHostState.show(
+                    RodiSnackbarData(
+                        message = startError.message
+                            ?: "운전 상태 추적을 시작하지 못했어요. 다시 시도해 주세요.",
+                    ),
+                )
+                return
+            }
+        }
+        when (effect) {
+            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, place)
+            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, place)
+            else -> Unit
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
@@ -373,6 +413,25 @@ fun HomeScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted))
+    }
+    val drivingPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) {
+        permissionGranted = context.hasLocationPermission()
+        val pending = pendingDrivingEffect
+        pendingDrivingEffect = null
+        if (pending != null) {
+            scope.launch {
+                val missingPermissions = context.missingDrivingPermissions()
+                if (missingPermissions.isEmpty()) {
+                    launchDriving(pending)
+                } else {
+                    snackbarHostState.show(
+                        RodiSnackbarData(message = missingPermissions.deniedDrivingPermissionMessage()),
+                    )
+                }
+            }
+        }
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -575,8 +634,26 @@ fun HomeScreen(
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
-            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, effect.place)
-            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, effect.place)
+            is HomeEffect.LaunchKakaoMap,
+            is HomeEffect.LaunchKakaoNavi,
+            -> {
+                val shouldStartDriving = when (effect) {
+                    is HomeEffect.LaunchKakaoMap -> effect.startDriving
+                    is HomeEffect.LaunchKakaoNavi -> effect.startDriving
+                    else -> false
+                }
+                if (!shouldStartDriving) {
+                    launchDriving(effect)
+                } else {
+                    val missingPermissions = context.missingDrivingPermissions()
+                    if (missingPermissions.isEmpty()) {
+                        launchDriving(effect)
+                    } else {
+                        pendingDrivingEffect = effect
+                        drivingPermissionLauncher.launch(missingPermissions)
+                    }
+                }
+            }
             is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
             is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
             is HomeEffect.OpenPracticeReview -> {
@@ -1756,6 +1833,29 @@ private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
 private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
+
+private fun Context.missingDrivingPermissions(): Array<String> = buildList {
+    if (!hasLocationPermission()) {
+        add(Manifest.permission.ACCESS_FINE_LOCATION)
+        add(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+    if (
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        ContextCompat.checkSelfPermission(
+            this@missingDrivingPermissions,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) != PackageManager.PERMISSION_GRANTED
+    ) {
+        add(Manifest.permission.POST_NOTIFICATIONS)
+    }
+}.toTypedArray()
+
+private fun Array<String>.deniedDrivingPermissionMessage(): String =
+    if (contains(Manifest.permission.POST_NOTIFICATIONS)) {
+        "알림 권한을 허용해야 운전 상태를 안전하게 표시할 수 있어요."
+    } else {
+        "위치 권한을 허용해야 운전 상태를 추적할 수 있어요."
+    }
 
 @Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

@@ -821,7 +821,10 @@ class HomeViewModelTest {
             advanceUntilIdle()
             vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly)
             advanceUntilIdle()
-            assertEquals(HomeEffect.LaunchKakaoMap(navigationPlace()), awaitItem())
+            assertEquals(
+                HomeEffect.LaunchKakaoMap(navigationPlace(), startDriving = false),
+                awaitItem(),
+            )
             cancelAndIgnoreRemainingEvents()
         }
 
@@ -894,7 +897,10 @@ class HomeViewModelTest {
                 HomeEffect.ShowSnackbar("연습 측정을 시작하지 못해 경로만 안내합니다."),
                 awaitItem(),
             )
-            assertEquals(HomeEffect.LaunchKakaoMap(navigationPlace()), awaitItem())
+            assertEquals(
+                HomeEffect.LaunchKakaoMap(navigationPlace(), startDriving = false),
+                awaitItem(),
+            )
             cancelAndIgnoreRemainingEvents()
         }
 
