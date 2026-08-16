@@ -266,6 +266,7 @@ fun HomeScreen(
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     onStartDriving: DrivingStartRequest,
+    onStopDriving: () -> Unit = {},
     onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
@@ -669,6 +670,7 @@ fun HomeScreen(
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
+            HomeEffect.StopDrivingTracking -> onStopDriving()
         }
     }
     CollectEffect(vm.permissionEffect) { effect ->

@@ -755,8 +755,12 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
-        advanceUntilIdle()
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
+            advanceUntilIdle()
+            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
 
         assertNull(vm.state.value.activePracticeSession)
         assertNull(vm.state.value.practicePrompt)
@@ -925,6 +929,7 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.OnPracticePromptVisited)
             advanceUntilIdle()
+            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.OpenPracticeReview(session.placeId, session.placeName), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -1092,6 +1097,7 @@ class HomeViewModelTest {
             vm.onIntent(HomeIntent.OnPracticePromptVisited)
             advanceUntilIdle()
 
+            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(
                 HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"),
                 awaitItem(),
@@ -1120,6 +1126,7 @@ class HomeViewModelTest {
             vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
             advanceUntilIdle()
 
+            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.OpenPracticeSkipReason(108L), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

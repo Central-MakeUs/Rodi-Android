@@ -43,15 +43,16 @@ internal object DrivingTrackingController {
         sessionId
     }
 
+    // sessionId를 모르는 호출부(연습 측정 종료 등)는 null로 호출한다 — 서비스는 null이면
+    // 현재 활성 세션을 그대로 종료한다.
     fun stop(
         context: Context,
-        sessionId: String,
+        sessionId: String? = null,
     ) {
-        context.startService(
-            Intent(context, DrivingTrackingService::class.java)
-                .setAction(DrivingTrackingService.ACTION_STOP)
-                .putExtra(DrivingTrackingService.EXTRA_SESSION_ID, sessionId),
-        )
+        val intent = Intent(context, DrivingTrackingService::class.java)
+            .setAction(DrivingTrackingService.ACTION_STOP)
+        if (sessionId != null) intent.putExtra(DrivingTrackingService.EXTRA_SESSION_ID, sessionId)
+        context.startService(intent)
     }
 
     private fun requireTrackingPermissions(context: Context) {
