@@ -80,7 +80,10 @@ fun LevelReviewSection(
                     topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
-                    modifier = Modifier.padding(horizontal = RodiSpacing.xl),
+                    // 왼쪽은 "추천해요"를 기존 위치에 두기 위해 xl만큼 더 들여쓰고, 오른쪽은
+                    // 부모 Column의 16dp만 남겨 레벨 드롭다운이 다른 우측 정렬 요소(전체보기 등)와
+                    // 같은 우측 여백으로 붙게 한다.
+                    modifier = Modifier.padding(start = RodiSpacing.xl),
                 )
             }
         }
@@ -224,6 +227,7 @@ private fun SummaryRow(
                     style = RodiTheme.typography.body2SemiBold,
                     color = RodiTheme.colors.gray800,
                 )
+                Spacer(modifier = Modifier.weight(1f))
                 LevelDropdown(
                     selectedLevel = selectedLevel,
                     onSelectLevel = onSelectLevel,
