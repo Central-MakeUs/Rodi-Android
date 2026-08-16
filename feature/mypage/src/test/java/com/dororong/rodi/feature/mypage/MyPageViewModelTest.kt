@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.LevelProgress
+import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
@@ -225,7 +226,7 @@ class MyPageViewModelTest {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
-        coEvery { hardDeleteAccount() } returns Result.success(Unit)
+        coEvery { hardDeleteAccount() } returns Result.success(HardDeleteResult(localCleanupSucceeded = true))
         val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, hardDeleteAccount)
         val effect = async { viewModel.effect.first() }
 
@@ -233,7 +234,7 @@ class MyPageViewModelTest {
         assertEquals(true, viewModel.uiState.value.isHardDeleteSubmitting)
         advanceUntilIdle()
 
-        assertEquals(MyPageEffect.HardDeleteCompleted, effect.await())
+        assertEquals(MyPageEffect.HardDeleteCompleted(localCleanupSucceeded = true), effect.await())
         assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
         coVerify(exactly = 1) { hardDeleteAccount() }
     }

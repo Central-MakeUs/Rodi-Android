@@ -94,7 +94,7 @@ fun MyPageScreen(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            MyPageEffect.HardDeleteCompleted -> onSessionEnded()
+            is MyPageEffect.HardDeleteCompleted -> onSessionEnded()
             is MyPageEffect.ShowError -> snackbarHostState.show(
                 RodiSnackbarData(message = effect.message),
             )

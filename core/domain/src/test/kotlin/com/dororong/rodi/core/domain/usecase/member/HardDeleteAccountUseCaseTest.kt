@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.domain.usecase.member
 
+import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.usecase.onboarding.ClearOnboardingDataUseCase
 import io.mockk.coEvery
@@ -16,7 +17,7 @@ class HardDeleteAccountUseCaseTest {
     fun `returns success when repository hard deletes account`() = runTest {
         val repository = mockk<MemberRepository>()
         val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
-        coEvery { repository.hardDelete() } returns Unit
+        coEvery { repository.hardDelete() } returns HardDeleteResult(localCleanupSucceeded = true)
         coEvery { clearOnboardingData() } returns Unit
 
         val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
@@ -63,7 +64,7 @@ class HardDeleteAccountUseCaseTest {
         // 보고하면 사용자가 이미 지워진 계정으로 재시도를 반복하게 된다.
         val repository = mockk<MemberRepository>()
         val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
-        coEvery { repository.hardDelete() } returns Unit
+        coEvery { repository.hardDelete() } returns HardDeleteResult(localCleanupSucceeded = true)
         coEvery { clearOnboardingData() } throws IllegalStateException("local cleanup failed")
 
         val result = HardDeleteAccountUseCase(repository, clearOnboardingData)()
@@ -79,7 +80,7 @@ class HardDeleteAccountUseCaseTest {
     fun `propagates cancellation from local onboarding cleanup`() = runTest {
         val repository = mockk<MemberRepository>()
         val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
-        coEvery { repository.hardDelete() } returns Unit
+        coEvery { repository.hardDelete() } returns HardDeleteResult(localCleanupSucceeded = true)
         coEvery { clearOnboardingData() } throws CancellationException("cancelled")
 
         try {

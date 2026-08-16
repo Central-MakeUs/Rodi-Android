@@ -13,6 +13,7 @@ import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.member.BlockedMember
+import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
@@ -39,7 +40,6 @@ class MemberRepositoryImpl @Inject constructor(
     override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
         if (cursor == null) {
             practiceRecordPresenceCache.withRefresh {
-                practiceRecordPresenceCache.clear()
                 memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
                     .also { page -> updatePracticeRecordPresence(page, canProveAbsence = true) }
             }
@@ -51,7 +51,6 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoadOrNull {
         authenticatedRequest { authorization ->
-            practiceRecordPresenceCache.clear()
             var cursor: String? = null
             var hasVisitedRecord = false
             var reachedEnd = false
@@ -131,13 +130,28 @@ class MemberRepositoryImpl @Inject constructor(
         practiceRecordPresenceCache.clear()
     }
 
-    override suspend fun hardDelete() {
+    override suspend fun hardDelete(): HardDeleteResult {
         authenticatedRequest { authorization -> memberApi.hardDelete(authorization).requireSuccess() }
-        practiceSessionRepository.clear()
-        if (!tokenStore.clear()) {
-            throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+        var localCleanupSucceeded = true
+        try {
+            practiceSessionRepository.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            localCleanupSucceeded = false
+        }
+        val tokensCleared = try {
+            tokenStore.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            false
+        }
+        if (!tokensCleared) {
+            localCleanupSucceeded = false
         }
         practiceRecordPresenceCache.clear()
+        return HardDeleteResult(localCleanupSucceeded = localCleanupSucceeded)
     }
 
     private suspend fun <T> authenticatedRequest(

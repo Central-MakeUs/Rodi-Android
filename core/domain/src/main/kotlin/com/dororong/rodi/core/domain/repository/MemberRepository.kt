@@ -4,6 +4,7 @@ import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.member.BlockedMember
+import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 
@@ -18,5 +19,5 @@ interface MemberRepository {
     suspend fun blockMember(memberId: Long)
     suspend fun unblockMember(memberId: Long)
     suspend fun withdraw()
-    suspend fun hardDelete()
+    suspend fun hardDelete(): HardDeleteResult
 }

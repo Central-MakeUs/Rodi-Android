@@ -208,10 +208,31 @@ class MemberRepositoryImplTest {
         coEvery { tokenStore.clear() } returns true
         val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
-        repository.hardDelete()
+        val result = repository.hardDelete()
 
+        assertTrue(result.localCleanupSucceeded)
         coVerify { memberApi.hardDelete("Bearer access") }
         coVerify { practiceSessionRepository.clear() }
+        coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `hard delete reports local cleanup failure after remote deletion`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.hardDelete("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+        )
+        coEvery { tokenStore.clear() } returns false
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        val result = repository.hardDelete()
+
+        assertFalse(result.localCleanupSucceeded)
+        coVerify { memberApi.hardDelete("Bearer access") }
         coVerify { tokenStore.clear() }
     }
 
