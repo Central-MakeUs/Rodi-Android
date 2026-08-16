@@ -120,20 +120,22 @@ class AuthRepositoryImpl @Inject constructor(
         refreshToken: String,
         invalidatePracticeRecordCache: Boolean = true,
     ) {
+        if (invalidatePracticeRecordCache) {
+            clearPracticeSessionBeforeTokenSwap()
+        }
         if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
         if (invalidatePracticeRecordCache) {
-            clearPracticeSessionSafely()
             practiceRecordPresenceCache.clear()
         }
         sessionExpired.value = false
     }
 
-    // 계정 전환 시 이전 계정의 연습 세션이 다음 로그인 계정에 노출되면 안 되므로 몇 번은
-    // 재시도한다. 그래도 실패하면(그래도 흔치 않다) 로그인 자체는 막지 않는다 — 로컬 캐시
-    // 하나 못 지웠다고 로그인이 실패하는 게 더 나쁘다.
-    private suspend fun clearPracticeSessionSafely() {
+    // 계정 전환 전에 이전 세션을 정리해 둬야 새 계정이 이전 계정의 세션을 읽지 않는다.
+    // 정리가 끝나기 전에는 토큰을 교체하지 않으므로, 실패 시 기존 계정을 안전하게 유지한다.
+    private suspend fun clearPracticeSessionBeforeTokenSwap() {
+        var lastFailure: Throwable? = null
         repeat(PRACTICE_SESSION_CLEAR_ATTEMPTS) { attempt ->
             try {
                 practiceSessionRepository.clear()
@@ -141,15 +143,42 @@ class AuthRepositoryImpl @Inject constructor(
             } catch (exception: CancellationException) {
                 throw exception
             } catch (exception: Throwable) {
-                if (attempt == PRACTICE_SESSION_CLEAR_ATTEMPTS - 1) return
+                lastFailure = exception
+                if (attempt == PRACTICE_SESSION_CLEAR_ATTEMPTS - 1) {
+                    val failure = AuthException.Unknown(
+                        "기존 연습 세션을 안전하게 정리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+                    )
+                    lastFailure?.let(failure::addSuppressed)
+                    throw failure
+                }
             }
         }
     }
 
     private suspend fun clearTokens() {
-        practiceSessionRepository.clear()
-        if (!tokenStore.clear()) {
-            throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+        var sessionClearFailure: Throwable? = null
+        var tokenClearFailure: Throwable? = null
+        try {
+            practiceSessionRepository.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Throwable) {
+            sessionClearFailure = exception
+        }
+
+        val tokensCleared = try {
+            tokenStore.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (exception: Throwable) {
+            tokenClearFailure = exception
+            false
+        }
+        if (!tokensCleared) {
+            val failure = AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+            sessionClearFailure?.let(failure::addSuppressed)
+            tokenClearFailure?.let(failure::addSuppressed)
+            throw failure
         }
         practiceRecordPresenceCache.clear()
     }
