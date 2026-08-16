@@ -50,10 +50,11 @@ class PracticeRecordPresenceCache @Inject constructor() {
             val loadGeneration = synchronized(cacheLock) { generation }
             val value = loader()
             synchronized(cacheLock) {
-                if (generation == loadGeneration) {
-                    if (value != null) cachedValue = value
-                } else {
-                    cachedValue = null
+                // generation이 바뀌었다면(clear/withRefresh) 로딩 도중 캐시가 리셋됐다는
+                // 뜻이고, cachedValue가 이미 채워져 있다면 동시 set()이 더 최신 값을 반영했다는
+                // 뜻이다. 두 경우 모두 지연된 로더 결과로 덮어쓰지 않는다.
+                if (generation == loadGeneration && cachedValue == null && value != null) {
+                    cachedValue = value
                 }
             }
             value

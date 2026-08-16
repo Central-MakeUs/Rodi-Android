@@ -29,4 +29,26 @@ class PracticeRecordPresenceCacheTest {
         assertTrue(loading.await() == true)
         assertNull(cache.get())
     }
+
+    @Test
+    fun `set during a load is not overwritten by the stale loader result`() = runTest {
+        val cache = PracticeRecordPresenceCache()
+        val loaderStarted = CompletableDeferred<Unit>()
+        val releaseLoader = CompletableDeferred<Unit>()
+
+        val loading = async {
+            cache.getOrLoadOrNull {
+                loaderStarted.complete(Unit)
+                releaseLoader.await()
+                false
+            }
+        }
+        loaderStarted.await()
+
+        cache.set(true)
+        releaseLoader.complete(Unit)
+
+        loading.await()
+        assertTrue(cache.get() == true)
+    }
 }
