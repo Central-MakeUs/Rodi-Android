@@ -18,6 +18,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -37,14 +38,14 @@ class DrivingSessionPreferences @Inject constructor(
         .distinctUntilChanged()
 
     suspend fun start(session: DrivingSession) {
-        context.drivingSessionDataStore.edit { it.write(session) }
+        editOrIgnoreIoFailure { it.write(session) }
     }
 
     suspend fun updateProgress(
         sessionId: String,
         traveledDistanceMeters: Double,
     ) {
-        context.drivingSessionDataStore.edit { preferences ->
+        editOrIgnoreIoFailure { preferences ->
             val current = preferences.toDrivingSession()
             if (current?.id == sessionId && current.status == DrivingSessionStatus.ACTIVE) {
                 preferences[KEY_TRAVELED_DISTANCE_METERS] = traveledDistanceMeters
@@ -58,7 +59,7 @@ class DrivingSessionPreferences @Inject constructor(
         traveledDistanceMeters: Double,
     ): Boolean {
         var transitioned = false
-        context.drivingSessionDataStore.edit { preferences ->
+        editOrIgnoreIoFailure { preferences ->
             val current = preferences.toDrivingSession()
             if (current?.id == sessionId && current.status == DrivingSessionStatus.ACTIVE) {
                 preferences.write(
@@ -76,7 +77,7 @@ class DrivingSessionPreferences @Inject constructor(
     }
 
     suspend fun acknowledgeArrival(sessionId: String) {
-        context.drivingSessionDataStore.edit { preferences ->
+        editOrIgnoreIoFailure { preferences ->
             val current = preferences.toDrivingSession()
             if (
                 current?.id == sessionId &&
@@ -89,8 +90,22 @@ class DrivingSessionPreferences @Inject constructor(
     }
 
     suspend fun clear(sessionId: String) {
-        context.drivingSessionDataStore.edit { preferences ->
+        editOrIgnoreIoFailure { preferences ->
             if (preferences[KEY_ID] == sessionId) preferences.clear()
+        }
+    }
+
+    // 운전 추적 서비스가 포그라운드에서 도는 동안 디스크 쓰기 하나 실패했다고 서비스가
+    // 죽으면 안 된다. 다음 write 시도 때 자연 복구되므로 실패는 흡수한다.
+    private suspend fun editOrIgnoreIoFailure(
+        transform: suspend (MutablePreferences) -> Unit,
+    ) {
+        try {
+            context.drivingSessionDataStore.edit { transform(it) }
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: IOException) {
+            // 저장 실패는 세션 추적을 중단시키지 않는다
         }
     }
 
