@@ -183,6 +183,18 @@
   `PlaceApi` 기반 검색/상세 경로로 이미 대체됐고, 이쪽은 초기 PoC 잔재로 보인다. 릴리스 빌드에
   섞여 나가진 않지만(호출부가 없어 도달 불가) 죽은 코드라 헷갈릴 수 있다 — 완전히 제거하거나,
   아직 쓸 곳이 있다면 실제 API로 교체할 것.
+- [ ] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — `ACTION_START`가
+  비동기로 `startDrivingSession()`을 저장하는 도중 `ACTION_STOP`이 먼저 처리되면, 저장되지 않은
+  세션을 `clear()`가 지우지 못하고 뒤늦게 완료된 `startDrivingSession()`이 이미 종료된 세션을
+  ACTIVE로 남길 수 있다. `Mutex`나 단일 명령 처리 코루틴으로 시작·종료를 직렬화해야 함.
+- [ ] **운전 도착 알림 탭 시 도착 흐름 미연결 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
+  `ACTION_OPEN_ARRIVAL`을 붙인 PendingIntent를 만들지만 `MainActivity`/라우팅 어디서도 이 action을
+  소비하지 않는다. 알림을 탭해도 도착 흐름으로 이동하지 않음 — 처리 경로를 연결하거나 미사용
+  action을 제거할 것.
+- [ ] **운전 알림 색상의 Compose 외부 테마 브릿지 검토 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
+  `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
+  참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
+  구독해 정적 필드에 반영)를 검토할 것.
 
 ## 마이페이지 개편 후속
 - [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
