@@ -1508,6 +1508,9 @@ fun HomeScreen(
             snackbarHostState.show(RodiSnackbarData(message = message))
         }
     }
+    LaunchedEffect(state.reviewRefreshGeneration) {
+        if (state.reviewRefreshGeneration > 0) reviewVm.refresh()
+    }
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(
             isRestoring = state.isRestoreInProgress,

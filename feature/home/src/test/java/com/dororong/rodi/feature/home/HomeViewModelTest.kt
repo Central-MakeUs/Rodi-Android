@@ -283,6 +283,16 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `review update increments the refresh generation`() {
+        val vm = Dependencies().viewModel()
+
+        vm.onIntent(HomeIntent.OnReviewUpdated)
+        vm.onIntent(HomeIntent.OnReviewUpdated)
+
+        assertEquals(2L, vm.state.value.reviewRefreshGeneration)
+    }
+
+    @Test
     fun `sheet dragged from full straight to hidden lands on navigation`() {
         val vm = Dependencies().viewModel()
 

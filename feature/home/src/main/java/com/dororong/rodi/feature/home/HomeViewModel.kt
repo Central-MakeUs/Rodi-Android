@@ -142,6 +142,9 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
             HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
+            HomeIntent.OnReviewUpdated -> _state.update {
+                it.copy(reviewRefreshGeneration = it.reviewRefreshGeneration + 1)
+            }
             HomeIntent.OnAppResumed -> loadActivePracticeSession()
             HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
             HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()

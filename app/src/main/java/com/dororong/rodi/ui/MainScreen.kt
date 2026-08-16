@@ -195,7 +195,10 @@ fun MainScreen(
                             placeName = key.placeName,
                             editingReviewId = key.reviewId,
                             onClose = { backStack.removeAt(backStack.lastIndex) },
-                            onCompleted = { backStack.removeAt(backStack.lastIndex) },
+                            onCompleted = {
+                                homeViewModel.onIntent(HomeIntent.OnReviewUpdated)
+                                backStack.removeAt(backStack.lastIndex)
+                            },
                         )
                     }
                     DrivingGoalRoute -> NavEntry(key) {
