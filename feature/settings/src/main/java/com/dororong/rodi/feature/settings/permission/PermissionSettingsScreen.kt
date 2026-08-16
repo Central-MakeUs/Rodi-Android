@@ -167,7 +167,7 @@ private fun PermissionRow(title: String, granted: Boolean, description: String, 
     Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
-            Text(if (granted) "허용됨" else "허용 안 됨", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
+            Text(if (granted) "허용됨" else "허용 필요", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
             Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.padding(start = 8.dp).size(20.dp))
         }
         Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))

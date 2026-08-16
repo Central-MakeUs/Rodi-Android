@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSou
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
+import com.dororong.rodi.core.data.source.remote.model.place.PlaceCoordinateResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceListItemResponse
@@ -101,6 +102,29 @@ class PlaceRepositoryImplTest {
                 cursor = null,
             )
         }
+    }
+
+    @Test
+    fun `coordinates omits authorization without a session`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns null
+        coEvery { api.getCoordinates(null) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = listOf(PlaceCoordinateResponse(1, "COURSE", "코스", "서울", 37.5, 126.9)),
+        )
+        val repository = PlaceRepositoryImpl(
+            api,
+            mockk<SavedPlaceLocalDataSource>(relaxed = true),
+            tokenStore,
+            mockk<AuthRepository>(),
+        )
+
+        repository.getCoordinates()
+
+        coVerify(exactly = 1) { api.getCoordinates(null) }
     }
 
     @Test

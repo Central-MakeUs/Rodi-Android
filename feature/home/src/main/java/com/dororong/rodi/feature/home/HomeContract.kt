@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.home
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.driving.DrivingSession
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -70,6 +71,8 @@ data class HomeUiState(
     val notVisitedPracticeId: Long? = null,
     val isPracticeActionInProgress: Boolean = false,
     val levelUp: OnboardingLevel? = null,
+    val activeDrivingSession: DrivingSession? = null,
+    val arrivalNotice: DrivingSession? = null,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -90,6 +93,11 @@ sealed interface HomeIntent {
     data object OnLevelReviewsOpen : HomeIntent
     data object OnLevelReviewsClose : HomeIntent
     data object OnAppResumed : HomeIntent
+    data class OnDrivingNavigationLaunched(
+        val placeId: Long,
+        val measurementStarted: Boolean,
+        val launchedAtEpochMillis: Long,
+    ) : HomeIntent
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
     data object OnPracticePromptDismiss : HomeIntent
@@ -113,6 +121,7 @@ sealed interface HomeIntent {
     data class OnKakaoLoginFailed(val message: String) : HomeIntent
     data object OnRestoreAccount : HomeIntent
     data object OnDismissRestore : HomeIntent
+    data class OnArrivalNoticeConfirmed(val sessionId: String) : HomeIntent
 
     data class OnNavigateClick(
         val kakaoMapInstalled: Boolean,
@@ -124,8 +133,16 @@ sealed interface HomeIntent {
 }
 
 sealed interface HomeEffect {
-    data class LaunchKakaoMap(val place: PlaceDetail) : HomeEffect
-    data class LaunchKakaoNavi(val place: PlaceDetail) : HomeEffect
+    data class LaunchKakaoMap(
+        val place: PlaceDetail,
+        val route: RouteResult? = null,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
+    data class LaunchKakaoNavi(
+        val place: PlaceDetail,
+        val route: RouteResult? = null,
+        val startDriving: Boolean = true,
+    ) : HomeEffect
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect

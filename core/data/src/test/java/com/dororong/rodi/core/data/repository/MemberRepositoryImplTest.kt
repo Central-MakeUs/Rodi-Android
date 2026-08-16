@@ -145,6 +145,31 @@ class MemberRepositoryImplTest {
     }
 
     @Test
+    fun `filter tags replaces saved filters with bearer authorization`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery {
+            memberApi.updateFilterTags(
+                "Bearer access",
+                FilterTagsRequest(listOf("U_TURN", "PARKING")),
+            )
+        } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json)
+
+        repository.updateFilterTags(
+            listOf(PracticeType.U_TURN, PracticeType.PARKING, PracticeType.U_TURN),
+        )
+
+        coVerify(exactly = 1) {
+            memberApi.updateFilterTags(
+                "Bearer access",
+                FilterTagsRequest(listOf("U_TURN", "PARKING")),
+            )
+        }
+    }
+
+    @Test
     fun `withdraw sends bearer access token and clears session after success`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()

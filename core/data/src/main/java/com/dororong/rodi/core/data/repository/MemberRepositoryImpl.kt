@@ -54,7 +54,7 @@ class MemberRepositoryImpl @Inject constructor(
         authenticatedRequest { authorization ->
             memberApi.updateFilterTags(
                 authorization = authorization,
-                request = FilterTagsRequest(filterTags.map(PracticeType::name)),
+                request = FilterTagsRequest(filterTags.distinct().map(PracticeType::name)),
             ).requireSuccess()
         }
     }

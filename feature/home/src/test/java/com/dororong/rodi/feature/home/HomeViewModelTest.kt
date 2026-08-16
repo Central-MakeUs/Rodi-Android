@@ -6,6 +6,8 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.driving.DrivingSession
+import com.dororong.rodi.core.domain.repository.DrivingNavigationRepository
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -22,6 +24,8 @@ import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.driving.AcknowledgeDrivingArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
@@ -39,12 +43,14 @@ import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -914,6 +920,10 @@ private class Dependencies(loggedIn: Boolean = true) {
     val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
     val recordPracticeVisit = mockk<RecordPracticeVisitUseCase>()
     val dismissedPractice = mockk<PracticePromptDismissalRepository>()
+    val drivingNavigation = mockk<DrivingNavigationRepository>()
+    val drivingSession = MutableStateFlow<DrivingSession?>(null)
+    val observeDrivingSession = mockk<ObserveDrivingSessionUseCase>()
+    val acknowledgeDrivingArrival = mockk<AcknowledgeDrivingArrivalUseCase>()
 
     init {
         coEvery { coordinates() } returns Result.success(emptyList())
@@ -930,6 +940,11 @@ private class Dependencies(loggedIn: Boolean = true) {
         coEvery { dismissedPractice.readDismissedPracticeIds() } returns emptySet()
         coEvery { dismissedPractice.dismiss(any()) } returns Unit
         coEvery { dismissedPractice.restore(any()) } returns Unit
+        every { drivingNavigation.navigation } returns MutableStateFlow(null)
+        coEvery { drivingNavigation.save(any()) } returns Unit
+        coEvery { drivingNavigation.clear() } returns Unit
+        every { observeDrivingSession() } returns drivingSession
+        coEvery { acknowledgeDrivingArrival(any()) } returns Unit
     }
 
     fun viewModel() = HomeViewModel(
@@ -950,6 +965,9 @@ private class Dependencies(loggedIn: Boolean = true) {
         getPracticeRecordsUseCase = getPracticeRecords,
         recordPracticeVisitUseCase = recordPracticeVisit,
         practicePromptDismissalRepository = dismissedPractice,
+        drivingNavigationRepository = drivingNavigation,
+        observeDrivingSessionUseCase = observeDrivingSession,
+        acknowledgeDrivingArrivalUseCase = acknowledgeDrivingArrival,
     )
 }
 

@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.activity.compose.LocalActivity
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
@@ -37,6 +38,7 @@ import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecordsScreen
 import com.dororong.rodi.feature.mypage.myposts.MyPostsScreen
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
 import com.dororong.rodi.feature.settings.SettingsScreen
+import com.dororong.rodi.spike.driving.DrivingTrackingController
 import dagger.hilt.android.EntryPointAccessors
 
 @Composable
@@ -51,6 +53,7 @@ fun MainScreen(
     }
     val currentRouteState = rememberUpdatedState(currentRoute)
     val homeViewModel: HomeViewModel = hiltViewModel()
+    val homeState by homeViewModel.state.collectAsStateWithLifecycle()
     val activity = LocalActivity.current
     val kakaoLoginManager = remember(activity) {
         activity?.let {
@@ -85,6 +88,12 @@ fun MainScreen(
         backStack.popMyPage()
     }
 
+    LaunchedEffect(homeState.arrivalNotice?.id) {
+        if (homeState.arrivalNotice != null && backStack.lastOrNull() != HomeRoute) {
+            backStack[backStack.lastIndex] = HomeRoute
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         NavDisplay(
             modifier = Modifier.fillMaxSize(),
@@ -110,6 +119,18 @@ fun MainScreen(
                             onRequestKakaoLogin = { onSuccess, onFailure ->
                                 kakaoLoginManager?.login(onSuccess, onFailure)
                                     ?: onFailure("로그인을 진행할 수 없습니다. 다시 시도해주세요.")
+                            },
+                            onStartDriving = { place, route ->
+                                activity?.let { DrivingTrackingController.start(it, place, route) }
+                                    ?: Result.failure(
+                                        IllegalStateException("운전 상태 추적을 시작할 수 없어요. 다시 시도해 주세요."),
+                                    )
+                            },
+                            onCancelDrivingStart = { sessionId ->
+                                activity?.let { DrivingTrackingController.stop(it, sessionId) }
+                            },
+                            onArrivalNoticeConfirmed = {
+                                activity?.let(DrivingTrackingController::clearArrival)
                             },
                             bottomNavigation = {
                                 if (currentRouteState.value == HomeRoute) bottomNavigation()

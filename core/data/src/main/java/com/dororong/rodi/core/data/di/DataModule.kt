@@ -2,6 +2,8 @@ package com.dororong.rodi.core.data.di
 
 import com.dororong.rodi.core.data.repository.AuthRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRepositoryImpl
+import com.dororong.rodi.core.data.repository.DrivingSessionRepositoryImpl
+import com.dororong.rodi.core.data.repository.DrivingNavigationRepositoryImpl
 import com.dororong.rodi.core.data.repository.EntryRepositoryImpl
 import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.repository.CachedPlaceRepository
@@ -13,6 +15,8 @@ import com.dororong.rodi.core.data.repository.PracticeRepositoryImpl
 import com.dororong.rodi.core.data.source.local.datastore.PracticePromptDismissalStore
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
+import com.dororong.rodi.core.domain.repository.DrivingSessionRepository
+import com.dororong.rodi.core.domain.repository.DrivingNavigationRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
@@ -33,6 +37,18 @@ import java.time.Clock
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
+    @Binds
+    @Singleton
+    abstract fun bindDrivingSessionRepository(
+        impl: DrivingSessionRepositoryImpl,
+    ): DrivingSessionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDrivingNavigationRepository(
+        impl: DrivingNavigationRepositoryImpl,
+    ): DrivingNavigationRepository
+
     @Binds
     abstract fun bindCourseRepository(impl: CourseRepositoryImpl): CourseRepository
 

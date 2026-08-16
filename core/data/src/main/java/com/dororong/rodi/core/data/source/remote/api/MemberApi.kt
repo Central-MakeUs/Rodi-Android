@@ -1,8 +1,8 @@
 package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
-import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPageMyReviewItemResponse

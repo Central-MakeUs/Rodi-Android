@@ -28,8 +28,8 @@ class PlaceRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
 ) : PlaceRepository {
-    override suspend fun getCoordinates(): List<PlaceCoordinate> = publicRequest {
-        api.getCoordinates().requireData().map { it.toDomain() }
+    override suspend fun getCoordinates(): List<PlaceCoordinate> = optionalAuthenticatedRequest { accessToken ->
+        api.getCoordinates(accessToken?.let { "Bearer $it" }).requireData().map { it.toDomain() }
     }
 
     override suspend fun getPlaces(

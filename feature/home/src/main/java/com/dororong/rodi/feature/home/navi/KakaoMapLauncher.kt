@@ -27,14 +27,16 @@ object KakaoMapLauncher {
     private const val MARKET_URL = "market://details?id=$KAKAO_MAP_PACKAGE"
     private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAO_MAP_PACKAGE"
 
-    fun launch(context: Context, place: PlaceDetail) {
+    fun launch(context: Context, place: PlaceDetail): Boolean {
         val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(place).toUri())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        try {
+        return try {
             context.startActivity(intent)
+            true
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(context, "카카오맵이 설치되어 있지 않아 설치 페이지로 이동합니다.", Toast.LENGTH_SHORT).show()
             openInstallPage(context)
+            false
         }
     }
 

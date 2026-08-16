@@ -22,7 +22,9 @@ interface PlaceApi {
     ): ApiEnvelope<CursorPagePlaceResponse>
 
     @GET("places/coordinates")
-    suspend fun getCoordinates(): ApiEnvelope<List<PlaceCoordinateResponse>>
+    suspend fun getCoordinates(
+        @Header("Authorization") authorization: String?,
+    ): ApiEnvelope<List<PlaceCoordinateResponse>>
 
     @GET("places")
     suspend fun getPlaces(

@@ -27,10 +27,10 @@ object KakaoNaviLauncher {
     private const val MARKET_URL = "market://details?id=$KAKAONAVI_PACKAGE"
     private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAONAVI_PACKAGE"
 
-    fun launch(context: Context, place: PlaceDetail) {
+    fun launch(context: Context, place: PlaceDetail): Boolean {
         if (!NaviClient.instance.isKakaoNaviInstalled(context)) {
             openInstallPage(context)
-            return
+            return false
         }
 
         val courseWaypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
@@ -61,7 +61,13 @@ object KakaoNaviLauncher {
             option = NaviOption(coordType = CoordType.WGS84),
             viaList = viaList,
         )
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        return try {
+            context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            true
+        } catch (_: ActivityNotFoundException) {
+            openInstallPage(context)
+            false
+        }
     }
 
     fun openInstallPage(context: Context) {
