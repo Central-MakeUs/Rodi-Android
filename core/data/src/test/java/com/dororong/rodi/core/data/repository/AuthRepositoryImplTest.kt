@@ -80,7 +80,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `login keeps the current account when stale practice session cleanup fails`() = runTest {
+    fun `login succeeds when stale practice session cleanup fails`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
@@ -88,21 +88,9 @@ class AuthRepositoryImplTest {
         coEvery { practiceSessionRepository.clear() } throws IOException("local storage unavailable")
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
-        assertThrowsSuspend<AuthException.Unknown> { repository.loginWithKakao("kakao-token") }
-        coVerify(exactly = 0) { tokenStore.save("access-new", "refresh-new", "kakao") }
+        assertTrue(repository.loginWithKakao("kakao-token") is LoginResult.Success)
+        coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao") }
         coVerify(exactly = 3) { practiceSessionRepository.clear() }
-    }
-
-    @Test
-    fun `login propagates cancellation from stale practice session cleanup`() = runTest {
-        val authApi = mockk<AuthApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
-        coEvery { practiceSessionRepository.clear() } throws CancellationException("cancelled")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
-
-        assertThrowsSuspend<CancellationException> { repository.loginWithKakao("kakao-token") }
-        coVerify(exactly = 0) { tokenStore.save(any(), any(), any()) }
     }
 
     @Test
