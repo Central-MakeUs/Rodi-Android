@@ -1,7 +1,5 @@
 package com.dororong.rodi.feature.course.registration.content
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,12 +23,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,8 +47,6 @@ import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.R
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 private data class TutorialPage(
     val title: String,
@@ -101,7 +97,6 @@ private val tutorialPages = listOf(
     ),
 )
 
-private const val TUTORIAL_PROGRESS_ANIMATION_DURATION_PER_PAGE_MILLIS = 220
 private val TUTORIAL_BOX_HORIZONTAL_PADDING = 36.5.dp
 private val TUTORIAL_BOX_TOP_PADDING = 28.dp
 private const val TUTORIAL_BOX_ASPECT_RATIO = 270f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT
@@ -140,7 +135,7 @@ fun CourseRegistrationTutorialContent(
         if (isError) {
             TutorialError(onRetry = onRetry)
         } else {
-            TutorialProgress(currentPage = pagerState.currentPage)
+            TutorialProgress(pagerState = pagerState)
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.weight(1f),
@@ -195,19 +190,10 @@ private fun TutorialTopBar(onBack: () -> Unit) {
 }
 
 @Composable
-private fun TutorialProgress(currentPage: Int) {
-    val progress = remember { Animatable(0f) }
-    val targetProgress = (currentPage + 1).coerceIn(0, tutorialPages.size).toFloat()
-    LaunchedEffect(targetProgress) {
-        progress.animateTo(
-            targetValue = targetProgress,
-            animationSpec = tween(
-                durationMillis = (abs(targetProgress - progress.value) * TUTORIAL_PROGRESS_ANIMATION_DURATION_PER_PAGE_MILLIS)
-                    .roundToInt()
-                    .coerceAtLeast(1),
-            ),
-        )
-    }
+private fun TutorialProgress(pagerState: PagerState) {
+    // currentPage + currentPageOffsetFraction는 페이지 사이 드래그 중에도 프레임마다
+    // 연속으로 갱신되므로, 별도 애니메이션 없이 그대로 스와이프 진행률과 일치한다.
+    val progress = pagerState.currentPage + pagerState.currentPageOffsetFraction + 1f
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -215,7 +201,7 @@ private fun TutorialProgress(currentPage: Int) {
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         tutorialPages.indices.forEach { index ->
-            val fillFraction = (progress.value - index).coerceIn(0f, 1f)
+            val fillFraction = (progress - index).coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .weight(1f)
