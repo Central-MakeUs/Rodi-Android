@@ -129,3 +129,29 @@ private fun RodiBottomNavigationPreview() {
         )
     }
 }
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun RodiBottomNavigationRegisterPreview() {
+    RodiTheme {
+        RodiBottomNavigation(
+            selectedDestination = RodiBottomNavigationDestination.Register,
+            onHomeClick = {},
+            onRegisterClick = {},
+            onMyClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun RodiBottomNavigationMyPreview() {
+    RodiTheme {
+        RodiBottomNavigation(
+            selectedDestination = RodiBottomNavigationDestination.My,
+            onHomeClick = {},
+            onRegisterClick = {},
+            onMyClick = {},
+        )
+    }
+}
