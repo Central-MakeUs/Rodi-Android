@@ -28,6 +28,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -89,6 +91,8 @@ class CourseRegistrationViewModelTest {
         coEvery { member.completeCourseTutorial() } throws IllegalStateException("network")
         val viewModel = viewModel()
         advanceUntilIdle()
+        val effects = mutableListOf<CourseRegistrationEffect>()
+        val collector = launch { viewModel.effect.toList(effects) }
 
         viewModel.onIntent(CourseRegistrationIntent.TutorialPageChanged(2))
         coEvery { member.completeCourseTutorial() } throws IllegalStateException("network")
@@ -98,7 +102,8 @@ class CourseRegistrationViewModelTest {
         assertEquals(CourseRegistrationPage.Tutorial, viewModel.state.value.page)
         assertEquals(2, viewModel.state.value.tutorialPage)
         assertEquals(CourseTutorialLoadState.Ready, viewModel.state.value.tutorialLoadState)
-        assertEquals("network", viewModel.state.value.snackbarMessage)
+        assertEquals(listOf(CourseRegistrationEffect.ShowSnackbar("network")), effects)
+        collector.cancel()
     }
 
     @Test

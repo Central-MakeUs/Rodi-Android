@@ -217,13 +217,8 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update {
-                    it.copy(
-                        tutorialLoadState = CourseTutorialLoadState.Ready,
-                        snackbarMessage = error.message ?: "튜토리얼 완료를 저장하지 못했어요.",
-                    )
-                }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar("튜토리얼 완료를 저장하지 못했어요. 다시 시도해 주세요."))
+                _state.update { it.copy(tutorialLoadState = CourseTutorialLoadState.Ready) }
+                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "잠시 후 다시 시도해 주세요."))
             }
         }
     }

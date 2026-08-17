@@ -1,15 +1,18 @@
 package com.dororong.rodi.feature.course.registration.content
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,25 +28,28 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.R
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 private data class TutorialPage(
     val title: String,
@@ -51,9 +57,10 @@ private data class TutorialPage(
     val tooltip: String,
     val image: Int,
     val tooltipAlignment: Alignment,
-    val dimTop: androidx.compose.ui.unit.Dp,
-    val dimBottom: androidx.compose.ui.unit.Dp,
-    val showMoveArrows: Boolean = false,
+    val dimTop: Dp,
+    val dimBottom: Dp,
+    val tooltipOffsetX: Dp = 0.dp,
+    val tooltipOffsetY: Dp = 0.dp,
 )
 
 private val tutorialPages = listOf(
@@ -73,8 +80,9 @@ private val tutorialPages = listOf(
         image = R.drawable.illust_course_registration_tutorial_route,
         tooltipAlignment = Alignment.BottomCenter,
         dimTop = 484.dp,
-        dimBottom = 49.dp,
-        showMoveArrows = true,
+        dimBottom = 0.dp,
+        tooltipOffsetX = (-61).dp,
+        tooltipOffsetY = (-43).dp,
     ),
     TutorialPage(
         title = "위치 수정 시 해당 핀을 눌러주세요",
@@ -87,6 +95,10 @@ private val tutorialPages = listOf(
     ),
 )
 
+private const val TUTORIAL_PROGRESS_ANIMATION_DURATION_PER_PAGE_MILLIS = 220
+private val TUTORIAL_BOX_HORIZONTAL_PADDING = 36.5.dp
+private val TUTORIAL_BOX_TOP_PADDING = 28.dp
+
 @Composable
 fun CourseRegistrationTutorialContent(
     page: Int,
@@ -97,7 +109,6 @@ fun CourseRegistrationTutorialContent(
     modifier: Modifier = Modifier,
     isError: Boolean = false,
     onRetry: () -> Unit = {},
-    completionError: String? = null,
 ) {
     val pagerState = rememberPagerState(
         initialPage = page.coerceIn(0, tutorialPages.lastIndex),
@@ -129,14 +140,6 @@ fun CourseRegistrationTutorialContent(
                 verticalAlignment = Alignment.Top,
             ) { index ->
                 TutorialPageContent(page = tutorialPages[index])
-            }
-            if (completionError != null && pagerState.currentPage == tutorialPages.lastIndex) {
-                Text(
-                    text = completionError,
-                    style = RodiTheme.typography.caption2Regular,
-                    color = RodiTheme.colors.pointRed,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
             }
             if (pagerState.currentPage == tutorialPages.lastIndex) {
                 RodiButton(
@@ -186,6 +189,18 @@ private fun TutorialTopBar(onBack: () -> Unit) {
 
 @Composable
 private fun TutorialProgress(currentPage: Int) {
+    val progress = remember { Animatable(0f) }
+    val targetProgress = (currentPage + 1).coerceIn(0, tutorialPages.size).toFloat()
+    LaunchedEffect(targetProgress) {
+        progress.animateTo(
+            targetValue = targetProgress,
+            animationSpec = tween(
+                durationMillis = (abs(targetProgress - progress.value) * TUTORIAL_PROGRESS_ANIMATION_DURATION_PER_PAGE_MILLIS)
+                    .roundToInt()
+                    .coerceAtLeast(1),
+            ),
+        )
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,16 +208,22 @@ private fun TutorialProgress(currentPage: Int) {
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         tutorialPages.indices.forEach { index ->
+            val fillFraction = (progress.value - index).coerceIn(0f, 1f)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(4.dp)
                     .clip(RoundedCornerShape(5.dp))
-                    .background(
-                        if (index <= currentPage) RodiTheme.colors.primary600
-                        else RodiTheme.colors.gray300,
-                    ),
-            )
+                    .background(RodiTheme.colors.gray300),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(fillFraction)
+                        .background(RodiTheme.colors.primary600),
+                )
+            }
         }
     }
 }
@@ -225,6 +246,8 @@ private fun TutorialPageContent(page: TutorialPage) {
                 text = page.title,
                 style = RodiTheme.typography.heading2,
                 color = RodiTheme.colors.black,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = page.subtitle,
@@ -232,11 +255,15 @@ private fun TutorialPageContent(page: TutorialPage) {
                 color = RodiTheme.colors.secondary300,
             )
         }
-        Spacer(Modifier.height(24.dp))
         Box(
             modifier = Modifier
-                .width(270.dp)
-                .height(533.dp)
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(
+                    top = TUTORIAL_BOX_TOP_PADDING,
+                    start = TUTORIAL_BOX_HORIZONTAL_PADDING,
+                    end = TUTORIAL_BOX_HORIZONTAL_PADDING,
+                )
                 .clip(RoundedCornerShape(10.dp))
                 .border(3.dp, RodiTheme.colors.gray300, RoundedCornerShape(10.dp)),
         ) {
@@ -251,7 +278,7 @@ private fun TutorialPageContent(page: TutorialPage) {
                 text = page.tooltip,
                 modifier = Modifier
                     .align(page.tooltipAlignment)
-                    .offset(y = if (page.tooltipAlignment == Alignment.BottomCenter) (-40).dp else 0.dp),
+                    .offset(x = page.tooltipOffsetX, y = page.tooltipOffsetY),
             )
         }
     }
@@ -277,19 +304,6 @@ private fun TutorialHighlightOverlay(page: TutorialPage) {
                 .align(Alignment.BottomCenter)
                 .background(dimColor),
         )
-    if (page.showMoveArrows) {
-            val arrowColor = RodiTheme.colors.white
-            Canvas(Modifier.fillMaxSize()) {
-                val y = size.height * 0.46f
-                val left = size.width * 0.30f
-                val right = size.width * 0.70f
-                drawLine(arrowColor, Offset(left, y), Offset(right, y), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(arrowColor, Offset(left, y), Offset(left + 12.dp.toPx(), y - 8.dp.toPx()), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(arrowColor, Offset(left, y), Offset(left + 12.dp.toPx(), y + 8.dp.toPx()), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(arrowColor, Offset(right, y), Offset(right - 12.dp.toPx(), y - 8.dp.toPx()), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-                drawLine(arrowColor, Offset(right, y), Offset(right - 12.dp.toPx(), y + 8.dp.toPx()), strokeWidth = 3.dp.toPx(), cap = StrokeCap.Round)
-            }
-        }
     }
 }
 
@@ -374,20 +388,5 @@ private fun CourseRegistrationTutorialP3Preview() {
 private fun CourseRegistrationTutorialErrorPreview() {
     RodiTheme {
         CourseRegistrationTutorialContent(0, false, {}, {}, {}, isError = true)
-    }
-}
-
-@Preview(name = "Tutorial Completion Error", showBackground = true, widthDp = 375, heightDp = 812)
-@Composable
-private fun CourseRegistrationTutorialCompletionErrorPreview() {
-    RodiTheme {
-        CourseRegistrationTutorialContent(
-            page = 2,
-            isCompleting = false,
-            onPageChanged = {},
-            onBack = {},
-            onComplete = {},
-            completionError = "튜토리얼 완료를 저장하지 못했어요. 다시 시도해 주세요.",
-        )
     }
 }
