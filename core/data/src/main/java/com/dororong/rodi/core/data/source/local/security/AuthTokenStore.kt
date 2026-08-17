@@ -5,6 +5,7 @@ import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
 import com.dororong.rodi.core.data.source.local.datastore.CourseDraftDataStore
 import com.dororong.rodi.core.data.source.local.datastore.CourseSearchHistoryDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -76,8 +77,12 @@ class AuthTokenStore @Inject constructor(
     }
 
     suspend fun clearCourseRegistrationData() = withContext(Dispatchers.IO) {
-        CourseDraftDataStore.clearForContext(context)
-        CourseSearchHistoryDataStore.clearForContext(context)
+        val draftResult = runCatching { CourseDraftDataStore.clearForContext(context) }
+        val historyResult = runCatching { CourseSearchHistoryDataStore.clearForContext(context) }
+        (draftResult.exceptionOrNull() as? CancellationException)?.let { throw it }
+        (historyResult.exceptionOrNull() as? CancellationException)?.let { throw it }
+        draftResult.getOrThrow()
+        historyResult.getOrThrow()
     }
 
     suspend fun clear(): Boolean = withContext(Dispatchers.IO) { mutex.withLock { clearLocked() } }

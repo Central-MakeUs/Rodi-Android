@@ -119,7 +119,9 @@ class CourseLocationRepositoryImplTest {
         coEvery { api.searchKeyword("KakaoAK ${com.dororong.rodi.core.data.BuildConfig.KAKAO_REST_API_KEY}", "교차로", 15) } returns KakaoKeywordSearchResponse(
             documents = listOf(KakaoKeywordDocument("1", "교차로", "서울", "서울 도로", "127.0", "37.0")),
         )
-        coEvery { api.searchAddress("Bearer access", "교차로", 15) } returns KakaoAddressSearchResponse()
+        coEvery {
+            api.searchAddress("KakaoAK ${com.dororong.rodi.core.data.BuildConfig.KAKAO_REST_API_KEY}", "교차로", 15)
+        } returns KakaoAddressSearchResponse()
         val repository = CourseLocationRepositoryImpl(places, api, history)
 
         val result = repository.search("교차로")

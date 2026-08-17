@@ -32,6 +32,7 @@ class KakaoDirectionsClient @Inject constructor() {
     private companion object {
         const val BASE_URL = "https://apis-navi.kakaomobility.com/v1/directions"
         const val MAX_API_WAYPOINTS = 4
+        const val MAX_SNAP_DISTANCE_METERS = 150.0
     }
 
     /**
@@ -95,6 +96,11 @@ class KakaoDirectionsClient @Inject constructor() {
             ) {
                 throw CourseRegistrationException.RouteUnavailable()
             }
+            val inputPoints = (listOf(origin) + waypoints + destination).map { LatLng.from(it.lat, it.lng) }
+            val isSnappedWithinTolerance = inputPoints.zip(result.snappedPoints).all { (input, snapped) ->
+                haversineMeters(input, snapped) <= MAX_SNAP_DISTANCE_METERS
+            }
+            if (!isSnappedWithinTolerance) throw CourseRegistrationException.RouteUnavailable()
             result
         } catch (error: CancellationException) {
             throw error
