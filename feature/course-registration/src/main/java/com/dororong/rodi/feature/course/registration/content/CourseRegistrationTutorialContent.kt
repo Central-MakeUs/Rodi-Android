@@ -9,9 +9,11 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,7 +43,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
@@ -57,11 +58,16 @@ private data class TutorialPage(
     val tooltip: String,
     val image: Int,
     val tooltipAlignment: Alignment,
-    val dimTop: Dp,
-    val dimBottom: Dp,
-    val tooltipOffsetX: Dp = 0.dp,
-    val tooltipOffsetY: Dp = 0.dp,
+    val dimTopFraction: Float,
+    val dimBottomFraction: Float,
+    val tooltipOffsetXFraction: Float = 0f,
+    val tooltipOffsetYFraction: Float = 0f,
 )
+
+// Figma 목업 기준(3800:68104/68117/68129)은 270x533 박스다. 실기기 박스 높이가
+// 화면 폭에 따라 달라지므로, 그 기준 박스 대비 비율로 저장해 어떤 폭에서도
+// 이미지 크롭·Dim 경계·툴팁 위치가 같은 지점을 가리키게 한다.
+private const val TUTORIAL_MOCKUP_REFERENCE_HEIGHT = 533f
 
 private val tutorialPages = listOf(
     TutorialPage(
@@ -70,8 +76,8 @@ private val tutorialPages = listOf(
         tooltip = "지도를 움직여 핀을 도로위에 맞춰요",
         image = R.drawable.illust_course_registration_tutorial_route,
         tooltipAlignment = Alignment.Center,
-        dimTop = 231.dp,
-        dimBottom = 193.dp,
+        dimTopFraction = 231.043f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
+        dimBottomFraction = 193f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
     ),
     TutorialPage(
         title = "아래 ‘출발지 선택’을 눌러, 위치를 선택해요",
@@ -79,10 +85,10 @@ private val tutorialPages = listOf(
         tooltip = "버튼을 눌러 위치를 선택해요",
         image = R.drawable.illust_course_registration_tutorial_route,
         tooltipAlignment = Alignment.BottomCenter,
-        dimTop = 484.dp,
-        dimBottom = 0.dp,
-        tooltipOffsetX = (-61).dp,
-        tooltipOffsetY = (-43).dp,
+        dimTopFraction = 483.777f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
+        dimBottomFraction = 0f,
+        tooltipOffsetXFraction = -61f / 270f,
+        tooltipOffsetYFraction = -42.52f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
     ),
     TutorialPage(
         title = "위치 수정 시 해당 핀을 눌러주세요",
@@ -90,14 +96,15 @@ private val tutorialPages = listOf(
         tooltip = "선택한 핀을 누르면 위치를 수정할 수 있어요.",
         image = R.drawable.illust_course_registration_tutorial_pin,
         tooltipAlignment = Alignment.Center,
-        dimTop = 231.dp,
-        dimBottom = 193.dp,
+        dimTopFraction = 231.043f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
+        dimBottomFraction = 193f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
     ),
 )
 
 private const val TUTORIAL_PROGRESS_ANIMATION_DURATION_PER_PAGE_MILLIS = 220
 private val TUTORIAL_BOX_HORIZONTAL_PADDING = 36.5.dp
 private val TUTORIAL_BOX_TOP_PADDING = 28.dp
+private const val TUTORIAL_BOX_ASPECT_RATIO = 270f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT
 
 @Composable
 fun CourseRegistrationTutorialContent(
@@ -255,15 +262,15 @@ private fun TutorialPageContent(page: TutorialPage) {
                 color = RodiTheme.colors.secondary300,
             )
         }
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
                 .padding(
                     top = TUTORIAL_BOX_TOP_PADDING,
                     start = TUTORIAL_BOX_HORIZONTAL_PADDING,
                     end = TUTORIAL_BOX_HORIZONTAL_PADDING,
                 )
+                .aspectRatio(TUTORIAL_BOX_ASPECT_RATIO)
                 .clip(RoundedCornerShape(10.dp))
                 .border(3.dp, RodiTheme.colors.gray300, RoundedCornerShape(10.dp)),
         ) {
@@ -278,7 +285,10 @@ private fun TutorialPageContent(page: TutorialPage) {
                 text = page.tooltip,
                 modifier = Modifier
                     .align(page.tooltipAlignment)
-                    .offset(x = page.tooltipOffsetX, y = page.tooltipOffsetY),
+                    .offset(
+                        x = maxWidth * page.tooltipOffsetXFraction,
+                        y = maxHeight * page.tooltipOffsetYFraction,
+                    ),
             )
         }
     }
@@ -293,14 +303,14 @@ private fun TutorialHighlightOverlay(page: TutorialPage) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(page.dimTop)
+                .fillMaxHeight(page.dimTopFraction)
                 .align(Alignment.TopCenter)
                 .background(dimColor),
         )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(page.dimBottom)
+                .fillMaxHeight(page.dimBottomFraction)
                 .align(Alignment.BottomCenter)
                 .background(dimColor),
         )
