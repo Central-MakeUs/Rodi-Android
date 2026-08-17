@@ -12,7 +12,7 @@
 
 ## 빌드/버전
 - minSdk 30 / targetSdk 36 / compileSdk 37
-- versionName `1.3.0` / versionCode 15
+- versionName `1.3.1` / versionCode 16
 - 명령:
   - 빌드 `./gradlew assembleDebug`
   - 테스트 `./gradlew test`
