@@ -64,6 +64,7 @@ private fun CourseInputSpecResponse.toDomain() = CourseInputSpec(
 )
 
 fun CourseRegistrationRequest.toData() = CourseRegisterRequest(
+    name = resolveCourseName(),
     address = address,
     distanceMeters = distanceMeters,
     waypoints = waypoints.map(RegistrationWaypoint::toData),
@@ -71,6 +72,13 @@ fun CourseRegistrationRequest.toData() = CourseRegisterRequest(
     description = description,
     caution = caution,
 )
+
+private fun CourseRegistrationRequest.resolveCourseName(): String {
+    name?.trim()?.takeIf(String::isNotBlank)?.let { return it }
+    val startName = waypoints.firstOrNull { it.type == RegistrationWaypointType.START }?.name
+    return startName?.trim()?.takeIf(String::isNotBlank)
+        ?: waypoints.firstOrNull()?.name?.trim().orEmpty()
+}
 
 private fun RegistrationWaypoint.toData() = CourseWaypointRequest(
     type = when (type) {

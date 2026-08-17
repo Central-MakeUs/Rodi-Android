@@ -82,6 +82,25 @@ class CourseRegistrationRepositoryImplTest {
     }
 
     @Test
+    fun `sends the start waypoint name as course name when none is provided`() = runTest {
+        val api = mockk<CourseApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val authRepository = mockk<AuthRepository>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { api.registerCourse("Bearer access", any()) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CourseRegisterResponse(42, "PENDING"),
+        )
+        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
+
+        repository.registerCourse(request())
+
+        coVerify { api.registerCourse("Bearer access", match { it.name == "출발" }) }
+    }
+
+    @Test
     fun `clamps list size and sends selected status and cursor`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()

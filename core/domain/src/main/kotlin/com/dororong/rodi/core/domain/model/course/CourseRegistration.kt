@@ -73,6 +73,7 @@ data class CourseRegistrationRequest(
     val practiceTypes: List<String>,
     val description: String,
     val caution: String,
+    val name: String? = null,
 )
 
 fun CourseRegistrationRequest.validateForSubmission() {

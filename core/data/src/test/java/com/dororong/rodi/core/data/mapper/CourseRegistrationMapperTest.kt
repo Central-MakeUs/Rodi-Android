@@ -8,11 +8,28 @@ import com.dororong.rodi.core.data.source.remote.model.course.PracticeTypeCatego
 import com.dororong.rodi.core.data.source.remote.model.course.PracticeTypeFormResponse
 import com.dororong.rodi.core.data.source.remote.model.course.PracticeTypeItemResponse
 import com.dororong.rodi.core.domain.model.course.CourseApprovalStatus
+import com.dororong.rodi.core.domain.model.course.CourseRegistrationRequest
+import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
+import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 
 class CourseRegistrationMapperTest {
+    @Test
+    fun `uses the provided course name when present`() {
+        val data = registrationRequest(name = "우리 동네 연습 코스").toData()
+
+        assertEquals("우리 동네 연습 코스", data.name)
+    }
+
+    @Test
+    fun `falls back to the start waypoint name when course name is blank`() {
+        val data = registrationRequest(name = "  ").toData()
+
+        assertEquals("출발", data.name)
+    }
+
     @Test
     fun `sorts dynamic registration categories and practice types by server order`() {
         val result = form().toDomain()
@@ -57,5 +74,18 @@ class CourseRegistrationMapperTest {
             caution = CourseInputSpecResponse(false, null, 100, "주의사항"),
             description = CourseInputSpecResponse(true, 10, 30, "한줄 소개"),
         ),
+    )
+
+    private fun registrationRequest(name: String?) = CourseRegistrationRequest(
+        address = "서울특별시 강남구",
+        distanceMeters = 1_000,
+        waypoints = listOf(
+            RegistrationWaypoint(RegistrationWaypointType.START, "출발", "서울특별시 강남구", lat = 37.5, lng = 127.0),
+            RegistrationWaypoint(RegistrationWaypointType.DESTINATION, "도착", "서울특별시 강남구", lat = 37.51, lng = 127.01),
+        ),
+        practiceTypes = listOf("STRAIGHT"),
+        description = "소개",
+        caution = "주의",
+        name = name,
     )
 }

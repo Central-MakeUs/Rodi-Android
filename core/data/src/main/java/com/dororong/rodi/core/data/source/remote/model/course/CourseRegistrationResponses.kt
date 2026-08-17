@@ -57,6 +57,7 @@ data class CourseInputSpecResponse(
 
 @Serializable
 data class CourseRegisterRequest(
+    val name: String,
     val address: String,
     val distanceMeters: Int,
     val waypoints: List<CourseWaypointRequest>,
