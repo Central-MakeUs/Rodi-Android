@@ -250,6 +250,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns false
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.hardDelete()
@@ -257,6 +258,26 @@ class MemberRepositoryImplTest {
         assertFalse(result.localCleanupSucceeded)
         coVerify { memberApi.hardDelete("Bearer access") }
         coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `hard delete reports local cleanup failure when course registration data survives`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.hardDelete("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+        )
+        coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } throws IllegalStateException("datastore unavailable")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        val result = repository.hardDelete()
+
+        assertFalse(result.localCleanupSucceeded)
+        coVerify { tokenStore.clearCourseRegistrationData() }
     }
 
     @Test

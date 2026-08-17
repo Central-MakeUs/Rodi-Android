@@ -133,10 +133,10 @@ class MemberRepositoryImpl @Inject constructor(
     override suspend fun withdraw() {
         authenticatedRequest { authorization -> memberApi.withdraw(authorization).requireSuccess() }
         practiceSessionRepository.clear()
+        tokenStore.clearCourseRegistrationData()
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
-        tokenStore.clearCourseRegistrationData()
         practiceRecordPresenceCache.clear()
     }
 
@@ -160,7 +160,13 @@ class MemberRepositoryImpl @Inject constructor(
         if (!tokensCleared) {
             localCleanupSucceeded = false
         }
-        tokenStore.clearCourseRegistrationData()
+        try {
+            tokenStore.clearCourseRegistrationData()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            localCleanupSucceeded = false
+        }
         practiceRecordPresenceCache.clear()
         return HardDeleteResult(localCleanupSucceeded = localCleanupSucceeded)
     }
