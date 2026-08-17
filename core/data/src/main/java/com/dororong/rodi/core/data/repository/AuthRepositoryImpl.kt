@@ -48,6 +48,7 @@ class AuthRepositoryImpl @Inject constructor(
         return AuthSession(
             isLoggedIn = tokens != null,
             hasRecentKakaoLogin = recentProvider == KAKAO_PROVIDER,
+            isCourseTutorialCompleted = tokens?.isCourseTutorialCompleted == true,
         )
     }
 
@@ -62,7 +63,7 @@ class AuthRepositoryImpl @Inject constructor(
         val result = body.toLoginResult()
         if (result is LoginResult.Success) {
             val tokens = body.toAuthTokenResponse()
-            saveTokens(tokens.accessToken, tokens.refreshToken)
+            saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
         }
         return result
     }
@@ -81,6 +82,7 @@ class AuthRepositoryImpl @Inject constructor(
                 saveTokens(
                     accessToken = body.accessToken,
                     refreshToken = body.refreshToken,
+                    isCourseTutorialCompleted = body.isCourseTutorialCompleted,
                     invalidatePracticeRecordCache = false,
                 )
             } catch (exception: AuthException.SessionRevoked) {
@@ -104,7 +106,7 @@ class AuthRepositoryImpl @Inject constructor(
         val result = body.toAccountRestoreResult()
         if (result is AccountRestoreResult.Restored) {
             val tokens = body.toAuthTokenResponse()
-            saveTokens(tokens.accessToken, tokens.refreshToken)
+            saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
         }
         return result
     }
@@ -118,9 +120,15 @@ class AuthRepositoryImpl @Inject constructor(
     private suspend fun saveTokens(
         accessToken: String,
         refreshToken: String,
+        isCourseTutorialCompleted: Boolean = false,
         invalidatePracticeRecordCache: Boolean = true,
     ) {
-        if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)) {
+        val saved = if (isCourseTutorialCompleted) {
+            tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER, true)
+        } else {
+            tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)
+        }
+        if (!saved) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
         if (invalidatePracticeRecordCache) {
@@ -151,6 +159,7 @@ class AuthRepositoryImpl @Inject constructor(
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        tokenStore.clearCourseRegistrationData()
         practiceRecordPresenceCache.clear()
     }
 

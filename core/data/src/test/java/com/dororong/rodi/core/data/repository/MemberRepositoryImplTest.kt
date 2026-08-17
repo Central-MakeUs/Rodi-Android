@@ -9,6 +9,7 @@ import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
+import com.dororong.rodi.core.data.source.remote.model.member.CourseTutorialCompletionResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AuthException
@@ -30,6 +31,26 @@ import org.junit.jupiter.api.Test
 class MemberRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
     private val practiceSessionRepository = mockk<PracticeSessionRepository>(relaxed = true)
+
+    @Test
+    fun `course tutorial completion patches server then stores local flag`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.completeCourseTutorial("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CourseTutorialCompletionResponse("2026-08-15T00:00:00Z"),
+        )
+        coEvery { tokenStore.markCourseTutorialCompleted() } returns true
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        repository.completeCourseTutorial()
+
+        coVerify(exactly = 1) { memberApi.completeCourseTutorial("Bearer access") }
+        coVerify(exactly = 1) { tokenStore.markCourseTutorialCompleted() }
+    }
 
     @Test
     fun `my page maps nullable goal and server profile fields`() = runTest {
@@ -162,6 +183,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         repository.withdraw()
@@ -206,6 +228,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.hardDelete()
@@ -227,6 +250,7 @@ class MemberRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns false
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         val result = repository.hardDelete()
@@ -234,6 +258,26 @@ class MemberRepositoryImplTest {
         assertFalse(result.localCleanupSucceeded)
         coVerify { memberApi.hardDelete("Bearer access") }
         coVerify { tokenStore.clear() }
+    }
+
+    @Test
+    fun `hard delete reports local cleanup failure when course registration data survives`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.hardDelete("Bearer access") } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+        )
+        coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } throws IllegalStateException("datastore unavailable")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        val result = repository.hardDelete()
+
+        assertFalse(result.localCleanupSucceeded)
+        coVerify { tokenStore.clearCourseRegistrationData() }
     }
 
     @Test

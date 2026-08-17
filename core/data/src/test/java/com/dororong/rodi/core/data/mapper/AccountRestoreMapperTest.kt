@@ -16,6 +16,7 @@ class AccountRestoreMapperTest {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             isNewMember = false,
+            isCourseTutorialCompleted = false,
             nickname = "로디",
         )
 
@@ -28,6 +29,7 @@ class AccountRestoreMapperTest {
     fun `maps withdrawal pending timestamps to domain result`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
+            isCourseTutorialCompleted = false,
             withdrawalRequestedAt = "2026-07-13T00:00:00+09:00",
             recoverableUntil = "2026-07-16T00:00:00+09:00",
         )
@@ -48,6 +50,7 @@ class AccountRestoreMapperTest {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             isNewMember = false,
+            isCourseTutorialCompleted = null,
             nickname = "로디",
         )
 
@@ -57,8 +60,24 @@ class AccountRestoreMapperTest {
     }
 
     @Test
+    fun `rejects successful token response without tutorial flag`() {
+        val response = SocialLoginResponse(
+            status = "SUCCESS",
+            accessToken = "access",
+            refreshToken = "refresh",
+            isNewMember = false,
+            isCourseTutorialCompleted = null,
+            nickname = "로디",
+        )
+
+        val exception = assertThrows(AuthException.Unknown::class.java) { response.toAuthTokenResponse() }
+
+        assertTrue(exception.message!!.contains("isCourseTutorialCompleted"))
+    }
+
+    @Test
     fun `rejects unsupported restore status`() {
-        val response = SocialLoginResponse(status = "LOCKED")
+        val response = SocialLoginResponse(status = "LOCKED", isCourseTutorialCompleted = false)
 
         val exception = assertThrows(AuthException.Unknown::class.java) { response.toAccountRestoreResult() }
 
@@ -69,6 +88,7 @@ class AccountRestoreMapperTest {
     fun `maps offset-less withdrawal timestamps so recovery stays reachable`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
+            isCourseTutorialCompleted = false,
             withdrawalRequestedAt = "2026-07-13T00:00:00.996642",
             recoverableUntil = "2026-07-16T00:00:00",
         )
@@ -88,6 +108,7 @@ class AccountRestoreMapperTest {
     fun `keeps withdrawal pending result when timestamps are unusable`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
+            isCourseTutorialCompleted = false,
             withdrawalRequestedAt = "invalid",
             recoverableUntil = null,
         )

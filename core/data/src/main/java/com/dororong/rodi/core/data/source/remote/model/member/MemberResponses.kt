@@ -85,3 +85,8 @@ data class MemberUpdateRequest(
 data class FilterTagsRequest(
     val filterTags: List<String>,
 )
+
+@Serializable
+data class CourseTutorialCompletionResponse(
+    val courseTutorialCompletedAt: String,
+)

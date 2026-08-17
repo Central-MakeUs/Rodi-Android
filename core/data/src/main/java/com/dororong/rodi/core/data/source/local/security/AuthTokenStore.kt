@@ -2,7 +2,10 @@ package com.dororong.rodi.core.data.source.local.security
 
 import android.content.Context
 import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
+import com.dororong.rodi.core.data.source.local.datastore.CourseDraftDataStore
+import com.dororong.rodi.core.data.source.local.datastore.CourseSearchHistoryDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -47,10 +50,11 @@ class AuthTokenStore @Inject constructor(
         accessToken: String,
         refreshToken: String,
         provider: String = KAKAO_PROVIDER,
+        isCourseTutorialCompleted: Boolean = false,
     ): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
             removeLegacyStore()
-            val tokens = AuthTokens(accessToken, refreshToken, provider)
+            val tokens = AuthTokens(accessToken, refreshToken, provider, isCourseTutorialCompleted)
             val saved = dataStore.save(tokens)
             if (saved) {
                 cachedTokens = tokens
@@ -60,6 +64,25 @@ class AuthTokenStore @Inject constructor(
             }
             saved
         }
+    }
+
+    suspend fun markCourseTutorialCompleted(): Boolean = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val current = cachedTokens ?: dataStore.read() ?: return@withLock false
+            val updated = current.copy(isCourseTutorialCompleted = true)
+            val saved = dataStore.save(updated)
+            if (saved) cachedTokens = updated
+            saved
+        }
+    }
+
+    suspend fun clearCourseRegistrationData() = withContext(Dispatchers.IO) {
+        val draftResult = runCatching { CourseDraftDataStore.clearForContext(context) }
+        val historyResult = runCatching { CourseSearchHistoryDataStore.clearForContext(context) }
+        (draftResult.exceptionOrNull() as? CancellationException)?.let { throw it }
+        (historyResult.exceptionOrNull() as? CancellationException)?.let { throw it }
+        draftResult.getOrThrow()
+        historyResult.getOrThrow()
     }
 
     suspend fun clear(): Boolean = withContext(Dispatchers.IO) { mutex.withLock { clearLocked() } }

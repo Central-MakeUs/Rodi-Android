@@ -109,6 +109,23 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `reissueToken persists tutorial flag returned by server`() = runTest {
+        val authApi = mockk<AuthApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access-old", "refresh-old", "kakao")
+        coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(
+            isOnboarded = true,
+            isCourseTutorialCompleted = true,
+        )
+        coEvery { tokenStore.save("access-new", "refresh-new", "kakao", true) } returns true
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+
+        repository.reissueToken()
+
+        coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao", true) }
+    }
+
+    @Test
     fun `reissueToken keeps practice presence cache for the same session`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
@@ -147,6 +164,7 @@ class AuthRepositoryImplTest {
             message = "폐기된 토큰입니다.",
         )
         coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
@@ -166,6 +184,7 @@ class AuthRepositoryImplTest {
             message = "refresh token이 유효하지 않습니다.",
         )
         coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
         val expiration = async(start = CoroutineStart.UNDISPATCHED) {
             repository.observeSessionExpiration().first { it }
@@ -241,6 +260,7 @@ class AuthRepositoryImplTest {
                 accessToken = "access-new",
                 refreshToken = "refresh-new",
                 isNewMember = false,
+                isCourseTutorialCompleted = false,
                 nickname = "로디",
             ),
         )
@@ -264,6 +284,7 @@ class AuthRepositoryImplTest {
             message = "성공",
             data = SocialLoginResponse(
                 status = "WITHDRAWAL_PENDING",
+                isCourseTutorialCompleted = false,
                 isNewMember = false,
                 withdrawalRequestedAt = "2026-07-13T00:00:00Z",
                 recoverableUntil = "2026-07-16T00:00:00Z",
@@ -288,6 +309,7 @@ class AuthRepositoryImplTest {
             message = "성공",
         )
         coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
 
         repository.logout()
@@ -322,7 +344,10 @@ class AuthRepositoryImplTest {
         provider = provider,
     )
 
-    private fun tokenEnvelope(isOnboarded: Boolean) = ApiEnvelope(
+    private fun tokenEnvelope(
+        isOnboarded: Boolean,
+        isCourseTutorialCompleted: Boolean = false,
+    ) = ApiEnvelope(
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
@@ -330,6 +355,7 @@ class AuthRepositoryImplTest {
             accessToken = "access-new",
             refreshToken = "refresh-new",
             isOnboarded = isOnboarded,
+            isCourseTutorialCompleted = isCourseTutorialCompleted,
         ),
     )
 
@@ -342,6 +368,7 @@ class AuthRepositoryImplTest {
             accessToken = "access-new",
             refreshToken = "refresh-new",
             isNewMember = isNewMember,
+            isCourseTutorialCompleted = false,
             nickname = "서버 닉네임",
         ),
     )
