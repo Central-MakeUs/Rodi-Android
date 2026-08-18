@@ -99,6 +99,7 @@ class CourseRegistrationViewModel @Inject constructor(
             is CourseRegistrationIntent.DeleteRecentSearch -> deleteRecentSearch(intent.id)
             CourseRegistrationIntent.DeleteAllRecentSearches -> deleteAllRecentSearches()
             is CourseRegistrationIntent.MapReady -> mapReady(intent.ready)
+            is CourseRegistrationIntent.ToggleCategory -> toggleCategory(intent.code)
             is CourseRegistrationIntent.TogglePracticeType -> togglePracticeType(intent.code)
             is CourseRegistrationIntent.CautionChanged -> updateCaution(intent.value)
             is CourseRegistrationIntent.DescriptionChanged -> updateDescription(intent.value)
@@ -742,6 +743,25 @@ class CourseRegistrationViewModel @Inject constructor(
         viewModelScope.launch { locationRepository.clearRecent() }
     }
 
+    /** 카테고리는 복수 선택이고, 해제하면 그 카테고리에서 고른 연습유형도 함께 풀린다. */
+    private fun toggleCategory(code: String) {
+        val form = _state.value.registrationForm ?: return
+        val category = form.categories.firstOrNull { it.code == code } ?: return
+        val selected = _state.value.selectedCategoryCodes
+        if (code in selected) {
+            val ownedTypeCodes = category.practiceTypes.map { it.code }.toSet()
+            _state.update {
+                it.copy(
+                    selectedCategoryCodes = selected - code,
+                    selectedPracticeTypeCodes = it.selectedPracticeTypeCodes - ownedTypeCodes,
+                )
+            }
+        } else {
+            _state.update { it.copy(selectedCategoryCodes = selected + code) }
+        }
+        persistDraft()
+    }
+
     private fun togglePracticeType(code: String) {
         val form = _state.value.registrationForm ?: return
         val availableCodes = form.categories.flatMap { it.practiceTypes }.map { it.code }.toSet()
@@ -801,10 +821,16 @@ class CourseRegistrationViewModel @Inject constructor(
                     .take(form.practiceTypeMaxSelect.coerceAtLeast(0))
                 val currentWaypoints = _state.value.waypoints
                 val reconciledWaypoints = trimWaypointsToFormLimit(currentWaypoints, form.maxWaypoints)
+                // 임시저장을 복원하면 연습유형만 남아 있으므로, 그 유형을 가진 카테고리를 다시 펼쳐준다.
+                // 그러지 않으면 선택된 연습유형이 화면에 보이지 않는 채로 완료 조건만 충족돼 버린다.
+                val restoredCategoryCodes = form.categories
+                    .filter { category -> category.practiceTypes.any { it.code in reconciledCodes } }
+                    .map { it.code }
                 _state.update {
                     it.copy(
                         formLoadState = CourseRegistrationFormLoadState.Ready,
                         registrationForm = form,
+                        selectedCategoryCodes = restoredCategoryCodes,
                         selectedPracticeTypeCodes = reconciledCodes,
                         waypoints = reconciledWaypoints,
                         route = if (reconciledWaypoints == currentWaypoints) it.route else null,

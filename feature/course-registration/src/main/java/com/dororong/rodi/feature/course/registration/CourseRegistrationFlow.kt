@@ -106,6 +106,7 @@ fun CourseRegistrationFlow(
                     form = state.registrationForm,
                     waypoints = state.waypoints,
                     route = state.route,
+                    selectedCategoryCodes = state.selectedCategoryCodes,
                     selectedPracticeTypeCodes = state.selectedPracticeTypeCodes,
                     caution = state.caution,
                     description = state.description,

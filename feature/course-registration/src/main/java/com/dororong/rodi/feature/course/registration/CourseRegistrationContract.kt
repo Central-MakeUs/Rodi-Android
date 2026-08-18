@@ -72,6 +72,7 @@ data class CourseRegistrationUiState(
     val searchError: String? = null,
     val formLoadState: CourseRegistrationFormLoadState = CourseRegistrationFormLoadState.Loading,
     val registrationForm: CourseRegistrationForm? = null,
+    val selectedCategoryCodes: List<String> = emptyList(),
     val selectedPracticeTypeCodes: List<String> = emptyList(),
     val caution: String = "",
     val description: String = "",
@@ -165,6 +166,7 @@ sealed interface CourseRegistrationIntent {
     data class DeleteRecentSearch(val id: String) : CourseRegistrationIntent
     data object DeleteAllRecentSearches : CourseRegistrationIntent
     data class MapReady(val ready: Boolean) : CourseRegistrationIntent
+    data class ToggleCategory(val code: String) : CourseRegistrationIntent
     data class TogglePracticeType(val code: String) : CourseRegistrationIntent
     data class CautionChanged(val value: String) : CourseRegistrationIntent
     data class DescriptionChanged(val value: String) : CourseRegistrationIntent

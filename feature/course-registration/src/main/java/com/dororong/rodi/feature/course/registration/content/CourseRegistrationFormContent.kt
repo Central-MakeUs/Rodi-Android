@@ -79,6 +79,7 @@ fun CourseRegistrationFormContent(
     form: CourseRegistrationForm?,
     waypoints: List<RegistrationWaypoint>,
     route: RouteResult?,
+    selectedCategoryCodes: List<String>,
     selectedPracticeTypeCodes: List<String>,
     caution: String,
     description: String,
@@ -108,6 +109,7 @@ fun CourseRegistrationFormContent(
                 Box(Modifier.weight(1f)) {
                     CourseRegistrationFormFields(
                         form = it,
+                        selectedCategoryCodes = selectedCategoryCodes,
                         selectedPracticeTypeCodes = selectedPracticeTypeCodes,
                         caution = caution,
                         description = description,
@@ -157,6 +159,7 @@ private fun CourseRegistrationFormTopBar(onBack: () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 private fun CourseRegistrationFormFields(
     form: CourseRegistrationForm,
+    selectedCategoryCodes: List<String>,
     selectedPracticeTypeCodes: List<String>,
     caution: String,
     description: String,
@@ -164,10 +167,10 @@ private fun CourseRegistrationFormFields(
     onIntent: (CourseRegistrationIntent) -> Unit,
 ) {
     val categories = form.categories.sortedBy(CoursePracticeCategory::order)
-    var selectedCategoryCode by rememberSaveable(categories.map(CoursePracticeCategory::code)) {
-        mutableStateOf(categories.firstOrNull()?.code)
-    }
-    val selectedCategory = categories.firstOrNull { it.code == selectedCategoryCode } ?: categories.firstOrNull()
+    // 선택한 카테고리들의 연습유형을 카테고리 순서대로 이어 붙여 함께 노출한다.
+    val visiblePracticeTypes = categories
+        .filter { it.code in selectedCategoryCodes }
+        .flatMap { it.practiceTypes.sortedBy(CoursePracticeType::order) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -195,21 +198,21 @@ private fun CourseRegistrationFormFields(
                     categories.forEach { category ->
                         RodiSelectableChip(
                             text = category.label,
-                            selected = category.code == selectedCategory?.code,
-                            onClick = { selectedCategoryCode = category.code },
+                            selected = category.code in selectedCategoryCodes,
+                            onClick = { onIntent(CourseRegistrationIntent.ToggleCategory(category.code)) },
                         )
                     }
                 }
             }
         }
-        selectedCategory?.let { category ->
-            item(key = "practice-types-${category.code}") {
+        if (visiblePracticeTypes.isNotEmpty()) {
+            item(key = "practice-types") {
                 FormSection(title = form.sections.practiceType, required = true) {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        category.practiceTypes.sortedBy(CoursePracticeType::order).forEach { type ->
+                        visiblePracticeTypes.forEach { type ->
                             PracticeTypeChip(
                                 type = type,
                                 selected = type.code in selectedPracticeTypeCodes,
@@ -416,6 +419,7 @@ private fun CourseRegistrationFormContentPreview() {
             form = form,
             waypoints = listOf(RegistrationWaypoint(RegistrationWaypointType.START, "서울역", "서울 중구", lat = 37.5, lng = 126.9)),
             route = RouteResult(listOf(GeoPoint(37.5, 126.9), GeoPoint(37.51, 126.91)), true, 1500),
+            selectedCategoryCodes = listOf("basic"),
             selectedPracticeTypeCodes = listOf("parking"),
             caution = "",
             description = "안전하게 연습해요.",
@@ -466,6 +470,7 @@ private fun PreviewFormState(
     loadState: CourseRegistrationFormLoadState = CourseRegistrationFormLoadState.Ready,
     caution: String = "",
     description: String = "",
+    selectedCategories: List<String> = listOf("basic"),
     selected: List<String> = listOf("straight"),
     submitting: Boolean = false,
     canSubmit: Boolean = false,
@@ -478,6 +483,7 @@ private fun PreviewFormState(
             form = if (loadState == CourseRegistrationFormLoadState.Error) null else previewForm(),
             waypoints = previewFormWaypoints,
             route = previewFormRoute,
+            selectedCategoryCodes = selectedCategories,
             selectedPracticeTypeCodes = selected,
             caution = caution,
             description = description,
@@ -501,6 +507,12 @@ private fun CourseRegistrationFormLoadingPreview() {
 @Composable
 private fun CourseRegistrationFormEmptyPreview() {
     PreviewFormState(selected = emptyList())
+}
+
+@Preview(name = "Form No Category", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun CourseRegistrationFormNoCategoryPreview() {
+    PreviewFormState(selectedCategories = emptyList(), selected = emptyList())
 }
 
 @Preview(name = "Form Max Snackbar", showBackground = true, widthDp = 375, heightDp = 812)
