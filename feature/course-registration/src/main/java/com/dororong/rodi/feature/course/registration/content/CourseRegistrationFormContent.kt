@@ -63,6 +63,7 @@ import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import androidx.compose.ui.text.withStyle
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -183,7 +184,7 @@ private fun CourseRegistrationFormFields(
             )
         }
         item {
-            FormSection(title = form.sections.practiceCategory) {
+            FormSection(title = form.sections.practiceCategory, required = true) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -200,7 +201,7 @@ private fun CourseRegistrationFormFields(
         }
         selectedCategory?.let { category ->
             item(key = "practice-types-${category.code}") {
-                FormSection(title = form.sections.practiceType) {
+                FormSection(title = form.sections.practiceType, required = true) {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -245,9 +246,22 @@ private fun CourseRegistrationFormFields(
 }
 
 @Composable
-private fun FormSection(title: String, content: @Composable () -> Unit) {
+private fun FormSection(title: String, required: Boolean = false, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        if (required) {
+            Text(
+                text = androidx.compose.ui.text.buildAnnotatedString {
+                    append("$title ")
+                    withStyle(androidx.compose.ui.text.SpanStyle(color = RodiTheme.colors.primary600)) {
+                        append("*")
+                    }
+                },
+                style = RodiTheme.typography.body1SemiBold,
+                color = RodiTheme.colors.black,
+            )
+        } else {
+            Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        }
         content()
     }
 }
