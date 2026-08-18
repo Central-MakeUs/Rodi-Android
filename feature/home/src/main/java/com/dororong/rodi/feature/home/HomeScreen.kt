@@ -457,6 +457,9 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
+                // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
+                // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
+                reviewVm.refresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
