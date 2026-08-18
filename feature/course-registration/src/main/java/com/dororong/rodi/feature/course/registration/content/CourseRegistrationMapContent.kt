@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -853,11 +854,14 @@ private fun RecentSearchContent(
         if (isLoading) {
             RecentSearchLoadingContent()
         } else if (recent.isEmpty()) {
-            SearchMessage(
-                text = "최근 검색어가 없어요.",
-                showIllustration = true,
-                modifier = Modifier.fillMaxSize(),
-            )
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(
+                    text = "최근 검색 내역이 없습니다",
+                    style = RodiTheme.typography.body1Medium,
+                    color = RodiTheme.colors.gray600,
+                    textAlign = TextAlign.Center,
+                )
+            }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(recent, key = CourseLocationSuggestion::id) { item ->
