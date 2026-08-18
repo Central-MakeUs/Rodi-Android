@@ -946,7 +946,7 @@ private fun SearchRow(
                 if (item.kind == CourseLocationKind.REGION) {
                     R.drawable.ic_registration_search
                 } else {
-                    R.drawable.ic_registration_pin_via
+                    R.drawable.ic_registration_map_pin
                 },
             ),
             contentDescription = if (item.kind == CourseLocationKind.REGION) "지역" else "장소",
