@@ -14,6 +14,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReportedReviewIdsUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewSummaryUseCase
 import io.mockk.coEvery
@@ -44,6 +45,7 @@ class CourseReviewViewModelTest {
     private val getPlaceReviews = mockk<GetPlaceReviewsUseCase>()
     private val getAuthSession = mockk<GetAuthSessionUseCase>()
     private val getMyPage = mockk<GetMyPageUseCase>()
+    private val getReportedReviewIds = mockk<GetReportedReviewIdsUseCase>(relaxed = true)
     private val clock = Clock.fixed(Instant.parse("2026-08-15T12:00:00Z"), ZoneOffset.UTC)
 
     @BeforeEach
@@ -52,7 +54,7 @@ class CourseReviewViewModelTest {
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
 
-    private fun viewModel() = CourseReviewViewModel(getReviewSummary, getPlaceReviews, getAuthSession, getMyPage, clock)
+    private fun viewModel() = CourseReviewViewModel(getReviewSummary, getPlaceReviews, getAuthSession, getMyPage, getReportedReviewIds, clock)
 
     private fun loggedIn() {
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = false)

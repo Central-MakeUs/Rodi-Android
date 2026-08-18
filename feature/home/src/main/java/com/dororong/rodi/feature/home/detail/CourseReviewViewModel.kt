@@ -10,6 +10,7 @@ import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetPlaceReviewsUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReportedReviewIdsUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewSummaryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Clock
@@ -29,6 +30,7 @@ class CourseReviewViewModel @Inject constructor(
     private val getPlaceReviews: GetPlaceReviewsUseCase,
     private val getAuthSession: GetAuthSessionUseCase,
     private val getMyPage: GetMyPageUseCase,
+    private val getReportedReviewIds: GetReportedReviewIdsUseCase,
     private val clock: Clock,
 ) : ViewModel() {
     private val _state = MutableStateFlow(CourseReviewUiState())
@@ -40,6 +42,22 @@ class CourseReviewViewModel @Inject constructor(
     private val handledCreatedReviews = mutableSetOf<OptimisticReviewKey>()
     private val optimisticCountTargets = mutableMapOf<OptimisticReviewKey, Long>()
     private val optimisticRecommendTargets = mutableMapOf<OptimisticReviewKey, Long>()
+    private val reportedReviewIds = mutableSetOf<Long>()
+
+    init {
+        viewModelScope.launch { reportedReviewIds += getReportedReviewIds() }
+    }
+
+    /** 신고 직후 신고자 화면에서만 후기를 감춘다 — 서버는 5명이 모일 때까지 계속 내려준다. */
+    fun excludeReportedReview(reviewId: Long) {
+        reportedReviewIds += reviewId
+        _state.update {
+            it.copy(
+                latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
+                reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
+            )
+        }
+    }
 
     fun load(placeId: Long) {
         val current = _state.value
@@ -341,7 +359,12 @@ class CourseReviewViewModel @Inject constructor(
         val pending = optimisticReviews
             .filter { (key, review) -> key.placeId == placeId && review.memberLevel == level }
             .values
-        return (pending + networkReviews).distinctBy(Review::reviewId)
+        // 목록은 항상 특정 레벨로 필터링해서 받아오므로 응답 항목의 작성자 레벨은 그 필터 레벨이다.
+        // 서버 응답에 레벨 필드가 없어서, 여기서 채워야 카드에 레벨별 프로필을 그릴 수 있다.
+        val leveled = networkReviews.map { it.copy(memberLevel = it.memberLevel ?: level) }
+        return (pending + leveled)
+            .distinctBy(Review::reviewId)
+            .filterNot { it.reviewId in reportedReviewIds }
     }
 
     private fun Review.matches(other: Review): Boolean =
