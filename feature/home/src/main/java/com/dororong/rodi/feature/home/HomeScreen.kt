@@ -136,7 +136,10 @@ import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.currentLocationUpdates
+import androidx.core.app.ActivityCompat
+import com.dororong.rodi.core.ui.permission.findActivity
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
+import com.dororong.rodi.core.ui.permission.openAppSettings
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.network.isNetworkAvailable
@@ -409,7 +412,17 @@ fun HomeScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         permissionGranted = result.values.any { it }
-        if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
+        if (!permissionGranted) {
+            initialLocationState = InitialLocationState.Unavailable
+            // 영구 거부 상태면 launch가 창도 못 띄우고 바로 거부로 끝난다. 그때는 설정으로 보낸다.
+            val canAskAgain = context.findActivity()?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    it,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                )
+            } ?: false
+            if (!canAskAgain) context.openAppSettings()
+        }
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -428,9 +441,13 @@ fun HomeScreen(
                 if (missingPermissions.isEmpty()) {
                     launchDriving(pending)
                 } else {
-                    snackbarHostState.show(
-                        RodiSnackbarData(message = missingPermissions.deniedDrivingPermissionMessage()),
-                    )
+                    // 권한을 못 받으면 추적 없이 경로만 띄운다("경로만 보기"와 같은 결과).
+                    // 필요성은 이미 팝업으로 안내했으니 토스트까지 겹쳐 띄우지 않는다.
+                    when (pending) {
+                        is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, pending.place)
+                        is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, pending.place)
+                        else -> Unit
+                    }
                 }
             }
         }
