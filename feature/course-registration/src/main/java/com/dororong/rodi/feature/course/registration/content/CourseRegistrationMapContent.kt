@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -65,6 +66,7 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -611,22 +613,12 @@ private fun CourseRegistrationSearchField(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clickable(onClick = onBack)
-                .semantics {
-                    contentDescription = "검색 닫기"
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        RodiIconButton(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
+            contentDescription = "검색 닫기",
+            tint = RodiTheme.colors.black,
+        )
         BasicTextField(
             value = keyword,
             onValueChange = onKeywordChanged,
@@ -834,28 +826,38 @@ private fun RecentSearchContent(
 ) {
     Column(Modifier.fillMaxSize()) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = RodiSpacing.md, vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(24.dp)
+                .padding(horizontal = RodiSpacing.md),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("최근 검색어", style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.black)
-            Text(
-                text = "전체 삭제",
-                style = RodiTheme.typography.caption2Medium,
-                color = if (recent.isEmpty()) RodiTheme.colors.gray400 else RodiTheme.colors.gray600,
+            Text("최근 검색어", style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray700)
+            // 글자 높이만큼만 클릭 영역이 잡히지 않도록 헤더 행 전체 높이로 넓힌다.
+            Box(
                 modifier = Modifier
+                    .fillMaxHeight()
                     .clickable(enabled = recent.isNotEmpty(), onClick = onDeleteAll)
                     .semantics {
                         contentDescription = "최근 검색어 전체 삭제"
                         role = Role.Button
                     },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "전체삭제",
+                    style = RodiTheme.typography.caption2Medium,
+                    color = RodiTheme.colors.gray500,
+                )
+            }
         }
         if (isLoading) {
             RecentSearchLoadingContent()
         } else if (recent.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Text(
+                    modifier = Modifier.padding(top = 180.dp),
                     text = "최근 검색 내역이 없습니다",
                     style = RodiTheme.typography.body1Medium,
                     color = RodiTheme.colors.gray600,
@@ -909,7 +911,7 @@ private fun SearchResultsContent(
             }
         }
         if (result.places.isNotEmpty()) {
-            item { HorizontalDivider(color = RodiTheme.colors.gray100, thickness = 8.dp) }
+            item { HorizontalDivider(color = RodiTheme.colors.gray200, thickness = 4.dp) }
             items(result.places, key = CourseLocationSuggestion::id) { item ->
                 SearchRow(item = item, onSelect = onSelect)
             }
@@ -927,57 +929,50 @@ private fun SearchRow(
         .takeIf { it.isNotBlank() && it.trim() != item.title.trim() }
         ?.let { "${item.title}, $it" }
         ?: item.title
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(62.dp)
-            .clickable { onSelect(item.id) }
-            .padding(horizontal = RodiSpacing.md, vertical = 8.dp)
-            .semantics {
-                contentDescription = rowDescription
-                role = Role.Button
-            },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Image(
-            painter = painterResource(
-                if (item.kind == CourseLocationKind.REGION) {
-                    R.drawable.ic_registration_search
-                } else {
-                    R.drawable.ic_registration_map_pin
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(61.dp)
+                .clickable { onSelect(item.id) }
+                .padding(horizontal = RodiSpacing.md)
+                .semantics {
+                    contentDescription = rowDescription
+                    role = Role.Button
                 },
-            ),
-            contentDescription = if (item.kind == CourseLocationKind.REGION) "지역" else "장소",
-            modifier = Modifier.size(20.dp),
-        )
-        Column(modifier = Modifier.weight(1f)) {
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Image(
+                painter = painterResource(
+                    if (item.kind == CourseLocationKind.REGION) {
+                        R.drawable.ic_registration_search
+                    } else {
+                        R.drawable.ic_registration_map_pin
+                    },
+                ),
+                contentDescription = if (item.kind == CourseLocationKind.REGION) "지역" else "장소",
+                modifier = Modifier.size(20.dp),
+            )
             Text(
                 text = item.title,
                 style = RodiTheme.typography.body2Medium,
                 color = RodiTheme.colors.black,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-        }
-        onDelete?.let {
-            Box(
-                modifier = Modifier
-                    .requiredSize(48.dp)
-                    .clickable(onClick = it)
-                    .semantics {
-                        contentDescription = "최근 검색어 삭제"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
+            onDelete?.let {
+                RodiIconButton(
                     painter = painterResource(R.drawable.ic_registration_x),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    onClick = it,
+                    iconSize = 20.dp,
+                    contentDescription = "최근 검색어 삭제",
+                    tint = RodiTheme.colors.black,
                 )
             }
         }
+        HorizontalDivider(color = RodiTheme.colors.gray100)
     }
 }
 
