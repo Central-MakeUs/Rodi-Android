@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -526,7 +527,8 @@ private fun RegisteredCoursesEmpty(
             )
             if (isAll) {
                 Text(
-                    text = "나만 알고 있는 운전 연습하기 좋은 코스를 공유해보세요.",
+                    // 자동 줄바꿈에 맡기면 "좋은 코/스를"처럼 단어 중간에서 끊긴다.
+                    text = "나만 알고 있는 운전 연습하기 좋은\n코스를 공유해보세요.",
                     style = RodiTheme.typography.body3Medium,
                     color = RodiTheme.colors.gray600,
                     modifier = Modifier
@@ -640,9 +642,9 @@ private fun RegisteredCourseRow(
 @Composable
 private fun RegisteredCourseStatusChip(status: CourseApprovalStatus) {
     val (label, background, foreground) = when (status) {
-        CourseApprovalStatus.APPROVED -> Triple("승인", RodiTheme.colors.primary50, RodiTheme.colors.primary600)
+        CourseApprovalStatus.APPROVED -> Triple("승인", RodiTheme.colors.infoBgMint, RodiTheme.colors.infoApproval)
         CourseApprovalStatus.PENDING -> Triple("검토중", RodiTheme.colors.gray400, RodiTheme.colors.gray50)
-        CourseApprovalStatus.REJECTED -> Triple("반려", RodiTheme.colors.secondary50, RodiTheme.colors.pointRed)
+        CourseApprovalStatus.REJECTED -> Triple("반려", RodiTheme.colors.infoBgPink, RodiTheme.colors.infoCancel)
     }
     Text(
         text = label,
@@ -691,12 +693,15 @@ private fun RegisteredCoursePopupSurface(onDelete: () -> Unit) {
         text = "삭제하기",
         style = RodiTheme.typography.body2Medium,
         color = RodiTheme.colors.gray700,
+        // 폭을 75dp로 고정하면 본문 폰트에서 "삭제하/기"로 줄이 깨진다. 디자인도 nowrap이라
+        // 최소 폭만 두고 글자에 맞춰 늘어나게 한다.
+        softWrap = false,
+        maxLines = 1,
         modifier = Modifier
-            .width(75.dp)
+            .defaultMinSize(minWidth = 75.dp)
             .height(35.dp)
             .clip(shape)
-            .background(RodiTheme.colors.white, shape)
-            .border(1.dp, RodiTheme.colors.gray300, shape)
+            .background(RodiTheme.colors.gray200, shape)
             .clickable(onClick = onDelete)
             .wrapContentHeight(Alignment.CenterVertically)
             .padding(horizontal = 12.dp),

@@ -207,7 +207,7 @@ private fun MyActivityTabs(
             modifier = Modifier.weight(1f),
         )
     }
-    HorizontalDivider(color = RodiTheme.colors.gray100)
+    HorizontalDivider(color = RodiTheme.colors.gray200)
 }
 
 @Composable
@@ -234,7 +234,7 @@ private fun MyActivityTabItem(
                 .padding(top = 8.dp)
                 .height(2.dp)
                 .fillMaxWidth()
-                .background(if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.white),
+                .background(if (selected) RodiTheme.colors.black else RodiTheme.colors.white),
         )
     }
 }
