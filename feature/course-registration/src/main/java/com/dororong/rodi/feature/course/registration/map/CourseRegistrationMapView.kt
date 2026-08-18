@@ -78,6 +78,7 @@ fun CourseRegistrationMapView(
     val currentCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentMapTapped by rememberUpdatedState(onMapTapped)
     val currentWaypointTapped by rememberUpdatedState(onWaypointTapped)
+    val currentCenter by rememberUpdatedState(center)
     val routeColor = RodiTheme.colors.primary600.toArgb()
     val routeStrokeColor = RodiTheme.colors.primary800.toArgb()
     var map by remember { mutableStateOf<KakaoMap?>(null) }
@@ -102,8 +103,11 @@ fun CourseRegistrationMapView(
         map?.setPadding(0, topPaddingPx, 0, bottomPaddingPx)
     }
 
-    LaunchedEffect(map, centerGeneration, center) {
-        val target = center ?: return@LaunchedEffect
+    // center는 사용자가 지도를 드래그/핀치할 때마다(onCameraMoveEnd) 바뀌므로 key에 넣지 않는다 —
+    // 넣으면 매번 이 effect가 재실행돼 카메라를 level 14로 되돌려서 확대/축소가 즉시 원복돼 버린다.
+    // 실제 "프로그래매틱 재중심" 트리거는 centerGeneration 증가뿐이다.
+    LaunchedEffect(map, centerGeneration) {
+        val target = currentCenter ?: return@LaunchedEffect
         map?.moveCamera(
             CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), 14),
             CameraAnimation.from(350),
@@ -197,7 +201,12 @@ private fun KakaoMap.renderRegistrationContent(
         val point = GeoPoint(waypoint.lat, waypoint.lng)
         val styles = manager.addLabelStyles(
             LabelStyles.from(
-                LabelStyle.from(context.registrationPinBitmap(waypoint.type)).setApplyDpScale(true),
+                LabelStyle.from(context.registrationPinBitmap(waypoint.type))
+                    .setApplyDpScale(true)
+                    // 기본 앵커는 비트맵 중앙(0.5, 0.5)이라 마커가 목표 좌표보다 아래로 쏠려
+                    // 보였다. 리티클(FixedCenterPin)이 핀 끝(하단 중앙)을 좌표에 맞추는 것과
+                    // 동일하게 하단 중앙(0.5, 1.0)으로 앵커를 맞춘다.
+                    .setAnchorPoint(0.5f, 1f),
             ),
         )
         layer.addLabel(
@@ -227,8 +236,10 @@ private fun Context.registrationPinBitmap(type: RegistrationWaypointType): Bitma
         RegistrationWaypointType.VIA -> R.drawable.ic_registration_pin_via
         RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_pin_destination
     }
-    // setApplyDpScale(true)로 SDK가 자체적으로 밀도 변환을 하므로 비트맵은 dp 값 그대로 생성한다.
-    val size = 34
+    // Compose 리티클(34dp)과 실기기 스크린샷을 픽셀 단위로 비교해 보정한 값이다.
+    // setApplyDpScale(true)를 켜도 이 SDK의 실제 배율은 (dp 그대로 만든 비트맵 기준)
+    // Compose dp 배율의 절반 정도였다 — 34를 그대로 쓰면 마커가 리티클의 절반 크기로 찍혔다.
+    val size = 68
     val bitmap = createBitmap(size, size)
     val canvas = Canvas(bitmap)
     ContextCompat.getDrawable(this, resource)?.also { drawable ->
