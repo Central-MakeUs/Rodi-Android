@@ -110,11 +110,13 @@ fun CourseRegistrationMapView(
         )
     }
 
-    LaunchedEffect(map, waypoints, route) {
+    LaunchedEffect(map, waypoints, route, editingWaypointIndex) {
         val currentMap = map ?: return@LaunchedEffect
         currentMap.renderRegistrationContent(
             context = context,
             waypoints = waypoints,
+            // 핀 수정 중인 위치는 중앙 리티클로만 보여주고, 지도 위 확정 마커는 감춘다.
+            excludedIndex = editingWaypointIndex,
             route = route,
             routeColor = routeColor,
             routeStrokeColor = routeStrokeColor,
@@ -137,7 +139,6 @@ fun CourseRegistrationMapView(
                             map = readyMap
                             readyMap.setCameraMinLevel(7)
                             readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
-                            readyMap.setGestureEnable(com.kakao.vectormap.GestureType.RotateZoom, false)
                             readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Tilt, false)
                             readyMap.setOnCameraMoveEndListener { _, cameraPosition, gesture ->
                                 if (gesture != com.kakao.vectormap.GestureType.Unknown) {
@@ -182,6 +183,7 @@ private fun KakaoMap.registrationLabelLayer(): LabelLayer? = labelManager?.let {
 private fun KakaoMap.renderRegistrationContent(
     context: Context,
     waypoints: List<RegistrationWaypoint>,
+    excludedIndex: Int?,
     route: RouteResult?,
     routeColor: Int,
     routeStrokeColor: Int,
@@ -191,10 +193,11 @@ private fun KakaoMap.renderRegistrationContent(
     routeLineManager?.layer?.removeAll()
     val manager = labelManager ?: return
     waypoints.forEachIndexed { index, waypoint ->
+        if (index == excludedIndex) return@forEachIndexed
         val point = GeoPoint(waypoint.lat, waypoint.lng)
         val styles = manager.addLabelStyles(
             LabelStyles.from(
-                LabelStyle.from(context.registrationPinBitmap(waypoint.type)),
+                LabelStyle.from(context.registrationPinBitmap(waypoint.type)).setApplyDpScale(true),
             ),
         )
         layer.addLabel(
@@ -224,7 +227,8 @@ private fun Context.registrationPinBitmap(type: RegistrationWaypointType): Bitma
         RegistrationWaypointType.VIA -> R.drawable.ic_registration_pin_via
         RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_pin_destination
     }
-    val size = (34 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    // setApplyDpScale(true)로 SDK가 자체적으로 밀도 변환을 하므로 비트맵은 dp 값 그대로 생성한다.
+    val size = 34
     val bitmap = createBitmap(size, size)
     val canvas = Canvas(bitmap)
     ContextCompat.getDrawable(this, resource)?.also { drawable ->

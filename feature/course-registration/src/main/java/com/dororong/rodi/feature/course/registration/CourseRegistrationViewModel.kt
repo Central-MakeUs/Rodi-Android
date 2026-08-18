@@ -395,9 +395,47 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun moveTemporaryPin(point: GeoPoint) {
         val current = _state.value
-        if (current.editingWaypointIndex == null) return
+        val index = current.editingWaypointIndex ?: return
         if (current.isPendingAddressLoading || current.pendingSuggestion == null) return
         _state.update { it.copy(temporaryPin = point, mapCenter = point) }
+        previewPinEditRoute(index, point)
+    }
+
+    /** 핀 수정 중 후보 위치를 고르면 완료를 누르기 전에도 실제 도로 경로를 미리 그려준다. */
+    private fun previewPinEditRoute(index: Int, point: GeoPoint) {
+        val current = _state.value
+        val candidateWaypoints = current.waypoints.toMutableList()
+        val original = candidateWaypoints.getOrNull(index) ?: return
+        candidateWaypoints[index] = original.copy(lat = point.lat, lng = point.lng)
+        val start = candidateWaypoints.firstOrNull { it.type == RegistrationWaypointType.START } ?: return
+        val destination = candidateWaypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION } ?: return
+        routeJob?.cancel()
+        routeGeneration += 1
+        val generation = routeGeneration
+        _state.update { it.copy(isRouteLoading = true) }
+        routeJob = viewModelScope.launch {
+            try {
+                val result = routeRepository.getStrictRoute(
+                    origin = CoursePoint(start.name, start.lat, start.lng),
+                    waypoints = candidateWaypoints.filter { it.type == RegistrationWaypointType.VIA }
+                        .map { CoursePoint(it.name, it.lat, it.lng) },
+                    destination = CoursePoint(destination.name, destination.lat, destination.lng),
+                )
+                if (generation != routeGeneration) return@launch
+                _state.update {
+                    it.copy(
+                        isRouteLoading = false,
+                        route = if (result.isRealRoute && result.totalDistanceMeters > 0) result else it.route,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (generation == routeGeneration) {
+                    _state.update { it.copy(isRouteLoading = false) }
+                }
+            }
+        }
     }
 
     private fun mapCenterChanged(point: GeoPoint) {

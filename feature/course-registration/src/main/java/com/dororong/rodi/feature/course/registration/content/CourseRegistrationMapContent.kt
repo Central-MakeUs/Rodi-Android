@@ -115,7 +115,6 @@ fun CourseRegistrationMapContent(
             onBack = { onIntent(CourseRegistrationIntent.SearchVisibilityChanged(false)) },
             onKeywordChanged = { onIntent(CourseRegistrationIntent.SearchKeywordChanged(it)) },
             onSubmit = { onIntent(CourseRegistrationIntent.SearchSubmitted) },
-            onClear = { onIntent(CourseRegistrationIntent.SearchKeywordChanged("")) },
             onSelect = { onIntent(CourseRegistrationIntent.SearchSuggestionSelected(it)) },
             onDeleteRecent = { onIntent(CourseRegistrationIntent.DeleteRecentSearch(it)) },
             onDeleteAll = { onIntent(CourseRegistrationIntent.DeleteAllRecentSearches) },
@@ -595,116 +594,60 @@ private fun FixedCenterPin(
 @Composable
 private fun CourseRegistrationSearchField(
     keyword: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
     onKeywordChanged: (String) -> Unit,
     onSubmit: () -> Unit,
-    onClear: () -> Unit,
     placeholder: String,
+    onBack: () -> Unit,
     modifier: Modifier = Modifier,
-    onBack: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(RodiRadius.sm)
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp),
+            .height(46.dp)
+            .background(RodiTheme.colors.gray200, RoundedCornerShape(RodiRadius.sm))
+            .padding(horizontal = 12.dp)
+            .semantics { contentDescription = "등록 장소 검색" },
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp)
-                .align(Alignment.Center)
-                .clip(shape)
-                .background(RodiTheme.colors.gray100, shape),
+                .size(24.dp)
+                .clickable(onClick = onBack)
+                .semantics {
+                    contentDescription = "검색 닫기"
+                    role = Role.Button
+                },
+            contentAlignment = Alignment.Center,
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable(enabled = enabled, onClick = onClick)
-                    .padding(horizontal = 12.dp)
-                    .semantics { contentDescription = "등록 장소 검색" },
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (onBack == null) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_registration_search),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                } else {
-                    Spacer(Modifier.size(48.dp))
+            Image(
+                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        BasicTextField(
+            value = keyword,
+            onValueChange = onKeywordChanged,
+            modifier = Modifier.weight(1f),
+            textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
+            singleLine = true,
+            cursorBrush = SolidColor(RodiTheme.colors.black),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
+            decorationBox = { inner ->
+                Box(contentAlignment = Alignment.CenterStart) {
+                    if (keyword.isBlank()) {
+                        Text(
+                            text = placeholder,
+                            style = RodiTheme.typography.body2Medium,
+                            color = RodiTheme.colors.gray500,
+                        )
+                    }
+                    inner()
                 }
-                BasicTextField(
-                    value = keyword,
-                    onValueChange = {
-                        onClick()
-                        onKeywordChanged(it)
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = enabled,
-                    textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
-                    singleLine = true,
-                    cursorBrush = SolidColor(RodiTheme.colors.primary600),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterStart) {
-                            if (keyword.isBlank()) {
-                                Text(
-                                    text = placeholder,
-                                    style = RodiTheme.typography.body3Medium,
-                                    color = RodiTheme.colors.gray500,
-                                )
-                            }
-                            inner()
-                        }
-                    },
-                )
-                if (keyword.isNotBlank()) {
-                    Spacer(Modifier.size(48.dp))
-                }
-            }
-        }
-        onBack?.let { back ->
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .size(48.dp)
-                    .clickable(onClick = back)
-                    .semantics {
-                        contentDescription = "검색 닫기"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
-        if (keyword.isNotBlank()) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(48.dp)
-                    .clickable(onClick = onClear)
-                    .semantics {
-                        contentDescription = "검색어 지우기"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_registration_x),
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
+            },
+        )
     }
 }
 
@@ -743,20 +686,6 @@ private fun CourseRegistrationMapBottomPanel(
             .imePadding()
             .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
     ) {
-        if (isRouteLoading) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CourseRegistrationLoadingIndicator(modifier = Modifier.size(24.dp))
-                Text(
-                    text = "실제 도로 경로를 확인하고 있어요",
-                    style = RodiTheme.typography.caption1Medium,
-                    color = RodiTheme.colors.gray600,
-                )
-            }
-        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -832,7 +761,6 @@ fun CourseRegistrationSearchContent(
     onBack: () -> Unit,
     onKeywordChanged: (String) -> Unit,
     onSubmit: () -> Unit,
-    onClear: () -> Unit,
     onSelect: (String) -> Unit,
     onDeleteRecent: (String) -> Unit,
     onDeleteAll: () -> Unit,
@@ -847,11 +775,8 @@ fun CourseRegistrationSearchContent(
     ) {
         CourseRegistrationSearchField(
             keyword = keyword,
-            enabled = true,
-            onClick = {},
             onKeywordChanged = onKeywordChanged,
             onSubmit = onSubmit,
-            onClear = onClear,
             placeholder = "장소 · 도로명 검색",
             onBack = onBack,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 5.dp),
@@ -1418,7 +1343,6 @@ private fun PreviewSearch(
             onBack = {},
             onKeywordChanged = {},
             onSubmit = {},
-            onClear = {},
             onSelect = {},
             onDeleteRecent = {},
             onDeleteAll = {},
