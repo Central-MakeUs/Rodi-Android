@@ -1471,6 +1471,7 @@ fun HomeScreen(
             reviewId = review.reviewId,
             onClose = { reviewToReport = null },
             modifier = Modifier.fillMaxSize(),
+            onReported = reviewVm::excludeReportedReview,
         )
     }
     reviewToWrite?.let { target ->

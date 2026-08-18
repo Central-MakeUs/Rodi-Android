@@ -58,12 +58,17 @@ fun ReviewReportScreen(
     reviewId: Long,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    onReported: (Long) -> Unit = {},
     viewModel: ReviewActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
 
     LaunchedEffect(reviewId) { viewModel.loadReportForm(reviewId) }
+    // 신고가 접수되면 신고자 목록에서 바로 빼준다. 서버는 5명이 모일 때까지 계속 내려준다.
+    LaunchedEffect(state.isReportSubmitted) {
+        if (state.isReportSubmitted) onReported(reviewId)
+    }
     LaunchedEffect(state.reportErrorMessage) {
         state.reportErrorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))

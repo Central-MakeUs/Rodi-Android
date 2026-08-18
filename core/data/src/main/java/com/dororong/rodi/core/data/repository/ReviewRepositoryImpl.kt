@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.mapper.toQueryValue
 import com.dororong.rodi.core.data.mapper.toRequest
+import com.dororong.rodi.core.data.source.local.datastore.ReportedReviewPreferences
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.ReviewApi
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -21,12 +22,14 @@ import com.dororong.rodi.core.domain.repository.ReviewRepository
 import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
 class ReviewRepositoryImpl @Inject constructor(
     private val api: ReviewApi,
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
+    private val reportedReviewPreferences: ReportedReviewPreferences,
 ) : ReviewRepository {
     override suspend fun getReviews(
         placeId: Long,
@@ -76,7 +79,13 @@ class ReviewRepositoryImpl @Inject constructor(
         authenticatedRequest { accessToken ->
             api.reportReview("Bearer $accessToken", reviewId, submission.toRequest()).requireSuccess()
         }
+        // 신고가 접수돼도 서버는 5명이 모일 때까지 후기를 내려준다. 신고자 화면에서만 감추려고
+        // 기기에 기록해 둔다.
+        reportedReviewPreferences.add(reviewId)
     }
+
+    override suspend fun getReportedReviewIds(): Set<Long> =
+        reportedReviewPreferences.reportedReviewIds.first()
 
     override suspend fun getReportForm(): ReportForm = authenticatedRequest { accessToken ->
         api.getReportForm("Bearer $accessToken").requireData().toDomain()
