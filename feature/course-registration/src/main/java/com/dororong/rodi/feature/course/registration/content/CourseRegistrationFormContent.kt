@@ -41,6 +41,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
@@ -183,7 +187,7 @@ private fun CourseRegistrationFormFields(
             )
         }
         item {
-            FormSection(title = form.sections.practiceCategory) {
+            FormSection(title = form.sections.practiceCategory, required = true) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -200,7 +204,7 @@ private fun CourseRegistrationFormFields(
         }
         selectedCategory?.let { category ->
             item(key = "practice-types-${category.code}") {
-                FormSection(title = form.sections.practiceType) {
+                FormSection(title = form.sections.practiceType, required = true) {
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -246,9 +250,20 @@ private fun CourseRegistrationFormFields(
 }
 
 @Composable
-private fun FormSection(title: String, content: @Composable () -> Unit) {
+private fun FormSection(title: String, required: Boolean = false, content: @Composable () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        Text(
+            text = if (required) {
+                buildAnnotatedString {
+                    append("$title ")
+                    withStyle(SpanStyle(color = RodiTheme.colors.primary600)) { append("*") }
+                }
+            } else {
+                AnnotatedString(title)
+            },
+            style = RodiTheme.typography.body1SemiBold,
+            color = RodiTheme.colors.black,
+        )
         content()
     }
 }
@@ -275,12 +290,9 @@ private fun RodiInputField(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     var hasInteracted by rememberSaveable { mutableStateOf(false) }
-    val minLength = spec.minLength
-    val valid = if (value.isBlank()) {
-        !spec.required
-    } else {
-        value.length <= spec.maxLength && (minLength == null || value.length >= minLength)
-    }
+    // 최소 글자 수는 입력 중 에러로 표시하지 않는다 — 완료를 눌렀을 때 안내 문구로 알리는 게 명세라
+    // 여기서 빨간 테두리까지 띄우면 "1자 이상이면 완료 활성화"와 어긋나 보인다.
+    val valid = if (value.isBlank()) !spec.required else value.length <= spec.maxLength
     val shape = RoundedCornerShape(RodiRadius.sm)
     val showError = (showValidationError || hasInteracted) && !valid
     val borderColor = when {

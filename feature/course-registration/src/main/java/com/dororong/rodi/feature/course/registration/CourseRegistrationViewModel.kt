@@ -832,6 +832,12 @@ class CourseRegistrationViewModel @Inject constructor(
             _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
             return
         }
+        // 10자 조건은 버튼을 막는 대신 눌린 뒤 안내한다 — 등록 요청 없이 화면·입력값을 그대로 유지한다.
+        if (!current.descriptionMeetsRegisterLength) {
+            _state.update { it.copy(hasAttemptedSubmit = true) }
+            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("한줄 설명은 10자 이상이어야 해요."))
+            return
+        }
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START } ?: return
         val route = current.route ?: return
         _state.update { it.copy(isSubmitting = true, submissionError = null) }
@@ -844,7 +850,8 @@ class CourseRegistrationViewModel @Inject constructor(
                         waypoints = current.waypoints,
                         practiceTypes = current.selectedPracticeTypeCodes,
                         description = current.description,
-                        caution = current.caution,
+                        // 공백만 입력한 주의사항은 미입력으로 처리한다.
+                        caution = current.caution.trim(),
                     ),
                 )
                 draftJob?.cancel()

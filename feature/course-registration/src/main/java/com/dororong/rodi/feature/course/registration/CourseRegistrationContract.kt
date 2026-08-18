@@ -106,28 +106,33 @@ data class CourseRegistrationUiState(
         get() = mapLoadState == CourseMapLoadState.Ready &&
             !isRouteLoading && !isMapPointLoading && !isSearchVisible && editingWaypointIndex == null && isRouteReady
 
+    /**
+     * 완료 버튼 활성화 조건. 한줄 소개는 **1자 이상**이면 충족이고, 등록에 필요한 10자 조건은
+     * 여기서 막지 않는다 — 10자 미만으로 완료를 누르면 버튼이 눌린 뒤 안내 문구를 띄우는 게 명세다.
+     * 주의사항은 선택 입력이라 활성화 조건에 넣지 않는다.
+     */
     val canSubmit: Boolean
         get() {
             val form = registrationForm ?: return false
-            val cautionValid = isWithin(form.cautionInput, caution)
-            val descriptionValid = isWithin(form.descriptionInput, description)
             val availablePracticeTypes = form.categories.flatMap { it.practiceTypes }.map { it.code }.toSet()
             return !isSubmitting && isRouteReady && selectedPracticeTypeCodes.isNotEmpty() &&
                 selectedPracticeTypeCodes.distinct().size == selectedPracticeTypeCodes.size &&
                 selectedPracticeTypeCodes.all(availablePracticeTypes::contains) &&
                 selectedPracticeTypeCodes.size <= form.practiceTypeMaxSelect &&
-                cautionValid && descriptionValid
+                caution.length <= form.cautionInput.maxLength &&
+                description.isNotBlank()
+        }
+
+    /** 등록 요청을 보낼 수 있는지 — 한줄 소개는 공백을 제외하고 10자 이상이어야 한다. */
+    val descriptionMeetsRegisterLength: Boolean
+        get() {
+            val minLength = registrationForm?.descriptionInput?.minLength ?: return true
+            return description.count { !it.isWhitespace() } >= minLength
         }
 
     val isDraftMeaningful: Boolean
         get() = draft?.isMeaningful == true || waypoints.isNotEmpty() ||
             selectedPracticeTypeCodes.isNotEmpty() || caution.isNotBlank() || description.isNotBlank()
-
-    private fun isWithin(spec: com.dororong.rodi.core.domain.model.course.CourseInputSpec, value: String): Boolean {
-        val minLength = spec.minLength
-        if (value.isBlank()) return !spec.required
-        return value.length <= spec.maxLength && (minLength == null || value.length >= minLength)
-    }
 }
 
 sealed interface CourseRegistrationIntent {
