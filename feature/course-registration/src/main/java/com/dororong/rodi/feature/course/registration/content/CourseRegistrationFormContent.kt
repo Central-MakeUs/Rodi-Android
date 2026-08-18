@@ -243,6 +243,9 @@ private fun CourseRegistrationFormFields(
                     spec = form.descriptionInput,
                     onValueChanged = { onIntent(CourseRegistrationIntent.DescriptionChanged(it)) },
                     label = form.sections.description,
+                    // 서버 문구는 예시문이라 10자 조건이 드러나지 않는다. 이 조건은 완료를 눌러야
+                    // 알 수 있어서, 디자인대로 입력 전에 미리 알려주는 문구를 쓴다.
+                    placeholder = "최소 10자 이상 입력해주세요.",
                     showValidationError = showValidationErrors,
                     showCounter = true,
                     minLines = 1,
@@ -287,6 +290,7 @@ private fun RodiInputField(
     onValueChanged: (String) -> Unit,
     label: String,
     modifier: Modifier = Modifier,
+    placeholder: String = spec.placeholder,
     minLines: Int = 2,
     showCounter: Boolean = true,
     showValidationError: Boolean = false,
@@ -329,7 +333,7 @@ private fun RodiInputField(
                 Box {
                     if (value.isBlank()) {
                         Text(
-                            text = spec.placeholder,
+                            text = placeholder,
                             style = RodiTheme.typography.body3Regular,
                             color = RodiTheme.colors.gray500,
                         )
