@@ -910,8 +910,10 @@ private fun SearchResultsContent(
                 SearchRow(item = item, onSelect = onSelect)
             }
         }
-        if (result.places.isNotEmpty()) {
+        if (result.regions.isNotEmpty() && result.places.isNotEmpty()) {
             item { HorizontalDivider(color = RodiTheme.colors.gray200, thickness = 4.dp) }
+        }
+        if (result.places.isNotEmpty()) {
             items(result.places, key = CourseLocationSuggestion::id) { item ->
                 SearchRow(item = item, onSelect = onSelect)
             }
