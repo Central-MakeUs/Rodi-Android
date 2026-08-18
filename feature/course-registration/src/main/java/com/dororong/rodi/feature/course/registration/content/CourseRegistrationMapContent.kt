@@ -184,6 +184,7 @@ fun CourseRegistrationMapContent(
             pendingSuggestion = pendingSuggestion,
             isPendingAddressLoading = isPendingAddressLoading,
             editingWaypoint = waypoints.getOrNull(editingWaypointIndex ?: -1),
+            temporaryPin = temporaryPin,
             onBack = onBack,
             onSearch = { onIntent(CourseRegistrationIntent.SearchVisibilityChanged(true)) },
             onRoleSelected = { onIntent(CourseRegistrationIntent.SelectWaypointRole(it)) },
@@ -217,6 +218,8 @@ fun CourseRegistrationMapContent(
                 temporaryPin = temporaryPin,
                 mapCenter = mapCenter,
                 isLoading = isMapPointLoading,
+                pendingSuggestion = pendingSuggestion,
+                isPendingAddressLoading = isPendingAddressLoading,
                 onSelect = { mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) } },
                 onReset = { onIntent(CourseRegistrationIntent.ResetPinEdit) },
                 onCommit = { onIntent(CourseRegistrationIntent.CommitPinEdit) },
@@ -255,6 +258,7 @@ private fun CourseRegistrationMapHeader(
     pendingSuggestion: CourseLocationSuggestion?,
     isPendingAddressLoading: Boolean,
     editingWaypoint: RegistrationWaypoint?,
+    temporaryPin: GeoPoint?,
     onBack: () -> Unit,
     onSearch: () -> Unit,
     onRoleSelected: (CourseWaypointRole) -> Unit,
@@ -309,14 +313,25 @@ private fun CourseRegistrationMapHeader(
                 onRemoveVia = onRemoveVia,
             )
         } else {
-            PinEditAddressRow(waypoint = editingWaypoint, onClick = onSearch)
+            PinEditAddressRow(
+                waypoint = editingWaypoint,
+                pendingSuggestion = pendingSuggestion,
+                isPendingAddressLoading = isPendingAddressLoading,
+                onClick = onSearch,
+            )
         }
     }
 }
 
 @Composable
-private fun PinEditAddressRow(waypoint: RegistrationWaypoint, onClick: () -> Unit) {
+private fun PinEditAddressRow(
+    waypoint: RegistrationWaypoint,
+    pendingSuggestion: CourseLocationSuggestion?,
+    isPendingAddressLoading: Boolean,
+    onClick: () -> Unit,
+) {
     val shape = RoundedCornerShape(RodiRadius.sm)
+    val pendingLabel = pendingAddressLabel(pendingSuggestion, isPendingAddressLoading)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -346,9 +361,9 @@ private fun PinEditAddressRow(waypoint: RegistrationWaypoint, onClick: () -> Uni
             modifier = Modifier.size(24.dp),
         )
         Text(
-            text = waypoint.address.ifBlank { waypoint.name.ifBlank { "주소를 확인할 수 없어요" } },
+            text = pendingLabel ?: waypoint.address.ifBlank { waypoint.name.ifBlank { "주소를 확인할 수 없어요" } },
             style = RodiTheme.typography.body3Medium,
-            color = RodiTheme.colors.black,
+            color = if (pendingLabel != null) RodiTheme.colors.gray600 else RodiTheme.colors.black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -755,7 +770,7 @@ private fun CourseRegistrationMapBottomPanel(
                         mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) }
                     }
                 },
-                enabled = if (isAddViaMode) viaCount < maxVias else selectionEnabled,
+                enabled = !isRouteLoading && (if (isAddViaMode) viaCount < maxVias else selectionEnabled),
                 variant = RodiButtonVariant.Secondary,
                 modifier = Modifier.weight(1f),
                 height = 48.dp,
@@ -1108,6 +1123,8 @@ private fun CourseRegistrationPinEditBar(
     temporaryPin: GeoPoint?,
     mapCenter: GeoPoint?,
     isLoading: Boolean,
+    pendingSuggestion: CourseLocationSuggestion?,
+    isPendingAddressLoading: Boolean,
     onSelect: () -> Unit,
     onReset: () -> Unit,
     onCommit: () -> Unit,
@@ -1134,7 +1151,10 @@ private fun CourseRegistrationPinEditBar(
             variant = RodiButtonVariant.Secondary,
             modifier = Modifier.weight(1f),
             height = 48.dp,
-            enabled = !isLoading && (hasTemporarySelection || mapCenter != null),
+            enabled = !isLoading && (
+                hasTemporarySelection ||
+                    (mapCenter != null && !isPendingAddressLoading && pendingSuggestion != null)
+                ),
         )
         RodiButton(
             text = "완료",

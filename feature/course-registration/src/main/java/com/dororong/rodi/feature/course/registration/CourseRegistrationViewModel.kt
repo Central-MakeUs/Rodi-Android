@@ -388,16 +388,21 @@ class CourseRegistrationViewModel @Inject constructor(
                 mapCenterGeneration = it.mapCenterGeneration + 1,
             )
         }
+        // 프로그램적 카메라 이동(moveCamera)은 지도 SDK의 onCameraMoveEnd 콜백을 쏘지 않아
+        // mapCenterChanged가 자동으로 안 불린다. 진입 시점 주소를 직접 미리 로딩해둔다.
+        loadPendingAddress(point)
     }
 
     private fun moveTemporaryPin(point: GeoPoint) {
-        if (_state.value.editingWaypointIndex == null) return
+        val current = _state.value
+        if (current.editingWaypointIndex == null) return
+        if (current.isPendingAddressLoading || current.pendingSuggestion == null) return
         _state.update { it.copy(temporaryPin = point, mapCenter = point) }
     }
 
     private fun mapCenterChanged(point: GeoPoint) {
         _state.update { it.copy(mapCenter = point) }
-        if (_state.value.editingWaypointIndex == null && !_state.value.isSearchVisible) {
+        if (!_state.value.isSearchVisible) {
             loadPendingAddress(point)
         }
     }
@@ -475,6 +480,12 @@ class CourseRegistrationViewModel @Inject constructor(
             return
         }
         if (current.isMapPointLoading) return
+        // 드래그 중 미리 로딩해둔 주소가 선택 시점 좌표와 일치하면 재조회 없이 바로 반영한다.
+        val cached = current.pendingSuggestion?.takeIf { it.point == point }
+        if (cached != null) {
+            applyPinEdit(index, point, point, cached)
+            return
+        }
         pinEditJob?.cancel()
         _state.update { it.copy(isMapPointLoading = true) }
         pinEditJob = viewModelScope.launch {
@@ -485,28 +496,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     _effect.emit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
                     return@launch
                 }
-                val latest = _state.value
-                if (latest.editingWaypointIndex != index || latest.temporaryPin != point) return@launch
-                val refreshed = latest.waypoints.toMutableList()
-                val updatedWaypoint = refreshed.getOrNull(index) ?: return@launch
-                refreshed[index] = updatedWaypoint.copy(
-                    name = suggestion.title,
-                    address = suggestion.address,
-                    lat = resolvedPoint.lat,
-                    lng = resolvedPoint.lng,
-                )
-                _state.update {
-                    it.copy(
-                        waypoints = normalizeWaypoints(refreshed),
-                        editingWaypointIndex = null,
-                        temporaryPin = null,
-                        mapCenter = resolvedPoint,
-                        mapCenterGeneration = it.mapCenterGeneration + 1,
-                        route = null,
-                    )
-                }
-                persistDraft()
-                calculateStrictRouteIfPossible()
+                applyPinEdit(index, point, resolvedPoint, suggestion)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -515,6 +505,33 @@ class CourseRegistrationViewModel @Inject constructor(
                 _state.update { it.copy(isMapPointLoading = false) }
             }
         }
+    }
+
+    private fun applyPinEdit(index: Int, point: GeoPoint, resolvedPoint: GeoPoint, suggestion: CourseLocationSuggestion) {
+        val latest = _state.value
+        if (latest.editingWaypointIndex != index || latest.temporaryPin != point) return
+        val refreshed = latest.waypoints.toMutableList()
+        val updatedWaypoint = refreshed.getOrNull(index) ?: return
+        refreshed[index] = updatedWaypoint.copy(
+            name = suggestion.title,
+            address = suggestion.address,
+            lat = resolvedPoint.lat,
+            lng = resolvedPoint.lng,
+        )
+        _state.update {
+            it.copy(
+                waypoints = normalizeWaypoints(refreshed),
+                editingWaypointIndex = null,
+                temporaryPin = null,
+                mapCenter = resolvedPoint,
+                mapCenterGeneration = it.mapCenterGeneration + 1,
+                route = null,
+                pendingSuggestion = suggestion,
+                isPendingAddressLoading = false,
+            )
+        }
+        persistDraft()
+        calculateStrictRouteIfPossible()
     }
 
     private fun discardPinEdit() {
@@ -530,6 +547,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 mapCenterGeneration = it.mapCenterGeneration + 1,
             )
         }
+        loadPendingAddress(point)
     }
 
     private fun resetPinEdit() {
@@ -544,6 +562,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 mapCenterGeneration = it.mapCenterGeneration + 1,
             )
         }
+        loadPendingAddress(point)
     }
 
     private fun mapReady(ready: Boolean) {
