@@ -221,7 +221,8 @@ private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
-private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+// 주차장 상세는 내용 길이와 무관하게 코스 상세와 같은 높이로 고정한다.
+private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
 // HomeSearchBar가 지도 위에 statusBarsPadding() + vertical 5dp로 떠 있는 만큼. 경로 핏 계산에
 // 이 높이를 반영하지 않으면 세로로 긴 코스의 출발지·도착지 마커가 검색창 뒤에 가려진다.
 private val MAP_SEARCH_BAR_TOP_INSET = 5.dp + 46.dp
@@ -1387,7 +1388,7 @@ fun HomeScreen(
                                 .then(
                                     if (selectedPlace?.type == PlaceType.PARKING) {
                                         Modifier
-                                            .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                            .height(PARKING_DETAIL_SHEET_HEIGHT)
                                             .onSizeChanged { size ->
                                                 selectedDetailPlaceId?.let { placeId ->
                                                     parkingSheetLayout = parkingSheetLayout

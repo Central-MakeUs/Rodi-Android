@@ -1,6 +1,8 @@
 package com.dororong.rodi.feature.settings.blocked
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -22,6 +25,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.dororong.rodi.core.ui.R as CoreUiR
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.LazyColumn
@@ -85,14 +90,7 @@ private fun BlockedMembersContent(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(member.nickname.orEmpty(), style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
-                                Surface(
-                                    onClick = { onUnblock(member) },
-                                    color = RodiTheme.colors.pointRed.copy(alpha = 0.08f),
-                                    shape = RoundedCornerShape(100),
-                                    modifier = Modifier.clip(RoundedCornerShape(100)),
-                                ) {
-                                    Text("차단해제", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.pointRed, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
-                                }
+                                UnblockButton(onClick = { onUnblock(member) })
                             }
                         }
                         if (state.nextPageError != null) {
@@ -104,6 +102,31 @@ private fun BlockedMembersContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun UnblockButton(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(RodiTheme.colors.infoBgPink, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(CoreUiR.drawable.ic_user_round_20),
+            contentDescription = null,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = "차단해제",
+            style = RodiTheme.typography.caption2Medium,
+            color = RodiTheme.colors.infoCancel,
+        )
     }
 }
 
