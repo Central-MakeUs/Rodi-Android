@@ -128,15 +128,15 @@ fun CourseRegistrationFormContent(
 
 @Composable
 private fun CourseRegistrationFormTopBar(onBack: () -> Unit) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .padding(horizontal = RodiSpacing.md),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
+                .align(Alignment.CenterStart)
                 .size(48.dp)
                 .clickable(onClick = onBack)
                 .semantics {
@@ -151,7 +151,12 @@ private fun CourseRegistrationFormTopBar(onBack: () -> Unit) {
                 modifier = Modifier.size(24.dp),
             )
         }
-        Text("코스 등록", style = RodiTheme.typography.headline1, color = RodiTheme.colors.black)
+        Text(
+            text = "코스 등록",
+            style = RodiTheme.typography.headline1,
+            color = RodiTheme.colors.black,
+            modifier = Modifier.align(Alignment.Center),
+        )
     }
 }
 

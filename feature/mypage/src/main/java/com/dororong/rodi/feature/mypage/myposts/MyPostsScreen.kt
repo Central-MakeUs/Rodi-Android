@@ -217,25 +217,27 @@ private fun MyActivityTabItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    // 인디케이터는 탭 행 맨 아래에 붙는다(디자인 3800:68268). 텍스트는 행 중앙 정렬.
+    Box(
         modifier = modifier
             .fillMaxSize()
             .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
         Text(
             text = text,
             style = if (selected) RodiTheme.typography.body1SemiBold else RodiTheme.typography.body1Medium,
             color = if (selected) RodiTheme.colors.black else RodiTheme.colors.gray400,
+            modifier = Modifier.align(Alignment.Center),
         )
-        Spacer(
-            modifier = Modifier
-                .padding(top = 8.dp)
-                .height(2.dp)
-                .fillMaxWidth()
-                .background(if (selected) RodiTheme.colors.black else RodiTheme.colors.white),
-        )
+        if (selected) {
+            Spacer(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .height(2.dp)
+                    .fillMaxWidth()
+                    .background(RodiTheme.colors.black),
+            )
+        }
     }
 }
 

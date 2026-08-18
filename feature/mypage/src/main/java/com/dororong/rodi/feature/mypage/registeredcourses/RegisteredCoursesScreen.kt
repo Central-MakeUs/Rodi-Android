@@ -685,22 +685,20 @@ private fun RegisteredCoursePopupMenu(
 @Composable
 private fun RegisteredCoursePopupSurface(onDelete: () -> Unit) {
     val shape = RoundedCornerShape(2.dp)
+    // 디자인(3659:78807)은 흰 배경 + gray300 테두리에 글자만큼만 넓어지는 상자다.
+    // 폭을 고정하면 본문 폰트에서 "삭제하/기"로 줄이 깨져서 nowrap으로 둔다.
     Text(
         text = "삭제하기",
         style = RodiTheme.typography.body2Medium,
         color = RodiTheme.colors.gray700,
-        // 폭을 75dp로 고정하면 본문 폰트에서 "삭제하/기"로 줄이 깨진다. 디자인도 nowrap이라
-        // 최소 폭만 두고 글자에 맞춰 늘어나게 한다.
         softWrap = false,
         maxLines = 1,
         modifier = Modifier
-            .defaultMinSize(minWidth = 75.dp)
-            .height(35.dp)
             .clip(shape)
-            .background(RodiTheme.colors.gray200, shape)
+            .background(RodiTheme.colors.white, shape)
+            .border(1.dp, RodiTheme.colors.gray300, shape)
             .clickable(onClick = onDelete)
-            .wrapContentHeight(Alignment.CenterVertically)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 
