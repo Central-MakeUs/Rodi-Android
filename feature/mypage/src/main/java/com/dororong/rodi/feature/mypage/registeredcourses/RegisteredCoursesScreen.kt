@@ -123,6 +123,14 @@ fun RegisteredCoursesContent(
     val scrollState = listState ?: rememberLazyListState()
     val snackbarHostState = remember { RodiSnackbarHostState() }
 
+    LaunchedEffect(state.courses, deleteTarget) {
+        val target = deleteTarget
+        if (target != null && state.courses.none { it.courseId == target.courseId }) {
+            deleteTarget = null
+            menuCourseId = null
+        }
+    }
+
     LaunchedEffect(state.errorMessage, state.appendErrorMessage, state.courses.isEmpty()) {
         state.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
@@ -217,12 +225,9 @@ fun RegisteredCoursesContent(
 
     deleteTarget?.let { target ->
         RegisteredCourseDeleteDialog(
+            status = target.approvalStatus,
             enabled = state.deletingCourseId == null,
-            onDelete = {
-                deleteTarget = null
-                menuCourseId = null
-                onDelete(target)
-            },
+            onDelete = { onDelete(target) },
             onDismiss = { deleteTarget = null },
         )
     }
@@ -230,6 +235,7 @@ fun RegisteredCoursesContent(
 
 @Composable
 private fun RegisteredCourseDeleteDialog(
+    status: CourseApprovalStatus = CourseApprovalStatus.APPROVED,
     enabled: Boolean = true,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
@@ -240,7 +246,7 @@ private fun RegisteredCourseDeleteDialog(
             .width(280.dp)
             .height(226.dp),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 32.dp),
-        dismissible = true,
+        dismissible = false,
     ) {
         Text(
             text = "정말 삭제하시겠습니까?",
@@ -257,7 +263,14 @@ private fun RegisteredCourseDeleteDialog(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = "이 코스는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.",
+                text = when (status) {
+                    CourseApprovalStatus.APPROVED ->
+                        "이 코스는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요."
+                    CourseApprovalStatus.PENDING ->
+                        "현재 검토 중인 코스예요. 삭제하면 코스 검토가\n중단돼요."
+                    CourseApprovalStatus.REJECTED ->
+                        "삭제하면 해당 코스를 내 활동에서 더 이상\n확인할 수 없어요."
+                },
                 modifier = Modifier.fillMaxWidth(),
                 style = RodiTheme.typography.caption1Medium,
                 color = RodiTheme.colors.black,
@@ -941,9 +954,9 @@ private fun RegisteredCoursesSelectedFilterPreview() = RodiTheme {
     )
 }
 
-@Preview(name = "등록 코스 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
+@Preview(name = "등록 코스 삭제 확인 - 승인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
-private fun RegisteredCoursesDeletePreview() = RodiTheme {
+private fun RegisteredCoursesDeleteApprovedPreview() = RodiTheme {
     Box(Modifier.fillMaxSize()) {
         RegisteredCoursesContent(
             state = RegisteredCoursesUiState(courses = PreviewCourses),
@@ -960,7 +973,55 @@ private fun RegisteredCoursesDeletePreview() = RodiTheme {
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
-            RegisteredCourseDeleteDialog(onDelete = {}, onDismiss = {})
+            RegisteredCourseDeleteDialog(status = CourseApprovalStatus.APPROVED, onDelete = {}, onDismiss = {})
+        }
+    }
+}
+
+@Preview(name = "등록 코스 삭제 확인 - 검토중", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun RegisteredCoursesDeletePendingPreview() = RodiTheme {
+    Box(Modifier.fillMaxSize()) {
+        RegisteredCoursesContent(
+            state = RegisteredCoursesUiState(courses = PreviewCourses),
+            onFilterSelected = {},
+            onRegisterCourseClick = {},
+            onLoadInitial = {},
+            onLoadNext = {},
+            onRetry = {},
+            onClearError = {},
+            onDelete = {},
+            initiallyOpenCourseId = PreviewCourses[1].courseId,
+        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            RegisteredCourseDeleteDialog(status = CourseApprovalStatus.PENDING, onDelete = {}, onDismiss = {})
+        }
+    }
+}
+
+@Preview(name = "등록 코스 삭제 확인 - 반려", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun RegisteredCoursesDeleteRejectedPreview() = RodiTheme {
+    Box(Modifier.fillMaxSize()) {
+        RegisteredCoursesContent(
+            state = RegisteredCoursesUiState(courses = PreviewCourses),
+            onFilterSelected = {},
+            onRegisterCourseClick = {},
+            onLoadInitial = {},
+            onLoadNext = {},
+            onRetry = {},
+            onClearError = {},
+            onDelete = {},
+            initiallyOpenCourseId = PreviewCourses[2].courseId,
+        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            RegisteredCourseDeleteDialog(status = CourseApprovalStatus.REJECTED, onDelete = {}, onDismiss = {})
         }
     }
 }

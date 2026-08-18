@@ -87,7 +87,7 @@ class RegisteredCoursesViewModel @Inject constructor(
                 val next = current.copy(
                     loaded = true,
                     isLoading = false,
-                    errorMessage = error.message ?: "등록한 코스를 불러오지 못했어요.",
+                    errorMessage = error.message ?: "내 활동을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
                 )
                 pages[filter] = next
                 if (selectedFilter == filter) publish(next)
@@ -164,7 +164,7 @@ class RegisteredCoursesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             deletingCourseId = null,
-                            errorMessage = error.message ?: "코스를 삭제하지 못했어요.",
+                            errorMessage = error.message ?: "코스를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.",
                         )
                     }
                 }
