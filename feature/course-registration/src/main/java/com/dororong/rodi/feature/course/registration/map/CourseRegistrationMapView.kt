@@ -66,6 +66,8 @@ fun CourseRegistrationMapView(
     onCameraCenterChanged: (GeoPoint) -> Unit = {},
     onMapTapped: (GeoPoint) -> Unit = {},
     onWaypointTapped: (Int) -> Unit = {},
+    topPaddingPx: Int = 0,
+    bottomPaddingPx: Int = 0,
 ) {
     if (LocalInspectionMode.current) {
         Box(modifier = modifier)
@@ -94,6 +96,10 @@ fun CourseRegistrationMapView(
             lifecycleOwner.lifecycle.removeObserver(observer)
             mapView.finish()
         }
+    }
+
+    LaunchedEffect(map, topPaddingPx, bottomPaddingPx) {
+        map?.setPadding(0, topPaddingPx, 0, bottomPaddingPx)
     }
 
     LaunchedEffect(map, centerGeneration, center) {
@@ -218,7 +224,7 @@ private fun Context.registrationPinBitmap(type: RegistrationWaypointType): Bitma
         RegistrationWaypointType.VIA -> R.drawable.ic_registration_pin_via
         RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_pin_destination
     }
-    val size = (38 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
+    val size = (34 * resources.displayMetrics.density).toInt().coerceAtLeast(1)
     val bitmap = createBitmap(size, size)
     val canvas = Canvas(bitmap)
     ContextCompat.getDrawable(this, resource)?.also { drawable ->

@@ -84,7 +84,6 @@ fun CourseRegistrationFlow(
                     route = state.route,
                     isRouteLoading = state.isRouteLoading,
                     isMapPointLoading = state.isMapPointLoading,
-                    routeError = state.routeError,
                     selectedWaypointRole = state.selectedWaypointRole,
                     editingWaypointIndex = state.editingWaypointIndex,
                     temporaryPin = state.temporaryPin,
@@ -99,6 +98,8 @@ fun CourseRegistrationFlow(
                     onBack = { viewModel.onIntent(CourseRegistrationIntent.Back) },
                     maxVias = state.registrationForm?.maxWaypoints ?: 4,
                     isFormLoading = state.formLoadState == CourseRegistrationFormLoadState.Loading,
+                    pendingSuggestion = state.pendingSuggestion,
+                    isPendingAddressLoading = state.isPendingAddressLoading,
                 )
                 else -> CourseRegistrationFormContent(
                     loadState = state.formLoadState,

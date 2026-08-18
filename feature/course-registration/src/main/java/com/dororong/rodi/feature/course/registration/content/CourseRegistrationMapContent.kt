@@ -86,7 +86,6 @@ fun CourseRegistrationMapContent(
     waypoints: List<RegistrationWaypoint>,
     route: RouteResult?,
     isRouteLoading: Boolean,
-    routeError: String?,
     selectedWaypointRole: CourseWaypointRole,
     editingWaypointIndex: Int?,
     temporaryPin: GeoPoint?,
@@ -103,6 +102,8 @@ fun CourseRegistrationMapContent(
     isMapPointLoading: Boolean = false,
     maxVias: Int = DEFAULT_MAX_VIAS,
     isFormLoading: Boolean = false,
+    pendingSuggestion: CourseLocationSuggestion? = null,
+    isPendingAddressLoading: Boolean = false,
 ) {
     if (isSearchVisible) {
         CourseRegistrationSearchContent(
@@ -137,7 +138,6 @@ fun CourseRegistrationMapContent(
         CourseRegistrationMapView(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = headerHeight, bottom = bottomPanelHeight)
                 .semantics { contentDescription = "지도를 움직여 핀을 놓을 위치를 정하세요" },
             retryToken = mapRetryToken,
             center = mapCenter,
@@ -150,7 +150,15 @@ fun CourseRegistrationMapContent(
             onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
             onMapTapped = {},
             onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
+            topPaddingPx = headerHeightPx,
+            bottomPaddingPx = bottomPanelHeightPx,
         )
+
+        val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
+        val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
+        val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
+        val showCenterReticle = editingWaypointIndex != null ||
+            !hasStart || !hasDestination || isPlacingVia
 
         val centerPinRole = editingWaypointIndex?.let { index ->
             when (waypoints.getOrNull(index)?.type) {
@@ -160,16 +168,21 @@ fun CourseRegistrationMapContent(
                 null -> null
             }
         } ?: selectedWaypointRole
-        FixedCenterPin(
-            role = centerPinRole,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = headerHeight, bottom = bottomPanelHeight),
-        )
+        if (showCenterReticle) {
+            FixedCenterPin(
+                role = centerPinRole,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = headerHeight, bottom = bottomPanelHeight),
+            )
+        }
 
         CourseRegistrationMapHeader(
             waypoints = waypoints,
             maxVias = maxVias,
+            selectedWaypointRole = selectedWaypointRole,
+            pendingSuggestion = pendingSuggestion,
+            isPendingAddressLoading = isPendingAddressLoading,
             editingWaypoint = waypoints.getOrNull(editingWaypointIndex ?: -1),
             onBack = onBack,
             onSearch = { onIntent(CourseRegistrationIntent.SearchVisibilityChanged(true)) },
@@ -192,16 +205,12 @@ fun CourseRegistrationMapContent(
             CourseRegistrationMapFormLoading(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .imePadding()
                     .onSizeChanged { bottomPanelHeightPx = it.height },
             )
         } else if (editingWaypointIndex != null) {
             CourseRegistrationPinEditBar(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .imePadding()
                     .onSizeChanged { bottomPanelHeightPx = it.height },
                 waypoint = waypoints.getOrNull(editingWaypointIndex),
                 originalPoint = waypoints.getOrNull(editingWaypointIndex)?.let { GeoPoint(it.lat, it.lng) },
@@ -216,16 +225,15 @@ fun CourseRegistrationMapContent(
             CourseRegistrationMapBottomPanel(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .imePadding()
                     .onSizeChanged { bottomPanelHeightPx = it.height },
                 waypoints = waypoints,
                 mapCenter = mapCenter,
                 selectedWaypointRole = selectedWaypointRole,
                 isRouteLoading = isRouteLoading,
-                routeError = routeError,
                 canFinish = canFinish,
                 maxVias = maxVias,
+                pendingSuggestion = pendingSuggestion,
+                isPendingAddressLoading = isPendingAddressLoading,
                 onIntent = onIntent,
             )
         }
@@ -243,6 +251,9 @@ fun CourseRegistrationMapContent(
 private fun CourseRegistrationMapHeader(
     waypoints: List<RegistrationWaypoint>,
     maxVias: Int,
+    selectedWaypointRole: CourseWaypointRole,
+    pendingSuggestion: CourseLocationSuggestion?,
+    isPendingAddressLoading: Boolean,
     editingWaypoint: RegistrationWaypoint?,
     onBack: () -> Unit,
     onSearch: () -> Unit,
@@ -253,8 +264,8 @@ private fun CourseRegistrationMapHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
-            .background(RodiTheme.colors.white),
+            .background(RodiTheme.colors.white)
+            .statusBarsPadding(),
     ) {
         Box(
             modifier = Modifier
@@ -290,6 +301,9 @@ private fun CourseRegistrationMapHeader(
             CourseRegistrationWaypointCard(
                 waypoints = waypoints,
                 maxVias = maxVias,
+                selectedWaypointRole = selectedWaypointRole,
+                pendingSuggestion = pendingSuggestion,
+                isPendingAddressLoading = isPendingAddressLoading,
                 onRoleSelected = onRoleSelected,
                 onSearch = onSearch,
                 onRemoveVia = onRemoveVia,
@@ -345,12 +359,19 @@ private fun PinEditAddressRow(waypoint: RegistrationWaypoint, onClick: () -> Uni
 private fun CourseRegistrationWaypointCard(
     waypoints: List<RegistrationWaypoint>,
     maxVias: Int,
+    selectedWaypointRole: CourseWaypointRole,
+    pendingSuggestion: CourseLocationSuggestion?,
+    isPendingAddressLoading: Boolean,
     onRoleSelected: (CourseWaypointRole) -> Unit,
     onSearch: () -> Unit,
     onRemoveVia: (Int) -> Unit,
 ) {
+    val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
+    val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
     val vias = waypoints.filter { it.type == RegistrationWaypointType.VIA }
-    val canAddVia = vias.size < maxVias
+    val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
+    val canAddVia = !isPlacingVia && vias.size < maxVias
+    val pendingLabel = pendingAddressLabel(pendingSuggestion, isPendingAddressLoading)
 
     Column(
         modifier = Modifier
@@ -359,6 +380,7 @@ private fun CourseRegistrationWaypointCard(
         WaypointSelectionRow(
             type = RegistrationWaypointType.START,
             waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START },
+            pendingLabel = if (!hasStart) pendingLabel else null,
             onClick = {
                 onRoleSelected(CourseWaypointRole.Start)
                 onSearch()
@@ -382,22 +404,36 @@ private fun CourseRegistrationWaypointCard(
                 },
             )
         }
+        if (isPlacingVia) {
+            WaypointSelectionRow(
+                type = RegistrationWaypointType.VIA,
+                waypoint = null,
+                label = "경유지 " + (vias.size + 1),
+                pendingLabel = pendingLabel,
+                onClick = onSearch,
+                trailing = {
+                    WaypointActionIcon(
+                        add = false,
+                        enabled = true,
+                        onClick = { onRoleSelected(CourseWaypointRole.Destination) },
+                    )
+                },
+            )
+        }
         WaypointSelectionRow(
             type = RegistrationWaypointType.DESTINATION,
             waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION },
+            pendingLabel = if (hasStart && !hasDestination) pendingLabel else null,
             onClick = {
                 onRoleSelected(CourseWaypointRole.Destination)
                 onSearch()
             },
-            trailing = if (canAddVia) {
+            trailing = if (hasStart && hasDestination && canAddVia) {
                 {
                     WaypointActionIcon(
                         add = true,
                         enabled = true,
-                        onClick = {
-                            onRoleSelected(CourseWaypointRole.Via)
-                            onSearch()
-                        },
+                        onClick = { onRoleSelected(CourseWaypointRole.Via) },
                     )
                 }
             } else null,
@@ -447,12 +483,19 @@ private fun WaypointActionIcon(add: Boolean, enabled: Boolean, onClick: () -> Un
     }
 }
 
+private fun pendingAddressLabel(suggestion: CourseLocationSuggestion?, isLoading: Boolean): String? = when {
+    isLoading -> "위치를 확인하고 있어요"
+    suggestion != null -> suggestion.address.ifBlank { suggestion.title }
+    else -> null
+}
+
 @Composable
 private fun WaypointSelectionRow(
     type: RegistrationWaypointType,
     waypoint: RegistrationWaypoint?,
     onClick: () -> Unit,
     trailing: (@Composable (() -> Unit))? = null,
+    pendingLabel: String? = null,
     label: String = when (type) {
         RegistrationWaypointType.START -> "출발지"
         RegistrationWaypointType.VIA -> "경유지"
@@ -494,9 +537,13 @@ private fun WaypointSelectionRow(
             modifier = Modifier.size(24.dp),
         )
         Text(
-            text = waypoint?.address?.ifBlank { waypoint.name } ?: placeholder,
+            text = waypoint?.address?.ifBlank { waypoint.name } ?: pendingLabel ?: placeholder,
             style = RodiTheme.typography.body3Medium,
-            color = if (waypoint == null) RodiTheme.colors.gray500 else RodiTheme.colors.black,
+            color = when {
+                waypoint != null -> RodiTheme.colors.black
+                pendingLabel != null -> RodiTheme.colors.gray600
+                else -> RodiTheme.colors.gray500
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -653,26 +700,32 @@ private fun CourseRegistrationMapBottomPanel(
     mapCenter: GeoPoint?,
     selectedWaypointRole: CourseWaypointRole,
     isRouteLoading: Boolean,
-    routeError: String?,
     canFinish: Boolean,
     maxVias: Int,
+    pendingSuggestion: CourseLocationSuggestion?,
+    isPendingAddressLoading: Boolean,
     onIntent: (CourseRegistrationIntent) -> Unit,
 ) {
     val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
     val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
     val viaCount = waypoints.count { it.type == RegistrationWaypointType.VIA }
-    val selectionEnabled = mapCenter != null &&
+    val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
+    val isAddViaMode = hasStart && hasDestination && !isPlacingVia
+    val addressReady = mapCenter != null && !isPendingAddressLoading && pendingSuggestion != null
+    val selectionEnabled = !isAddViaMode && addressReady &&
         (selectedWaypointRole != CourseWaypointRole.Via || viaCount < maxVias)
     val selectionLabel = when (selectedWaypointRole) {
         CourseWaypointRole.Start -> "출발지 선택"
         CourseWaypointRole.Destination -> "도착지 선택"
-        CourseWaypointRole.Via -> "경유지 추가/선택"
+        CourseWaypointRole.Via -> "경유지 선택"
     }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.lg, topEnd = RodiRadius.lg))
+            .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
     ) {
         if (isRouteLoading) {
@@ -688,36 +741,21 @@ private fun CourseRegistrationMapBottomPanel(
                     color = RodiTheme.colors.gray600,
                 )
             }
-        } else if (routeError != null) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(routeError, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.pointRed)
-                RodiButton(
-                    text = "다시 시도",
-                    onClick = { onIntent(CourseRegistrationIntent.RetryRoute) },
-                    variant = RodiButtonVariant.Secondary,
-                    fillMaxWidth = false,
-                    height = 36.dp,
-                )
-            }
-        } else if (!hasStart || !hasDestination) {
-            Text(
-                text = if (!hasStart) "출발지를 먼저 선택해 주세요" else "도착지를 선택해 주세요",
-                style = RodiTheme.typography.caption1Medium,
-                color = RodiTheme.colors.gray600,
-                modifier = Modifier.padding(bottom = 8.dp),
-            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             RodiButton(
-                text = selectionLabel,
-                onClick = { mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) } },
-                enabled = selectionEnabled,
+                text = if (isAddViaMode) "경유지 추가" else selectionLabel,
+                onClick = {
+                    if (isAddViaMode) {
+                        onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Via))
+                    } else {
+                        mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) }
+                    }
+                },
+                enabled = if (isAddViaMode) viaCount < maxVias else selectionEnabled,
                 variant = RodiButtonVariant.Secondary,
                 modifier = Modifier.weight(1f),
                 height = 48.dp,
@@ -758,6 +796,8 @@ private fun CourseRegistrationMapFormLoading(modifier: Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.lg, topEnd = RodiRadius.lg))
+            .navigationBarsPadding()
+            .imePadding()
             .padding(RodiSpacing.md),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1083,6 +1123,8 @@ private fun CourseRegistrationPinEditBar(
         modifier = modifier
             .fillMaxWidth()
             .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.md, topEnd = RodiRadius.md))
+            .navigationBarsPadding()
+            .imePadding()
             .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
@@ -1180,12 +1222,6 @@ private fun CourseRegistrationMapAddressUnavailablePreview() {
 @Composable
 private fun CourseRegistrationMapRouteLoadingPreview() {
     PreviewMap(waypoints = previewWaypoints, selectedRole = CourseWaypointRole.Via, isRouteLoading = true)
-}
-
-@Preview(name = "Map Route Failure", showBackground = true, widthDp = 375, heightDp = 812)
-@Composable
-private fun CourseRegistrationMapRouteFailurePreview() {
-    PreviewMap(waypoints = previewWaypoints, selectedRole = CourseWaypointRole.Via, routeError = "실제 도로 경로를 찾지 못했어요.")
 }
 
 @Preview(name = "Pin Edit Original", showBackground = true, widthDp = 375, heightDp = 812)
@@ -1310,7 +1346,6 @@ private fun PreviewMap(
         )
     } else null,
     isRouteLoading: Boolean = false,
-    routeError: String? = null,
     canFinish: Boolean = false,
     maxVias: Int = DEFAULT_MAX_VIAS,
     editingIndex: Int? = null,
@@ -1327,7 +1362,6 @@ private fun PreviewMap(
             waypoints = waypoints,
             route = route,
             isRouteLoading = isRouteLoading,
-            routeError = routeError,
             selectedWaypointRole = selectedRole,
             editingWaypointIndex = editingIndex,
             temporaryPin = temporaryPin,

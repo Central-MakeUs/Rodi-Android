@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.course.registration
 
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSearchResult
+import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationForm
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
@@ -61,7 +62,6 @@ data class CourseRegistrationUiState(
     val temporaryPin: GeoPoint? = null,
     val route: RouteResult? = null,
     val isRouteLoading: Boolean = false,
-    val routeError: String? = null,
     val mapCenter: GeoPoint? = null,
     val mapCenterGeneration: Long = 0L,
     val searchKeyword: String = "",
@@ -84,6 +84,8 @@ data class CourseRegistrationUiState(
     val dialog: CourseRegistrationDialog? = null,
     val snackbarMessage: String? = null,
     val isMapPointLoading: Boolean = false,
+    val pendingSuggestion: CourseLocationSuggestion? = null,
+    val isPendingAddressLoading: Boolean = false,
 ) {
     val start: RegistrationWaypoint?
         get() = waypoints.firstOrNull { it.type == RegistrationWaypointType.START }
@@ -130,7 +132,6 @@ data class CourseRegistrationUiState(
 
 sealed interface CourseRegistrationIntent {
     data object Retry : CourseRegistrationIntent
-    data object RetryRoute : CourseRegistrationIntent
     data class TutorialPageChanged(val page: Int) : CourseRegistrationIntent
     data object CompleteTutorial : CourseRegistrationIntent
     data object ContinueDraft : CourseRegistrationIntent

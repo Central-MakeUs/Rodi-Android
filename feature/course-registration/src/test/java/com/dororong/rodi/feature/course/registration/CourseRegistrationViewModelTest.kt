@@ -350,12 +350,15 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
+        viewModel.onIntent(CourseRegistrationIntent.MapCenterChanged(point))
+        advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.MapPointSelected(point))
         advanceUntilIdle()
 
         assertEquals(RegistrationWaypointType.START, viewModel.state.value.waypoints.single().type)
         assertEquals(point, GeoPoint(viewModel.state.value.waypoints.single().lat, viewModel.state.value.waypoints.single().lng))
         assertFalse(viewModel.state.value.isMapPointLoading)
+        assertFalse(viewModel.state.value.isPendingAddressLoading)
     }
 
     @Test

@@ -55,14 +55,14 @@ class CourseRegistrationViewModel @Inject constructor(
     private var searchJob: Job? = null
     private var searchSelectionJob: Job? = null
     private var routeJob: Job? = null
-    private var mapPointJob: Job? = null
+    private var pendingAddressJob: Job? = null
     private var pinEditJob: Job? = null
     private var formJob: Job? = null
     private var draftJob: Job? = null
     private var searchGeneration = 0L
     private var searchSelectionGeneration = 0L
     private var routeGeneration = 0L
-    private var mapPointGeneration = 0L
+    private var pendingAddressGeneration = 0L
 
     init {
         restoreSessionAndDraft()
@@ -72,7 +72,6 @@ class CourseRegistrationViewModel @Inject constructor(
     fun onIntent(intent: CourseRegistrationIntent) {
         when (intent) {
             CourseRegistrationIntent.Retry -> retry()
-            CourseRegistrationIntent.RetryRoute -> calculateStrictRouteIfPossible()
             is CourseRegistrationIntent.TutorialPageChanged -> setTutorialPage(intent.page)
             CourseRegistrationIntent.CompleteTutorial -> completeTutorial()
             CourseRegistrationIntent.ContinueDraft -> continueDraft()
@@ -265,7 +264,6 @@ class CourseRegistrationViewModel @Inject constructor(
                 selectedPracticeTypeCodes = emptyList(),
                 caution = "",
                 description = "",
-                routeError = null,
                 page = CourseRegistrationPage.Map,
             )
         }
@@ -351,13 +349,12 @@ class CourseRegistrationViewModel @Inject constructor(
             it.copy(
                 waypoints = normalized,
                 route = null,
-                routeError = null,
                 mapCenter = intent.point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
                 selectedWaypointRole = when (waypointType) {
                     RegistrationWaypointType.START -> CourseWaypointRole.Destination
-                    RegistrationWaypointType.DESTINATION -> CourseWaypointRole.Via
-                    RegistrationWaypointType.VIA -> CourseWaypointRole.Via
+                    RegistrationWaypointType.DESTINATION -> CourseWaypointRole.Destination
+                    RegistrationWaypointType.VIA -> CourseWaypointRole.Destination
                 },
             )
         }
@@ -375,7 +372,7 @@ class CourseRegistrationViewModel @Inject constructor(
         val remaining = _state.value.waypoints.toMutableList().also {
             if (index in it.indices && it[index].type == RegistrationWaypointType.VIA) it.removeAt(index)
         }
-        _state.update { it.copy(waypoints = normalizeWaypoints(remaining), route = null, routeError = null) }
+        _state.update { it.copy(waypoints = normalizeWaypoints(remaining), route = null) }
         persistDraft()
         calculateStrictRouteIfPossible()
     }
@@ -400,6 +397,9 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun mapCenterChanged(point: GeoPoint) {
         _state.update { it.copy(mapCenter = point) }
+        if (_state.value.editingWaypointIndex == null && !_state.value.isSearchVisible) {
+            loadPendingAddress(point)
+        }
     }
 
     private fun currentLocationSelected(point: GeoPoint) {
@@ -410,6 +410,9 @@ class CourseRegistrationViewModel @Inject constructor(
                 snackbarMessage = null,
             )
         }
+        if (_state.value.editingWaypointIndex == null) {
+            loadPendingAddress(point)
+        }
     }
 
     private fun locationUnavailable() {
@@ -417,45 +420,50 @@ class CourseRegistrationViewModel @Inject constructor(
         _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
+    /** 다른 지도 앱처럼 드래그하는 동안 미리 역지오코딩해서 확정 시 대기 없이 바로 다음 마커로 넘어가도록 한다. */
+    private fun loadPendingAddress(point: GeoPoint) {
+        pendingAddressJob?.cancel()
+        pendingAddressGeneration += 1
+        val generation = pendingAddressGeneration
+        _state.update { it.copy(isPendingAddressLoading = true, pendingSuggestion = null) }
+        pendingAddressJob = viewModelScope.launch {
+            try {
+                val suggestion = locationRepository.reverseGeocode(point)
+                if (generation != pendingAddressGeneration) return@launch
+                val resolved = suggestion?.takeIf { it.address.isNotBlank() }
+                _state.update { it.copy(pendingSuggestion = resolved, isPendingAddressLoading = false) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                if (generation == pendingAddressGeneration) {
+                    _state.update { it.copy(pendingSuggestion = null, isPendingAddressLoading = false) }
+                }
+            }
+        }
+    }
+
     private fun mapPointSelected(point: GeoPoint) {
         if (_state.value.editingWaypointIndex != null) {
             moveTemporaryPin(point)
             return
         }
-        mapPointJob?.cancel()
-        mapPointGeneration += 1
-        val generation = mapPointGeneration
-        setSearchVisibility(false)
-        _state.update { it.copy(mapCenter = point, isMapPointLoading = true, searchError = null) }
-        mapPointJob = viewModelScope.launch {
-            try {
-                val suggestion = locationRepository.reverseGeocode(point)
-                if (generation != mapPointGeneration) return@launch
-                val resolvedPoint = suggestion?.point
-                if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("이 위치의 주소를 확인할 수 없어요."))
-                    return@launch
-                }
-                selectWaypoint(
-                    CourseRegistrationIntent.SelectWaypoint(
-                        point = resolvedPoint,
-                        name = suggestion.title,
-                        address = suggestion.address,
-                        jibunAddress = null,
-                    ),
-                )
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                if (generation == mapPointGeneration) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "위치 정보를 확인하지 못했어요."))
-                }
-            } finally {
-                if (generation == mapPointGeneration) {
-                    _state.update { it.copy(isMapPointLoading = false) }
-                }
-            }
+        val current = _state.value
+        if (current.isPendingAddressLoading) return
+        val suggestion = current.pendingSuggestion
+        val resolvedPoint = suggestion?.point
+        if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
+            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
+            return
         }
+        setSearchVisibility(false)
+        selectWaypoint(
+            CourseRegistrationIntent.SelectWaypoint(
+                point = resolvedPoint,
+                name = suggestion.title,
+                address = suggestion.address,
+                jibunAddress = null,
+            ),
+        )
     }
 
     private fun commitPinEdit() {
@@ -474,7 +482,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 val suggestion = locationRepository.reverseGeocode(point)
                 val resolvedPoint = suggestion?.point
                 if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("이 위치의 주소를 확인할 수 없어요."))
+                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
                     return@launch
                 }
                 val latest = _state.value
@@ -495,7 +503,6 @@ class CourseRegistrationViewModel @Inject constructor(
                         mapCenter = resolvedPoint,
                         mapCenterGeneration = it.mapCenterGeneration + 1,
                         route = null,
-                        routeError = null,
                     )
                 }
                 persistDraft()
@@ -744,7 +751,6 @@ class CourseRegistrationViewModel @Inject constructor(
                         selectedPracticeTypeCodes = reconciledCodes,
                         waypoints = reconciledWaypoints,
                         route = if (reconciledWaypoints == currentWaypoints) it.route else null,
-                        routeError = if (reconciledWaypoints == currentWaypoints) it.routeError else null,
                     )
                 }
                 if (reconciledCodes != currentCodes || reconciledWaypoints != currentWaypoints) persistDraft()
@@ -766,7 +772,7 @@ class CourseRegistrationViewModel @Inject constructor(
         val current = _state.value
         if (!current.canSubmit) {
             _state.update { it.copy(hasAttemptedSubmit = true) }
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("필수 항목을 확인해 주세요."))
+            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
             return
         }
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START } ?: return
@@ -812,11 +818,13 @@ class CourseRegistrationViewModel @Inject constructor(
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START }
         val destination = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION }
         if (start == null || destination == null) {
-            _state.update { it.copy(isRouteLoading = false, route = null, routeError = null) }
+            _state.update { it.copy(isRouteLoading = false, route = null) }
             return
         }
         val generation = routeGeneration
-        _state.update { it.copy(isRouteLoading = true, routeError = null, route = null) }
+        // 실패해도 기존 입력값과 지도 위치를 유지해야 하므로(CR-01 예외처리), 계산이 끝나기 전까지는
+        // 이전에 성공한 route를 지우지 않는다. 실패 시엔 3초 토스트만 띄운다.
+        _state.update { it.copy(isRouteLoading = true) }
         routeJob = viewModelScope.launch {
             try {
                 val result = routeRepository.getStrictRoute(
@@ -829,24 +837,14 @@ class CourseRegistrationViewModel @Inject constructor(
                 if (!result.isRealRoute || result.totalDistanceMeters <= 0 ||
                     result.snappedPoints.size != current.waypoints.size
                 ) {
-                    _state.update {
-                        it.copy(
-                            isRouteLoading = false,
-                            route = null,
-                            routeError = "실도로 경로를 찾지 못했어요.",
-                        )
-                    }
+                    _state.update { it.copy(isRouteLoading = false) }
+                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
                 } else {
                     val adjustedWaypoints = resolveSnappedWaypoints(current.waypoints, result)
                     if (generation != routeGeneration) return@launch
                     if (adjustedWaypoints == null) {
-                        _state.update {
-                            it.copy(
-                                isRouteLoading = false,
-                                route = null,
-                                routeError = "선택한 위치의 주소를 다시 확인하지 못했어요.",
-                            )
-                        }
+                        _state.update { it.copy(isRouteLoading = false) }
+                        _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치의 주소를 다시 확인하지 못했어요."))
                         return@launch
                     }
                     _state.update {
@@ -854,7 +852,6 @@ class CourseRegistrationViewModel @Inject constructor(
                             isRouteLoading = false,
                             waypoints = adjustedWaypoints,
                             route = result,
-                            routeError = null,
                         )
                     }
                     if (adjustedWaypoints != current.waypoints) persistDraft()
@@ -863,9 +860,8 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 if (generation != routeGeneration) return@launch
-                _state.update {
-                    it.copy(isRouteLoading = false, route = null, routeError = error.message ?: "경로를 불러오지 못했어요.")
-                }
+                _state.update { it.copy(isRouteLoading = false) }
+                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
             }
         }
     }
