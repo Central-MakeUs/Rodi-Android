@@ -771,7 +771,8 @@ fun CourseRegistrationSearchContent(
         modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .imePadding(),
     ) {
         CourseRegistrationSearchField(
             keyword = keyword,
@@ -858,10 +859,7 @@ private fun RecentSearchContent(
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = RodiSpacing.md),
-            ) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(recent, key = CourseLocationSuggestion::id) { item ->
                     SearchRow(item = item, onSelect = onSelect, onDelete = { onDelete(item.id) })
                 }
@@ -900,10 +898,7 @@ private fun SearchResultsContent(
     result: CourseLocationSearchResult,
     onSelect: (String) -> Unit,
 ) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = RodiSpacing.md),
-    ) {
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
         if (result.regions.isNotEmpty()) {
             items(result.regions, key = CourseLocationSuggestion::id) { item ->
                 SearchRow(item = item, onSelect = onSelect)
@@ -933,7 +928,7 @@ private fun SearchRow(
             .fillMaxWidth()
             .height(62.dp)
             .clickable { onSelect(item.id) }
-            .padding(vertical = 8.dp)
+            .padding(horizontal = RodiSpacing.md, vertical = 8.dp)
             .semantics {
                 contentDescription = rowDescription
                 role = Role.Button
