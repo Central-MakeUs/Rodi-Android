@@ -107,8 +107,10 @@ data class CourseRegistrationUiState(
             !isRouteLoading && !isMapPointLoading && !isSearchVisible && editingWaypointIndex == null && isRouteReady
 
     /**
-     * 완료 버튼 활성화 조건. 한줄 소개는 **1자 이상**이면 충족이고, 등록에 필요한 10자 조건은
-     * 여기서 막지 않는다 — 10자 미만으로 완료를 누르면 버튼이 눌린 뒤 안내 문구를 띄우는 게 명세다.
+     * 완료 버튼 활성화 조건. 한줄 소개는 등록 가능한 길이(공백 제외 10자)를 채워야 활성화된다.
+     * 명세는 1자 이상이면 활성화하고 눌렀을 때 안내 문구로 막도록 돼 있었지만, 누를 수 있는
+     * 버튼이 매번 실패로 끝나는 게 더 나쁘다고 판단해 QA 협의로 바꿨다. 대신 조건은
+     * 플레이스홀더("최소 10자 이상 입력해주세요.")와 글자 수 카운터로 미리 보여준다.
      * 주의사항은 선택 입력이라 활성화 조건에 넣지 않는다.
      */
     val canSubmit: Boolean
@@ -120,7 +122,7 @@ data class CourseRegistrationUiState(
                 selectedPracticeTypeCodes.all(availablePracticeTypes::contains) &&
                 selectedPracticeTypeCodes.size <= form.practiceTypeMaxSelect &&
                 caution.length <= form.cautionInput.maxLength &&
-                description.isNotBlank()
+                descriptionMeetsRegisterLength
         }
 
     /** 등록 요청을 보낼 수 있는지 — 한줄 소개는 공백을 제외하고 10자 이상이어야 한다. */

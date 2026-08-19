@@ -242,7 +242,7 @@ private fun CourseRegistrationFormFields(
             }
         }
         item {
-            FormSection(title = form.sections.description) {
+            FormSection(title = form.sections.description, required = true) {
                 RodiInputField(
                     value = description,
                     spec = form.descriptionInput,
