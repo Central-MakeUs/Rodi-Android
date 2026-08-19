@@ -132,18 +132,14 @@ fun RegisteredCoursesContent(
         }
     }
 
-    LaunchedEffect(state.errorMessage, state.appendErrorMessage, state.courses.isEmpty()) {
-        state.errorMessage?.let { message ->
-            snackbarHostState.show(RodiSnackbarData(message = message))
-        }
-        state.appendErrorMessage?.let { message ->
-            snackbarHostState.show(
-                RodiSnackbarData(
-                    message = message,
-                    actionLabel = "다시 시도",
-                    onAction = onRetry,
-                ),
-            )
+    // 목록이 비어있을 때의 실패는 RegisteredCoursesError 전체 화면으로만 보여준다 — 스낵바까지
+    // 띄우면 같은 메시지가 두 번 뜬다. appendErrorMessage는 인라인 재시도 항목이 이미 같은
+    // 액션을 제공하므로 스낵바를 따로 띄우지 않는다.
+    LaunchedEffect(state.errorMessage, state.courses.isEmpty()) {
+        if (state.courses.isNotEmpty()) {
+            state.errorMessage?.let { message ->
+                snackbarHostState.show(RodiSnackbarData(message = message))
+            }
         }
     }
 

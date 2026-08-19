@@ -105,8 +105,12 @@ class RegisteredCoursesViewModel @Inject constructor(
         appendJob = viewModelScope.launch {
             getMyRegisteredCourses(status = filter.status, cursor = cursor, size = PAGE_SIZE)
                 .onSuccess { page ->
-                    val merged = (current.items + page.items).distinctBy(RegisteredCourse::courseId)
-                    val next = pages.getValue(filter).copy(
+                    // current가 아니라 최신 스냅샷을 기준으로 병합한다. 요청이 도는 동안 삭제가
+                    // 끝나면 current.items에는 지운 항목이 남아있어, 그걸 기준으로 합치면
+                    // append 완료 후 삭제된 코스가 되살아난다.
+                    val latest = pages.getValue(filter)
+                    val merged = (latest.items + page.items).distinctBy(RegisteredCourse::courseId)
+                    val next = latest.copy(
                         items = merged,
                         hasNext = page.hasNext && page.nextCursor != null,
                         nextCursor = page.nextCursor,
