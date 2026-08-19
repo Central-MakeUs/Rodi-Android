@@ -385,7 +385,9 @@ private fun CourseRegistrationWaypointCard(
 ) {
     val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
     val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
-    val vias = waypoints.filter { it.type == RegistrationWaypointType.VIA }
+    // 원본 인덱스를 같이 들고 다닌다. waypoints.indexOf(waypoint)로 찾으면 좌표가 같은
+    // 경유지 두 개를 구조적 동일성으로 헷갈려 엉뚱한 항목이 삭제된다.
+    val vias = waypoints.withIndex().filter { it.value.type == RegistrationWaypointType.VIA }
     val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
     val canAddVia = !isPlacingVia && vias.size < maxVias
     val pendingLabel = pendingAddressLabel(pendingSuggestion, isPendingAddressLoading)
@@ -403,7 +405,7 @@ private fun CourseRegistrationWaypointCard(
                 onSearch()
             },
         )
-        vias.forEachIndexed { index, waypoint ->
+        vias.forEachIndexed { index, (waypointIndex, waypoint) ->
             WaypointSelectionRow(
                 type = RegistrationWaypointType.VIA,
                 waypoint = waypoint,
@@ -416,7 +418,7 @@ private fun CourseRegistrationWaypointCard(
                     WaypointActionIcon(
                         add = false,
                         enabled = true,
-                        onClick = { onRemoveVia(waypoints.indexOf(waypoint)) },
+                        onClick = { onRemoveVia(waypointIndex) },
                     )
                 },
             )
@@ -889,7 +891,7 @@ private fun RecentSearchLoadingContent() {
 @Composable
 private fun SearchNoResultContent(keyword: String) {
     SearchMessage(
-        text = "‘$keyword' 검색 결과가 없어요.",
+        text = "‘$keyword’ 검색 결과가 없어요.",
         details = listOf(
             "검색어의 철자가 맞는지 확인해주세요.",
             "장소 · 도로명으로 검색해주세요.",
