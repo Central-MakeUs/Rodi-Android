@@ -7,30 +7,12 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
-import android.os.Build
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import com.dororong.rodi.MainActivity
 import com.dororong.rodi.R
 import com.dororong.rodi.core.domain.model.driving.DrivingSession
 import com.dororong.rodi.core.ui.theme.LightRodiColors
-import java.util.Locale
-
-internal enum class DrivingNotificationStyle {
-    STANDARD,
-    PROGRESS_STYLE,
-}
-
-internal object DrivingNotificationStylePolicy {
-    fun forApi(apiLevel: Int): DrivingNotificationStyle =
-        if (apiLevel >= Build.VERSION_CODES.BAKLAVA) {
-            DrivingNotificationStyle.PROGRESS_STYLE
-        } else {
-            DrivingNotificationStyle.STANDARD
-        }
-
-    fun requestsPromotion(apiLevel: Int): Boolean = apiLevel >= Build.VERSION_CODES.BAKLAVA
-}
 
 internal object DrivingNotificationFactory {
     const val NOTIFICATION_ID = 4_210
@@ -39,8 +21,6 @@ internal object DrivingNotificationFactory {
     private const val PROGRESS_MAX = 100
 
     private val primaryColor = LightRodiColors.primary600.toArgb()
-    private val progressColor = LightRodiColors.primary600.toArgb()
-    private val progressTrackColor = LightRodiColors.gray300.toArgb()
 
     fun createChannels(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -91,13 +71,14 @@ internal object DrivingNotificationFactory {
         } else {
             "방문 인증까지 ${progress ?: 0}% 진행했어요. 조금만 더 달려봐요!"
         }
-        val style = DrivingNotificationStylePolicy.forApi(Build.VERSION.SDK_INT)
-        val builder = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
+        // 진행률은 문구로만 알린다 — 프로그레스바·경과시간 표시는 디자인에 없다.
+        return NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setLargeIcon(brandIcon(context))
-            .setColor(progressColor)
+            .setColor(primaryColor)
             .setContentIntent(openAppIntent(context))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -106,44 +87,13 @@ internal object DrivingNotificationFactory {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setWhen(session.startedAtEpochMillis)
             .setShowWhen(true)
-            .setUsesChronometer(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(
                 R.drawable.ic_launcher_foreground,
                 "운전 종료",
                 stopServiceIntent(context, session.id),
             )
-
-        if (DrivingNotificationStylePolicy.requestsPromotion(Build.VERSION.SDK_INT)) {
-            builder.setRequestPromotedOngoing(true)
-        }
-
-        if (style == DrivingNotificationStyle.PROGRESS_STYLE) {
-            val progressStyle = NotificationCompat.ProgressStyle()
-            if (progress == null) {
-                progressStyle.setProgressIndeterminate(true)
-            } else {
-                progressStyle
-                    .setProgress(progress)
-                    .setStyledByProgress(false)
-                    .setProgressSegments(progressSegments(progress))
-            }
-            builder
-                .setShortCriticalText(
-                    progress?.let { "$it% · ${traveledDistanceMeters.toDistanceText()}" }
-                        ?: traveledDistanceMeters.toDistanceText(),
-                )
-                .setStyle(progressStyle)
-        } else {
-            builder
-                .setStyle(NotificationCompat.BigTextStyle().bigText(message))
-                .setProgress(
-                    PROGRESS_MAX,
-                    progress ?: 0,
-                    progress == null,
-                )
-        }
-        return builder.build()
+            .build()
     }
 
     fun arrival(
@@ -174,29 +124,6 @@ internal object DrivingNotificationFactory {
             .build()
     }
 
-    private fun progressSegments(progress: Int): List<NotificationCompat.ProgressStyle.Segment> {
-        val completed = progress.coerceIn(0, PROGRESS_MAX)
-        if (completed == 0) {
-            return listOf(
-                NotificationCompat.ProgressStyle.Segment(PROGRESS_MAX)
-                    .setColor(progressTrackColor),
-            )
-        }
-        val remaining = PROGRESS_MAX - completed
-        return buildList {
-            add(
-                NotificationCompat.ProgressStyle.Segment(completed)
-                    .setColor(progressColor),
-            )
-            if (remaining > 0) {
-                add(
-                    NotificationCompat.ProgressStyle.Segment(remaining)
-                        .setColor(progressTrackColor),
-                )
-            }
-        }
-    }
-
     private fun brandIcon(context: Context) =
         BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
 
@@ -221,10 +148,3 @@ internal object DrivingNotificationFactory {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 }
-
-private fun Double.toDistanceText(): String =
-    if (this >= 1_000) {
-        String.format(Locale.KOREA, "%.1f km", this / 1_000)
-    } else {
-        "${toInt()} m"
-    }

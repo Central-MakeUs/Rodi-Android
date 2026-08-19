@@ -58,11 +58,13 @@ import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
+import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.search.SearchEffect
@@ -193,7 +195,7 @@ private fun SearchInput(
             value = textFieldState.value,
             onValueChange = textFieldState.onValueChange,
             textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
-            cursorBrush = SolidColor(RodiTheme.colors.black),
+            cursorBrush = rodiCursorBrush(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onImeSearch() }),
@@ -230,17 +232,10 @@ private fun RecentSearchList(
 ) {
     when {
         isLoading -> RecentSearchSkeletonList(modifier)
-        searches.isEmpty() -> Box(
+        searches.isEmpty() -> RodiTextEmptyState(
             modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Text(
-                modifier = Modifier.padding(top = 180.dp),
-                text = "최근 검색 내역이 없습니다",
-                style = RodiTheme.typography.body1Medium,
-                color = RodiTheme.colors.gray600,
-            )
-        }
+            title = "최근 검색 내역이 없습니다",
+        )
         else -> LazyColumn(modifier = modifier.fillMaxWidth()) {
             item(key = "recent_search_header") {
                 Row(

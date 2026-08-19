@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -67,6 +70,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.CourseApprovalStatus
 import com.dororong.rodi.core.domain.model.course.RegisteredCourse
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
@@ -307,6 +311,10 @@ private fun RegisteredCourseFilters(
     initiallyExpanded: Boolean,
 ) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
+    // Popup의 바깥 터치 닫기가 앵커 클릭보다 먼저 돌아서, 다시 누르면 닫혔다가 곧바로
+    // 다시 열려 토글이 안 되는 것처럼 보였다. 닫힌 직후 짧은 시간은 다시 열지 않는다.
+    var lastDismissedAtMillis by remember { mutableLongStateOf(0L) }
+    val interactionSource = remember { MutableInteractionSource() }
     val density = LocalDensity.current
     val popupPositionProvider = remember(density) {
         RegisteredCourseFilterPopupPositionProvider(density)
@@ -317,7 +325,13 @@ private fun RegisteredCourseFilters(
                 .align(Alignment.CenterEnd)
                 .height(48.dp)
                 .padding(end = 16.dp)
-                .clickable { expanded = !expanded },
+                .clickable(interactionSource = interactionSource, indication = null) {
+                    when {
+                        expanded -> expanded = false
+                        System.currentTimeMillis() - lastDismissedAtMillis > FilterReopenGuardMillis ->
+                            expanded = true
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -342,7 +356,7 @@ private fun RegisteredCourseFilters(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 28.dp, end = 16.dp),
+                        .padding(top = 48.dp, end = 16.dp),
                 ) {
                     RegisteredCourseFilterMenuSurface(
                         selectedFilter = selectedFilter,
@@ -352,7 +366,10 @@ private fun RegisteredCourseFilters(
             } else {
                 Popup(
                     popupPositionProvider = popupPositionProvider,
-                    onDismissRequest = { expanded = false },
+                    onDismissRequest = {
+                        expanded = false
+                        lastDismissedAtMillis = System.currentTimeMillis()
+                    },
                 ) {
                     RegisteredCourseFilterMenuSurface(
                         selectedFilter = selectedFilter,
@@ -364,38 +381,30 @@ private fun RegisteredCourseFilters(
     }
 }
 
+private const val FilterReopenGuardMillis = 300L
+
 @Composable
 private fun RegisteredCourseFilterMenuSurface(
     selectedFilter: RegisteredCourseFilter,
     onSelected: (RegisteredCourseFilter) -> Unit,
 ) {
-    val dividerColor = RodiTheme.colors.gray300
     Column(
         modifier = Modifier
             .width(75.dp)
             .background(RodiTheme.colors.white)
-            .border(1.dp, RodiTheme.colors.gray300)
-            .drawBehind {
-                val dividerY = 35.dp.toPx()
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, dividerY),
-                    end = Offset(size.width, dividerY),
-                    strokeWidth = 1.dp.toPx(),
-                )
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, dividerY * 2),
-                    end = Offset(size.width, dividerY * 2),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
+            .border(1.dp, RodiTheme.colors.gray300),
     ) {
-        listOf(
+        // 구분선을 drawBehind로 그리면 각 항목의 배경이 그 위를 덮어 보이지 않는다.
+        // 항목 사이에 실제로 끼워 넣는다.
+        val filters = listOf(
             RegisteredCourseFilter.APPROVED,
             RegisteredCourseFilter.PENDING,
             RegisteredCourseFilter.REJECTED,
-        ).forEach { filter ->
+        )
+        filters.forEachIndexed { index, filter ->
+            if (index > 0) {
+                HorizontalDivider(color = RodiTheme.colors.gray300)
+            }
             Text(
                 text = filter.label,
                 style = RodiTheme.typography.body2Medium,
@@ -426,7 +435,8 @@ private class RegisteredCourseFilterPopupPositionProvider(
             0,
             (windowSize.width - popupContentSize.width).coerceAtLeast(0),
         )
-        val y = (anchorBounds.top + with(density) { 28.dp.roundToPx() }).coerceIn(
+        // 28dp를 쓰면 메뉴가 "전체" 라벨 아래쪽을 덮는다. 앵커 행 아래에서 시작한다.
+        val y = anchorBounds.bottom.coerceIn(
             0,
             (windowSize.height - popupContentSize.height).coerceAtLeast(0),
         )
@@ -492,46 +502,21 @@ private fun RegisteredCoursesEmpty(
     onRegisterCourseClick: () -> Unit,
 ) {
     val isAll = filter == RegisteredCourseFilter.ALL
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = if (isAll) 134.dp else 172.dp, start = 16.dp, end = 16.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Column(
-            modifier = Modifier.width(203.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Image(
-                painter = painterResource(R.drawable.illust_registered_course_empty),
-                contentDescription = null,
-                modifier = Modifier.width(125.dp).height(50.dp),
-            )
-            Text(
-                text = when (filter) {
-                    RegisteredCourseFilter.ALL -> "아직 등록한 코스가 없어요!"
-                    RegisteredCourseFilter.APPROVED -> "승인된 코스가 없어요!"
-                    RegisteredCourseFilter.PENDING -> "검토중인 코스가 없어요!"
-                    RegisteredCourseFilter.REJECTED -> "반려된 코스가 없어요!"
-                },
-                style = RodiTheme.typography.headline1,
-                color = RodiTheme.colors.gray600,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                textAlign = TextAlign.Center,
-            )
+    RodiIllustratedEmptyState(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        painter = painterResource(R.drawable.illust_registered_course_empty),
+        imageWidth = 125.dp,
+        imageSize = 50.dp,
+        title = when (filter) {
+            RegisteredCourseFilter.ALL -> "아직 등록한 코스가 없어요!"
+            RegisteredCourseFilter.APPROVED -> "승인된 코스가 없어요!"
+            RegisteredCourseFilter.PENDING -> "검토중인 코스가 없어요!"
+            RegisteredCourseFilter.REJECTED -> "반려된 코스가 없어요!"
+        },
+        // 자동 줄바꿈에 맡기면 "좋은 코/스를"처럼 단어 중간에서 끊긴다.
+        description = "나만 알고 있는 운전 연습하기 좋은\n코스를 공유해보세요.".takeIf { isAll },
+        footer = {
             if (isAll) {
-                Text(
-                    // 자동 줄바꿈에 맡기면 "좋은 코/스를"처럼 단어 중간에서 끊긴다.
-                    text = "나만 알고 있는 운전 연습하기 좋은\n코스를 공유해보세요.",
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.gray600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    textAlign = TextAlign.Center,
-                )
                 OutlinedButton(
                     onClick = onRegisterCourseClick,
                     modifier = Modifier
@@ -551,8 +536,8 @@ private fun RegisteredCoursesEmpty(
                     )
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -579,11 +564,10 @@ private fun RegisteredCourseRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            // 터치 영역을 48dp Box로 잡으면 그 높이가 그대로 행 높이가 돼서 제목-상태칩 간격과
+            // 행 간격이 디자인보다 벌어진다. 레이아웃은 아이콘 크기(18dp)로 두고 터치만 넓힌다.
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clearAndSetSemantics { contentDescription = "더보기" }
-                    .clickable(enabled = !isDeleting, onClick = onMenuClick),
+                modifier = Modifier.size(18.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -605,6 +589,14 @@ private fun RegisteredCourseRow(
                         scrollState = scrollState,
                     )
                 }
+                Box(
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        // 아이콘이 원형이라 리플도 원으로 잘라준다. 안 그러면 48dp 사각으로 번진다.
+                        .clip(CircleShape)
+                        .clearAndSetSemantics { contentDescription = "더보기" }
+                        .clickable(enabled = !isDeleting, onClick = onMenuClick),
+                )
             }
         }
         Row(
@@ -685,22 +677,20 @@ private fun RegisteredCoursePopupMenu(
 @Composable
 private fun RegisteredCoursePopupSurface(onDelete: () -> Unit) {
     val shape = RoundedCornerShape(2.dp)
+    // 디자인(3659:78807)은 흰 배경 + gray300 테두리에 글자만큼만 넓어지는 상자다.
+    // 폭을 고정하면 본문 폰트에서 "삭제하/기"로 줄이 깨져서 nowrap으로 둔다.
     Text(
         text = "삭제하기",
         style = RodiTheme.typography.body2Medium,
         color = RodiTheme.colors.gray700,
-        // 폭을 75dp로 고정하면 본문 폰트에서 "삭제하/기"로 줄이 깨진다. 디자인도 nowrap이라
-        // 최소 폭만 두고 글자에 맞춰 늘어나게 한다.
         softWrap = false,
         maxLines = 1,
         modifier = Modifier
-            .defaultMinSize(minWidth = 75.dp)
-            .height(35.dp)
             .clip(shape)
-            .background(RodiTheme.colors.gray200, shape)
+            .background(RodiTheme.colors.white, shape)
+            .border(1.dp, RodiTheme.colors.gray300, shape)
             .clickable(onClick = onDelete)
-            .wrapContentHeight(Alignment.CenterVertically)
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
     )
 }
 

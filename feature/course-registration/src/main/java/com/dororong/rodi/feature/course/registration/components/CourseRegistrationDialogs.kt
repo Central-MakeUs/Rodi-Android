@@ -20,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
+import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiUnsavedChangesDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -52,40 +53,14 @@ fun CourseRegistrationDialogHost(
                 dismissible = false,
             )
         CourseRegistrationDialog.Success ->
-            RodiDialog(
+            RodiAlertDialog(
+                title = "등록 요청 완료!",
+                description = "관리자의 검토 후 48시간 내에\n등록될 예정입니다.",
+                confirmText = "확인",
+                onConfirm = onSuccessConfirmed,
                 onDismissRequest = {},
-                modifier = Modifier.width(280.dp).height(216.dp),
                 dismissible = false,
-                contentPadding = PaddingValues(24.dp),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
-                ) {
-                    Text(
-                        text = "등록 요청 완료!",
-                        modifier = Modifier.fillMaxWidth(),
-                        style = RodiTheme.typography.headline1,
-                        color = RodiTheme.colors.black,
-                        textAlign = TextAlign.Center,
-                    )
-                    Text(
-                        text = "관리자의 검토 후 48시간 내에 등록될 예정입니다.",
-                        modifier = Modifier.fillMaxWidth(),
-                        style = RodiTheme.typography.body3Medium,
-                        color = RodiTheme.colors.gray600,
-                        textAlign = TextAlign.Center,
-                    )
-                    RodiButton(
-                        text = "확인",
-                        onClick = onSuccessConfirmed,
-                        fillMaxWidth = false,
-                        modifier = Modifier.width(116.dp),
-                        height = 42.dp,
-                    )
-                }
-            }
+            )
     }
 }
 

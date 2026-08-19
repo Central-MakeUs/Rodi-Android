@@ -49,6 +49,7 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.KakaoMapReadyCallback
 
 private const val REGISTRATION_LABEL_LAYER_ID = "rodi-course-registration-layer"
+private const val CAMERA_MOVE_DURATION_MILLIS = 1_200
 private const val DEFAULT_LAT = 37.5665
 private const val DEFAULT_LNG = 126.9780
 
@@ -110,9 +111,11 @@ fun CourseRegistrationMapView(
     // 실제 "프로그래매틱 재중심" 트리거는 centerGeneration 증가뿐이다.
     LaunchedEffect(map, centerGeneration) {
         val target = currentCenter ?: return@LaunchedEffect
+        // 거리에 비례해 느려지지 않도록 애니메이션 길이를 고정한다 — 서울에서 먼 곳을 들렀다 오면
+        // 예전엔 이동에 한참 걸렸다.
         map?.moveCamera(
             CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), 14),
-            CameraAnimation.from(350),
+            CameraAnimation.from(CAMERA_MOVE_DURATION_MILLIS, false, false),
         )
     }
 

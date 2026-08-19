@@ -59,7 +59,7 @@ class ReviewRepositoryImplTest {
         coEvery { api.getReviews("Bearer old", 7, null, 10, null) } returns failureEnvelope("COMMON_401")
         coEvery { authRepository.reissueToken() } returns Unit
         coEvery { api.getReviews("Bearer new", 7, null, 10, null) } returns reviewPageEnvelope()
-        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository)
+        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository, mockk(relaxed = true))
 
         repository.getReviews(7)
 
@@ -75,7 +75,7 @@ class ReviewRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returnsMany listOf(tokens("old"), tokens("new"))
         coEvery { api.getReviews(any(), 7, null, 10, null) } returns failureEnvelope("COMMON_401")
         coEvery { authRepository.reissueToken() } returns Unit
-        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository)
+        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository, mockk(relaxed = true))
 
         assertThrowsSuspend<ReviewException.AuthenticationRequired> { repository.getReviews(7) }
 
@@ -133,7 +133,7 @@ class ReviewRepositoryImplTest {
     private fun repository(
         api: ReviewApi,
         tokenStore: AuthTokenStore = tokenStore(),
-    ) = ReviewRepositoryImpl(api, tokenStore, mockk<AuthRepository>())
+    ) = ReviewRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), mockk(relaxed = true))
 
     private fun tokenStore() = mockk<AuthTokenStore>().also {
         coEvery { it.getTokens() } returns tokens("access")

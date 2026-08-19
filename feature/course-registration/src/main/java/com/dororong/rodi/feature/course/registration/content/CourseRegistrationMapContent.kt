@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,17 +64,21 @@ import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.course.registration.CourseMapLoadState
 import com.dororong.rodi.feature.course.registration.CourseRegistrationIntent
 import com.dororong.rodi.feature.course.registration.CourseRegistrationLoadingIndicator
 import com.dororong.rodi.feature.course.registration.CourseWaypointRole
+import com.dororong.rodi.feature.course.registration.InitialLocationState
 import com.dororong.rodi.feature.course.registration.R
 import com.dororong.rodi.feature.course.registration.map.CourseRegistrationMapView
 import com.dororong.rodi.feature.course.registration.components.CourseRegistrationCurrentLocationButton
@@ -107,6 +112,7 @@ fun CourseRegistrationMapContent(
     isFormLoading: Boolean = false,
     pendingSuggestion: CourseLocationSuggestion? = null,
     isPendingAddressLoading: Boolean = false,
+    initialLocationState: InitialLocationState = InitialLocationState.NotRequested,
 ) {
     if (isSearchVisible) {
         CourseRegistrationSearchContent(
@@ -137,24 +143,27 @@ fun CourseRegistrationMapContent(
         val density = androidx.compose.ui.platform.LocalDensity.current
         val headerHeight = with(density) { headerHeightPx.toDp() }
         val bottomPanelHeight = with(density) { bottomPanelHeightPx.toDp() }
-        CourseRegistrationMapView(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics { contentDescription = "지도를 움직여 핀을 놓을 위치를 정하세요" },
-            retryToken = mapRetryToken,
-            center = mapCenter,
-            centerGeneration = mapCenterGeneration,
-            waypoints = waypoints,
-            route = route,
-            editingWaypointIndex = editingWaypointIndex,
-            temporaryPin = temporaryPin,
-            onReady = { onIntent(CourseRegistrationIntent.MapReady(it)) },
-            onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
-            onMapTapped = {},
-            onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
-            topPaddingPx = headerHeightPx,
-            bottomPaddingPx = bottomPanelHeightPx,
-        )
+
+        if (mapCenter != null || initialLocationState == InitialLocationState.Unavailable) {
+            CourseRegistrationMapView(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = "지도를 움직여 핀을 놓을 위치를 정하세요" },
+                retryToken = mapRetryToken,
+                center = mapCenter,
+                centerGeneration = mapCenterGeneration,
+                waypoints = waypoints,
+                route = route,
+                editingWaypointIndex = editingWaypointIndex,
+                temporaryPin = temporaryPin,
+                onReady = { onIntent(CourseRegistrationIntent.MapReady(it)) },
+                onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
+                onMapTapped = {},
+                onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
+                topPaddingPx = headerHeightPx,
+                bottomPaddingPx = bottomPanelHeightPx,
+            )
+        }
 
         val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
         val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
@@ -202,7 +211,9 @@ fun CourseRegistrationMapContent(
             )
             CourseMapLoadState.Ready -> Unit
         }
-        if (isMapPointLoading) CourseRegistrationMapLoadingOverlay()
+        if (isMapPointLoading || initialLocationState == InitialLocationState.Requesting) {
+            CourseRegistrationMapLoadingOverlay()
+        }
 
         if (isFormLoading) {
             CourseRegistrationMapFormLoading(
@@ -245,6 +256,8 @@ fun CourseRegistrationMapContent(
 
         CourseRegistrationCurrentLocationButton(
             onIntent = onIntent,
+            autoRequest = initialLocationState == InitialLocationState.Requesting,
+            visible = initialLocationState != InitialLocationState.Requesting,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 8.dp, bottom = bottomPanelHeight + 8.dp),
@@ -280,23 +293,13 @@ private fun CourseRegistrationMapHeader(
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                    .clickable(onClick = onBack)
-                    .semantics {
-                        contentDescription = "코스 등록 나가기"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            RodiIconButton(
+                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+                onClick = onBack,
+                contentDescription = "코스 등록 나가기",
+                tint = RodiTheme.colors.black,
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
             Text(
                 text = if (editingWaypoint == null) "코스 등록" else "핀 수정하기",
                 style = RodiTheme.typography.headline1,
@@ -351,20 +354,10 @@ private fun PinEditAddressRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Image(
-            painter = painterResource(
-                when (waypoint.type) {
-                    RegistrationWaypointType.START -> R.drawable.ic_registration_pin_start
-                    RegistrationWaypointType.VIA -> R.drawable.ic_registration_pin_via
-                    RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_pin_destination
-                },
-            ),
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-        )
+        WaypointDot(type = waypoint.type, dimmed = false)
         Text(
             text = pendingLabel ?: waypoint.address.ifBlank { waypoint.name.ifBlank { "주소를 확인할 수 없어요" } },
-            style = RodiTheme.typography.body3Medium,
+            style = RodiTheme.typography.body2Medium,
             color = if (pendingLabel != null) RodiTheme.colors.gray600 else RodiTheme.colors.black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -392,79 +385,116 @@ private fun CourseRegistrationWaypointCard(
     val canAddVia = !isPlacingVia && vias.size < maxVias
     val pendingLabel = pendingAddressLabel(pendingSuggestion, isPendingAddressLoading)
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(),
-    ) {
-        WaypointSelectionRow(
-            type = RegistrationWaypointType.START,
-            waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START },
-            pendingLabel = if (!hasStart) pendingLabel else null,
-            onClick = {
-                onRoleSelected(CourseWaypointRole.Start)
-                onSearch()
-            },
-        )
-        vias.forEachIndexed { index, (waypointIndex, waypoint) ->
+    val hasViaRow = vias.isNotEmpty() || isPlacingVia
+    Box(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(),
+        ) {
             WaypointSelectionRow(
-                type = RegistrationWaypointType.VIA,
-                waypoint = waypoint,
-                label = "경유지 " + (index + 1),
+                type = RegistrationWaypointType.START,
+                waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START },
+                pendingLabel = if (!hasStart) pendingLabel else null,
                 onClick = {
-                    onRoleSelected(CourseWaypointRole.Via)
+                    onRoleSelected(CourseWaypointRole.Start)
                     onSearch()
                 },
-                trailing = {
-                    WaypointActionIcon(
-                        add = false,
-                        enabled = true,
-                        onClick = { onRemoveVia(waypointIndex) },
-                    )
-                },
             )
-        }
-        if (isPlacingVia) {
+            vias.forEachIndexed { index, (waypointIndex, waypoint) ->
+                WaypointSelectionRow(
+                    type = RegistrationWaypointType.VIA,
+                    waypoint = waypoint,
+                    label = "경유지 " + (index + 1),
+                    onClick = {
+                        onRoleSelected(CourseWaypointRole.Via)
+                        onSearch()
+                    },
+                    trailing = {
+                        WaypointActionIcon(
+                            add = false,
+                            enabled = true,
+                            onClick = { onRemoveVia(waypointIndex) },
+                        )
+                    },
+                )
+            }
+            if (isPlacingVia) {
+                WaypointSelectionRow(
+                    type = RegistrationWaypointType.VIA,
+                    waypoint = null,
+                    label = "경유지 " + (vias.size + 1),
+                    pendingLabel = pendingLabel,
+                    onClick = onSearch,
+                    trailing = {
+                        WaypointActionIcon(
+                            add = false,
+                            enabled = true,
+                            onClick = { onRoleSelected(CourseWaypointRole.Destination) },
+                        )
+                    },
+                )
+            }
             WaypointSelectionRow(
-                type = RegistrationWaypointType.VIA,
-                waypoint = null,
-                label = "경유지 " + (vias.size + 1),
-                pendingLabel = pendingLabel,
-                onClick = onSearch,
-                trailing = {
-                    WaypointActionIcon(
-                        add = false,
-                        enabled = true,
-                        onClick = { onRoleSelected(CourseWaypointRole.Destination) },
-                    )
+                type = RegistrationWaypointType.DESTINATION,
+                waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION },
+                pendingLabel = if (hasStart && !hasDestination) pendingLabel else null,
+                onClick = {
+                    onRoleSelected(CourseWaypointRole.Destination)
+                    onSearch()
                 },
+                trailing = if (hasViaRow) {
+                    {
+                        WaypointActionIcon(
+                            add = true,
+                            enabled = canAddVia,
+                            onClick = { onRoleSelected(CourseWaypointRole.Via) },
+                        )
+                    }
+                } else null,
             )
         }
-        WaypointSelectionRow(
-            type = RegistrationWaypointType.DESTINATION,
-            waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION },
-            pendingLabel = if (hasStart && !hasDestination) pendingLabel else null,
-            onClick = {
-                onRoleSelected(CourseWaypointRole.Destination)
-                onSearch()
-            },
-            trailing = if (hasStart && hasDestination && canAddVia) {
-                {
-                    WaypointActionIcon(
-                        add = true,
-                        enabled = true,
-                        onClick = { onRoleSelected(CourseWaypointRole.Via) },
-                    )
-                }
-            } else null,
-        )
+        // 경유지 줄이 없을 때 +는 출발지·도착지 칸 사이 경계에 걸쳐 놓는다(디자인 3659:79178).
+        if (!hasViaRow) {
+            WaypointActionIcon(
+                add = true,
+                enabled = hasStart && hasDestination && canAddVia,
+                onClick = { onRoleSelected(CourseWaypointRole.Via) },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = (-24).dp, y = 32.dp),
+            )
+        }
     }
 }
 
+/** 입력 칸 앞의 지점 표시. 지도 위 핀이 아니라 색 점이다(디자인 3659:79169). */
 @Composable
-private fun WaypointActionIcon(add: Boolean, enabled: Boolean, onClick: () -> Unit) {
+private fun WaypointDot(type: RegistrationWaypointType, dimmed: Boolean) {
+    Image(
+        painter = painterResource(
+            when (type) {
+                RegistrationWaypointType.START -> R.drawable.ic_registration_dot_start
+                RegistrationWaypointType.VIA -> R.drawable.ic_registration_dot_via
+                RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_dot_destination
+            },
+        ),
+        contentDescription = null,
+        alpha = if (dimmed) 0.5f else 1f,
+        modifier = Modifier.size(24.dp),
+    )
+}
+
+@Composable
+private fun WaypointActionIcon(
+    add: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val strokeColor = if (enabled) RodiTheme.colors.gray600 else RodiTheme.colors.gray300
+    val backgroundColor = RodiTheme.colors.white
     Box(
-        modifier = Modifier
+        modifier = modifier
             .requiredSize(48.dp)
             .clip(CircleShape)
             .clickable(enabled = enabled, onClick = onClick)
@@ -477,6 +507,8 @@ private fun WaypointActionIcon(add: Boolean, enabled: Boolean, onClick: () -> Un
         Canvas(Modifier.size(24.dp)) {
             val stroke = 1.dp.toPx()
             val center = Offset(size.width / 2f, size.height / 2f)
+            // 두 칸 경계에 걸쳐 놓기 때문에 배경을 깔지 않으면 칸 테두리가 아이콘을 관통한다.
+            drawCircle(color = backgroundColor, radius = size.minDimension / 2f)
             drawLine(
                 color = strokeColor,
                 start = Offset(center.x - 5.dp.toPx(), center.y),
@@ -544,20 +576,10 @@ private fun WaypointSelectionRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Image(
-            painter = painterResource(
-                when (type) {
-                    RegistrationWaypointType.START -> R.drawable.ic_registration_pin_start
-                    RegistrationWaypointType.VIA -> R.drawable.ic_registration_pin_via
-                    RegistrationWaypointType.DESTINATION -> R.drawable.ic_registration_pin_destination
-                },
-            ),
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-        )
+        WaypointDot(type = type, dimmed = waypoint == null && pendingLabel == null)
         Text(
             text = waypoint?.address?.ifBlank { waypoint.name } ?: pendingLabel ?: placeholder,
-            style = RodiTheme.typography.body3Medium,
+            style = RodiTheme.typography.body2Medium,
             color = when {
                 waypoint != null -> RodiTheme.colors.black
                 pendingLabel != null -> RodiTheme.colors.gray600
@@ -581,18 +603,37 @@ private fun FixedCenterPin(
         CourseWaypointRole.Via -> R.drawable.ic_registration_pin_via
         CourseWaypointRole.Destination -> R.drawable.ic_registration_pin_destination
     }
+    val pinSize = if (role == CourseWaypointRole.Via) 30.dp else 34.dp
+    val shadowColor = when (role) {
+        CourseWaypointRole.Start -> RodiTheme.semantic.pinStart.copy(alpha = 0.5f)
+        CourseWaypointRole.Via -> RodiTheme.semantic.pinVia.copy(alpha = 0.8f)
+        CourseWaypointRole.Destination -> RodiTheme.colors.infoCancel.copy(alpha = 0.5f)
+    }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        Image(
-            painter = painterResource(resource),
-            contentDescription = when (role) {
-                CourseWaypointRole.Start -> "출발지 선택 위치"
-                CourseWaypointRole.Via -> "경유지 선택 위치"
-                CourseWaypointRole.Destination -> "도착지 선택 위치"
-            },
+        // 아직 놓지 않은 핀에는 바닥 그림자가 붙는다(디자인 3659:79158). 핀 끝이 지도 중심에
+        // 오도록 그림자 높이(2dp)만큼 보정해서 위로 올린다.
+        Box(
             modifier = Modifier
-                .size(34.dp)
-                .offset(y = (-17).dp),
-        )
+                .size(width = pinSize, height = pinSize + 2.dp)
+                .offset(y = -(pinSize / 2) + 1.dp),
+        ) {
+            Canvas(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .size(width = 20.dp, height = 6.dp),
+            ) {
+                drawOval(color = shadowColor)
+            }
+            Image(
+                painter = painterResource(resource),
+                contentDescription = when (role) {
+                    CourseWaypointRole.Start -> "출발지 선택 위치"
+                    CourseWaypointRole.Via -> "경유지 선택 위치"
+                    CourseWaypointRole.Destination -> "도착지 선택 위치"
+                },
+                modifier = Modifier.align(Alignment.TopCenter).size(pinSize),
+            )
+        }
     }
 }
 
@@ -627,7 +668,7 @@ private fun CourseRegistrationSearchField(
             modifier = Modifier.weight(1f),
             textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
             singleLine = true,
-            cursorBrush = SolidColor(RodiTheme.colors.black),
+            cursorBrush = rodiCursorBrush(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
             decorationBox = { inner ->
@@ -665,7 +706,14 @@ private fun CourseRegistrationMapBottomPanel(
     val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
     val isAddViaMode = hasStart && hasDestination && !isPlacingVia
     val addressReady = mapCenter != null && !isPendingAddressLoading && pendingSuggestion != null
-    val selectionEnabled = !isAddViaMode && addressReady &&
+
+    val startWaypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START }
+    val candidatePoint = pendingSuggestion?.point
+    val isDestinationSameAsStart = selectedWaypointRole == CourseWaypointRole.Destination &&
+        startWaypoint != null && candidatePoint != null &&
+        startWaypoint.lat == candidatePoint.lat && startWaypoint.lng == candidatePoint.lng
+
+    val selectionEnabled = !isAddViaMode && addressReady && !isDestinationSameAsStart &&
         (selectedWaypointRole != CourseWaypointRole.Via || viaCount < maxVias)
     val selectionLabel = when (selectedWaypointRole) {
         CourseWaypointRole.Start -> "출발지 선택"
@@ -988,23 +1036,7 @@ private fun SearchMessage(
     showIllustration: Boolean = false,
     onRetry: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        if (showIllustration) {
-            Image(
-                painter = painterResource(R.drawable.illust_course_registration_empty),
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-        Text(text, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.gray600)
-        details.forEach { detail ->
-            Text(detail, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
-        }
+    val retryFooter: @Composable ColumnScope.() -> Unit = {
         onRetry?.let {
             Spacer(Modifier.height(12.dp))
             RodiButton(
@@ -1015,6 +1047,23 @@ private fun SearchMessage(
                 height = 38.dp,
             )
         }
+    }
+    if (showIllustration) {
+        RodiIllustratedEmptyState(
+            modifier = modifier,
+            painter = painterResource(R.drawable.illust_course_registration_empty),
+            imageSize = 80.dp,
+            title = text,
+            description = details.joinToString("\n").takeIf { it.isNotBlank() },
+            footer = retryFooter,
+        )
+    } else {
+        RodiTextEmptyState(
+            modifier = modifier,
+            title = text,
+            description = details.joinToString("\n").takeIf { it.isNotBlank() },
+            footer = retryFooter,
+        )
     }
 }
 

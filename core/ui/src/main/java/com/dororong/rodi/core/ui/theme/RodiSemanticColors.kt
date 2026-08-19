@@ -8,12 +8,14 @@ import androidx.compose.ui.graphics.Color
 data class RodiSemanticColors(
     val pinStart: Color,
     val pinArrival: Color,
+    val pinVia: Color,
     val tagDangerBg: Color,
 )
 
 val LightRodiSemanticColors = RodiSemanticColors(
     pinStart = Color(0xFF347BFF),
     pinArrival = Color(0xFFF3493C),
+    pinVia = Color(0xFFFFD072),
     tagDangerBg = Color(0xFFFFD6D6),
 )
 

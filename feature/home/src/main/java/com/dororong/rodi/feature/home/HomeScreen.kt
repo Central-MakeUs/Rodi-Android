@@ -101,6 +101,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
@@ -108,12 +109,13 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
+import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.HomeSearchBar
 import com.dororong.rodi.feature.home.components.MapListButton
-import com.dororong.rodi.feature.home.components.MapLoadingScreen
-import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
+import com.dororong.rodi.core.ui.components.map.MapLoadingScreen
+import com.dororong.rodi.core.ui.components.map.MapNetworkErrorScreen
 import com.dororong.rodi.feature.home.components.MapResearchButton
 import com.dororong.rodi.feature.home.components.MyLocationButton
 import com.dororong.rodi.feature.home.components.NaviPickerMode
@@ -136,11 +138,14 @@ import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.currentLocationUpdates
+import androidx.core.app.ActivityCompat
+import com.dororong.rodi.core.ui.permission.findActivity
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
+import com.dororong.rodi.core.ui.permission.openAppSettings
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
-import com.dororong.rodi.feature.home.network.isNetworkAvailable
-import com.dororong.rodi.feature.home.network.networkAvailabilityFlow
+import com.dororong.rodi.core.ui.network.isNetworkAvailable
+import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
@@ -189,6 +194,7 @@ import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -217,8 +223,12 @@ private val BOTTOM_CONTROL_SHEET_GAP = 12.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
+
+/** 오프라인이 이만큼 이어지면 지도를 덮고 안내 화면을 띄운다. */
+internal const val MAP_NETWORK_ERROR_GRACE_MILLIS = 3_000L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
-private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+// 주차장 상세는 내용 길이와 무관하게 코스 상세와 같은 높이로 고정한다.
+private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
 // HomeSearchBar가 지도 위에 statusBarsPadding() + vertical 5dp로 떠 있는 만큼. 경로 핏 계산에
 // 이 높이를 반영하지 않으면 세로로 긴 코스의 출발지·도착지 마커가 검색창 뒤에 가려진다.
 private val MAP_SEARCH_BAR_TOP_INSET = 5.dp + 46.dp
@@ -301,10 +311,11 @@ fun HomeScreen(
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
     var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
+    // 최초 진입이 오프라인이어도 여기서 곧장 NetworkError로 시작하지 않는다 — 그러면 아래
+    // LaunchedEffect(isOnline)의 3초 유예를 건너뛰게 된다. 유예는 그 이펙트가 책임진다.
     var mapScreenState by remember {
         mutableStateOf(
             when {
-                !isOnline -> MapScreenState.NetworkError
                 hasLoadedMapInSession || context.hasLoadedMapBefore() -> MapScreenState.Ready
                 else -> MapScreenState.Loading
             },
@@ -409,7 +420,17 @@ fun HomeScreen(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         permissionGranted = result.values.any { it }
-        if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
+        if (!permissionGranted) {
+            initialLocationState = InitialLocationState.Unavailable
+            // 영구 거부 상태면 launch가 창도 못 띄우고 바로 거부로 끝난다. 그때는 설정으로 보낸다.
+            val canAskAgain = context.findActivity()?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    it,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                )
+            } ?: false
+            if (!canAskAgain) context.openAppSettings()
+        }
     }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -428,9 +449,13 @@ fun HomeScreen(
                 if (missingPermissions.isEmpty()) {
                     launchDriving(pending)
                 } else {
-                    snackbarHostState.show(
-                        RodiSnackbarData(message = missingPermissions.deniedDrivingPermissionMessage()),
-                    )
+                    // 권한을 못 받으면 추적 없이 경로만 띄운다("경로만 보기"와 같은 결과).
+                    // 필요성은 이미 팝업으로 안내했으니 토스트까지 겹쳐 띄우지 않는다.
+                    when (pending) {
+                        is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, pending.place)
+                        is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, pending.place)
+                        else -> Unit
+                    }
                 }
             }
         }
@@ -440,6 +465,9 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
+                // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
+                // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
+                reviewVm.refresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -689,7 +717,7 @@ fun HomeScreen(
 
     fun retryMap() {
         if (!isOnline) {
-            if (!hasMapLoadedThisEntry) mapScreenState = MapScreenState.NetworkError
+            mapScreenState = MapScreenState.NetworkError
             return
         }
 
@@ -736,15 +764,16 @@ fun HomeScreen(
         networkAvailabilityFlow(context).collect { isOnline = it }
     }
 
+    // 끊기자마자 지도를 덮으면 잠깐 끊겼다 붙는 구간에서 화면이 번쩍인다. 토스트는 바로,
+    // 안내 화면은 유예 시간을 넘겨 계속 끊겨 있을 때만 덮는다(iOS와 동일).
+    // isOnline이 다시 true가 되면 이 이펙트가 재시작되며 delay가 취소돼 원래 화면으로 돌아온다.
     LaunchedEffect(isOnline) {
-        when {
-            isOnline ->
-                if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
-            hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
-            else -> {
-                showMapNetworkSnackbar = true
-                mapScreenState = MapScreenState.NetworkError
-            }
+        if (isOnline) {
+            if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
+        } else {
+            showMapNetworkSnackbar = true
+            delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
+            mapScreenState = MapScreenState.NetworkError
         }
     }
 
@@ -994,9 +1023,16 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                showMapNetworkSnackbar = true
-                                                if (!hasMapLoadedThisEntry) {
-                                                    mapScreenState = MapScreenState.NetworkError
+                                                // SDK 초기화·렌더링 실패도 이 콜백을 타므로, 온라인
+                                                // 상태에서까지 "네트워크 연결이 원활하지 않아요"로
+                                                // 안내하면 원인과 다른 메시지가 뜬다.
+                                                if (isOnline) {
+                                                    showMapNetworkSnackbar = false
+                                                    mapScreenState = MapScreenState.Error
+                                                } else {
+                                                    // 오프라인 안내 화면 전환은 3초 유예를 갖고 있는
+                                                    // LaunchedEffect(isOnline)에 맡긴다.
+                                                    showMapNetworkSnackbar = true
                                                 }
                                             }
                                         },
@@ -1367,7 +1403,7 @@ fun HomeScreen(
                                 .then(
                                     if (selectedPlace?.type == PlaceType.PARKING) {
                                         Modifier
-                                            .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                            .height(PARKING_DETAIL_SHEET_HEIGHT)
                                             .onSizeChanged { size ->
                                                 selectedDetailPlaceId?.let { placeId ->
                                                     parkingSheetLayout = parkingSheetLayout
@@ -1411,6 +1447,10 @@ fun HomeScreen(
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
                     MapScreenState.NetworkError -> MapNetworkErrorScreen()
+                    MapScreenState.Error -> HomeMapErrorOverlay(
+                        modifier = Modifier.align(Alignment.Center),
+                        onRetry = ::retryMap,
+                    )
                     MapScreenState.Ready -> Unit
                 }
 
@@ -1471,6 +1511,7 @@ fun HomeScreen(
             reviewId = review.reviewId,
             onClose = { reviewToReport = null },
             modifier = Modifier.fillMaxSize(),
+            onReported = reviewVm::excludeReportedReview,
         )
     }
     reviewToWrite?.let { target ->
@@ -1932,5 +1973,25 @@ private fun FullListHeaderPreview() {
                 modifier = Modifier.height(FULL_LIST_HEADER_HEIGHT),
             )
         }
+    }
+}
+
+@Composable
+private fun HomeMapErrorOverlay(modifier: Modifier = Modifier, onRetry: () -> Unit) {
+    Column(
+        modifier = modifier
+            .background(RodiTheme.colors.white, RoundedCornerShape(RodiRadius.md))
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("지도를 불러오지 못했어요", style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.black)
+        Spacer(Modifier.height(12.dp))
+        RodiButton(
+            text = "다시 시도",
+            onClick = onRetry,
+            fillMaxWidth = false,
+            modifier = Modifier.width(120.dp),
+            height = 42.dp,
+        )
     }
 }

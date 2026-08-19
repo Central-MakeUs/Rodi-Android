@@ -2,6 +2,8 @@ package com.dororong.rodi.feature.course.registration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.takeGraphemes
+import com.dororong.rodi.core.common.takeGraphemesWithinCodeUnits
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
 import com.dororong.rodi.core.domain.model.course.CoursePoint
@@ -122,10 +124,16 @@ class CourseRegistrationViewModel @Inject constructor(
                     return@launch
                 }
                 val draft = draftRepository.observe().first()
+                val restoredWaypoints = normalizeWaypoints(draft?.waypoints.orEmpty())
                 val initialPage = if (session.isCourseTutorialCompleted) {
                     CourseRegistrationPage.Map
                 } else {
                     CourseRegistrationPage.Tutorial
+                }
+                val (initialCenter, initialLocationState) = if (initialPage == CourseRegistrationPage.Map) {
+                    initialMapLocationState(restoredWaypoints)
+                } else {
+                    null to InitialLocationState.NotRequested
                 }
                 _state.update {
                     it.copy(
@@ -136,7 +144,9 @@ class CourseRegistrationViewModel @Inject constructor(
                         tutorialLoadState = CourseTutorialLoadState.Ready,
                         draft = draft,
                         isDraftRestored = true,
-                        waypoints = normalizeWaypoints(draft?.waypoints.orEmpty()),
+                        waypoints = restoredWaypoints,
+                        mapCenter = initialCenter,
+                        initialLocationState = initialLocationState,
                         selectedPracticeTypeCodes = draft?.selectedPracticeTypeCodes.orEmpty(),
                         caution = draft?.caution.orEmpty(),
                         description = draft?.description.orEmpty(),
@@ -203,11 +213,15 @@ class CourseRegistrationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 memberRepository.completeCourseTutorial()
+                val currentWaypoints = _state.value.waypoints
+                val (initialCenter, initialLocationState) = initialMapLocationState(currentWaypoints)
                 _state.update {
                     it.copy(
                         tutorialCompleted = true,
                         tutorialLoadState = CourseTutorialLoadState.Ready,
                         page = CourseRegistrationPage.Map,
+                        mapCenter = initialCenter,
+                        initialLocationState = initialLocationState,
                     )
                 }
                 loadRegistrationFormIfNeeded()
@@ -263,6 +277,11 @@ class CourseRegistrationViewModel @Inject constructor(
                 caution = "",
                 description = "",
                 page = CourseRegistrationPage.Map,
+                // 복원했던 임시저장본의 mapCenter·initialLocationState를 그대로 두면, 버린 뒤에도
+                // 옛 출발지 좌표가 남거나(완료된 튜토리얼에서 복원한 경우) 지도가 아예 안 뜬다
+                // (튜토리얼 중 복원해 위치 요청이 아직 시작되지 않은 경우). 새 흐름처럼 다시 요청한다.
+                mapCenter = null,
+                initialLocationState = InitialLocationState.Requesting,
             )
         }
     }
@@ -313,6 +332,11 @@ class CourseRegistrationViewModel @Inject constructor(
                 )
             }
             RegistrationWaypointType.DESTINATION -> {
+                val start = current.firstOrNull { it.type == RegistrationWaypointType.START }
+                if (start != null && start.lat == intent.point.lat && start.lng == intent.point.lng) {
+                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
+                    return
+                }
                 current.removeAll { it.type == RegistrationWaypointType.DESTINATION }
                 current.add(
                     RegistrationWaypoint(
@@ -437,7 +461,18 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun mapCenterChanged(point: GeoPoint) {
-        _state.update { it.copy(mapCenter = point) }
+        _state.update {
+            it.copy(
+                mapCenter = point,
+                initialLocationState = if (it.initialLocationState == InitialLocationState.Unavailable ||
+                    it.initialLocationState == InitialLocationState.Requesting
+                ) {
+                    InitialLocationState.Resolved
+                } else {
+                    it.initialLocationState
+                },
+            )
+        }
         if (!_state.value.isSearchVisible) {
             loadPendingAddress(point)
         }
@@ -448,6 +483,7 @@ class CourseRegistrationViewModel @Inject constructor(
             it.copy(
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                initialLocationState = InitialLocationState.Resolved,
             )
         }
         if (_state.value.editingWaypointIndex == null) {
@@ -456,6 +492,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun locationUnavailable() {
+        _state.update { it.copy(initialLocationState = InitialLocationState.Unavailable) }
         _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
@@ -714,6 +751,7 @@ class CourseRegistrationViewModel @Inject constructor(
                         searchError = null,
                         mapCenter = point,
                         mapCenterGeneration = it.mapCenterGeneration + 1,
+                        initialLocationState = InitialLocationState.Resolved,
                     )
                 }
             } catch (error: CancellationException) {
@@ -775,13 +813,13 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun updateCaution(value: String) {
         val max = _state.value.registrationForm?.cautionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(caution = value.take(max)) }
+        _state.update { it.copy(caution = value.limitForServer(max)) }
         persistDraft()
     }
 
     private fun updateDescription(value: String) {
         val max = _state.value.registrationForm?.descriptionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(description = value.take(max)) }
+        _state.update { it.copy(description = value.limitForServer(max)) }
         persistDraft()
     }
 
@@ -1020,4 +1058,23 @@ class CourseRegistrationViewModel @Inject constructor(
         val maxWaypoints = _state.value.registrationForm?.maxWaypoints ?: Int.MAX_VALUE
         return waypoints.count { it.type == RegistrationWaypointType.VIA } >= maxWaypoints.coerceAtLeast(0)
     }
+
+    private fun initialMapLocationState(
+        waypoints: List<RegistrationWaypoint>,
+    ): Pair<GeoPoint?, InitialLocationState> {
+        val firstWaypoint = waypoints.firstOrNull()
+        return if (firstWaypoint != null) {
+            GeoPoint(firstWaypoint.lat, firstWaypoint.lng) to InitialLocationState.Resolved
+        } else {
+            null to InitialLocationState.Requesting
+        }
+    }
 }
+
+/**
+ * 화면에는 사용자가 세는 단위(grapheme)로 [max]자까지 받되, 서버가 UTF-16 code unit으로
+ * 길이를 검증하므로 code unit 합도 [max]를 넘지 않게 자른다. take()로 자르면 이모지의
+ * 서로게이트 쌍이 중간에서 쪼개져 깨진 글자가 남는다.
+ */
+private fun String.limitForServer(max: Int): String =
+    takeGraphemes(max).takeGraphemesWithinCodeUnits(max)

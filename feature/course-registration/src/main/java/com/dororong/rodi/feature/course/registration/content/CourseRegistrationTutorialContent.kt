@@ -19,12 +19,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,6 +46,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.R
@@ -89,7 +92,7 @@ private val tutorialPages = listOf(
     TutorialPage(
         title = "위치 수정 시 해당 핀을 눌러주세요",
         subtitle = "‘핀 수정하기’ 화면으로 이동할 수 있어요.",
-        tooltip = "선택한 핀을 누르면 위치를 수정할 수 있어요.",
+        tooltip = "선택한 핀을 누르면 위치를 수정할 수 있어요",
         image = R.drawable.illust_course_registration_tutorial_pin,
         tooltipAlignment = Alignment.Center,
         dimTopFraction = 231.043f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT,
@@ -97,7 +100,8 @@ private val tutorialPages = listOf(
     ),
 )
 
-private val TUTORIAL_BOX_HORIZONTAL_PADDING = 36.5.dp
+// 목업 박스는 375dp 화면에서 270dp다(디자인 4165:11775). 좌우 여백은 그 나머지 절반.
+private val TUTORIAL_BOX_HORIZONTAL_PADDING = 52.5.dp
 private val TUTORIAL_BOX_TOP_PADDING = 28.dp
 private const val TUTORIAL_BOX_ASPECT_RATIO = 270f / TUTORIAL_MOCKUP_REFERENCE_HEIGHT
 
@@ -131,7 +135,12 @@ fun CourseRegistrationTutorialContent(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        TutorialTopBar(onBack = onBack)
+        TutorialTopBar(
+            onBack = onBack,
+            onComplete = onComplete.takeIf {
+                !isError && pagerState.currentPage == tutorialPages.lastIndex && !isCompleting
+            },
+        )
         if (isError) {
             TutorialError(onRetry = onRetry)
         } else {
@@ -143,20 +152,12 @@ fun CourseRegistrationTutorialContent(
             ) { index ->
                 TutorialPageContent(page = tutorialPages[index])
             }
-            if (pagerState.currentPage == tutorialPages.lastIndex) {
-                RodiButton(
-                    text = "완료",
-                    onClick = onComplete,
-                    enabled = !isCompleting,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun TutorialTopBar(onBack: () -> Unit) {
+private fun TutorialTopBar(onBack: () -> Unit, onComplete: (() -> Unit)?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -164,28 +165,47 @@ private fun TutorialTopBar(onBack: () -> Unit) {
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                .clickable(onClick = onBack)
-                .semantics {
-                    contentDescription = "이전"
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        RodiIconButton(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
+            contentDescription = "이전",
+            tint = RodiTheme.colors.black,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
         Text(
             text = "코스 등록 방법",
             style = RodiTheme.typography.headline1,
             color = RodiTheme.colors.black,
         )
+        // 마지막 장의 완료는 하단 버튼이 아니라 앱바 오른쪽 체크다(디자인 4165:11817).
+        onComplete?.let { complete ->
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .offset(x = 12.dp)
+                    .requiredSize(48.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = complete)
+                    .semantics {
+                        contentDescription = "튜토리얼 완료"
+                        role = Role.Button
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(RodiTheme.colors.primary600, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.ic_registration_check_16),
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
     }
 }
 

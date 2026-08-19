@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,8 @@ import kotlinx.coroutines.launch
 fun CourseRegistrationCurrentLocationButton(
     onIntent: (CourseRegistrationIntent) -> Unit,
     modifier: Modifier = Modifier,
+    autoRequest: Boolean = false,
+    visible: Boolean = true,
 ) {
     val context = LocalContext.current
     if (LocalInspectionMode.current) {
@@ -72,6 +75,14 @@ fun CourseRegistrationCurrentLocationButton(
             else onIntent(CourseRegistrationIntent.CurrentLocationSelected(point))
         }
     }
+
+    LaunchedEffect(autoRequest) {
+        if (autoRequest) {
+            loadCurrentLocation()
+        }
+    }
+
+    if (!visible) return
 
     CourseRegistrationCurrentLocationVisual(
         modifier = modifier,

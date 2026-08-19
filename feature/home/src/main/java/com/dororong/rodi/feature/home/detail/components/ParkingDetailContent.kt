@@ -113,8 +113,9 @@ fun ParkingDetailContent(
         }
 
         Column(
+            // 시트 높이가 고정이라 본문이 남는 공간을 채워야 하단 버튼이 바닥에 붙는다.
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, top = 7.dp, end = 16.dp, bottom = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
