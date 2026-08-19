@@ -651,7 +651,7 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+    val handleSystemBack: () -> Unit = {
         if (state.isFilterSheetVisible) {
             if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
         } else {
@@ -660,6 +660,9 @@ fun HomeScreen(
                 else -> vm.onIntent(HomeIntent.OnListCollapse)
             }
         }
+    }
+    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        handleSystemBack()
     }
 
     CollectEffect(vm.effect) { effect ->
@@ -1167,11 +1170,15 @@ fun HomeScreen(
 
                         HomeSearchBar(
                             onClick = {
-                                vm.onIntent(
-                                    HomeIntent.OnSearchClick(
-                                        currentViewport?.toQuery(currentLocation)?.origin,
-                                    ),
-                                )
+                                if (state.searchKeyword != null) {
+                                    handleSystemBack()
+                                } else {
+                                    vm.onIntent(
+                                        HomeIntent.OnSearchClick(
+                                            currentViewport?.toQuery(currentLocation)?.origin,
+                                        ),
+                                    )
+                                }
                             },
                             searchKeyword = state.searchKeyword,
                             modifier = Modifier

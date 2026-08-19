@@ -695,13 +695,16 @@ class HomeViewModel @Inject constructor(
 
     private fun collapseList() {
         _state.update {
-            it.copy(
-                surfaceState = when (it.surfaceState) {
-                    HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
-                    HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
-                    else -> it.surfaceState
-                },
-            )
+            val nextSurface = when (it.surfaceState) {
+                HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
+                HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
+                else -> it.surfaceState
+            }
+            if (nextSurface == HomeSurfaceState.Navigation && it.regionSearch != null) {
+                it.copy(surfaceState = nextSurface, searchKeyword = null, regionSearch = null)
+            } else {
+                it.copy(surfaceState = nextSurface)
+            }
         }
     }
 
