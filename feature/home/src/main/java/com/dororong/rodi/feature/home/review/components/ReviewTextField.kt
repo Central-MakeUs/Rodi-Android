@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 
 @Composable
 fun ReviewTextField(
@@ -46,7 +47,7 @@ fun ReviewTextField(
             .height(if (multiline) 100.dp else 50.dp)
             .border(
                 width = 1.dp,
-                color = if (isFocused) RodiTheme.colors.gray900 else RodiTheme.colors.gray300,
+                color = rodiInputBorderColor(isFocused),
                 shape = RoundedCornerShape(8.dp),
             ),
         singleLine = !multiline,

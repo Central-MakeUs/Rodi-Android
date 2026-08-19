@@ -34,6 +34,7 @@ import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 import com.dororong.rodi.feature.mypage.drivinggoal.DRIVING_GOAL_MAX_LENGTH
 
 @Composable
@@ -67,15 +68,7 @@ internal fun DrivingGoalInput(
                 .height(52.dp)
                 .focusRequester(focusRequester)
                 .onFocusChanged { isFocused = it.isFocused }
-                .border(
-                    width = 1.dp,
-                    color = if (isFocused || textFieldState.value.text.isBlank()) {
-                        RodiTheme.colors.black
-                    } else {
-                        RodiTheme.colors.gray300
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                )
+                .border(1.dp, rodiInputBorderColor(isFocused), RoundedCornerShape(8.dp))
                 .padding(horizontal = 16.dp),
             decorationBox = { innerTextField ->
                 Box(contentAlignment = Alignment.CenterStart) { innerTextField() }

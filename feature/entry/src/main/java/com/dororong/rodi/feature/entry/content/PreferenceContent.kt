@@ -34,6 +34,7 @@ import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.RodiOrderBadge
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -203,8 +204,8 @@ private fun GoalQuestion(
             textStyle = RodiTheme.typography.body3Medium,
             shape = RoundedCornerShape(RodiRadius.sm),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = RodiTheme.colors.gray900,
-                unfocusedBorderColor = RodiTheme.colors.gray300,
+                focusedBorderColor = rodiInputBorderColor(focused = true),
+                unfocusedBorderColor = rodiInputBorderColor(focused = false),
                 focusedTextColor = RodiTheme.colors.black,
                 unfocusedTextColor = RodiTheme.colors.black,
                 cursorColor = RodiTheme.colors.primary600,

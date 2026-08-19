@@ -57,6 +57,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.detail.reviewactions.ReportReasonRow
 import com.dororong.rodi.feature.home.review.reviewBottomBarInsets
@@ -361,7 +362,7 @@ private fun NotVisitedDetailInput(
             .height(50.dp)
             .border(
                 width = 1.dp,
-                color = if (isFocused) RodiTheme.colors.gray900 else RodiTheme.colors.gray300,
+                color = rodiInputBorderColor(isFocused),
                 shape = RoundedCornerShape(8.dp),
             ),
         decorationBox = { innerTextField ->
