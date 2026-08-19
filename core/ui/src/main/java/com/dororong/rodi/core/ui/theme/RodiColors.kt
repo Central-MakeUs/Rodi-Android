@@ -33,6 +33,11 @@ data class RodiColors(
     val pointRed: Color,
     val pointOrange: Color,
     val pointYellow: Color,
+    // Info (승인·반려 상태 배지)
+    val infoApproval: Color,
+    val infoBgMint: Color,
+    val infoCancel: Color,
+    val infoBgPink: Color,
     // Gray
     val gray50: Color,
     val gray100: Color,
@@ -75,6 +80,10 @@ val LightRodiColors = RodiColors(
     pointRed = Color(0xFFC51D23),
     pointOrange = Color(0xFFFF8453),
     pointYellow = Color(0xFFFFB200),
+    infoApproval = Color(0xFF04B3AA),
+    infoBgMint = Color(0xFFE4FAF7),
+    infoCancel = Color(0xFFFF3019),
+    infoBgPink = Color(0xFFFFEDF6),
     gray50 = Color(0xFFFAFAFA),
     gray100 = Color(0xFFF5F5F5),
     gray200 = Color(0xFFEFEFEF),

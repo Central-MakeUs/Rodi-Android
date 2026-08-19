@@ -157,6 +157,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
+            HomeIntent.OnRegisterClick -> openCourseRegistration()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
             is HomeIntent.OnRegionSearch -> prepareRegionSearch(intent.region, intent.initialPlaces)
             HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
@@ -407,6 +408,9 @@ class HomeViewModel @Inject constructor(
             is PendingHomeAction.OpenDetail -> openPlace(action.placeId, action.origin)
             PendingHomeAction.ToggleBookmark -> toggleBookmark()
             PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
+            PendingHomeAction.OpenCourseRegistration -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateCourseRegistration)
+            }
             is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
             is PendingHomeAction.SaveFilterTags -> saveFilterTags(action.filterTags)
         }
@@ -503,6 +507,16 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateMyPage)
             } else {
                 requireLogin(PendingHomeAction.OpenMyPage)
+            }
+        }
+    }
+
+    private fun openCourseRegistration() {
+        viewModelScope.launch {
+            if (isLoggedIn()) {
+                _effect.send(HomeEffect.NavigateCourseRegistration)
+            } else {
+                requireLogin(PendingHomeAction.OpenCourseRegistration)
             }
         }
     }

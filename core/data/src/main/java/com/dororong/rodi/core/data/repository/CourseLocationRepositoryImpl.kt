@@ -159,7 +159,7 @@ class CourseLocationRepositoryImpl @Inject constructor(
         val normalized = region.trim()
         return CourseLocationSuggestion(
             id = "server-region-${normalized.hashCode()}",
-            title = normalized.substringAfterLast(' ').ifBlank { normalized },
+            title = normalized,
             address = normalized,
             point = null,
             kind = CourseLocationKind.REGION,
@@ -185,7 +185,7 @@ class CourseLocationRepositoryImpl @Inject constructor(
         val point = document.toPoint() ?: return null
         return CourseLocationSuggestion(
             id = "kakao-region-${document.x}-${document.y}",
-            title = address.substringAfterLast(' ').ifBlank { address },
+            title = address,
             address = address,
             point = point,
             kind = CourseLocationKind.REGION,
