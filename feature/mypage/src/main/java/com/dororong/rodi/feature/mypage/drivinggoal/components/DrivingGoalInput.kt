@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.mypage.drivinggoal.DRIVING_GOAL_MAX_LENGTH
 
 @Composable
@@ -52,7 +53,7 @@ internal fun DrivingGoalInput(
             value = textFieldState.value,
             onValueChange = textFieldState.onValueChange,
             textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
-            cursorBrush = SolidColor(RodiTheme.colors.black),
+            cursorBrush = rodiCursorBrush(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(

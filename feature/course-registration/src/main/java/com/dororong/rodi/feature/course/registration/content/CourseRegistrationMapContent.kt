@@ -70,6 +70,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.course.registration.CourseMapLoadState
 import com.dororong.rodi.feature.course.registration.CourseRegistrationIntent
 import com.dororong.rodi.feature.course.registration.CourseRegistrationLoadingIndicator
@@ -627,7 +628,7 @@ private fun CourseRegistrationSearchField(
             modifier = Modifier.weight(1f),
             textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
             singleLine = true,
-            cursorBrush = SolidColor(RodiTheme.colors.black),
+            cursorBrush = rodiCursorBrush(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             keyboardActions = KeyboardActions(onSearch = { onSubmit() }),
             decorationBox = { inner ->

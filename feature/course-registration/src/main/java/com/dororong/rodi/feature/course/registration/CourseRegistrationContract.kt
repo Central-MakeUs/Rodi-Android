@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.course.registration
 
+import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSearchResult
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
@@ -129,7 +130,9 @@ data class CourseRegistrationUiState(
     val descriptionMeetsRegisterLength: Boolean
         get() {
             val minLength = registrationForm?.descriptionInput?.minLength ?: return true
-            return description.count { !it.isWhitespace() } >= minLength
+            // 카운터와 같은 단위(grapheme)로 센다. code unit으로 세면 이모지가 2로 잡혀
+            // 화면의 글자 수와 완료 버튼 활성화 기준이 어긋난다.
+            return description.filterNot(Char::isWhitespace).graphemeLength() >= minLength
         }
 
     val isDraftMeaningful: Boolean

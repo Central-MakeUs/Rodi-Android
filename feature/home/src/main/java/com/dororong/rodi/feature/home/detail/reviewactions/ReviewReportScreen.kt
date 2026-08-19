@@ -52,6 +52,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 
 @Composable
 fun ReviewReportScreen(
@@ -318,7 +319,7 @@ private fun ReportDetailInput(
         onValueChange = textFieldState.onValueChange,
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         singleLine = true,
-        cursorBrush = SolidColor(RodiTheme.colors.primary600),
+        cursorBrush = rodiCursorBrush(),
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)

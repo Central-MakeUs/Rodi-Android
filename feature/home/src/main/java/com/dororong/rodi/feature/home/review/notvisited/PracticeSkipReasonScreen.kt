@@ -56,6 +56,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.detail.reviewactions.ReportReasonRow
 import com.dororong.rodi.feature.home.review.reviewBottomBarInsets
@@ -354,7 +355,7 @@ private fun NotVisitedDetailInput(
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         singleLine = true,
         interactionSource = interactionSource,
-        cursorBrush = SolidColor(RodiTheme.colors.primary600),
+        cursorBrush = rodiCursorBrush(),
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)

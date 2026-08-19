@@ -63,6 +63,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.search.SearchEffect
@@ -193,7 +194,7 @@ private fun SearchInput(
             value = textFieldState.value,
             onValueChange = textFieldState.onValueChange,
             textStyle = RodiTheme.typography.body2Medium.copy(color = RodiTheme.colors.black),
-            cursorBrush = SolidColor(RodiTheme.colors.black),
+            cursorBrush = rodiCursorBrush(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onImeSearch() }),

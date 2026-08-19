@@ -23,6 +23,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 
 @Composable
 fun ReviewTextField(
@@ -50,7 +51,7 @@ fun ReviewTextField(
             ),
         singleLine = !multiline,
         interactionSource = interactionSource,
-        cursorBrush = SolidColor(RodiTheme.colors.primary600),
+        cursorBrush = rodiCursorBrush(),
         decorationBox = { innerTextField ->
             Box(
                 modifier = Modifier
