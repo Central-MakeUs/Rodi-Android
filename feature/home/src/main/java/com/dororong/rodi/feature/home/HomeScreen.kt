@@ -112,8 +112,8 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.HomeSearchBar
 import com.dororong.rodi.feature.home.components.MapListButton
-import com.dororong.rodi.feature.home.components.MapLoadingScreen
-import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
+import com.dororong.rodi.core.ui.components.map.MapLoadingScreen
+import com.dororong.rodi.core.ui.components.map.MapNetworkErrorScreen
 import com.dororong.rodi.feature.home.components.MapResearchButton
 import com.dororong.rodi.feature.home.components.MyLocationButton
 import com.dororong.rodi.feature.home.components.NaviPickerMode
@@ -142,8 +142,8 @@ import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.openAppSettings
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
-import com.dororong.rodi.feature.home.network.isNetworkAvailable
-import com.dororong.rodi.feature.home.network.networkAvailabilityFlow
+import com.dororong.rodi.core.ui.network.isNetworkAvailable
+import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
@@ -710,7 +710,7 @@ fun HomeScreen(
 
     fun retryMap() {
         if (!isOnline) {
-            if (!hasMapLoadedThisEntry) mapScreenState = MapScreenState.NetworkError
+            mapScreenState = MapScreenState.NetworkError
             return
         }
 
@@ -761,7 +761,8 @@ fun HomeScreen(
         when {
             isOnline ->
                 if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
-            hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
+            // 이미 그려진 지도를 남겨두고 토스트만 띄우면 iOS와 화면이 달라진다(QA 4168:16570).
+            // 오프라인이면 진입 시점과 무관하게 안내 화면을 덮는다.
             else -> {
                 showMapNetworkSnackbar = true
                 mapScreenState = MapScreenState.NetworkError

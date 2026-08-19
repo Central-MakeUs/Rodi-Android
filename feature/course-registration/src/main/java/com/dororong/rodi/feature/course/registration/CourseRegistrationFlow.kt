@@ -11,7 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -19,10 +23,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.map.MapNetworkErrorScreen
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.core.ui.network.isNetworkAvailable
+import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.components.CourseRegistrationDialogHost
 import com.dororong.rodi.feature.course.registration.components.CourseRegistrationSubmissionLoadingDialog
@@ -41,6 +50,30 @@ fun CourseRegistrationFlow(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
+    val context = LocalContext.current
+    var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
+    LaunchedEffect(Unit) {
+        networkAvailabilityFlow(context).collect { isOnline = it }
+    }
+    // 오프라인이면 홈과 같은 안내 화면 + 재시도 스낵바를 띄운다(QA 4168:16565).
+    val networkErrorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            snackbarHostState.dismiss(MAP_NETWORK_SNACKBAR_ID)
+            viewModel.onIntent(CourseRegistrationIntent.Retry)
+        } else {
+            snackbarHostState.showImmediately(
+                RodiSnackbarData(
+                    id = MAP_NETWORK_SNACKBAR_ID,
+                    message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
+                    icon = networkErrorIcon,
+                    duration = RodiSnackbarDuration.Indefinite,
+                    actionLabel = "새로고침",
+                    onAction = { viewModel.onIntent(CourseRegistrationIntent.Retry) },
+                ),
+            )
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.effect.collect { effect ->
@@ -120,6 +153,9 @@ fun CourseRegistrationFlow(
                     },
                 )
             }
+            if (!isOnline && state.page == CourseRegistrationPage.Map) {
+                MapNetworkErrorScreen()
+            }
             if (state.isSubmitting) {
                 CourseRegistrationSubmissionLoadingDialog()
             } else state.dialog?.let { dialog ->
@@ -161,3 +197,5 @@ private fun CourseRegistrationLoginGate(onLoginRequired: () -> Unit) {
 private fun CourseRegistrationLoadingScreenPreview() {
     RodiTheme { CourseRegistrationLoadingScreen() }
 }
+
+private const val MAP_NETWORK_SNACKBAR_ID = "course-registration-map-network"

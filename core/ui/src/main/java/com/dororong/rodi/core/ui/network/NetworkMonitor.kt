@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home.network
+package com.dororong.rodi.core.ui.network
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 /**
  * `ConnectivityManager`의 기본 네트워크 콜백을 관찰해 인터넷 연결 가능 여부를 흘려보낸다.
  * 지도가 오프라인 상태에서 벗어났을 때 자동으로 재시도를 트리거하기 위해 쓴다.
- * `ACCESS_NETWORK_STATE`는 :app 매니페스트에서 선언한다(다른 feature:home 위치 코드와 동일 패턴).
+ * `ACCESS_NETWORK_STATE`는 :app 매니페스트에서 선언한다(앱 모듈에서만 선언).
  */
 @SuppressLint("MissingPermission")
 fun networkAvailabilityFlow(context: Context): Flow<Boolean> = callbackFlow {
