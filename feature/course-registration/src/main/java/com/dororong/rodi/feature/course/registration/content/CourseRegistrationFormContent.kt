@@ -73,6 +73,7 @@ import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 import com.dororong.rodi.feature.course.registration.CourseRegistrationFormLoadState
 import com.dororong.rodi.feature.course.registration.CourseRegistrationIntent
 
@@ -98,8 +99,7 @@ fun CourseRegistrationFormContent(
         modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
-            .statusBarsPadding()
-            .imePadding(),
+            .statusBarsPadding(),
     ) {
         CourseRegistrationFormTopBar(onBack = onBack)
         when (loadState) {
@@ -178,7 +178,8 @@ private fun CourseRegistrationFormFields(
             top = 24.dp,
             bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        // 섹션 사이 40dp. 디자인(4164:11572) 기준으로, 24dp일 때 "기본정보"와 첫 섹션이 붙어 보였다.
+        verticalArrangement = Arrangement.spacedBy(40.dp),
     ) {
         item {
             Text(
@@ -302,11 +303,7 @@ private fun RodiInputField(
     val valid = if (value.isBlank()) !spec.required else graphemeCount <= spec.maxLength
     val shape = RoundedCornerShape(RodiRadius.sm)
     val showError = (showValidationError || hasInteracted) && !valid
-    val borderColor = when {
-        showError -> RodiTheme.colors.pointRed
-        isFocused -> RodiTheme.colors.primary600
-        else -> RodiTheme.colors.gray300
-    }
+    val borderColor = if (showError) RodiTheme.colors.pointRed else rodiInputBorderColor(isFocused)
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         BasicTextField(
             value = value,
@@ -355,7 +352,7 @@ private fun RodiInputField(
                 }
                 if (showCounter) {
                     Text(
-                        text = "$graphemeCount/${spec.maxLength}",
+                        text = "$graphemeCount /${spec.maxLength}",
                         style = RodiTheme.typography.caption2Regular,
                         color = RodiTheme.colors.gray500,
                     )
@@ -386,7 +383,10 @@ private fun CourseRegistrationFormSubmitBar(enabled: Boolean, onSubmit: () -> Un
         modifier = Modifier
             .fillMaxWidth()
             .background(RodiTheme.colors.white)
-            .navigationBarsPadding(),
+            // 키보드가 올라오면 ime 인셋만 남기고 내비바 인셋은 흡수시킨다. 둘을 따로 주면
+            // 키보드 위로 내비바 높이만큼 흰 여백이 떠 보인다.
+            .navigationBarsPadding()
+            .imePadding(),
     ) {
         HorizontalDivider(color = RodiTheme.colors.gray200, thickness = 1.dp)
         Box(Modifier.fillMaxWidth().padding(horizontal = RodiSpacing.md, vertical = 10.dp)) {
