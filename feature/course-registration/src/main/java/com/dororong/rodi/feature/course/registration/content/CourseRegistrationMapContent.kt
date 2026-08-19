@@ -484,6 +484,7 @@ private fun WaypointActionIcon(
     modifier: Modifier = Modifier,
 ) {
     val strokeColor = if (enabled) RodiTheme.colors.gray600 else RodiTheme.colors.gray300
+    val backgroundColor = RodiTheme.colors.white
     Box(
         modifier = modifier
             .requiredSize(48.dp)
@@ -498,6 +499,8 @@ private fun WaypointActionIcon(
         Canvas(Modifier.size(24.dp)) {
             val stroke = 1.dp.toPx()
             val center = Offset(size.width / 2f, size.height / 2f)
+            // 두 칸 경계에 걸쳐 놓기 때문에 배경을 깔지 않으면 칸 테두리가 아이콘을 관통한다.
+            drawCircle(color = backgroundColor, radius = size.minDimension / 2f)
             drawLine(
                 color = strokeColor,
                 start = Offset(center.x - 5.dp.toPx(), center.y),
