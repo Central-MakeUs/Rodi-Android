@@ -344,7 +344,7 @@ private fun RegisteredCourseFilters(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 28.dp, end = 16.dp),
+                        .padding(top = 48.dp, end = 16.dp),
                 ) {
                     RegisteredCourseFilterMenuSurface(
                         selectedFilter = selectedFilter,
@@ -418,7 +418,8 @@ private class RegisteredCourseFilterPopupPositionProvider(
             0,
             (windowSize.width - popupContentSize.width).coerceAtLeast(0),
         )
-        val y = (anchorBounds.top + with(density) { 28.dp.roundToPx() }).coerceIn(
+        // 28dp를 쓰면 메뉴가 "전체" 라벨 아래쪽을 덮는다. 앵커 행 아래에서 시작한다.
+        val y = anchorBounds.bottom.coerceIn(
             0,
             (windowSize.height - popupContentSize.height).coerceAtLeast(0),
         )

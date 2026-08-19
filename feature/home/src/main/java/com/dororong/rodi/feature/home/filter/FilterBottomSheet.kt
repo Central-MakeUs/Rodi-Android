@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -146,10 +147,12 @@ private fun FilterBottomSheetContent(
     onApply: () -> Unit,
     isSaving: Boolean,
 ) {
+    // 연습유형 칩이 여러 줄로 늘어나면 시트가 같이 길어져야 한다. 높이를 고정하면
+    // 마지막 줄이 하단 버튼 바에 잘려 들어간다.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(401.dp),
+            .heightIn(min = 401.dp),
     ) {
         Box(
             modifier = Modifier
@@ -202,7 +205,7 @@ private fun FilterBottomSheetContent(
             FlowRow(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 16.dp, end = 16.dp, top = 219.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 219.dp, bottom = BottomBarHeight),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -389,3 +392,6 @@ private fun FilterPracticeOption.isSelected(
     FilterPracticeOption.ALL -> category.practiceTypes().all(selectedPracticeTypes::contains)
     else -> practiceType in selectedPracticeTypes
 }
+
+/** 시트 하단 고정 영역(구분선 + 버튼 행 + 홈 인디케이터) 높이. */
+private val BottomBarHeight = 104.dp
