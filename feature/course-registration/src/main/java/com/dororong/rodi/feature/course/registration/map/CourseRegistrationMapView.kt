@@ -80,6 +80,7 @@ fun CourseRegistrationMapView(
     val currentMapTapped by rememberUpdatedState(onMapTapped)
     val currentWaypointTapped by rememberUpdatedState(onWaypointTapped)
     val currentCenter by rememberUpdatedState(center)
+    val currentRetryToken by rememberUpdatedState(retryToken)
     val routeColor = RodiTheme.colors.primary600.toArgb()
     val routeStrokeColor = RodiTheme.colors.primary800.toArgb()
     var map by remember { mutableStateOf<KakaoMap?>(null) }
@@ -135,18 +136,24 @@ fun CourseRegistrationMapView(
         key(retryToken) {
             AndroidView(
                 factory = {
+                    // 이 클로저의 세대. mapView.finish()가 비동기로 onMapDestroy를 늦게 발화시키면,
+                    // 이미 새 세대가 시작된 뒤에도 옛 콜백이 공유 상태인 map을 건드릴 수 있다 —
+                    // 세대가 여전히 최신일 때만 반영한다.
+                    val generation = retryToken
                     mapView.start(
                         object : MapLifeCycleCallback() {
                             override fun onMapDestroy() {
-                                map = null
+                                if (currentRetryToken == generation) map = null
                             }
                             override fun onMapError(error: Exception?) {
+                                if (currentRetryToken != generation) return
                                 map = null
                                 onReady(false)
                             }
                         },
                         object : KakaoMapReadyCallback() {
                             override fun onMapReady(readyMap: KakaoMap) {
+                                if (currentRetryToken != generation) return
                                 map = readyMap
                                 readyMap.setCameraMinLevel(7)
                                 readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
