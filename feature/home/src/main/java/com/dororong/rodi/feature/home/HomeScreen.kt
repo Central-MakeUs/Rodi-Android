@@ -1027,10 +1027,12 @@ fun HomeScreen(
                                                 // 상태에서까지 "네트워크 연결이 원활하지 않아요"로
                                                 // 안내하면 원인과 다른 메시지가 뜬다.
                                                 if (isOnline) {
+                                                    showMapNetworkSnackbar = false
                                                     mapScreenState = MapScreenState.Error
                                                 } else {
+                                                    // 오프라인 안내 화면 전환은 3초 유예를 갖고 있는
+                                                    // LaunchedEffect(isOnline)에 맡긴다.
                                                     showMapNetworkSnackbar = true
-                                                    mapScreenState = MapScreenState.NetworkError
                                                 }
                                             }
                                         },

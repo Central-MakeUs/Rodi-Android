@@ -29,7 +29,7 @@ class CourseSearchHistoryDataStore @Inject constructor(
     private val json: Json,
 ) {
     fun observe(): Flow<List<CourseLocationSuggestion>> = context.courseSearchHistoryDataStore.data
-        .map { preferences -> preferences[KEY_HISTORY]?.let(::decode).orEmpty().excludeServerSourced() }
+        .map { preferences -> preferences[KEY_HISTORY]?.let(::decode).orEmpty() }
         .catch { error -> if (error is IOException) emit(emptyList()) else throw error }
 
     suspend fun save(suggestion: CourseLocationSuggestion) {
@@ -53,10 +53,13 @@ class CourseSearchHistoryDataStore @Inject constructor(
         context.courseSearchHistoryDataStore.edit { it.remove(KEY_HISTORY) }
     }
 
+    // 노출뿐 아니라 save·delete가 다시 써 넣는 경로에서도 레거시 기록을 걷어낸다. observe에서만
+    // 걸러내면 기록이 저장 한도(MAX_HISTORY_SIZE)를 계속 차지해 실제로 보이는 기록이 줄어든다.
     private fun decode(value: String): List<CourseLocationSuggestion> = runCatching {
         json.decodeFromString<List<StoredCourseLocation>>(value)
             .mapNotNull { it.toDomain() }
             .sortedByDescending(CourseLocationSuggestion::lastUsedAt)
+            .excludeServerSourced()
     }.getOrDefault(emptyList())
 
     companion object {
