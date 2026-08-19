@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.ScrollableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -309,6 +311,10 @@ private fun RegisteredCourseFilters(
     initiallyExpanded: Boolean,
 ) {
     var expanded by remember { mutableStateOf(initiallyExpanded) }
+    // Popup의 바깥 터치 닫기가 앵커 클릭보다 먼저 돌아서, 다시 누르면 닫혔다가 곧바로
+    // 다시 열려 토글이 안 되는 것처럼 보였다. 닫힌 직후 짧은 시간은 다시 열지 않는다.
+    var lastDismissedAtMillis by remember { mutableLongStateOf(0L) }
+    val interactionSource = remember { MutableInteractionSource() }
     val density = LocalDensity.current
     val popupPositionProvider = remember(density) {
         RegisteredCourseFilterPopupPositionProvider(density)
@@ -319,7 +325,13 @@ private fun RegisteredCourseFilters(
                 .align(Alignment.CenterEnd)
                 .height(48.dp)
                 .padding(end = 16.dp)
-                .clickable { expanded = !expanded },
+                .clickable(interactionSource = interactionSource, indication = null) {
+                    when {
+                        expanded -> expanded = false
+                        System.currentTimeMillis() - lastDismissedAtMillis > FilterReopenGuardMillis ->
+                            expanded = true
+                    }
+                },
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
@@ -354,7 +366,10 @@ private fun RegisteredCourseFilters(
             } else {
                 Popup(
                     popupPositionProvider = popupPositionProvider,
-                    onDismissRequest = { expanded = false },
+                    onDismissRequest = {
+                        expanded = false
+                        lastDismissedAtMillis = System.currentTimeMillis()
+                    },
                 ) {
                     RegisteredCourseFilterMenuSurface(
                         selectedFilter = selectedFilter,
@@ -365,6 +380,8 @@ private fun RegisteredCourseFilters(
         }
     }
 }
+
+private const val FilterReopenGuardMillis = 300L
 
 @Composable
 private fun RegisteredCourseFilterMenuSurface(
