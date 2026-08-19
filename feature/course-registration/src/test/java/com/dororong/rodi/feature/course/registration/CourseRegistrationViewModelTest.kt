@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -480,6 +481,12 @@ class CourseRegistrationViewModelTest {
         coEvery { registration.getRegistrationForm() } returns sampleForm()
         val viewModel = viewModel()
         advanceUntilIdle()
+        val effects = mutableListOf<CourseRegistrationEffect>()
+        val collector = launch { viewModel.effect.toList(effects) }
+        // selectWaypoint()의 tryEmit은 코루틴 dispatch 없이 즉시 실행되는 동기 호출이라,
+        // collector가 실제로 구독을 시작하기 전에 onIntent를 부르면 replay=0 SharedFlow가
+        // 구독자 없는 emit을 그냥 흘려보낸다. runCurrent()로 collector를 먼저 진짜 돌려둔다.
+        runCurrent()
 
         // 1. 출발지 선택
         viewModel.onIntent(
@@ -504,6 +511,11 @@ class CourseRegistrationViewModelTest {
 
         assertEquals(1, viewModel.state.value.waypoints.size)
         assertEquals(RegistrationWaypointType.START, viewModel.state.value.waypoints[0].type)
+        assertEquals(
+            listOf(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요.")),
+            effects,
+        )
+        collector.cancel()
     }
 
     @Test

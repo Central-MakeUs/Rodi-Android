@@ -277,6 +277,11 @@ class CourseRegistrationViewModel @Inject constructor(
                 caution = "",
                 description = "",
                 page = CourseRegistrationPage.Map,
+                // 복원했던 임시저장본의 mapCenter·initialLocationState를 그대로 두면, 버린 뒤에도
+                // 옛 출발지 좌표가 남거나(완료된 튜토리얼에서 복원한 경우) 지도가 아예 안 뜬다
+                // (튜토리얼 중 복원해 위치 요청이 아직 시작되지 않은 경우). 새 흐름처럼 다시 요청한다.
+                mapCenter = null,
+                initialLocationState = InitialLocationState.Requesting,
             )
         }
     }
