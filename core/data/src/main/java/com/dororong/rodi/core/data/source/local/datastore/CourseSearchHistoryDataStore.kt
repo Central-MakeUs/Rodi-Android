@@ -29,7 +29,12 @@ class CourseSearchHistoryDataStore @Inject constructor(
     private val json: Json,
 ) {
     fun observe(): Flow<List<CourseLocationSuggestion>> = context.courseSearchHistoryDataStore.data
-        .map { preferences -> preferences[KEY_HISTORY]?.let(::decode).orEmpty() }
+        .map { preferences ->
+            preferences[KEY_HISTORY]?.let(::decode).orEmpty()
+                // 코스 등록 검색이 서버 연관검색 없이 카카오 로컬만 쓰도록 바뀌기 전에 저장된
+                // 기록은 여전히 SERVER_REGION/SERVER_PLACE source로 남아있을 수 있다.
+                .filterNot { it.source == CourseLocationSuggestionSource.SERVER_REGION || it.source == CourseLocationSuggestionSource.SERVER_PLACE }
+        }
         .catch { error -> if (error is IOException) emit(emptyList()) else throw error }
 
     suspend fun save(suggestion: CourseLocationSuggestion) {
