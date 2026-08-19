@@ -38,7 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -597,9 +596,9 @@ private fun FixedCenterPin(
     }
     val pinSize = if (role == CourseWaypointRole.Via) 30.dp else 34.dp
     val shadowColor = when (role) {
-        CourseWaypointRole.Start -> Color(0x80347BFF)
-        CourseWaypointRole.Via -> Color(0xCCFFD072)
-        CourseWaypointRole.Destination -> Color(0x80FF3019)
+        CourseWaypointRole.Start -> RodiTheme.semantic.pinStart.copy(alpha = 0.5f)
+        CourseWaypointRole.Via -> RodiTheme.semantic.pinVia.copy(alpha = 0.8f)
+        CourseWaypointRole.Destination -> RodiTheme.colors.infoCancel.copy(alpha = 0.5f)
     }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         // 아직 놓지 않은 핀에는 바닥 그림자가 붙는다(디자인 3659:79158). 핀 끝이 지도 중심에
