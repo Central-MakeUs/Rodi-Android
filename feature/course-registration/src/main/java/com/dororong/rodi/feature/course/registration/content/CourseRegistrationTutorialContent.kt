@@ -239,7 +239,7 @@ private fun TutorialPageContent(page: TutorialPage) {
                 text = page.title,
                 style = RodiTheme.typography.heading2,
                 color = RodiTheme.colors.black,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
