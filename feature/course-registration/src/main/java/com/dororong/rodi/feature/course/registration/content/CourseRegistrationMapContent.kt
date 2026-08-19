@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -63,7 +64,9 @@ import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
@@ -281,23 +284,13 @@ private fun CourseRegistrationMapHeader(
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                    .clickable(onClick = onBack)
-                    .semantics {
-                        contentDescription = "코스 등록 나가기"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            RodiIconButton(
+                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+                onClick = onBack,
+                contentDescription = "코스 등록 나가기",
+                tint = RodiTheme.colors.black,
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
             Text(
                 text = if (editingWaypoint == null) "코스 등록" else "핀 수정하기",
                 style = RodiTheme.typography.headline1,
@@ -989,23 +982,7 @@ private fun SearchMessage(
     showIllustration: Boolean = false,
     onRetry: (() -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        if (showIllustration) {
-            Image(
-                painter = painterResource(R.drawable.illust_course_registration_empty),
-                contentDescription = null,
-                modifier = Modifier.size(80.dp),
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-        Text(text, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.gray600)
-        details.forEach { detail ->
-            Text(detail, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
-        }
+    val retryFooter: @Composable ColumnScope.() -> Unit = {
         onRetry?.let {
             Spacer(Modifier.height(12.dp))
             RodiButton(
@@ -1016,6 +993,23 @@ private fun SearchMessage(
                 height = 38.dp,
             )
         }
+    }
+    if (showIllustration) {
+        RodiIllustratedEmptyState(
+            modifier = modifier,
+            painter = painterResource(R.drawable.illust_course_registration_empty),
+            imageSize = 80.dp,
+            title = text,
+            description = details.joinToString("\n").takeIf { it.isNotBlank() },
+            footer = retryFooter,
+        )
+    } else {
+        RodiTextEmptyState(
+            modifier = modifier,
+            title = text,
+            description = details.joinToString("\n").takeIf { it.isNotBlank() },
+            footer = retryFooter,
+        )
     }
 }
 

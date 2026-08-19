@@ -64,6 +64,7 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -136,23 +137,13 @@ private fun CourseRegistrationFormTopBar(onBack: () -> Unit) {
             .height(56.dp)
             .padding(horizontal = RodiSpacing.md),
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                .clickable(onClick = onBack)
-                .semantics {
-                    contentDescription = "지도 선택으로 돌아가기"
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        RodiIconButton(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
+            contentDescription = "지도 선택으로 돌아가기",
+            tint = RodiTheme.colors.black,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
         Text(
             text = "코스 등록",
             style = RodiTheme.typography.headline1,

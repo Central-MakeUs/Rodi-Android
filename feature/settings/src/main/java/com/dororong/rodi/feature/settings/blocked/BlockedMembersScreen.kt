@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.feature.settings.SettingsTopBar
@@ -132,13 +133,10 @@ private fun UnblockButton(onClick: () -> Unit) {
 
 @Composable
 private fun BlockedMembersEmpty() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Text(
-            text = "차단한 사용자가 없습니다.",
-            style = RodiTheme.typography.headline1,
-            color = RodiTheme.colors.gray600,
-        )
-    }
+    RodiTextEmptyState(
+        modifier = Modifier.fillMaxSize(),
+        title = "차단한 사용자가 없습니다.",
+    )
 }
 
 @Composable

@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.R
@@ -164,23 +165,13 @@ private fun TutorialTopBar(onBack: () -> Unit) {
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .size(48.dp)
-                .clickable(onClick = onBack)
-                .semantics {
-                    contentDescription = "이전"
-                    role = Role.Button
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painter = painterResource(CoreUiR.drawable.ic_chevron_left),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        RodiIconButton(
+            painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+            onClick = onBack,
+            contentDescription = "이전",
+            tint = RodiTheme.colors.black,
+            modifier = Modifier.align(Alignment.CenterStart),
+        )
         Text(
             text = "코스 등록 방법",
             style = RodiTheme.typography.headline1,

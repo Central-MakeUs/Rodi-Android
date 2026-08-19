@@ -68,6 +68,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.CourseApprovalStatus
 import com.dororong.rodi.core.domain.model.course.RegisteredCourse
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
@@ -483,46 +484,21 @@ private fun RegisteredCoursesEmpty(
     onRegisterCourseClick: () -> Unit,
 ) {
     val isAll = filter == RegisteredCourseFilter.ALL
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(top = if (isAll) 134.dp else 172.dp, start = 16.dp, end = 16.dp),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        Column(
-            modifier = Modifier.width(203.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Image(
-                painter = painterResource(R.drawable.illust_registered_course_empty),
-                contentDescription = null,
-                modifier = Modifier.width(125.dp).height(50.dp),
-            )
-            Text(
-                text = when (filter) {
-                    RegisteredCourseFilter.ALL -> "아직 등록한 코스가 없어요!"
-                    RegisteredCourseFilter.APPROVED -> "승인된 코스가 없어요!"
-                    RegisteredCourseFilter.PENDING -> "검토중인 코스가 없어요!"
-                    RegisteredCourseFilter.REJECTED -> "반려된 코스가 없어요!"
-                },
-                style = RodiTheme.typography.headline1,
-                color = RodiTheme.colors.gray600,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                textAlign = TextAlign.Center,
-            )
+    RodiIllustratedEmptyState(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        painter = painterResource(R.drawable.illust_registered_course_empty),
+        imageWidth = 125.dp,
+        imageSize = 50.dp,
+        title = when (filter) {
+            RegisteredCourseFilter.ALL -> "아직 등록한 코스가 없어요!"
+            RegisteredCourseFilter.APPROVED -> "승인된 코스가 없어요!"
+            RegisteredCourseFilter.PENDING -> "검토중인 코스가 없어요!"
+            RegisteredCourseFilter.REJECTED -> "반려된 코스가 없어요!"
+        },
+        // 자동 줄바꿈에 맡기면 "좋은 코/스를"처럼 단어 중간에서 끊긴다.
+        description = "나만 알고 있는 운전 연습하기 좋은\n코스를 공유해보세요.".takeIf { isAll },
+        footer = {
             if (isAll) {
-                Text(
-                    // 자동 줄바꿈에 맡기면 "좋은 코/스를"처럼 단어 중간에서 끊긴다.
-                    text = "나만 알고 있는 운전 연습하기 좋은\n코스를 공유해보세요.",
-                    style = RodiTheme.typography.body3Medium,
-                    color = RodiTheme.colors.gray600,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    textAlign = TextAlign.Center,
-                )
                 OutlinedButton(
                     onClick = onRegisterCourseClick,
                     modifier = Modifier
@@ -542,8 +518,8 @@ private fun RegisteredCoursesEmpty(
                     )
                 }
             }
-        }
-    }
+        },
+    )
 }
 
 @Composable
@@ -598,6 +574,8 @@ private fun RegisteredCourseRow(
                 Box(
                     modifier = Modifier
                         .requiredSize(48.dp)
+                        // 아이콘이 원형이라 리플도 원으로 잘라준다. 안 그러면 48dp 사각으로 번진다.
+                        .clip(CircleShape)
                         .clearAndSetSemantics { contentDescription = "더보기" }
                         .clickable(enabled = !isDeleting, onClick = onMenuClick),
                 )
