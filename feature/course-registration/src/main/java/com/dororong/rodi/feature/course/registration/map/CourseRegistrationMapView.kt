@@ -164,7 +164,9 @@ fun CourseRegistrationMapView(
                                     (label.tag as? Int)?.let(currentWaypointTapped)
                                     true
                                 }
-                                val initialCenter = center ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
+                                // factory 클로저가 캡처한 center는 지도 준비가 끝나기 전에 값이
+                                // 바뀌어도 갱신되지 않는다. rememberUpdatedState로 최신 값을 읽는다.
+                                val initialCenter = currentCenter ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
                                 readyMap.moveCamera(
                                     CameraUpdateFactory.newCenterPosition(
                                         LatLng.from(initialCenter.lat, initialCenter.lng),
