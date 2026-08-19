@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -128,51 +129,58 @@ fun CourseRegistrationMapView(
     }
 
     Box(modifier = modifier) {
-        AndroidView(
-            factory = {
-                mapView.start(
-                    object : MapLifeCycleCallback() {
-                        override fun onMapDestroy() = Unit
-                        override fun onMapError(error: Exception?) {
-                            map = null
-                            onReady(false)
-                        }
-                    },
-                    object : KakaoMapReadyCallback() {
-                        override fun onMapReady(readyMap: KakaoMap) {
-                            map = readyMap
-                            readyMap.setCameraMinLevel(7)
-                            readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
-                            readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Tilt, false)
-                            readyMap.setOnCameraMoveEndListener { _, cameraPosition, gesture ->
-                                if (gesture != com.kakao.vectormap.GestureType.Unknown) {
-                                    val point = cameraPosition.position
-                                    currentCenterChanged(GeoPoint(point.latitude, point.longitude))
+        // AndroidView의 factory는 최초 컴포지션에서 한 번만 실행된다. retryToken이 바뀌어
+        // remember(retryToken)로 새 MapView를 만들어도 key로 감싸지 않으면 옛 뷰가 화면에
+        // 그대로 남고 start()도 다시 불리지 않아 "다시 시도"가 동작하지 않는다.
+        key(retryToken) {
+            AndroidView(
+                factory = {
+                    mapView.start(
+                        object : MapLifeCycleCallback() {
+                            override fun onMapDestroy() {
+                                map = null
+                            }
+                            override fun onMapError(error: Exception?) {
+                                map = null
+                                onReady(false)
+                            }
+                        },
+                        object : KakaoMapReadyCallback() {
+                            override fun onMapReady(readyMap: KakaoMap) {
+                                map = readyMap
+                                readyMap.setCameraMinLevel(7)
+                                readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
+                                readyMap.setGestureEnable(com.kakao.vectormap.GestureType.Tilt, false)
+                                readyMap.setOnCameraMoveEndListener { _, cameraPosition, gesture ->
+                                    if (gesture != com.kakao.vectormap.GestureType.Unknown) {
+                                        val point = cameraPosition.position
+                                        currentCenterChanged(GeoPoint(point.latitude, point.longitude))
+                                    }
                                 }
+                                readyMap.setOnMapClickListener { _, point, _, _ ->
+                                    currentMapTapped(GeoPoint(point.latitude, point.longitude))
+                                }
+                                readyMap.setOnLabelClickListener { _, _, label ->
+                                    (label.tag as? Int)?.let(currentWaypointTapped)
+                                    true
+                                }
+                                val initialCenter = center ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
+                                readyMap.moveCamera(
+                                    CameraUpdateFactory.newCenterPosition(
+                                        LatLng.from(initialCenter.lat, initialCenter.lng),
+                                        14,
+                                    ),
+                                )
+                                currentCenterChanged(initialCenter)
+                                onReady(true)
                             }
-                            readyMap.setOnMapClickListener { _, point, _, _ ->
-                                currentMapTapped(GeoPoint(point.latitude, point.longitude))
-                            }
-                            readyMap.setOnLabelClickListener { _, _, label ->
-                                (label.tag as? Int)?.let(currentWaypointTapped)
-                                true
-                            }
-                            val initialCenter = center ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
-                            readyMap.moveCamera(
-                                CameraUpdateFactory.newCenterPosition(
-                                    LatLng.from(initialCenter.lat, initialCenter.lng),
-                                    14,
-                                ),
-                            )
-                            currentCenterChanged(initialCenter)
-                            onReady(true)
-                        }
-                    },
-                )
-                mapView
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
+                        },
+                    )
+                    mapView
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
