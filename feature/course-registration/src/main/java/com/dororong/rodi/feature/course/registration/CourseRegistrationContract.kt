@@ -83,7 +83,6 @@ data class CourseRegistrationUiState(
     val draft: CourseDraft? = null,
     val isDraftRestored: Boolean = false,
     val dialog: CourseRegistrationDialog? = null,
-    val snackbarMessage: String? = null,
     val isMapPointLoading: Boolean = false,
     val pendingSuggestion: CourseLocationSuggestion? = null,
     val isPendingAddressLoading: Boolean = false,

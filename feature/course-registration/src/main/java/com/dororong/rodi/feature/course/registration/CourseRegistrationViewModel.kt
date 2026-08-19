@@ -152,13 +152,10 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update {
-                    it.copy(
-                        isAuthResolved = true,
-                        tutorialLoadState = CourseTutorialLoadState.Error,
-                        snackbarMessage = error.message ?: "등록 화면을 불러오지 못했어요.",
-                    )
-                }
+                _state.update { it.copy(isAuthResolved = true, tutorialLoadState = CourseTutorialLoadState.Error) }
+                _effect.tryEmit(
+                    CourseRegistrationEffect.ShowSnackbar(error.message ?: "등록 화면을 불러오지 못했어요."),
+                )
             }
         }
     }
@@ -451,7 +448,6 @@ class CourseRegistrationViewModel @Inject constructor(
             it.copy(
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
-                snackbarMessage = null,
             )
         }
         if (_state.value.editingWaypointIndex == null) {
@@ -460,7 +456,6 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun locationUnavailable() {
-        _state.update { it.copy(snackbarMessage = "현재 위치를 확인하지 못했어요.") }
         _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
