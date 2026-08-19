@@ -101,6 +101,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
@@ -108,6 +109,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
+import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.HomeSearchBar
@@ -309,10 +311,11 @@ fun HomeScreen(
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
     var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
+    // 최초 진입이 오프라인이어도 여기서 곧장 NetworkError로 시작하지 않는다 — 그러면 아래
+    // LaunchedEffect(isOnline)의 3초 유예를 건너뛰게 된다. 유예는 그 이펙트가 책임진다.
     var mapScreenState by remember {
         mutableStateOf(
             when {
-                !isOnline -> MapScreenState.NetworkError
                 hasLoadedMapInSession || context.hasLoadedMapBefore() -> MapScreenState.Ready
                 else -> MapScreenState.Loading
             },
@@ -1020,8 +1023,15 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                showMapNetworkSnackbar = true
-                                                mapScreenState = MapScreenState.NetworkError
+                                                // SDK 초기화·렌더링 실패도 이 콜백을 타므로, 온라인
+                                                // 상태에서까지 "네트워크 연결이 원활하지 않아요"로
+                                                // 안내하면 원인과 다른 메시지가 뜬다.
+                                                if (isOnline) {
+                                                    mapScreenState = MapScreenState.Error
+                                                } else {
+                                                    showMapNetworkSnackbar = true
+                                                    mapScreenState = MapScreenState.NetworkError
+                                                }
                                             }
                                         },
                                         object : KakaoMapReadyCallback() {
@@ -1435,6 +1445,10 @@ fun HomeScreen(
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
                     MapScreenState.NetworkError -> MapNetworkErrorScreen()
+                    MapScreenState.Error -> HomeMapErrorOverlay(
+                        modifier = Modifier.align(Alignment.Center),
+                        onRetry = ::retryMap,
+                    )
                     MapScreenState.Ready -> Unit
                 }
 
@@ -1957,5 +1971,25 @@ private fun FullListHeaderPreview() {
                 modifier = Modifier.height(FULL_LIST_HEADER_HEIGHT),
             )
         }
+    }
+}
+
+@Composable
+private fun HomeMapErrorOverlay(modifier: Modifier = Modifier, onRetry: () -> Unit) {
+    Column(
+        modifier = modifier
+            .background(RodiTheme.colors.white, RoundedCornerShape(RodiRadius.md))
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("지도를 불러오지 못했어요", style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.black)
+        Spacer(Modifier.height(12.dp))
+        RodiButton(
+            text = "다시 시도",
+            onClick = onRetry,
+            fillMaxWidth = false,
+            modifier = Modifier.width(120.dp),
+            height = 42.dp,
+        )
     }
 }

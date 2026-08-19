@@ -14,6 +14,8 @@ internal enum class MapScreenState {
     Loading,
     Ready,
     NetworkError,
+    /** 네트워크는 정상인데 지도 SDK 자체가 초기화·렌더링에 실패한 경우. */
+    Error,
 }
 
 internal fun Context.hasLoadedMapBefore(): Boolean =
