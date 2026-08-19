@@ -16,8 +16,10 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -124,6 +126,22 @@ class CourseRegistrationEntryCoordinatorTest {
 
         assertTrue(result.isFailure)
         assertEquals("disk", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `clear draft rethrows cancellation instead of converting it to a failure`() = runTest(dispatcher) {
+        val observeDraft = mockk<ObserveCourseDraftUseCase>()
+        val clearDraft = mockk<ClearCourseDraftUseCase>()
+        every { observeDraft() } returns flowOf(null)
+        coEvery { clearDraft() } throws CancellationException()
+        val viewModel = CourseRegistrationEntryViewModel(observeDraft, clearDraft)
+        advanceUntilIdle()
+
+        try {
+            viewModel.clearDraft()
+            fail("CancellationException must be rethrown, not converted to Result.failure")
+        } catch (_: CancellationException) {
+        }
     }
 
     @Test
