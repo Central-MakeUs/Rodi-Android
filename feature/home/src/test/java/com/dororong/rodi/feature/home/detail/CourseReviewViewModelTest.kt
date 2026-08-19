@@ -21,6 +21,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -446,6 +447,31 @@ class CourseReviewViewModelTest {
         assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
         assertEquals(1L, vm.state.value.totalCount)
         assertEquals("초보초보", vm.state.value.latestReviews.single().nickname)
+    }
+
+    @Test
+    fun `late reported id lookup still hides an already merged review`() = runTest(dispatcher) {
+        loggedIn()
+        // 신고 목록 조회가 load()보다 늦게 끝나는 순서를 재현한다 — 먼저 끝나면 애초에 병합 단계에서 걸러진다.
+        coEvery { getReportedReviewIds() } coAnswers {
+            delay(1_000)
+            setOf(1L)
+        }
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
+            Result.success(summary(level = null, total = 1, recommend = 0))
+        coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.Mine) } returns
+            Result.success(summary(level = OnboardingLevel.SEED, total = 1, recommend = 0))
+        coEvery { getPlaceReviews(PLACE_ID, ReviewLevelFilter.Mine, null, 1) } returns
+            Result.success(page(listOf(review(1L))))
+
+        val vm = viewModel()
+        vm.load(PLACE_ID)
+        advanceUntilIdle()
+
+        assertTrue(
+            vm.state.value.latestReviews.isEmpty(),
+            "늦게 도착한 신고 목록이 이미 병합된 후기에도 적용돼야 한다",
+        )
     }
 
     private fun summary(

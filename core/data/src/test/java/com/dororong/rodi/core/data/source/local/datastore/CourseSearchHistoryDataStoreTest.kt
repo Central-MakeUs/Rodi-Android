@@ -44,6 +44,34 @@ class CourseSearchHistoryDataStoreTest {
     }
 
     @Test
+    fun `previously stored server search history is hidden from recent searches`() {
+        val stored = listOf(
+            suggestion("server-region-1", CourseLocationSuggestionSource.SERVER_REGION),
+            suggestion("server-place-2", CourseLocationSuggestionSource.SERVER_PLACE),
+            suggestion("kakao-keyword-3", CourseLocationSuggestionSource.KAKAO_KEYWORD),
+            suggestion("kakao-address-4", CourseLocationSuggestionSource.KAKAO_ADDRESS),
+            suggestion("reverse-5", CourseLocationSuggestionSource.REVERSE_GEOCODE),
+            suggestion("history-6", CourseLocationSuggestionSource.HISTORY),
+        )
+
+        val visible = stored.excludeServerSourced()
+
+        assertEquals(
+            listOf("kakao-keyword-3", "kakao-address-4", "reverse-5", "history-6"),
+            visible.map { it.id },
+        )
+    }
+
+    private fun suggestion(id: String, source: CourseLocationSuggestionSource) = CourseLocationSuggestion(
+        id = id,
+        title = "장소",
+        address = "주소",
+        point = GeoPoint(37.0, 127.0),
+        kind = CourseLocationKind.PLACE,
+        source = source,
+    )
+
+    @Test
     fun `unresolved suggestions cannot enter search history`() {
         val unresolved = CourseLocationSuggestion(
             id = "server-place-7",

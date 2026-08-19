@@ -29,12 +29,7 @@ class CourseSearchHistoryDataStore @Inject constructor(
     private val json: Json,
 ) {
     fun observe(): Flow<List<CourseLocationSuggestion>> = context.courseSearchHistoryDataStore.data
-        .map { preferences ->
-            preferences[KEY_HISTORY]?.let(::decode).orEmpty()
-                // 코스 등록 검색이 서버 연관검색 없이 카카오 로컬만 쓰도록 바뀌기 전에 저장된
-                // 기록은 여전히 SERVER_REGION/SERVER_PLACE source로 남아있을 수 있다.
-                .filterNot { it.source == CourseLocationSuggestionSource.SERVER_REGION || it.source == CourseLocationSuggestionSource.SERVER_PLACE }
-        }
+        .map { preferences -> preferences[KEY_HISTORY]?.let(::decode).orEmpty().excludeServerSourced() }
         .catch { error -> if (error is IOException) emit(emptyList()) else throw error }
 
     suspend fun save(suggestion: CourseLocationSuggestion) {
@@ -140,6 +135,17 @@ private inline fun <reified T : Enum<T>> String.toEnumOrNull(): T? =
     takeIf(String::isNotBlank)?.let { value -> enumValues<T>().firstOrNull { it.name == value } }
 
 private val WHITESPACE = Regex("\\s+")
+
+/**
+ * 코스 등록 검색이 서버 연관검색 없이 카카오 로컬만 쓰도록 바뀌기 전에 저장된 기록은 여전히
+ * SERVER_REGION/SERVER_PLACE source로 남아 있다. 그대로 노출하면 등록 대상이 아닌 로디
+ * 코스명이 업데이트 후에도 최근 검색어에 다시 보인다.
+ */
+internal fun List<CourseLocationSuggestion>.excludeServerSourced(): List<CourseLocationSuggestion> =
+    filterNot {
+        it.source == CourseLocationSuggestionSource.SERVER_REGION ||
+            it.source == CourseLocationSuggestionSource.SERVER_PLACE
+    }
 
 internal fun mergeCourseSearchHistory(
     current: List<CourseLocationSuggestion>,
