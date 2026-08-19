@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -369,33 +370,23 @@ private fun RegisteredCourseFilterMenuSurface(
     selectedFilter: RegisteredCourseFilter,
     onSelected: (RegisteredCourseFilter) -> Unit,
 ) {
-    val dividerColor = RodiTheme.colors.gray300
     Column(
         modifier = Modifier
             .width(75.dp)
             .background(RodiTheme.colors.white)
-            .border(1.dp, RodiTheme.colors.gray300)
-            .drawBehind {
-                val dividerY = 35.dp.toPx()
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, dividerY),
-                    end = Offset(size.width, dividerY),
-                    strokeWidth = 1.dp.toPx(),
-                )
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, dividerY * 2),
-                    end = Offset(size.width, dividerY * 2),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
+            .border(1.dp, RodiTheme.colors.gray300),
     ) {
-        listOf(
+        // 구분선을 drawBehind로 그리면 각 항목의 배경이 그 위를 덮어 보이지 않는다.
+        // 항목 사이에 실제로 끼워 넣는다.
+        val filters = listOf(
             RegisteredCourseFilter.APPROVED,
             RegisteredCourseFilter.PENDING,
             RegisteredCourseFilter.REJECTED,
-        ).forEach { filter ->
+        )
+        filters.forEachIndexed { index, filter ->
+            if (index > 0) {
+                HorizontalDivider(color = RodiTheme.colors.gray300)
+            }
             Text(
                 text = filter.label,
                 style = RodiTheme.typography.body2Medium,
@@ -579,11 +570,10 @@ private fun RegisteredCourseRow(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            // 터치 영역을 48dp Box로 잡으면 그 높이가 그대로 행 높이가 돼서 제목-상태칩 간격과
+            // 행 간격이 디자인보다 벌어진다. 레이아웃은 아이콘 크기(18dp)로 두고 터치만 넓힌다.
             Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clearAndSetSemantics { contentDescription = "더보기" }
-                    .clickable(enabled = !isDeleting, onClick = onMenuClick),
+                modifier = Modifier.size(18.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -605,6 +595,12 @@ private fun RegisteredCourseRow(
                         scrollState = scrollState,
                     )
                 }
+                Box(
+                    modifier = Modifier
+                        .requiredSize(48.dp)
+                        .clearAndSetSemantics { contentDescription = "더보기" }
+                        .clickable(enabled = !isDeleting, onClick = onMenuClick),
+                )
             }
         }
         Row(
