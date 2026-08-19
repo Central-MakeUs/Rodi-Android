@@ -1631,7 +1631,6 @@ fun HomeScreen(
         }
     }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.
-    // errorMessage를 비우지는 않는다 — CourseReviewViewModel.load()의 가드가 이 값으로 재시도를 판단한다.
     LaunchedEffect(reviewState.errorMessage) {
         reviewState.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
