@@ -32,11 +32,12 @@ class CourseLocationRepositoryImpl @Inject constructor(
         val trimmed = keyword.trim()
         if (trimmed.isEmpty()) return CourseLocationSearchResult()
 
+        // 코스 등록 검색은 카카오 로컬만 쓴다. 서버 연관검색을 섞으면 등록 대상이 아닌
+        // 로디 코스명·주차장이 후보로 올라온다.
         val outcomes = coroutineScope {
-            val related = async { safeCall { placeRepository.relatedSearch(trimmed, null, 50) } }
             val keywords = async { safeCall { kakaoLocalApi.searchKeyword(kakaoAuthorization(), trimmed) } }
             val addresses = async { safeCall { kakaoLocalApi.searchAddress(kakaoAuthorization(), trimmed) } }
-            Triple(related.await(), keywords.await(), addresses.await())
+            keywords.await() to addresses.await()
         }
         if (outcomes.toList().all(Result<*>::isFailure)) {
             throw CourseRegistrationException.SearchUnavailable(
@@ -44,20 +45,16 @@ class CourseLocationRepositoryImpl @Inject constructor(
             )
         }
 
-        val related = outcomes.first.getOrNull()
-        val keywordDocuments = outcomes.second.getOrNull()?.documents.orEmpty()
-        val addressDocuments = outcomes.third.getOrNull()?.documents.orEmpty()
+        val keywordDocuments = outcomes.first.getOrNull()?.documents.orEmpty()
+        val addressDocuments = outcomes.second.getOrNull()?.documents.orEmpty()
 
-        val kakaoRegions = addressDocuments.mapNotNull(::toRegionSuggestion)
-        val serverRegions = related?.regions.orEmpty().map(::toServerRegionSuggestion)
-        val regions = deduplicate(serverRegions + kakaoRegions).take(4)
+        val regions = deduplicate(addressDocuments.mapNotNull(::toRegionSuggestion)).take(4)
 
         val kakaoPlaces = keywordDocuments.mapNotNull(::toPlaceSuggestion)
         val addressPlaces = addressDocuments
             .mapNotNull(::toAddressPlaceSuggestion)
             .filterNot { address -> regions.any { it.address == address.address } }
-        val serverPlaces = related?.places?.items.orEmpty().map(::toServerPlaceSuggestion)
-        val places = deduplicate(serverPlaces + kakaoPlaces + addressPlaces).take(20)
+        val places = deduplicate(kakaoPlaces + addressPlaces).take(20)
 
         return CourseLocationSearchResult(
             regions = regions,
@@ -154,31 +151,6 @@ class CourseLocationRepositoryImpl @Inject constructor(
     } catch (error: Throwable) {
         Result.failure(error)
     }
-
-    private fun toServerRegionSuggestion(region: String): CourseLocationSuggestion {
-        val normalized = region.trim()
-        return CourseLocationSuggestion(
-            id = "server-region-${normalized.hashCode()}",
-            title = normalized,
-            address = normalized,
-            point = null,
-            kind = CourseLocationKind.REGION,
-            source = CourseLocationSuggestionSource.SERVER_REGION,
-            resolution = CourseLocationResolution.REQUIRES_REGION_CENTER,
-        )
-    }
-
-    private fun toServerPlaceSuggestion(suggestion: com.dororong.rodi.core.domain.model.search.PlaceSuggestion) =
-        CourseLocationSuggestion(
-            id = "$SERVER_PLACE_ID_PREFIX${suggestion.placeId}",
-            title = suggestion.name,
-            address = suggestion.region,
-            point = null,
-            kind = CourseLocationKind.PLACE,
-            source = CourseLocationSuggestionSource.SERVER_PLACE,
-            resolution = CourseLocationResolution.REQUIRES_PLACE_DETAIL,
-            sourceId = suggestion.placeId,
-        )
 
     private fun toRegionSuggestion(document: KakaoAddressDocument): CourseLocationSuggestion? {
         val address = document.roadAddress?.addressName ?: document.addressName
