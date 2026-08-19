@@ -192,6 +192,7 @@ import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -220,6 +221,9 @@ private val BOTTOM_CONTROL_SHEET_GAP = 12.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
+
+/** 오프라인이 이만큼 이어지면 지도를 덮고 안내 화면을 띄운다. */
+internal const val MAP_NETWORK_ERROR_GRACE_MILLIS = 3_000L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
 // 주차장 상세는 내용 길이와 무관하게 코스 상세와 같은 높이로 고정한다.
 private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
@@ -757,16 +761,16 @@ fun HomeScreen(
         networkAvailabilityFlow(context).collect { isOnline = it }
     }
 
+    // 끊기자마자 지도를 덮으면 잠깐 끊겼다 붙는 구간에서 화면이 번쩍인다. 토스트는 바로,
+    // 안내 화면은 유예 시간을 넘겨 계속 끊겨 있을 때만 덮는다(iOS와 동일).
+    // isOnline이 다시 true가 되면 이 이펙트가 재시작되며 delay가 취소돼 원래 화면으로 돌아온다.
     LaunchedEffect(isOnline) {
-        when {
-            isOnline ->
-                if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
-            // 이미 그려진 지도를 남겨두고 토스트만 띄우면 iOS와 화면이 달라진다(QA 4168:16570).
-            // 오프라인이면 진입 시점과 무관하게 안내 화면을 덮는다.
-            else -> {
-                showMapNetworkSnackbar = true
-                mapScreenState = MapScreenState.NetworkError
-            }
+        if (isOnline) {
+            if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
+        } else {
+            showMapNetworkSnackbar = true
+            delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
+            mapScreenState = MapScreenState.NetworkError
         }
     }
 
@@ -1017,9 +1021,7 @@ fun HomeScreen(
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
                                                 showMapNetworkSnackbar = true
-                                                if (!hasMapLoadedThisEntry) {
-                                                    mapScreenState = MapScreenState.NetworkError
-                                                }
+                                                mapScreenState = MapScreenState.NetworkError
                                             }
                                         },
                                         object : KakaoMapReadyCallback() {

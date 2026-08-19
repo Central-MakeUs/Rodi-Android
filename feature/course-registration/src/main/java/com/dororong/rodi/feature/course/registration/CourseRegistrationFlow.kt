@@ -38,6 +38,7 @@ import com.dororong.rodi.feature.course.registration.components.CourseRegistrati
 import com.dororong.rodi.feature.course.registration.content.CourseRegistrationFormContent
 import com.dororong.rodi.feature.course.registration.content.CourseRegistrationMapContent
 import com.dororong.rodi.feature.course.registration.content.CourseRegistrationTutorialContent
+import kotlinx.coroutines.delay
 
 /** App owns navigation; this flow only reports login, exit, and completed events. */
 @Composable
@@ -52,15 +53,21 @@ fun CourseRegistrationFlow(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val context = LocalContext.current
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
+    var showNetworkError by remember { mutableStateOf(!context.isNetworkAvailable()) }
     LaunchedEffect(Unit) {
         networkAvailabilityFlow(context).collect { isOnline = it }
     }
     // 오프라인이면 홈과 같은 안내 화면 + 재시도 스낵바를 띄운다(QA 4168:16565).
+    // 토스트는 바로, 안내 화면은 유예 시간을 넘겨 계속 끊겨 있을 때만 덮는다. 다시 연결되면
+    // 이 이펙트가 재시작되며 delay가 취소돼 원래 화면으로 돌아온다.
     val networkErrorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
     LaunchedEffect(isOnline) {
         if (isOnline) {
             snackbarHostState.dismiss(MAP_NETWORK_SNACKBAR_ID)
-            viewModel.onIntent(CourseRegistrationIntent.Retry)
+            if (showNetworkError) {
+                showNetworkError = false
+                viewModel.onIntent(CourseRegistrationIntent.Retry)
+            }
         } else {
             snackbarHostState.showImmediately(
                 RodiSnackbarData(
@@ -72,6 +79,8 @@ fun CourseRegistrationFlow(
                     onAction = { viewModel.onIntent(CourseRegistrationIntent.Retry) },
                 ),
             )
+            delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
+            showNetworkError = true
         }
     }
 
@@ -153,7 +162,7 @@ fun CourseRegistrationFlow(
                     },
                 )
             }
-            if (!isOnline && state.page == CourseRegistrationPage.Map) {
+            if (showNetworkError && state.page == CourseRegistrationPage.Map) {
                 MapNetworkErrorScreen()
             }
             if (state.isSubmitting) {
@@ -199,3 +208,6 @@ private fun CourseRegistrationLoadingScreenPreview() {
 }
 
 private const val MAP_NETWORK_SNACKBAR_ID = "course-registration-map-network"
+
+/** 오프라인이 이만큼 이어지면 지도를 덮고 안내 화면을 띄운다. 홈과 같은 값. */
+private const val MAP_NETWORK_ERROR_GRACE_MILLIS = 3_000L
