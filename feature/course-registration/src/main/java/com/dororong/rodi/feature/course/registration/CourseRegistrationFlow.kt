@@ -144,6 +144,7 @@ fun CourseRegistrationFlow(
                     isFormLoading = state.formLoadState == CourseRegistrationFormLoadState.Loading,
                     pendingSuggestion = state.pendingSuggestion,
                     isPendingAddressLoading = state.isPendingAddressLoading,
+                    initialLocationState = state.initialLocationState,
                 )
                 else -> CourseRegistrationFormContent(
                     loadState = state.formLoadState,

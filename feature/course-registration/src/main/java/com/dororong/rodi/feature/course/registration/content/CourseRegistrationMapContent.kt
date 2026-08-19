@@ -78,6 +78,7 @@ import com.dororong.rodi.feature.course.registration.CourseMapLoadState
 import com.dororong.rodi.feature.course.registration.CourseRegistrationIntent
 import com.dororong.rodi.feature.course.registration.CourseRegistrationLoadingIndicator
 import com.dororong.rodi.feature.course.registration.CourseWaypointRole
+import com.dororong.rodi.feature.course.registration.InitialLocationState
 import com.dororong.rodi.feature.course.registration.R
 import com.dororong.rodi.feature.course.registration.map.CourseRegistrationMapView
 import com.dororong.rodi.feature.course.registration.components.CourseRegistrationCurrentLocationButton
@@ -111,6 +112,7 @@ fun CourseRegistrationMapContent(
     isFormLoading: Boolean = false,
     pendingSuggestion: CourseLocationSuggestion? = null,
     isPendingAddressLoading: Boolean = false,
+    initialLocationState: InitialLocationState = InitialLocationState.NotRequested,
 ) {
     if (isSearchVisible) {
         CourseRegistrationSearchContent(
@@ -141,24 +143,27 @@ fun CourseRegistrationMapContent(
         val density = androidx.compose.ui.platform.LocalDensity.current
         val headerHeight = with(density) { headerHeightPx.toDp() }
         val bottomPanelHeight = with(density) { bottomPanelHeightPx.toDp() }
-        CourseRegistrationMapView(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics { contentDescription = "지도를 움직여 핀을 놓을 위치를 정하세요" },
-            retryToken = mapRetryToken,
-            center = mapCenter,
-            centerGeneration = mapCenterGeneration,
-            waypoints = waypoints,
-            route = route,
-            editingWaypointIndex = editingWaypointIndex,
-            temporaryPin = temporaryPin,
-            onReady = { onIntent(CourseRegistrationIntent.MapReady(it)) },
-            onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
-            onMapTapped = {},
-            onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
-            topPaddingPx = headerHeightPx,
-            bottomPaddingPx = bottomPanelHeightPx,
-        )
+
+        if (mapCenter != null || initialLocationState == InitialLocationState.Unavailable) {
+            CourseRegistrationMapView(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = "지도를 움직여 핀을 놓을 위치를 정하세요" },
+                retryToken = mapRetryToken,
+                center = mapCenter,
+                centerGeneration = mapCenterGeneration,
+                waypoints = waypoints,
+                route = route,
+                editingWaypointIndex = editingWaypointIndex,
+                temporaryPin = temporaryPin,
+                onReady = { onIntent(CourseRegistrationIntent.MapReady(it)) },
+                onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
+                onMapTapped = {},
+                onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
+                topPaddingPx = headerHeightPx,
+                bottomPaddingPx = bottomPanelHeightPx,
+            )
+        }
 
         val hasStart = waypoints.any { it.type == RegistrationWaypointType.START }
         val hasDestination = waypoints.any { it.type == RegistrationWaypointType.DESTINATION }
@@ -206,7 +211,9 @@ fun CourseRegistrationMapContent(
             )
             CourseMapLoadState.Ready -> Unit
         }
-        if (isMapPointLoading) CourseRegistrationMapLoadingOverlay()
+        if (isMapPointLoading || initialLocationState == InitialLocationState.Requesting) {
+            CourseRegistrationMapLoadingOverlay()
+        }
 
         if (isFormLoading) {
             CourseRegistrationMapFormLoading(
@@ -249,6 +256,8 @@ fun CourseRegistrationMapContent(
 
         CourseRegistrationCurrentLocationButton(
             onIntent = onIntent,
+            autoRequest = initialLocationState == InitialLocationState.Requesting,
+            visible = initialLocationState != InitialLocationState.Requesting,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 8.dp, bottom = bottomPanelHeight + 8.dp),
@@ -697,7 +706,14 @@ private fun CourseRegistrationMapBottomPanel(
     val isPlacingVia = selectedWaypointRole == CourseWaypointRole.Via
     val isAddViaMode = hasStart && hasDestination && !isPlacingVia
     val addressReady = mapCenter != null && !isPendingAddressLoading && pendingSuggestion != null
-    val selectionEnabled = !isAddViaMode && addressReady &&
+
+    val startWaypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START }
+    val candidatePoint = pendingSuggestion?.point
+    val isDestinationSameAsStart = selectedWaypointRole == CourseWaypointRole.Destination &&
+        startWaypoint != null && candidatePoint != null &&
+        startWaypoint.lat == candidatePoint.lat && startWaypoint.lng == candidatePoint.lng
+
+    val selectionEnabled = !isAddViaMode && addressReady && !isDestinationSameAsStart &&
         (selectedWaypointRole != CourseWaypointRole.Via || viaCount < maxVias)
     val selectionLabel = when (selectedWaypointRole) {
         CourseWaypointRole.Start -> "출발지 선택"

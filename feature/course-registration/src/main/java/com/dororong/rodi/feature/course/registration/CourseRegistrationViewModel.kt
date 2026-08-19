@@ -124,10 +124,16 @@ class CourseRegistrationViewModel @Inject constructor(
                     return@launch
                 }
                 val draft = draftRepository.observe().first()
+                val restoredWaypoints = normalizeWaypoints(draft?.waypoints.orEmpty())
                 val initialPage = if (session.isCourseTutorialCompleted) {
                     CourseRegistrationPage.Map
                 } else {
                     CourseRegistrationPage.Tutorial
+                }
+                val (initialCenter, initialLocationState) = if (initialPage == CourseRegistrationPage.Map) {
+                    initialMapLocationState(restoredWaypoints)
+                } else {
+                    null to InitialLocationState.NotRequested
                 }
                 _state.update {
                     it.copy(
@@ -138,7 +144,9 @@ class CourseRegistrationViewModel @Inject constructor(
                         tutorialLoadState = CourseTutorialLoadState.Ready,
                         draft = draft,
                         isDraftRestored = true,
-                        waypoints = normalizeWaypoints(draft?.waypoints.orEmpty()),
+                        waypoints = restoredWaypoints,
+                        mapCenter = initialCenter,
+                        initialLocationState = initialLocationState,
                         selectedPracticeTypeCodes = draft?.selectedPracticeTypeCodes.orEmpty(),
                         caution = draft?.caution.orEmpty(),
                         description = draft?.description.orEmpty(),
@@ -205,11 +213,15 @@ class CourseRegistrationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 memberRepository.completeCourseTutorial()
+                val currentWaypoints = _state.value.waypoints
+                val (initialCenter, initialLocationState) = initialMapLocationState(currentWaypoints)
                 _state.update {
                     it.copy(
                         tutorialCompleted = true,
                         tutorialLoadState = CourseTutorialLoadState.Ready,
                         page = CourseRegistrationPage.Map,
+                        mapCenter = initialCenter,
+                        initialLocationState = initialLocationState,
                     )
                 }
                 loadRegistrationFormIfNeeded()
@@ -315,6 +327,11 @@ class CourseRegistrationViewModel @Inject constructor(
                 )
             }
             RegistrationWaypointType.DESTINATION -> {
+                val start = current.firstOrNull { it.type == RegistrationWaypointType.START }
+                if (start != null && start.lat == intent.point.lat && start.lng == intent.point.lng) {
+                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
+                    return
+                }
                 current.removeAll { it.type == RegistrationWaypointType.DESTINATION }
                 current.add(
                     RegistrationWaypoint(
@@ -439,7 +456,18 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun mapCenterChanged(point: GeoPoint) {
-        _state.update { it.copy(mapCenter = point) }
+        _state.update {
+            it.copy(
+                mapCenter = point,
+                initialLocationState = if (it.initialLocationState == InitialLocationState.Unavailable ||
+                    it.initialLocationState == InitialLocationState.Requesting
+                ) {
+                    InitialLocationState.Resolved
+                } else {
+                    it.initialLocationState
+                },
+            )
+        }
         if (!_state.value.isSearchVisible) {
             loadPendingAddress(point)
         }
@@ -450,6 +478,7 @@ class CourseRegistrationViewModel @Inject constructor(
             it.copy(
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                initialLocationState = InitialLocationState.Resolved,
             )
         }
         if (_state.value.editingWaypointIndex == null) {
@@ -458,6 +487,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun locationUnavailable() {
+        _state.update { it.copy(initialLocationState = InitialLocationState.Unavailable) }
         _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
@@ -716,6 +746,7 @@ class CourseRegistrationViewModel @Inject constructor(
                         searchError = null,
                         mapCenter = point,
                         mapCenterGeneration = it.mapCenterGeneration + 1,
+                        initialLocationState = InitialLocationState.Resolved,
                     )
                 }
             } catch (error: CancellationException) {
@@ -1021,6 +1052,17 @@ class CourseRegistrationViewModel @Inject constructor(
     private fun maxViasReached(waypoints: List<RegistrationWaypoint> = _state.value.waypoints): Boolean {
         val maxWaypoints = _state.value.registrationForm?.maxWaypoints ?: Int.MAX_VALUE
         return waypoints.count { it.type == RegistrationWaypointType.VIA } >= maxWaypoints.coerceAtLeast(0)
+    }
+
+    private fun initialMapLocationState(
+        waypoints: List<RegistrationWaypoint>,
+    ): Pair<GeoPoint?, InitialLocationState> {
+        val firstWaypoint = waypoints.firstOrNull()
+        return if (firstWaypoint != null) {
+            GeoPoint(firstWaypoint.lat, firstWaypoint.lng) to InitialLocationState.Resolved
+        } else {
+            null to InitialLocationState.Requesting
+        }
     }
 }
 

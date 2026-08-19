@@ -30,6 +30,13 @@ enum class CourseMapLoadState {
     Error,
 }
 
+enum class InitialLocationState {
+    NotRequested,
+    Requesting,
+    Resolved,
+    Unavailable,
+}
+
 enum class CourseRegistrationFormLoadState {
     Loading,
     Ready,
@@ -56,6 +63,7 @@ data class CourseRegistrationUiState(
     val tutorialLoadState: CourseTutorialLoadState = CourseTutorialLoadState.Loading,
     val tutorialPage: Int = 0,
     val mapLoadState: CourseMapLoadState = CourseMapLoadState.Loading,
+    val initialLocationState: InitialLocationState = InitialLocationState.NotRequested,
     val mapRetryToken: Int = 0,
     val selectedWaypointRole: CourseWaypointRole = CourseWaypointRole.Start,
     val waypoints: List<RegistrationWaypoint> = emptyList(),
