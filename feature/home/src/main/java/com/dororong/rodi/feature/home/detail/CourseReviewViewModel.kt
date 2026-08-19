@@ -45,7 +45,20 @@ class CourseReviewViewModel @Inject constructor(
     private val reportedReviewIds = mutableSetOf<Long>()
 
     init {
-        viewModelScope.launch { reportedReviewIds += getReportedReviewIds() }
+        viewModelScope.launch {
+            val ids = getReportedReviewIds()
+            reportedReviewIds += ids
+            // load()가 이 조회보다 먼저 끝나 빈 reportedReviewIds로 병합했을 수 있다 —
+            // 늦게 도착한 신고 목록을 현재 상태에도 다시 적용한다.
+            if (ids.isNotEmpty()) {
+                _state.update {
+                    it.copy(
+                        latestReviews = it.latestReviews.filterNot { review -> review.reviewId in ids },
+                        reviews = it.reviews.filterNot { review -> review.reviewId in ids },
+                    )
+                }
+            }
+        }
     }
 
     /** 신고 직후 신고자 화면에서만 후기를 감춘다 — 서버는 5명이 모일 때까지 계속 내려준다. */
