@@ -91,7 +91,7 @@ enum class FilterPracticeOption(
     U_TURN("유턴", PracticeType.U_TURN),
     MULTILANE("다차로주행", PracticeType.MULTILANE),
     MERGING("합류", PracticeType.MERGING),
-    HIGHWAY_ENTRY("고속도로", PracticeType.HIGHWAY_ENTRY),
+    HIGHWAY_ENTRY("고속진입", PracticeType.HIGHWAY_ENTRY),
     ROUNDABOUT("회전교차로", PracticeType.ROUNDABOUT),
     UNPROTECTED_LEFT_TURN("비보호좌회전", PracticeType.UNPROTECTED_LEFT_TURN),
     NARROW_ROAD("좁은도로", PracticeType.NARROW_ROAD),
