@@ -53,7 +53,9 @@ fun CourseRegistrationFlow(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val context = LocalContext.current
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
-    var showNetworkError by remember { mutableStateOf(!context.isNetworkAvailable()) }
+    // 최초 진입이 오프라인이어도 3초 유예를 그대로 적용한다 — 아래 LaunchedEffect(isOnline)의
+    // else 분기가 delay 후 이 값을 true로 바꾼다. 초기값을 true로 두면 그 유예를 건너뛴다.
+    var showNetworkError by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         networkAvailabilityFlow(context).collect { isOnline = it }
     }
