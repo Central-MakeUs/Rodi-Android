@@ -73,6 +73,9 @@ data class CourseRegistrationUiState(
     val isRouteLoading: Boolean = false,
     val mapCenter: GeoPoint? = null,
     val mapCenterGeneration: Long = 0L,
+    // 지점 확정/핀 수정처럼 "같은 자리를 다시 보여주는" 재중심은 true — 사용자가 확대해
+    // 보던 줌 레벨을 유지한다. 검색 결과 선택처럼 새 지역으로 점프할 때만 false(기준 줌 14).
+    val mapCenterKeepsZoom: Boolean = false,
     val searchKeyword: String = "",
     val isSearchVisible: Boolean = false,
     val isSearchLoading: Boolean = false,
@@ -81,7 +84,9 @@ data class CourseRegistrationUiState(
     val searchError: String? = null,
     val formLoadState: CourseRegistrationFormLoadState = CourseRegistrationFormLoadState.Loading,
     val registrationForm: CourseRegistrationForm? = null,
-    val selectedCategoryCodes: List<String> = emptyList(),
+    // 카테고리는 라디오처럼 하나만 선택된다. 선택한 연습유형(selectedPracticeTypeCodes)은
+    // 카테고리를 넘나들며 누적 유지된다 — 카테고리를 바꾸면 보이는 목록만 바뀐다.
+    val selectedCategoryCode: String? = null,
     val selectedPracticeTypeCodes: List<String> = emptyList(),
     val caution: String = "",
     val description: String = "",
@@ -178,7 +183,7 @@ sealed interface CourseRegistrationIntent {
     data class DeleteRecentSearch(val id: String) : CourseRegistrationIntent
     data object DeleteAllRecentSearches : CourseRegistrationIntent
     data class MapReady(val ready: Boolean) : CourseRegistrationIntent
-    data class ToggleCategory(val code: String) : CourseRegistrationIntent
+    data class SelectCategory(val code: String) : CourseRegistrationIntent
     data class TogglePracticeType(val code: String) : CourseRegistrationIntent
     data class CautionChanged(val value: String) : CourseRegistrationIntent
     data class DescriptionChanged(val value: String) : CourseRegistrationIntent

@@ -101,7 +101,7 @@ class CourseRegistrationViewModel @Inject constructor(
             is CourseRegistrationIntent.DeleteRecentSearch -> deleteRecentSearch(intent.id)
             CourseRegistrationIntent.DeleteAllRecentSearches -> deleteAllRecentSearches()
             is CourseRegistrationIntent.MapReady -> mapReady(intent.ready)
-            is CourseRegistrationIntent.ToggleCategory -> toggleCategory(intent.code)
+            is CourseRegistrationIntent.SelectCategory -> selectCategory(intent.code)
             is CourseRegistrationIntent.TogglePracticeType -> togglePracticeType(intent.code)
             is CourseRegistrationIntent.CautionChanged -> updateCaution(intent.value)
             is CourseRegistrationIntent.DescriptionChanged -> updateDescription(intent.value)
@@ -373,10 +373,14 @@ class CourseRegistrationViewModel @Inject constructor(
                 route = null,
                 mapCenter = intent.point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
-                selectedWaypointRole = when (waypointType) {
-                    RegistrationWaypointType.START -> CourseWaypointRole.Destination
-                    RegistrationWaypointType.DESTINATION -> CourseWaypointRole.Destination
-                    RegistrationWaypointType.VIA -> CourseWaypointRole.Destination
+                mapCenterKeepsZoom = true,
+                // 다음 역할은 "방금 무엇을 찍었는지"가 아니라 "아직 비어 있는 필수 칸"
+                // 기준으로 정한다. 출발지를 건너뛰고 도착지부터 찍은 경우, 다음은 도착지가
+                // 아니라 출발지여야 계속 도착지만 덮어쓰는 문제가 없다.
+                selectedWaypointRole = if (normalized.none { it.type == RegistrationWaypointType.START }) {
+                    CourseWaypointRole.Start
+                } else {
+                    CourseWaypointRole.Destination
                 },
             )
         }
@@ -408,6 +412,9 @@ class CourseRegistrationViewModel @Inject constructor(
                 temporaryPin = null,
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                // 이미 찍힌 지점으로 다시 중심을 맞추는 것뿐이라 검색 결과 선택과 다르다 —
+                // 사용자가 보던 줌을 유지한다.
+                mapCenterKeepsZoom = true,
             )
         }
         // 프로그램적 카메라 이동(moveCamera)은 지도 SDK의 onCameraMoveEnd 콜백을 쏘지 않아
@@ -483,6 +490,7 @@ class CourseRegistrationViewModel @Inject constructor(
             it.copy(
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                mapCenterKeepsZoom = true,
                 initialLocationState = InitialLocationState.Resolved,
             )
         }
@@ -596,6 +604,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 temporaryPin = null,
                 mapCenter = resolvedPoint,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                mapCenterKeepsZoom = true,
                 route = null,
                 pendingSuggestion = suggestion,
                 isPendingAddressLoading = false,
@@ -616,6 +625,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 temporaryPin = null,
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                mapCenterKeepsZoom = true,
             )
         }
         loadPendingAddress(point)
@@ -631,6 +641,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 temporaryPin = null,
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
+                mapCenterKeepsZoom = true,
             )
         }
         loadPendingAddress(point)
@@ -751,6 +762,7 @@ class CourseRegistrationViewModel @Inject constructor(
                         searchError = null,
                         mapCenter = point,
                         mapCenterGeneration = it.mapCenterGeneration + 1,
+                        mapCenterKeepsZoom = false,
                         initialLocationState = InitialLocationState.Resolved,
                     )
                 }
@@ -776,23 +788,16 @@ class CourseRegistrationViewModel @Inject constructor(
         viewModelScope.launch { locationRepository.clearRecent() }
     }
 
-    /** 카테고리는 복수 선택이고, 해제하면 그 카테고리에서 고른 연습유형도 함께 풀린다. */
-    private fun toggleCategory(code: String) {
+    /**
+     * 카테고리는 라디오처럼 하나만 선택된다. 카테고리를 바꾸면 연습유형 섹션에 보이는
+     * 목록만 그 카테고리 것으로 바뀌고, 이미 고른 연습유형(다른 카테고리 소속이라도)은
+     * 풀리지 않는다 — 카테고리를 넘나들며 함께 선택·노출할 수 있어야 한다는 기획 의도.
+     */
+    private fun selectCategory(code: String) {
         val form = _state.value.registrationForm ?: return
-        val category = form.categories.firstOrNull { it.code == code } ?: return
-        val selected = _state.value.selectedCategoryCodes
-        if (code in selected) {
-            val ownedTypeCodes = category.practiceTypes.map { it.code }.toSet()
-            _state.update {
-                it.copy(
-                    selectedCategoryCodes = selected - code,
-                    selectedPracticeTypeCodes = it.selectedPracticeTypeCodes - ownedTypeCodes,
-                )
-            }
-        } else {
-            _state.update { it.copy(selectedCategoryCodes = selected + code) }
-        }
-        persistDraft()
+        if (form.categories.none { it.code == code }) return
+        if (_state.value.selectedCategoryCode == code) return
+        _state.update { it.copy(selectedCategoryCode = code) }
     }
 
     private fun togglePracticeType(code: String) {
@@ -854,16 +859,19 @@ class CourseRegistrationViewModel @Inject constructor(
                     .take(form.practiceTypeMaxSelect.coerceAtLeast(0))
                 val currentWaypoints = _state.value.waypoints
                 val reconciledWaypoints = trimWaypointsToFormLimit(currentWaypoints, form.maxWaypoints)
-                // 임시저장을 복원하면 연습유형만 남아 있으므로, 그 유형을 가진 카테고리를 다시 펼쳐준다.
-                // 그러지 않으면 선택된 연습유형이 화면에 보이지 않는 채로 완료 조건만 충족돼 버린다.
-                val restoredCategoryCodes = form.categories
-                    .filter { category -> category.practiceTypes.any { it.code in reconciledCodes } }
-                    .map { it.code }
+                // 임시저장을 복원하면 연습유형만 남아 있으므로, 그중 하나를 가진 카테고리를
+                // 펼쳐 보여준다. 카테고리는 하나만 켜지므로 복원된 연습유형의 첫 번째를 기준으로
+                // 고른다. 복원할 연습유형이 없으면(신규 진입 등) order 기준 첫 카테고리를 켠다
+                // — 폼 로드가 끝나면 항상 하나는 선택돼 있어야 한다.
+                val restoredCategoryCode = form.categories
+                    .firstOrNull { category -> category.practiceTypes.any { it.code in reconciledCodes } }
+                    ?.code
+                    ?: form.categories.minByOrNull { it.order }?.code
                 _state.update {
                     it.copy(
                         formLoadState = CourseRegistrationFormLoadState.Ready,
                         registrationForm = form,
-                        selectedCategoryCodes = restoredCategoryCodes,
+                        selectedCategoryCode = restoredCategoryCode,
                         selectedPracticeTypeCodes = reconciledCodes,
                         waypoints = reconciledWaypoints,
                         route = if (reconciledWaypoints == currentWaypoints) it.route else null,

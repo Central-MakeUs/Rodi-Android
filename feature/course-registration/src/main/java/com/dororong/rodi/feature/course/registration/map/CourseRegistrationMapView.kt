@@ -49,9 +49,11 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.KakaoMapReadyCallback
 
 private const val REGISTRATION_LABEL_LAYER_ID = "rodi-course-registration-layer"
-private const val CAMERA_MOVE_DURATION_MILLIS = 1_200
+private const val CAMERA_MOVE_DURATION_MILLIS = 400
 private const val DEFAULT_LAT = 37.5665
 private const val DEFAULT_LNG = 126.9780
+private const val DEFAULT_ZOOM_LEVEL = 14
+private const val ROUTE_LINE_WIDTH = 13f
 
 /** Kakao MapView는 자체 생명주기를 가지므로 Compose가 제거될 때 finish를 호출한다. */
 @Composable
@@ -60,6 +62,7 @@ fun CourseRegistrationMapView(
     retryToken: Int,
     center: GeoPoint?,
     centerGeneration: Long,
+    centerKeepsZoom: Boolean = false,
     waypoints: List<RegistrationWaypoint>,
     route: RouteResult?,
     editingWaypointIndex: Int?,
@@ -81,6 +84,7 @@ fun CourseRegistrationMapView(
     val currentMapTapped by rememberUpdatedState(onMapTapped)
     val currentWaypointTapped by rememberUpdatedState(onWaypointTapped)
     val currentCenter by rememberUpdatedState(center)
+    val currentCenterKeepsZoom by rememberUpdatedState(centerKeepsZoom)
     val currentRetryToken by rememberUpdatedState(retryToken)
     val routeColor = RodiTheme.colors.primary600.toArgb()
     val routeStrokeColor = RodiTheme.colors.primary800.toArgb()
@@ -109,14 +113,31 @@ fun CourseRegistrationMapView(
     // center는 사용자가 지도를 드래그/핀치할 때마다(onCameraMoveEnd) 바뀌므로 key에 넣지 않는다 —
     // 넣으면 매번 이 effect가 재실행돼 카메라를 level 14로 되돌려서 확대/축소가 즉시 원복돼 버린다.
     // 실제 "프로그래매틱 재중심" 트리거는 centerGeneration 증가뿐이다.
+    //
+    // 최초 진입 시의 위치는 onMapReady의 getPosition()/getZoomLevel()이 첫 프레임부터 이미
+    // 반영한다. 그 직후 지도가 준비되며 이 effect가 (map이 null→non-null로 바뀌어) 처음
+    // 실행되는데, 그때 또 moveCamera 애니메이션을 걸면 이미 맞는 위치에서 눈에 보이는 카메라
+    // 이동이 한 번 더 발생한다("스윽" 움직이는 것처럼 보이는 원인 중 하나). retryToken별로
+    // 마지막에 적용한 generation을 기억해, 새 MapView의 첫 적용은 건너뛴다.
+    var appliedGeneration by remember(retryToken) { mutableStateOf<Long?>(null) }
     LaunchedEffect(map, centerGeneration) {
+        val currentMap = map ?: return@LaunchedEffect
         val target = currentCenter ?: return@LaunchedEffect
+        if (appliedGeneration == centerGeneration) return@LaunchedEffect
+        val isFirstApply = appliedGeneration == null
+        appliedGeneration = centerGeneration
+        if (isFirstApply) return@LaunchedEffect
+        // 지점 확정/핀 수정처럼 "같은 자리를 다시 보여주는" 재중심은 사용자가 확대해 보던
+        // 레벨을 유지한다(자동 축소로 핀이 작아 보이는 문제). 검색 결과 선택처럼 새로운
+        // 지역으로 점프할 때만 기준 줌(14)으로 맞춘다.
+        val update = if (currentCenterKeepsZoom) {
+            CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng))
+        } else {
+            CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), DEFAULT_ZOOM_LEVEL)
+        }
         // 거리에 비례해 느려지지 않도록 애니메이션 길이를 고정한다 — 서울에서 먼 곳을 들렀다 오면
         // 예전엔 이동에 한참 걸렸다.
-        map?.moveCamera(
-            CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), 14),
-            CameraAnimation.from(CAMERA_MOVE_DURATION_MILLIS, false, false),
-        )
+        currentMap.moveCamera(update, CameraAnimation.from(CAMERA_MOVE_DURATION_MILLIS, false, false))
     }
 
     LaunchedEffect(map, waypoints, route, editingWaypointIndex) {
@@ -155,6 +176,16 @@ fun CourseRegistrationMapView(
                             }
                         },
                         object : KakaoMapReadyCallback() {
+                            // getPosition()/getZoomLevel()은 지도의 첫 프레임이 그려지기 전에
+                            // SDK가 읽어간다. 이걸 override하지 않으면 지도가 SDK 기본 위치에서
+                            // 한 번 그려진 뒤에야 onMapReady에서 목표 위치로 이동해, 진입할 때마다
+                            // 카메라가 "스윽" 움직이는 것처럼 보인다. 여기서 첫 프레임부터 목표
+                            // 위치에 있게 하면 그 이동 자체가 사라진다.
+                            override fun getPosition(): LatLng {
+                                val initialCenter = currentCenter ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
+                                return LatLng.from(initialCenter.lat, initialCenter.lng)
+                            }
+                            override fun getZoomLevel(): Int = DEFAULT_ZOOM_LEVEL
                             override fun onMapReady(readyMap: KakaoMap) {
                                 if (currentRetryToken != generation) return
                                 map = readyMap
@@ -174,15 +205,7 @@ fun CourseRegistrationMapView(
                                     (label.tag as? Int)?.let(currentWaypointTapped)
                                     true
                                 }
-                                // factory 클로저가 캡처한 center는 지도 준비가 끝나기 전에 값이
-                                // 바뀌어도 갱신되지 않는다. rememberUpdatedState로 최신 값을 읽는다.
                                 val initialCenter = currentCenter ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
-                                readyMap.moveCamera(
-                                    CameraUpdateFactory.newCenterPosition(
-                                        LatLng.from(initialCenter.lat, initialCenter.lng),
-                                        14,
-                                    ),
-                                )
                                 currentCenterChanged(initialCenter)
                                 onReady(true)
                             }
@@ -240,7 +263,7 @@ private fun KakaoMap.renderRegistrationContent(
     val points = route?.points.orEmpty()
     if (points.size < 2) return
     val routeManager = routeLineManager ?: return
-    val style = RouteLineStyle.from(10f, routeColor, 2f, routeStrokeColor)
+    val style = RouteLineStyle.from(ROUTE_LINE_WIDTH, routeColor, 2f, routeStrokeColor)
     val stylesSet = RouteLineStylesSet.from(RouteLineStyles.from(style))
     routeManager.layer?.addRouteLine(
         RouteLineOptions.from(
