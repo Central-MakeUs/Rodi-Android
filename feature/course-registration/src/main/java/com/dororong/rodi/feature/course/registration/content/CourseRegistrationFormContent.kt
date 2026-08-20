@@ -243,9 +243,8 @@ private fun CourseRegistrationFormFields(
                     spec = form.descriptionInput,
                     onValueChanged = { onIntent(CourseRegistrationIntent.DescriptionChanged(it)) },
                     label = form.sections.description,
-                    // 서버 문구는 예시문이라 10자 조건이 드러나지 않는다. 이 조건은 완료를 눌러야
-                    // 알 수 있어서, 디자인대로 입력 전에 미리 알려주는 문구를 쓴다.
-                    placeholder = "최소 10자 이상 입력해주세요.",
+                    placeholder = "예) 교차로 연습하기 좋은 코스",
+                    errorMessage = "최소 10자 이상 입력해주세요",
                     showValidationError = showValidationErrors,
                     showCounter = true,
                     minLines = 1,
@@ -294,14 +293,15 @@ private fun RodiInputField(
     minLines: Int = 2,
     showCounter: Boolean = true,
     showValidationError: Boolean = false,
+    errorMessage: String = "입력 길이를 확인해 주세요.",
 ) {
     var isFocused by remember { mutableStateOf(false) }
     var hasInteracted by rememberSaveable { mutableStateOf(false) }
-    // 최소 글자 수는 입력 중 에러로 표시하지 않는다 — 완료를 눌렀을 때 안내 문구로 알리는 게 명세라
-    // 여기서 빨간 테두리까지 띄우면 "1자 이상이면 완료 활성화"와 어긋나 보인다.
     // 글자 수는 사용자가 세는 단위(grapheme)로 보여준다 — 이모지 하나가 2로 세이던 문제.
     val graphemeCount = value.graphemeLength()
-    val valid = if (value.isBlank()) !spec.required else graphemeCount <= spec.maxLength
+    val minLength = spec.minLength
+    val meetsMinLength = minLength == null || graphemeCount >= minLength
+    val valid = if (value.isBlank()) !spec.required else graphemeCount <= spec.maxLength && meetsMinLength
     val shape = RoundedCornerShape(RodiRadius.sm)
     val showError = (showValidationError || hasInteracted) && !valid
     val borderColor = if (showError) RodiTheme.colors.pointRed else rodiInputBorderColor(isFocused)
@@ -344,7 +344,7 @@ private fun RodiInputField(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 if (showError) {
                     Text(
-                        text = "입력 길이를 확인해 주세요.",
+                        text = errorMessage,
                         style = RodiTheme.typography.caption2Regular,
                         color = RodiTheme.colors.pointRed,
                     )
