@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -91,6 +92,7 @@ fun CourseRegistrationMapContent(
     mapRetryToken: Int,
     mapCenter: GeoPoint?,
     mapCenterGeneration: Long,
+    mapCenterKeepsZoom: Boolean = false,
     waypoints: List<RegistrationWaypoint>,
     route: RouteResult?,
     isRouteLoading: Boolean,
@@ -152,6 +154,7 @@ fun CourseRegistrationMapContent(
                 retryToken = mapRetryToken,
                 center = mapCenter,
                 centerGeneration = mapCenterGeneration,
+                centerKeepsZoom = mapCenterKeepsZoom,
                 waypoints = waypoints,
                 route = route,
                 editingWaypointIndex = editingWaypointIndex,
@@ -394,7 +397,10 @@ private fun CourseRegistrationWaypointCard(
             WaypointSelectionRow(
                 type = RegistrationWaypointType.START,
                 waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.START },
-                pendingLabel = if (!hasStart) pendingLabel else null,
+                // 회색 미리보기 주소는 "비어 있는 첫 칸"이 아니라 "지금 선택 중인 역할"의
+                // 칸에만 뜬다. 출발지를 건너뛰고 도착지부터 고른 경우에도 도착지 칸에 미리보기가
+                // 떠야 한다(비어 있는 칸 기준이면 항상 출발지 칸에 잘못 떴다).
+                pendingLabel = pendingLabel.takeIf { selectedWaypointRole == CourseWaypointRole.Start },
                 onClick = {
                     onRoleSelected(CourseWaypointRole.Start)
                     onSearch()
@@ -437,7 +443,7 @@ private fun CourseRegistrationWaypointCard(
             WaypointSelectionRow(
                 type = RegistrationWaypointType.DESTINATION,
                 waypoint = waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION },
-                pendingLabel = if (hasStart && !hasDestination) pendingLabel else null,
+                pendingLabel = pendingLabel.takeIf { selectedWaypointRole == CourseWaypointRole.Destination },
                 onClick = {
                     onRoleSelected(CourseWaypointRole.Destination)
                     onSearch()
@@ -491,7 +497,12 @@ private fun WaypointActionIcon(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val strokeColor = if (enabled) RodiTheme.colors.gray600 else RodiTheme.colors.gray300
+    // 디자인(icon 24/plus-circle)의 바인딩 변수 기준: 원 배경 white, 원 테두리 gray300,
+    // +/− 글리프 gray600 — 서로 다른 회색이다. 예전엔 테두리와 글리프가 같은 색이라 테두리가
+    // 디자인보다 진하게 보였다.
+    val glyphColor = if (enabled) RodiTheme.colors.gray600 else RodiTheme.colors.gray300
+    // 디자인에 비활성 테두리 색 정의가 없어 활성/비활성 모두 gray300으로 둔다(기존 동작 유지).
+    val borderColor = RodiTheme.colors.gray300
     val backgroundColor = RodiTheme.colors.white
     Box(
         modifier = modifier
@@ -510,20 +521,20 @@ private fun WaypointActionIcon(
             // 두 칸 경계에 걸쳐 놓기 때문에 배경을 깔지 않으면 칸 테두리가 아이콘을 관통한다.
             drawCircle(color = backgroundColor, radius = size.minDimension / 2f)
             drawLine(
-                color = strokeColor,
+                color = glyphColor,
                 start = Offset(center.x - 5.dp.toPx(), center.y),
                 end = Offset(center.x + 5.dp.toPx(), center.y),
                 strokeWidth = stroke,
                 cap = StrokeCap.Round,
             )
             drawCircle(
-                color = strokeColor,
+                color = borderColor,
                 radius = size.minDimension / 2f - stroke / 2f,
                 style = Stroke(width = stroke),
             )
             if (add) {
                 drawLine(
-                    color = strokeColor,
+                    color = glyphColor,
                     start = Offset(center.x, center.y - 5.dp.toPx()),
                     end = Offset(center.x, center.y + 5.dp.toPx()),
                     strokeWidth = stroke,
@@ -724,7 +735,8 @@ private fun CourseRegistrationMapBottomPanel(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.lg, topEnd = RodiRadius.lg))
+            // 하단 패널은 직각으로 그린다(QA: 지도 바텀탭은 radius 없이).
+            .background(RodiTheme.colors.white, RectangleShape)
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
@@ -782,7 +794,7 @@ private fun CourseRegistrationMapFormLoading(modifier: Modifier) {
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.lg, topEnd = RodiRadius.lg))
+            .background(RodiTheme.colors.white, RectangleShape)
             .navigationBarsPadding()
             .imePadding()
             .padding(RodiSpacing.md),
@@ -875,45 +887,45 @@ private fun RecentSearchContent(
     onDeleteAll: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-                .padding(horizontal = RodiSpacing.md),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("최근 검색어", style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray700)
-            // 글자 높이만큼만 클릭 영역이 잡히지 않도록 헤더 행 전체 높이로 넓힌다.
-            Box(
+        // 최근 검색어가 없을 때는 헤더 행("최근 검색어" + 전체삭제) 자체를 그리지 않는다 —
+        // 홈 검색(SearchScreen.kt의 RecentSearchList)과 같은 빈 상태를 보여줘야 한다.
+        // 로딩 중에는 아직 있는지 없는지 모르므로 헤더를 그리지 않고 스켈레톤만 보여준다.
+        if (!isLoading && recent.isNotEmpty()) {
+            Row(
                 modifier = Modifier
-                    .fillMaxHeight()
-                    .clickable(enabled = recent.isNotEmpty(), onClick = onDeleteAll)
-                    .semantics {
-                        contentDescription = "최근 검색어 전체 삭제"
-                        role = Role.Button
-                    },
-                contentAlignment = Alignment.Center,
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .padding(horizontal = RodiSpacing.md),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "전체삭제",
-                    style = RodiTheme.typography.caption2Medium,
-                    color = RodiTheme.colors.gray500,
-                )
+                Text("최근 검색어", style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray700)
+                // 글자 높이만큼만 클릭 영역이 잡히지 않도록 헤더 행 전체 높이로 넓힌다.
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .clickable(onClick = onDeleteAll)
+                        .semantics {
+                            contentDescription = "최근 검색어 전체 삭제"
+                            role = Role.Button
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "전체삭제",
+                        style = RodiTheme.typography.caption2Medium,
+                        color = RodiTheme.colors.gray500,
+                    )
+                }
             }
         }
         if (isLoading) {
             RecentSearchLoadingContent()
         } else if (recent.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Text(
-                    modifier = Modifier.padding(top = 180.dp),
-                    text = "최근 검색 내역이 없습니다",
-                    style = RodiTheme.typography.body1Medium,
-                    color = RodiTheme.colors.gray600,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            RodiTextEmptyState(
+                modifier = Modifier.fillMaxSize(),
+                title = "최근 검색 내역이 없습니다",
+            )
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(recent, key = CourseLocationSuggestion::id) { item ->
@@ -1111,7 +1123,7 @@ private fun CourseRegistrationPinEditBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(RodiTheme.colors.white, RoundedCornerShape(topStart = RodiRadius.md, topEnd = RodiRadius.md))
+            .background(RodiTheme.colors.white, RectangleShape)
             .navigationBarsPadding()
             .imePadding()
             .padding(horizontal = RodiSpacing.md, vertical = 10.dp),
