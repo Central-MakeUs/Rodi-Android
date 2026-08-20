@@ -37,13 +37,21 @@ class ViewportSearchThresholdTest {
     }
 
     @Test
-    fun `initial search never uses fallback or an uncentered late location`() {
-        assertFalse(
+    fun `initial search uses the viewport only when location is unavailable`() {
+        assertTrue(
             InitialViewportSearchPolicy.canDispatch(
                 locationState = InitialLocationState.Unavailable,
                 hasCurrentLocation = false,
                 hasCenteredInitialLocation = false,
                 isInitialLocationCameraMovePending = false,
+            ),
+        )
+        assertFalse(
+            InitialViewportSearchPolicy.canDispatch(
+                locationState = InitialLocationState.Unavailable,
+                hasCurrentLocation = false,
+                hasCenteredInitialLocation = false,
+                isInitialLocationCameraMovePending = true,
             ),
         )
         assertFalse(

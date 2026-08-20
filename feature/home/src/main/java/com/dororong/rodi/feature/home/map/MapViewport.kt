@@ -51,10 +51,15 @@ object InitialViewportSearchPolicy {
         hasCurrentLocation: Boolean,
         hasCenteredInitialLocation: Boolean,
         isInitialLocationCameraMovePending: Boolean,
-    ): Boolean = locationState == InitialLocationState.Ready &&
-        hasCurrentLocation &&
-        !isInitialLocationCameraMovePending &&
-        hasCenteredInitialLocation
+    ): Boolean {
+        if (isInitialLocationCameraMovePending) return false
+        return when (locationState) {
+            InitialLocationState.Pending -> false
+            InitialLocationState.Ready ->
+                hasCurrentLocation && hasCenteredInitialLocation
+            InitialLocationState.Unavailable -> true
+        }
+    }
 }
 
 enum class InitialLocationState { Pending, Ready, Unavailable }
