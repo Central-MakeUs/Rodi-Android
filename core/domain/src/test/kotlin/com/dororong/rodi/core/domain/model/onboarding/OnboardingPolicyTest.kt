@@ -66,7 +66,7 @@ class OnboardingPolicyTest {
     fun `recommendations follow canonical level policy`() {
         assertEquals(listOf("직선주행", "좌우회전", "차선변경"), OnboardingLevel.SEED.recommendations)
         assertEquals(listOf("유턴", "교차로", "주차"), OnboardingLevel.ROOKIE.recommendations)
-        assertEquals(listOf("고속도로", "합류", "다차로주행"), OnboardingLevel.OWNER.recommendations)
+        assertEquals(listOf("고속진입", "합류", "다차로주행"), OnboardingLevel.OWNER.recommendations)
         assertEquals(listOf("비보호좌회전", "회전교차로", "좁은도로", "코너링"), OnboardingLevel.EXPLORER.recommendations)
     }
 

@@ -51,7 +51,12 @@ fun CourseDetailContent(
         Column(
             modifier = Modifier
                 .onSizeChanged { onSummaryHeightChanged(it.height) }
-                .padding(top = if (showCloseButton) 0.dp else RodiSpacing.md),
+                // 접힌 높이는 이 블록 높이로 정해진다. 아래 여백이 없으면 설명 칸이
+                // 하단 버튼 바에 붙어 보인다.
+                .padding(
+                    top = if (showCloseButton) 0.dp else RodiSpacing.md,
+                    bottom = RodiSpacing.md,
+                ),
             verticalArrangement = Arrangement.spacedBy(if (showCloseButton) RodiSpacing.sm else 12.dp),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(RodiSpacing.sm)) {

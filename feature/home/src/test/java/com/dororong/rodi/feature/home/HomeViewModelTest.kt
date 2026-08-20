@@ -365,6 +365,29 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `guest registration action uses the existing login gate and resumes after login`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.authSession() } returnsMany listOf(
+            AuthSession(false, false),
+            AuthSession(true, true),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnRegisterClick)
+        advanceUntilIdle()
+
+        assertEquals(PendingHomeAction.OpenCourseRegistration, vm.state.value.pendingAction)
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateCourseRegistration, awaitItem())
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `guest new member navigates to sign up without resuming pending action`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns

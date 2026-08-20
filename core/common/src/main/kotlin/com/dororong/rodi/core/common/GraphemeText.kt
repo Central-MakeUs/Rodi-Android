@@ -15,6 +15,27 @@ fun String.graphemeLength(): Int {
     return count
 }
 
+/**
+ * 서버가 글자 수를 [String.length](UTF-16 code unit)로 검증할 때 쓴다.
+ *
+ * 이모지는 grapheme 1개라도 code unit은 2개 이상이라, grapheme 기준으로만 자르면
+ * 화면엔 "30/30"인데 서버에선 길이 초과로 거부당한다. 이모지 시퀀스를 중간에서
+ * 깨지 않으면서 code unit 합이 [maxCodeUnits]를 넘지 않는 지점까지만 남긴다.
+ */
+fun String.takeGraphemesWithinCodeUnits(maxCodeUnits: Int): String {
+    if (maxCodeUnits <= 0) return ""
+    if (length <= maxCodeUnits) return this
+    val iterator = BreakIterator.getCharacterInstance()
+    iterator.setText(this)
+    var boundary = 0
+    var next = iterator.next()
+    while (next != BreakIterator.DONE && next <= maxCodeUnits) {
+        boundary = next
+        next = iterator.next()
+    }
+    return substring(0, boundary)
+}
+
 /** 사용자가 인지하는 문자 [maxLength]개까지만 남기고 자른다. 이모지 시퀀스를 중간에서 깨지 않는다. */
 fun String.takeGraphemes(maxLength: Int): String {
     if (maxLength <= 0) return ""

@@ -28,9 +28,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalView
@@ -52,18 +55,25 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
+import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 
 @Composable
 fun ReviewReportScreen(
     reviewId: Long,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    onReported: (Long) -> Unit = {},
     viewModel: ReviewActionsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
 
     LaunchedEffect(reviewId) { viewModel.loadReportForm(reviewId) }
+    // 신고가 접수되면 신고자 목록에서 바로 빼준다. 서버는 5명이 모일 때까지 계속 내려준다.
+    LaunchedEffect(state.isReportSubmitted) {
+        if (state.isReportSubmitted) onReported(reviewId)
+    }
     LaunchedEffect(state.reportErrorMessage) {
         state.reportErrorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
@@ -307,17 +317,19 @@ private fun ReportDetailInput(
     maxGraphemes: Int,
     onValueChange: (String) -> Unit,
 ) {
+    var isFocused by remember { mutableStateOf(false) }
     val textFieldState = rememberGraphemeTextFieldState(value, maxGraphemes, onValueChange)
     BasicTextField(
         value = textFieldState.value,
         onValueChange = textFieldState.onValueChange,
         textStyle = RodiTheme.typography.body3Medium.copy(color = RodiTheme.colors.black),
         singleLine = true,
-        cursorBrush = SolidColor(RodiTheme.colors.primary600),
+        cursorBrush = rodiCursorBrush(),
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
-            .border(1.dp, RodiTheme.colors.gray300, RoundedCornerShape(8.dp))
+            .onFocusChanged { isFocused = it.isFocused }
+            .border(1.dp, rodiInputBorderColor(isFocused), RoundedCornerShape(8.dp))
             .padding(horizontal = 16.dp),
         decorationBox = { innerTextField ->
             Box(contentAlignment = Alignment.CenterStart) {

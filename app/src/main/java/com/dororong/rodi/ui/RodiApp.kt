@@ -50,6 +50,10 @@ fun RodiApp(
     val backStack = rememberNavBackStack()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }
     var showSessionExpiredMessage by rememberSaveable { mutableStateOf(false) }
+    var resumeCourseRegistration by rememberSaveable { mutableStateOf(false) }
+    var resumeCourseRegistrationEntryModeName by rememberSaveable {
+        mutableStateOf(CourseRegistrationEntryMode.Normal.name)
+    }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
@@ -137,6 +141,20 @@ fun RodiApp(
                         onGuestSignUp = {
                             backStack.clear()
                             backStack.add(EntryRoute)
+                        },
+                        onCourseRegistrationLoginRequired = { entryMode ->
+                            resumeCourseRegistration = true
+                            resumeCourseRegistrationEntryModeName = entryMode.name
+                            backStack.clear()
+                            backStack.add(LoginRoute)
+                        },
+                        openCourseRegistrationOnStart = resumeCourseRegistration,
+                        courseRegistrationEntryModeOnStart = runCatching {
+                            CourseRegistrationEntryMode.valueOf(resumeCourseRegistrationEntryModeName)
+                        }.getOrDefault(CourseRegistrationEntryMode.Normal),
+                        onCourseRegistrationOpened = {
+                            resumeCourseRegistration = false
+                            resumeCourseRegistrationEntryModeName = CourseRegistrationEntryMode.Normal.name
                         },
                         onSessionEnded = {
                             viewModel.onSessionEnded()
