@@ -870,6 +870,39 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `denying notification permission routes without starting local session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val notificationRequested = MutableStateFlow(false)
+        every { deps.notificationRequested() } returns notificationRequested
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnNotificationPermissionAllow)
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            advanceUntilIdle()
+
+            assertEquals(
+                HomeEffect.LaunchKakaoMap(navigationPlace(), startDriving = false),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertFalse(vm.state.value.isPracticeLaunchInProgress)
+        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 1) { deps.markNotificationRequested() }
+    }
+
+    @Test
     fun `allowing notification permission starts local session after permission callback`() = runTest(dispatcher) {
         val start = Instant.parse("2026-08-15T00:00:00Z")
         val deps = Dependencies(Clock.fixed(start, ZoneOffset.UTC))
@@ -890,7 +923,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
             assertEquals(HomePermissionEffect.RequestNotificationPermission, awaitItem())
             coVerify(exactly = 0) { deps.saveActiveSession(any()) }
-            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
             advanceUntilIdle()
             cancelAndIgnoreRemainingEvents()
         }

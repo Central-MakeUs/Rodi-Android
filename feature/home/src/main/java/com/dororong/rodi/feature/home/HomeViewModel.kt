@@ -153,7 +153,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnPracticePromptDismiss -> dismissPracticePrompt()
             HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
             HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
-            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult()
+            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult(intent.granted)
             HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
@@ -799,11 +799,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun onNotificationPermissionResult() {
-        val pending = _state.value.pendingPracticeNavigation ?: return
-        viewModelScope.launch {
-            startPracticeNavigation(pending)
+    private fun onNotificationPermissionResult(granted: Boolean) {
+        if (!granted) {
+            routeWithoutPracticeMeasurement()
+            return
         }
+        val pending = _state.value.pendingPracticeNavigation ?: return
+        viewModelScope.launch { startPracticeNavigation(pending) }
     }
 
     private suspend fun startPracticeNavigation(pending: PendingPracticeNavigation) {
