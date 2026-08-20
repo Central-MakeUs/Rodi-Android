@@ -31,7 +31,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-private const val ROUTE_LINE_WIDTH = 10f
+private const val ROUTE_LINE_WIDTH = 13f
 private const val FIT_PADDING_PX = 140
 private const val ENDPOINT_OVERLAP_THRESHOLD_METERS = 2.0
 private const val OVERLAPPED_START_ANCHOR_X = 0.25f

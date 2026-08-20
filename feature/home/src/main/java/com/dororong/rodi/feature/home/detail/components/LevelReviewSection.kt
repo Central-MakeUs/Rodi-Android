@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -299,12 +300,14 @@ private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(124.dp),
+            // 글꼴 배율이 커지면 내용이 124dp를 넘는다. 고정 height로 자르면 넘친 부분이
+            // 이 컴포넌트 바깥(상세 시트의 스크롤 clip 영역)에서 잘려 버튼이 아예 안 보인다.
+            .heightIn(min = 124.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 32.dp),
+                .padding(top = 32.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
