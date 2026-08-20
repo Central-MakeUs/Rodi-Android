@@ -602,6 +602,29 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
+    fun `entering pin edit keeps the zoom level`() = runTest(dispatcher) {
+        val suggestion = CourseLocationSuggestion("place-1", "강남역", "서울 강남구", GeoPoint(37.5, 127.0), CourseLocationKind.PLACE)
+        coEvery { location.search("강남") } returns CourseLocationSearchResult(places = listOf(suggestion))
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        // 검색 결과 선택으로 줌 유지 플래그를 false로 만들어둔 뒤, beginPinEdit가 같은 자리
+        // 재중심으로 인식해 스스로 true로 되돌리는지 확인한다.
+        viewModel.onIntent(CourseRegistrationIntent.SearchKeywordChanged("강남"))
+        advanceTimeBy(300)
+        advanceUntilIdle()
+        viewModel.onIntent(CourseRegistrationIntent.SearchSuggestionSelected("place-1"))
+        advanceUntilIdle()
+        assertFalse(viewModel.state.value.mapCenterKeepsZoom)
+
+        viewModel.onIntent(CourseRegistrationIntent.BeginPinEdit(0))
+
+        assertTrue(viewModel.state.value.mapCenterKeepsZoom)
+    }
+
+    @Test
     fun `switching category keeps previously selected practice types`() = runTest(dispatcher) {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()

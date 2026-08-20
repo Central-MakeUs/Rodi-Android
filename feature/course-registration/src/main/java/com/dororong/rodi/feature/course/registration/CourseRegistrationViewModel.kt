@@ -412,7 +412,9 @@ class CourseRegistrationViewModel @Inject constructor(
                 temporaryPin = null,
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
-                mapCenterKeepsZoom = false,
+                // 이미 찍힌 지점으로 다시 중심을 맞추는 것뿐이라 검색 결과 선택과 다르다 —
+                // 사용자가 보던 줌을 유지한다.
+                mapCenterKeepsZoom = true,
             )
         }
         // 프로그램적 카메라 이동(moveCamera)은 지도 SDK의 onCameraMoveEnd 콜백을 쏘지 않아
