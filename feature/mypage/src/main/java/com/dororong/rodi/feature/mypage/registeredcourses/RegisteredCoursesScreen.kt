@@ -266,11 +266,11 @@ private fun RegisteredCourseDeleteDialog(
             Text(
                 text = when (status) {
                     CourseApprovalStatus.APPROVED ->
-                        "이 코스는 다른 초보운전자에게도 도움이 되고있어요. 삭제하면 더 이상 공개되지 않아요."
+                        "이 코스는 다른 초보운전자에게도 도움이 되고 있어요. 삭제하면 더 이상 공개되지 않아요."
                     CourseApprovalStatus.PENDING ->
-                        "현재 검토 중인 코스예요.\n삭제하면 코스 검토가중단돼요."
+                        "현재 검토 중인 코스예요.\n삭제하면 코스 검토가 중단돼요."
                     CourseApprovalStatus.REJECTED ->
-                        "삭제하면 해당 코스를 내 활동에서 더 이상확인할 수 없어요."
+                        "삭제하면 해당 코스를 내 활동에서 더 이상 확인할 수 없어요."
                 },
                 modifier = Modifier.fillMaxWidth(),
                 style = RodiTheme.typography.caption1Medium,
