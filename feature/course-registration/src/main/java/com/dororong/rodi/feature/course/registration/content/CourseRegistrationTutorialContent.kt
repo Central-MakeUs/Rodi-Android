@@ -276,18 +276,26 @@ private fun TutorialPageContent(page: TutorialPage) {
                     start = TUTORIAL_BOX_HORIZONTAL_PADDING,
                     end = TUTORIAL_BOX_HORIZONTAL_PADDING,
                 )
-                .aspectRatio(TUTORIAL_BOX_ASPECT_RATIO)
-                .border(3.dp, RodiTheme.colors.gray300, RoundedCornerShape(10.dp)),
+                .aspectRatio(TUTORIAL_BOX_ASPECT_RATIO),
         ) {
-            Image(
-                painter = painterResource(page.image),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .matchParentSize()
                     .clip(RoundedCornerShape(10.dp)),
-                contentScale = ContentScale.Crop,
+            ) {
+                Image(
+                    painter = painterResource(page.image),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+                TutorialHighlightOverlay(page = page)
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(3.dp, RodiTheme.colors.gray300, RoundedCornerShape(10.dp)),
             )
-            TutorialHighlightOverlay(page = page)
             TutorialTooltip(
                 text = page.tooltip,
                 modifier = Modifier
