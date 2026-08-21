@@ -22,6 +22,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,6 +62,7 @@ class CourseRegistrationViewModel @Inject constructor(
     private var pinEditJob: Job? = null
     private var formJob: Job? = null
     private var draftJob: Job? = null
+    private var isDraftClearing = false
     private var searchGeneration = 0L
     private var searchSelectionGeneration = 0L
     private var routeGeneration = 0L
@@ -131,7 +133,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     CourseRegistrationPage.Tutorial
                 }
                 val (initialCenter, initialLocationState) = if (initialPage == CourseRegistrationPage.Map) {
-                    initialMapLocationState(restoredWaypoints)
+                    initialMapLocationState()
                 } else {
                     null to InitialLocationState.NotRequested
                 }
@@ -213,8 +215,7 @@ class CourseRegistrationViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 memberRepository.completeCourseTutorial()
-                val currentWaypoints = _state.value.waypoints
-                val (initialCenter, initialLocationState) = initialMapLocationState(currentWaypoints)
+                val (initialCenter, initialLocationState) = initialMapLocationState()
                 _state.update {
                     it.copy(
                         tutorialCompleted = true,
@@ -941,9 +942,11 @@ class CourseRegistrationViewModel @Inject constructor(
         }
     }
 
-    private fun clearDraftAfterSubmission() {
-        draftJob?.cancel()
-        draftJob = viewModelScope.launch {
+    private suspend fun clearDraftAfterSubmission() {
+        try {
+            isDraftClearing = true
+            draftJob?.cancelAndJoin()
+            draftJob = null
             try {
                 draftRepository.clear()
             } catch (error: CancellationException) {
@@ -951,6 +954,10 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (_: Throwable) {
                 // 서버 등록 성공을 로컬 draft 정리 실패로 되돌리지 않는다.
             }
+        } catch (error: CancellationException) {
+            throw error
+        } finally {
+            isDraftClearing = false
         }
     }
 
@@ -1028,6 +1035,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun persistDraft() {
+        if (isDraftClearing || _state.value.isSubmitting) return
         val current = _state.value
         val draft = CourseDraft(
             waypoints = current.waypoints,
@@ -1079,16 +1087,8 @@ class CourseRegistrationViewModel @Inject constructor(
         return waypoints.count { it.type == RegistrationWaypointType.VIA } >= maxWaypoints.coerceAtLeast(0)
     }
 
-    private fun initialMapLocationState(
-        waypoints: List<RegistrationWaypoint>,
-    ): Pair<GeoPoint?, InitialLocationState> {
-        val firstWaypoint = waypoints.firstOrNull()
-        return if (firstWaypoint != null) {
-            GeoPoint(firstWaypoint.lat, firstWaypoint.lng) to InitialLocationState.Resolved
-        } else {
-            null to InitialLocationState.Requesting
-        }
-    }
+    private fun initialMapLocationState(): Pair<GeoPoint?, InitialLocationState> =
+        null to InitialLocationState.Requesting
 }
 
 /**
