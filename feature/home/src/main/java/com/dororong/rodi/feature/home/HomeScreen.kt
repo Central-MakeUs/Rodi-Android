@@ -825,6 +825,9 @@ fun HomeScreen(
     LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
         val map = kakaoMap ?: return@LaunchedEffect
         val location = currentLocation ?: return@LaunchedEffect
+        // 상세 화면(Detail)에서는 선택한 장소를 보여주는 별도 카메라 포커스 이펙트가 있다 —
+        // 여기서 현위치로 재센터링하면 그 포커스를 덮어써 버리므로 건너뛴다.
+        if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
             activeClusterMemberIds = null
             hasCenteredInitialLocation = true
