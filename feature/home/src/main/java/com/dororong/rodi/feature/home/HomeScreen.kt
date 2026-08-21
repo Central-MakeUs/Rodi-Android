@@ -636,6 +636,7 @@ fun HomeScreen(
     }
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.isMapSearchDirty
+    val showSearchBackButton = state.searchKeyword != null || state.detailOrigin == HomeDetailOrigin.List
 
     val deselectSelectedParkingMarker: () -> Unit = {
         val selectedParkingId = state.selectedPlace
@@ -1198,7 +1199,7 @@ fun HomeScreen(
 
                         HomeSearchBar(
                             onClick = {
-                                if (state.searchKeyword != null) {
+                                if (showSearchBackButton) {
                                     handleSystemBack()
                                 } else {
                                     vm.onIntent(
@@ -1209,6 +1210,7 @@ fun HomeScreen(
                                 }
                             },
                             searchKeyword = state.searchKeyword,
+                            showBackButton = showSearchBackButton,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .statusBarsPadding()

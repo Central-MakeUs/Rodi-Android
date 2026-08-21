@@ -111,6 +111,47 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `map detail keeps the search bar empty`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 41L)
+        coEvery { deps.getDetail(41L) } returns Result.success(place)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(41L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        assertNull(vm.state.value.searchKeyword)
+    }
+
+    @Test
+    fun `map detail clears an existing search keyword before loading`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 43L)
+        coEvery { deps.getDetail(43L) } returns Result.success(place)
+        val vm = deps.viewModel()
+        val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
+        vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+
+        vm.onIntent(HomeIntent.OnPlaceClick(43L, HomeDetailOrigin.Map))
+        runCurrent()
+
+        assertNull(vm.state.value.searchKeyword)
+    }
+
+    @Test
+    fun `list detail keeps the selected place name in the search bar`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val place = HomePreviewData.parkingDetail.copy(id = 42L)
+        coEvery { deps.getDetail(42L) } returns Result.success(place)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnPlaceClick(42L, HomeDetailOrigin.List))
+        advanceUntilIdle()
+
+        assertEquals(place.name, vm.state.value.searchKeyword)
+    }
+
+    @Test
     fun `next page removes duplicate ids`() = runTest(dispatcher) {
         val deps = Dependencies()
         val firstPage = CursorPage(listOf(summary(1), summary(2)), true, "next", 3)

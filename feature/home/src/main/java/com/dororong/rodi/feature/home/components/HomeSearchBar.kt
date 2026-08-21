@@ -27,15 +27,15 @@ import com.dororong.rodi.feature.home.R
 fun HomeSearchBar(
     onClick: () -> Unit,
     searchKeyword: String? = null,
+    showBackButton: Boolean = searchKeyword != null,
     modifier: Modifier = Modifier,
 ) {
-    val isSelected = searchKeyword != null
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(46.dp)
             .semantics {
-                contentDescription = if (isSelected) "뒤로가기" else "지역 또는 코스 검색"
+                contentDescription = if (showBackButton) "뒤로가기" else "지역 또는 코스 검색"
             },
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
@@ -49,10 +49,10 @@ fun HomeSearchBar(
         ) {
             Icon(
                 painter = painterResource(
-                    if (isSelected) CoreUiR.drawable.ic_chevron_left else R.drawable.ic_search,
+                    if (showBackButton) CoreUiR.drawable.ic_chevron_left else R.drawable.ic_search,
                 ),
                 contentDescription = null,
-                tint = if (isSelected) RodiTheme.colors.black else Color.Unspecified,
+                tint = if (showBackButton) RodiTheme.colors.black else Color.Unspecified,
                 modifier = Modifier.size(24.dp),
             )
             Text(

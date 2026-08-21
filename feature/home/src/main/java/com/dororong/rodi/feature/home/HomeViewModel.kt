@@ -369,13 +369,18 @@ class HomeViewModel @Inject constructor(
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
+                    searchKeyword = if (origin == HomeDetailOrigin.Map) null else it.searchKeyword,
                 )
             }
             getPlaceDetailUseCase(placeId)
                 .onSuccess { detail ->
                     if (_state.value.selectedPlaceId == placeId) {
                         _state.update {
-                            it.copy(selectedPlace = detail, isDetailLoading = false, searchKeyword = detail.name)
+                            it.copy(
+                                selectedPlace = detail,
+                                isDetailLoading = false,
+                                searchKeyword = detail.name.takeIf { origin == HomeDetailOrigin.List },
+                            )
                         }
                         loadRoute(detail)
                     }
