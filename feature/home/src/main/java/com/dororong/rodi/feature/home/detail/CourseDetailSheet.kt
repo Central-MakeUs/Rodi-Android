@@ -210,6 +210,9 @@ fun CourseDetailSheet(
                             if (!anchorsInitialized) summaryHeightPx = height
                         },
                     )
+                    // 바텀 액션바만큼 스크롤 여백을 예약하지 않으면 실제 콘텐츠가 끝난 뒤에도
+                    // 더 스크롤할 수 있어, 그 구간이 위 clipRect에 잘려 흰 배경으로 보인다.
+                    Spacer(Modifier.height(with(density) { bottomBarHeightPx.toDp() }))
                 }
                 SheetTopBar(
                     expansionProgress = expansionProgress,
