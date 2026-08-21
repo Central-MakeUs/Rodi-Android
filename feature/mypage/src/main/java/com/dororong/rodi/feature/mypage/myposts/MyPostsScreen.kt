@@ -484,16 +484,27 @@ private fun MyPostsEmpty(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         painter = painterResource(R.drawable.illust_my_activity_empty),
         imageSize = 60.dp,
+        // "등록한 코스" 탭엔 필터 드롭다운 행이 있어 빈 상태 컨테이너가 그만큼 아래서 시작한다.
+        // 이 탭엔 그 행이 없으므로, 기본 topPadding(134dp)에 그 행 높이(48dp)를 더해 탭
+        // 전환 시 아이콘이 같은 화면 y좌표에 오도록 맞춘다.
+        topPadding = 182.dp,
         title = "아직 작성한 후기가 없어요!",
         description = "다녀온 코스의 경험을 기록해보세요.",
         footer = {
             if (showPracticeRecordsButton) {
                 OutlinedButton(
                     onClick = onPracticeRecordsClick,
-                    modifier = Modifier.padding(top = 20.dp).height(40.dp),
+                    // 설명 줄 수가 "등록한 코스" 탭과 달라 텍스트 블록 높이가 다르므로,
+                    // 버튼 위치가 같은 화면 y좌표에 오도록 top padding을 실기기 캡처로
+                    // 보정했다(24.5dp). width/height는 그 탭의 버튼과 동일하게 맞춘다.
+                    modifier = Modifier
+                        .padding(top = 24.5.dp)
+                        .width(147.dp)
+                        .height(32.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, RodiTheme.colors.primary600),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
                 ) { Text("연습기록 보러가기", style = RodiTheme.typography.body3Medium) }
             }
         },
