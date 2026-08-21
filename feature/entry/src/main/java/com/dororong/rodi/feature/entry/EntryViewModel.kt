@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.entry
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.NicknameGenerator
-import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.entry.EntryProgress
 import com.dororong.rodi.core.domain.model.entry.EntryProgressStep
@@ -165,7 +164,7 @@ class EntryViewModel @Inject constructor(
         updateOnboardingProfile { it.copy(vehicleType = value) }
 
     fun updateGoal(value: String) =
-        updateOnboardingProfile { it.copy(goal = value.takeGraphemes(MAX_GOAL_LENGTH)) }
+        updateOnboardingProfile { it.copy(goal = value.take(MAX_GOAL_LENGTH)) }
 
     fun next() {
         val previousNickname = state.value.nickname

@@ -385,17 +385,12 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `goal is limited to thirty graphemes`() {
+    fun `goal is limited to thirty characters`() {
         val viewModel = testViewModel()
 
         viewModel.updateGoal("1234567890123456789012345678901")
 
         assertEquals("123456789012345678901234567890", viewModel.goal)
-
-        val mixedGoal = "가".repeat(15) + "😀".repeat(15)
-        viewModel.updateGoal(mixedGoal)
-
-        assertEquals(mixedGoal, viewModel.goal)
     }
 
     @Test
