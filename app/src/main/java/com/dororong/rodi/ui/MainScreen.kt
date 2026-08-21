@@ -222,7 +222,7 @@ fun MainScreen(
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onPlaceClick = { placeId ->
-                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
+                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.List))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onRegionClick = { region, initialPlaces ->
