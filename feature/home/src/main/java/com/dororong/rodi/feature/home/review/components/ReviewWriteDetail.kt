@@ -12,7 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState

@@ -30,7 +30,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush

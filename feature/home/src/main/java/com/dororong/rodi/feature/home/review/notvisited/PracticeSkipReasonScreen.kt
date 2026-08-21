@@ -39,7 +39,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dororong.rodi.core.common.takeGraphemes
+import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.model.practice.PracticeException
 import com.dororong.rodi.core.domain.model.practice.SkipReasonForm
 import com.dororong.rodi.core.domain.model.practice.SkipReasonOption

@@ -2,7 +2,7 @@ package com.dororong.rodi.feature.home.detail.reviewactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.common.takeGraphemes
+import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission

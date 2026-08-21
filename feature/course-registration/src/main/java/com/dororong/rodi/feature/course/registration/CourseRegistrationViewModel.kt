@@ -2,8 +2,7 @@ package com.dororong.rodi.feature.course.registration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.common.takeGraphemes
-import com.dororong.rodi.core.common.takeGraphemesWithinCodeUnits
+import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
 import com.dororong.rodi.core.domain.model.course.CoursePoint
@@ -1092,9 +1091,7 @@ class CourseRegistrationViewModel @Inject constructor(
 }
 
 /**
- * 화면에는 사용자가 세는 단위(grapheme)로 [max]자까지 받되, 서버가 UTF-16 code unit으로
- * 길이를 검증하므로 code unit 합도 [max]를 넘지 않게 자른다. take()로 자르면 이모지의
- * 서로게이트 쌍이 중간에서 쪼개져 깨진 글자가 남는다.
+ * 화면에 보이는 글자 수(grapheme)와 서버가 검증하는 단위가 같으므로 grapheme 기준으로만
+ * [max]자까지 남긴다. take()로 자르면 이모지의 서로게이트 쌍이 중간에서 쪼개져 깨진 글자가 남는다.
  */
-private fun String.limitForServer(max: Int): String =
-    takeGraphemes(max).takeGraphemesWithinCodeUnits(max)
+private fun String.limitForServer(max: Int): String = takeGraphemes(max)
