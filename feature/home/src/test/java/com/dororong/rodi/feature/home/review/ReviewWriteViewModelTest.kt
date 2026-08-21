@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.home.review
 
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review

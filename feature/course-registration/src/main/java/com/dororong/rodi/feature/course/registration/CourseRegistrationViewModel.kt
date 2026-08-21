@@ -2,8 +2,8 @@ package com.dororong.rodi.feature.course.registration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.common.takeGraphemes
-import com.dororong.rodi.core.common.takeGraphemesWithinCodeUnits
+import com.dororong.rodi.core.ui.text.takeGraphemes
+import com.dororong.rodi.core.ui.text.takeGraphemesWithinCodeUnits
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
 import com.dororong.rodi.core.domain.model.course.CoursePoint

@@ -9,7 +9,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
-import com.dororong.rodi.core.common.takeGraphemes
+import com.dororong.rodi.core.ui.text.takeGraphemes
 
 data class GraphemeTextFieldState(
     val value: TextFieldValue,

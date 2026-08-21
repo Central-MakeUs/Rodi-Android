@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import com.dororong.rodi.core.ui.components.button.RodiButton

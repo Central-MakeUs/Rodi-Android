@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.course.registration
 
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSearchResult
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion

@@ -50,7 +50,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.course.CourseInputSpec
 import com.dororong.rodi.core.domain.model.course.CoursePracticeCategory
 import com.dororong.rodi.core.domain.model.course.CoursePracticeType
@@ -243,7 +243,7 @@ private fun CourseRegistrationFormFields(
                     spec = form.descriptionInput,
                     onValueChanged = { onIntent(CourseRegistrationIntent.DescriptionChanged(it)) },
                     label = form.sections.description,
-                    placeholder = "예) 교차로 연습하기 좋은 코스",
+                    placeholder = "예) 교차로 연습하기 좋은 코스에요",
                     errorMessage = "최소 10자 이상 입력해주세요",
                     showValidationError = showValidationErrors,
                     showCounter = true,
