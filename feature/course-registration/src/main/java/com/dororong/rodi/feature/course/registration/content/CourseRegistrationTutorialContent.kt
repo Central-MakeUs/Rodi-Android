@@ -277,13 +277,14 @@ private fun TutorialPageContent(page: TutorialPage) {
                     end = TUTORIAL_BOX_HORIZONTAL_PADDING,
                 )
                 .aspectRatio(TUTORIAL_BOX_ASPECT_RATIO)
-                .clip(RoundedCornerShape(10.dp))
                 .border(3.dp, RodiTheme.colors.gray300, RoundedCornerShape(10.dp)),
         ) {
             Image(
                 painter = painterResource(page.image),
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(10.dp)),
                 contentScale = ContentScale.Crop,
             )
             TutorialHighlightOverlay(page = page)

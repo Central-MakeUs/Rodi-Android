@@ -186,6 +186,8 @@ private fun SummaryRow(
                 text = "추천해요",
                 style = RodiTheme.typography.body2SemiBold,
                 color = RodiTheme.colors.gray800,
+                maxLines = 1,
+                softWrap = false,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),

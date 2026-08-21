@@ -396,11 +396,7 @@ private fun RegisteredCourseFilterMenuSurface(
     ) {
         // 구분선을 drawBehind로 그리면 각 항목의 배경이 그 위를 덮어 보이지 않는다.
         // 항목 사이에 실제로 끼워 넣는다.
-        val filters = listOf(
-            RegisteredCourseFilter.APPROVED,
-            RegisteredCourseFilter.PENDING,
-            RegisteredCourseFilter.REJECTED,
-        )
+        val filters = RegisteredCourseFilter.entries.filterNot { it == selectedFilter }
         filters.forEachIndexed { index, filter ->
             if (index > 0) {
                 HorizontalDivider(color = RodiTheme.colors.gray300)
@@ -560,7 +556,7 @@ private fun RegisteredCourseRow(
                 text = course.name,
                 style = RodiTheme.typography.body2SemiBold,
                 color = RodiTheme.colors.black,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

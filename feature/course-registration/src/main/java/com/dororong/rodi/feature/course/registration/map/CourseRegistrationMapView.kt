@@ -52,7 +52,7 @@ private const val REGISTRATION_LABEL_LAYER_ID = "rodi-course-registration-layer"
 private const val CAMERA_MOVE_DURATION_MILLIS = 400
 private const val DEFAULT_LAT = 37.5665
 private const val DEFAULT_LNG = 126.9780
-private const val DEFAULT_ZOOM_LEVEL = 14
+private const val DEFAULT_ZOOM_LEVEL = 13
 private const val ROUTE_LINE_WIDTH = 13f
 
 /** Kakao MapView는 자체 생명주기를 가지므로 Compose가 제거될 때 finish를 호출한다. */
