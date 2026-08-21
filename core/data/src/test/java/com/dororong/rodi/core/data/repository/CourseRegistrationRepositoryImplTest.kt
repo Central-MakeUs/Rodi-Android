@@ -82,6 +82,31 @@ class CourseRegistrationRepositoryImplTest {
     }
 
     @Test
+    fun `registers thirty graphemes without truncating UTF-16 payload`() = runTest {
+        val api = mockk<CourseApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val authRepository = mockk<AuthRepository>()
+        val text = "가".repeat(15) + "😀".repeat(15)
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { api.registerCourse("Bearer access", any()) } returns ApiEnvelope(
+            isSuccess = true,
+            code = "COMMON_200",
+            message = "성공",
+            data = CourseRegisterResponse(42, "PENDING"),
+        )
+        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
+
+        repository.registerCourse(request().copy(description = text, caution = text))
+
+        coVerify {
+            api.registerCourse(
+                "Bearer access",
+                match { it.description == text && it.caution == text },
+            )
+        }
+    }
+
+    @Test
     fun `sends the start waypoint name as course name when none is provided`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()

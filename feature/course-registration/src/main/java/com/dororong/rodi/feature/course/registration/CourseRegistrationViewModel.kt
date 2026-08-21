@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.course.registration
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.takeGraphemes
-import com.dororong.rodi.core.common.takeGraphemesWithinCodeUnits
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
 import com.dororong.rodi.core.domain.model.course.CoursePoint
@@ -818,13 +817,13 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun updateCaution(value: String) {
         val max = _state.value.registrationForm?.cautionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(caution = value.limitForServer(max)) }
+        _state.update { it.copy(caution = value.takeGraphemes(max)) }
         persistDraft()
     }
 
     private fun updateDescription(value: String) {
         val max = _state.value.registrationForm?.descriptionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(description = value.limitForServer(max)) }
+        _state.update { it.copy(description = value.takeGraphemes(max)) }
         persistDraft()
     }
 
@@ -1078,11 +1077,3 @@ class CourseRegistrationViewModel @Inject constructor(
         }
     }
 }
-
-/**
- * 화면에는 사용자가 세는 단위(grapheme)로 [max]자까지 받되, 서버가 UTF-16 code unit으로
- * 길이를 검증하므로 code unit 합도 [max]를 넘지 않게 자른다. take()로 자르면 이모지의
- * 서로게이트 쌍이 중간에서 쪼개져 깨진 글자가 남는다.
- */
-private fun String.limitForServer(max: Int): String =
-    takeGraphemes(max).takeGraphemesWithinCodeUnits(max)

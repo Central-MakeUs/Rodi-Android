@@ -38,6 +38,17 @@ class GraphemeTextTest {
     }
 
     @Test
+    fun `takeGraphemes keeps thirty graphemes even when UTF-16 length is greater`() {
+        val text = "가".repeat(15) + "😀".repeat(15)
+
+        val limited = text.takeGraphemes(30)
+
+        assertEquals(text, limited)
+        assertEquals(45, limited.length)
+        assertEquals(30, limited.graphemeLength())
+    }
+
+    @Test
     fun `takeGraphemes with zero or negative limit returns empty`() {
         assertEquals("", "안전😁".takeGraphemes(0))
         assertEquals("", "안전😁".takeGraphemes(-1))
