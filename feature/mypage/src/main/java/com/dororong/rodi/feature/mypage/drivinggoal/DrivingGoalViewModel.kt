@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.mypage.drivinggoal
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.ui.text.takeGraphemes
-import com.dororong.rodi.core.ui.text.takeGraphemesWithinCodeUnits
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateDrivingGoalUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,12 +52,7 @@ class DrivingGoalViewModel @Inject constructor(
     }
 
     fun updateGoal(goal: String) {
-        // 서버는 길이를 UTF-16 code unit으로 검증한다(maxLength=30). grapheme만 세면
-        // 이모지를 넣었을 때 화면엔 30/30인데 서버에서 길이 초과로 거부당한다.
-        val limited = goal
-            .takeGraphemes(DRIVING_GOAL_MAX_LENGTH)
-            .takeGraphemesWithinCodeUnits(DRIVING_GOAL_MAX_LENGTH)
-        _uiState.update { it.copy(goal = limited) }
+        _uiState.update { it.copy(goal = goal.takeGraphemes(DRIVING_GOAL_MAX_LENGTH)) }
     }
 
     fun save() {

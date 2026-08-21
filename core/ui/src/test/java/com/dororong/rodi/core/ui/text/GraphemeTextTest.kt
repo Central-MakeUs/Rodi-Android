@@ -62,17 +62,18 @@ class GraphemeTextTest {
     }
 
     @Test
-    fun `code unit 상한을 넘지 않게 자르고 이모지를 쪼개지 않는다`() {
+    fun `이모지 30개는 code unit이 60이어도 30개 그대로 남는다`() {
         val text = "😀".repeat(30)
-        val limited = text.takeGraphemesWithinCodeUnits(30)
-        assertEquals(30, limited.length)
-        assertEquals(15, limited.graphemeLength())
+        val limited = text.takeGraphemes(30)
+        assertEquals(text, limited)
+        assertEquals(60, limited.length)
+        assertEquals(30, limited.graphemeLength())
     }
 
     @Test
-    fun `한글은 grapheme과 code unit이 같아 30자 그대로 남는다`() {
+    fun `한글 30자는 그대로 남는다`() {
         val text = "가".repeat(30)
-        assertEquals(text, text.takeGraphemesWithinCodeUnits(30))
+        assertEquals(text, text.takeGraphemes(30))
         assertEquals(30, text.graphemeLength())
     }
 }
