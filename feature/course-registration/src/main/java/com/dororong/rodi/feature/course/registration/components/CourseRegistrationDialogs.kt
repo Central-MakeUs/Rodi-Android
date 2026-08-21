@@ -1,11 +1,11 @@
 package com.dororong.rodi.feature.course.registration.components
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -72,19 +72,25 @@ fun CourseRegistrationSubmissionLoadingDialog() {
         dismissible = false,
         contentPadding = PaddingValues(24.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        // heightIn(min)만으로는 상위 Column의 fillMaxHeight가 화면 높이까지 부풀 수 있어,
+        // Box로 178dp(226 - 세로 패딩 48) 이상을 확보하고 그 안에서만 중앙 정렬한다.
+        Box(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 178.dp),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = "등록 요청 중",
-                modifier = Modifier.fillMaxWidth(),
-                style = RodiTheme.typography.body1SemiBold,
-                color = RodiTheme.colors.black,
-                textAlign = TextAlign.Center,
-            )
-            CourseRegistrationLoadingIndicator()
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    text = "등록 요청 중",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = RodiTheme.typography.body1SemiBold,
+                    color = RodiTheme.colors.black,
+                    textAlign = TextAlign.Center,
+                )
+                CourseRegistrationLoadingIndicator()
+            }
         }
     }
 }

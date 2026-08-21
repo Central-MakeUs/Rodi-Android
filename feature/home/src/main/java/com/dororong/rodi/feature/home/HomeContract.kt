@@ -128,9 +128,14 @@ sealed interface HomeIntent {
     data class OnNavigateClick(
         val kakaoMapInstalled: Boolean,
         val kakaoNaviInstalled: Boolean,
+        val notificationPermissionGranted: Boolean,
     ) : HomeIntent
 
-    data class OnNaviAppSelected(val app: NaviApp, val always: Boolean) : HomeIntent
+    data class OnNaviAppSelected(
+        val app: NaviApp,
+        val always: Boolean,
+        val notificationPermissionGranted: Boolean,
+    ) : HomeIntent
     data class OnInstallNaviAppSelected(val app: NaviApp) : HomeIntent
 }
 

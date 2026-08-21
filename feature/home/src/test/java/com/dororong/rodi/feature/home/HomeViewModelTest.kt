@@ -215,6 +215,29 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `programmatic search retries the same failed viewport`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
+            Result.failure(IllegalStateException("failure")),
+            Result.success(page),
+        )
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        assertEquals(HomeListState.InitialError, vm.state.value.listState)
+
+        vm.onIntent(HomeIntent.OnProgrammaticSearch(query()))
+        advanceUntilIdle()
+
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(page.items, vm.state.value.places)
+        coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
     fun `failed refresh keeps previous success data`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(
@@ -824,7 +847,13 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        vm.onIntent(
+            HomeIntent.OnNavigateClick(
+                kakaoMapInstalled = true,
+                kakaoNaviInstalled = false,
+                notificationPermissionGranted = false,
+            ),
+        )
         advanceUntilIdle()
 
         assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
@@ -844,7 +873,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
             advanceUntilIdle()
             vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly)
             advanceUntilIdle()
@@ -861,12 +890,45 @@ class HomeViewModelTest {
         coVerify(exactly = 0) { deps.saveActiveSession(any()) }
         coVerify(exactly = 0) { deps.markNotificationRequested() }
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
         assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
         assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
         coVerify(exactly = 0) { deps.markNotificationRequested() }
+    }
+
+    @Test
+    fun `denying notification permission routes without starting local session`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val notificationRequested = MutableStateFlow(false)
+        every { deps.notificationRequested() } returns notificationRequested
+        coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnNotificationPermissionAllow)
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            advanceUntilIdle()
+
+            assertEquals(
+                HomeEffect.LaunchKakaoMap(navigationPlace(), startDriving = false),
+                awaitItem(),
+            )
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertNull(vm.state.value.activePracticeSession)
+        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertFalse(vm.state.value.isPracticeLaunchInProgress)
+        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
 
     @Test
@@ -882,7 +944,7 @@ class HomeViewModelTest {
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
         vm.permissionEffect.test {
@@ -890,7 +952,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
             assertEquals(HomePermissionEffect.RequestNotificationPermission, awaitItem())
             coVerify(exactly = 0) { deps.saveActiveSession(any()) }
-            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
             advanceUntilIdle()
             cancelAndIgnoreRemainingEvents()
         }
@@ -899,7 +961,7 @@ class HomeViewModelTest {
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
         advanceUntilIdle()
 
         assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
@@ -917,7 +979,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false))
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
             advanceUntilIdle()
 
             assertEquals(
@@ -1202,7 +1264,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false))
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
         coVerify(exactly = 0) { deps.saveActiveSession(any()) }

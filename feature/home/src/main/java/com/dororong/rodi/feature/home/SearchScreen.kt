@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,11 +61,13 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
+import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
 import com.dororong.rodi.feature.home.search.SearchEffect
@@ -161,6 +164,10 @@ private fun SearchScreenContent(
 
             state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))
             state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent(Modifier.weight(1f))
+            state.resultState == SearchResultState.Error -> SearchErrorContent(
+                onRetry = { onIntent(SearchIntent.OnRetry) },
+                modifier = Modifier.weight(1f),
+            )
             state.resultState == SearchResultState.Idle -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))
         }
     }
@@ -465,6 +472,30 @@ private fun RegionSearchEmptyContent(modifier: Modifier = Modifier) {
         imageSize = 80.dp,
         title = "추천할 수 있는 연습 코스를 찾지 못했어요.",
         description = "다른 지역의\n연습 코스를 둘러보세요.",
+    )
+}
+
+@Composable
+private fun SearchErrorContent(
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    RodiIllustratedEmptyState(
+        modifier = modifier.fillMaxWidth(),
+        painter = painterResource(R.drawable.illust_course_empty),
+        imageSize = 80.dp,
+        title = "검색을 불러오지 못했어요.",
+        description = "네트워크 연결을 확인하고\n잠시 후 다시 시도해주세요.",
+        footer = {
+            Spacer(Modifier.height(12.dp))
+            RodiButton(
+                text = "다시 시도",
+                onClick = onRetry,
+                variant = RodiButtonVariant.Secondary,
+                fillMaxWidth = false,
+                height = 38.dp,
+            )
+        },
     )
 }
 

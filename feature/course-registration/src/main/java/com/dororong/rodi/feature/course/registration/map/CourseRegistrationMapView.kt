@@ -106,27 +106,25 @@ fun CourseRegistrationMapView(
         }
     }
 
-    LaunchedEffect(map, topPaddingPx, bottomPaddingPx) {
-        map?.setPadding(0, topPaddingPx, 0, bottomPaddingPx)
-    }
-
     // center는 사용자가 지도를 드래그/핀치할 때마다(onCameraMoveEnd) 바뀌므로 key에 넣지 않는다 —
-    // 넣으면 매번 이 effect가 재실행돼 카메라를 DEFAULT_ZOOM_LEVEL로 되돌려서 확대/축소가 즉시 원복돼 버린다.
+    // 넣으면 매번 이 effect가 재실행돼 카메라를 기준 줌(DEFAULT_ZOOM_LEVEL)으로 되돌려서 확대/축소가 즉시 원복돼 버린다.
     // 실제 "프로그래매틱 재중심" 트리거는 centerGeneration 증가뿐이다.
     //
-    // 최초 진입 시의 위치는 onMapReady의 getPosition()/getZoomLevel()이 첫 프레임부터 이미
-    // 반영한다. 그 직후 지도가 준비되며 이 effect가 (map이 null→non-null로 바뀌어) 처음
-    // 실행되는데, 그때 또 moveCamera 애니메이션을 걸면 이미 맞는 위치에서 눈에 보이는 카메라
-    // 이동이 한 번 더 발생한다("스윽" 움직이는 것처럼 보이는 원인 중 하나). retryToken별로
-    // 마지막에 적용한 generation을 기억해, 새 MapView의 첫 적용은 건너뛴다.
+    // 최초 진입 시의 위치는 onMapReady의 getPosition()/getZoomLevel()이 첫 프레임부터 반영한다.
+    // 다만 헤더·하단 패널 padding은 map이 준비된 뒤 적용되므로, padding 적용 직후 같은 좌표로
+    // 무애니메이션 재중심해야 화면에 보이는 뷰포트 중앙과 실제 현위치가 일치한다.
     var appliedGeneration by remember(retryToken) { mutableStateOf<Long?>(null) }
-    LaunchedEffect(map, centerGeneration) {
+    var appliedPadding by remember(retryToken) { mutableStateOf<Pair<Int, Int>?>(null) }
+    LaunchedEffect(map, centerGeneration, topPaddingPx, bottomPaddingPx) {
         val currentMap = map ?: return@LaunchedEffect
+        currentMap.setPadding(0, topPaddingPx, 0, bottomPaddingPx)
         val target = currentCenter ?: return@LaunchedEffect
-        if (appliedGeneration == centerGeneration) return@LaunchedEffect
         val isFirstApply = appliedGeneration == null
+        val isGenerationChanged = appliedGeneration != centerGeneration
+        val isPaddingChanged = appliedPadding != (topPaddingPx to bottomPaddingPx)
+        if (!isGenerationChanged && !isPaddingChanged) return@LaunchedEffect
         appliedGeneration = centerGeneration
-        if (isFirstApply) return@LaunchedEffect
+        appliedPadding = topPaddingPx to bottomPaddingPx
         // 지점 확정/핀 수정처럼 "같은 자리를 다시 보여주는" 재중심은 사용자가 확대해 보던
         // 레벨을 유지한다(자동 축소로 핀이 작아 보이는 문제). 검색 결과 선택처럼 새로운
         // 지역으로 점프할 때만 기준 줌(DEFAULT_ZOOM_LEVEL)으로 맞춘다.
@@ -137,7 +135,8 @@ fun CourseRegistrationMapView(
         }
         // 거리에 비례해 느려지지 않도록 애니메이션 길이를 고정한다 — 서울에서 먼 곳을 들렀다 오면
         // 예전엔 이동에 한참 걸렸다.
-        currentMap.moveCamera(update, CameraAnimation.from(CAMERA_MOVE_DURATION_MILLIS, false, false))
+        val animationDuration = if (isFirstApply || isPaddingChanged) 0 else CAMERA_MOVE_DURATION_MILLIS
+        currentMap.moveCamera(update, CameraAnimation.from(animationDuration, false, false))
     }
 
     LaunchedEffect(map, waypoints, route, editingWaypointIndex) {

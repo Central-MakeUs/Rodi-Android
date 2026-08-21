@@ -153,7 +153,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnPracticePromptDismiss -> dismissPracticePrompt()
             HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
             HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
-            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult()
+            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult(intent.granted)
             HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
@@ -695,13 +695,16 @@ class HomeViewModel @Inject constructor(
 
     private fun collapseList() {
         _state.update {
-            it.copy(
-                surfaceState = when (it.surfaceState) {
-                    HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
-                    HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
-                    else -> it.surfaceState
-                },
-            )
+            val nextSurface = when (it.surfaceState) {
+                HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
+                HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
+                else -> it.surfaceState
+            }
+            if (nextSurface == HomeSurfaceState.Navigation && it.regionSearch != null) {
+                it.copy(surfaceState = nextSurface, searchKeyword = null, regionSearch = null)
+            } else {
+                it.copy(surfaceState = nextSurface)
+            }
         }
     }
 
@@ -723,13 +726,15 @@ class HomeViewModel @Inject constructor(
             val savedApp = getNaviAlwaysUseCase()
             when {
                 savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
-                    requestPracticeNavigation(place, NaviApp.KAKAOMAP)
+                    requestPracticeNavigation(place, NaviApp.KAKAOMAP, intent.notificationPermissionGranted)
                 savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
-                    requestPracticeNavigation(place, NaviApp.KAKAONAVI)
+                    requestPracticeNavigation(place, NaviApp.KAKAONAVI, intent.notificationPermissionGranted)
                 intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
                     _effect.send(HomeEffect.ShowNaviPicker(place))
-                intent.kakaoMapInstalled -> requestPracticeNavigation(place, NaviApp.KAKAOMAP)
-                intent.kakaoNaviInstalled -> requestPracticeNavigation(place, NaviApp.KAKAONAVI)
+                intent.kakaoMapInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAOMAP, intent.notificationPermissionGranted)
+                intent.kakaoNaviInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAONAVI, intent.notificationPermissionGranted)
                 else -> _effect.send(HomeEffect.ShowInstallNaviPicker(place))
             }
         }
@@ -739,10 +744,7 @@ class HomeViewModel @Inject constructor(
         val place = _state.value.selectedPlace ?: return
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
-            when (intent.app) {
-                NaviApp.KAKAOMAP -> requestPracticeNavigation(place, NaviApp.KAKAOMAP)
-                NaviApp.KAKAONAVI -> requestPracticeNavigation(place, NaviApp.KAKAONAVI)
-            }
+            requestPracticeNavigation(place, intent.app, intent.notificationPermissionGranted)
         }
     }
 
@@ -750,10 +752,21 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 
-    private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp) {
+    /**
+     * "물어본 적 있는지" DataStore 플래그만으로 분기하면, 한 번 거부한 뒤에는 시스템 권한이
+     * 여전히 거부 상태여도 다음 요청부터 그냥 추적을 시작해버린다(플래그가 "다시 안내를
+     * 보여줄지"뿐 아니라 "허용 여부"까지 대신 판단해버렸던 게 원인). 그래서 매 요청마다
+     * 호출부(HomeScreen)가 실측한 현재 OS 권한 상태(notificationPermissionGranted)를 우선
+     * 신뢰하고, 플래그는 "처음 요청이라 안내 문구를 보여줄지"에만 쓴다.
+     */
+    private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
         if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
         practiceLaunchJob = viewModelScope.launch {
             _state.update { it.copy(isPracticeLaunchInProgress = true) }
+            if (notificationPermissionGranted) {
+                startPracticeNavigation(PendingPracticeNavigation(place, app))
+                return@launch
+            }
             if (!hasRequestedNotificationPermission()) {
                 _state.update {
                     it.copy(
@@ -764,7 +777,9 @@ class HomeViewModel @Inject constructor(
                 }
                 return@launch
             }
-            startPracticeNavigation(PendingPracticeNavigation(place, app))
+            // 이미 한 번 물어봤는데 여전히 거부 상태 — 다시 안내하지 않고 추적 없이 경로만 연다.
+            _state.update { it.copy(pendingPracticeNavigation = PendingPracticeNavigation(place, app)) }
+            routeWithoutPracticeMeasurement()
         }
     }
 
@@ -796,11 +811,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun onNotificationPermissionResult() {
-        val pending = _state.value.pendingPracticeNavigation ?: return
-        viewModelScope.launch {
-            startPracticeNavigation(pending)
+    private fun onNotificationPermissionResult(granted: Boolean) {
+        if (!granted) {
+            routeWithoutPracticeMeasurement()
+            return
         }
+        val pending = _state.value.pendingPracticeNavigation ?: return
+        viewModelScope.launch { startPracticeNavigation(pending) }
     }
 
     private suspend fun startPracticeNavigation(pending: PendingPracticeNavigation) {

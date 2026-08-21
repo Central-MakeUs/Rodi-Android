@@ -9,7 +9,9 @@ import com.dororong.rodi.core.domain.model.course.CourseLocationKind
 import com.dororong.rodi.core.domain.model.course.CoursePracticeCategory
 import com.dororong.rodi.core.domain.model.course.CoursePracticeType
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationForm
+import com.dororong.rodi.core.domain.model.course.CourseRegistrationResult
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationSections
+import com.dororong.rodi.core.domain.model.course.CourseApprovalStatus
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
@@ -24,9 +26,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -438,7 +442,91 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `restoring draft with waypoints sets mapCenter and skips initial location request`() = runTest {
+    fun `course registration waits for draft clear before showing success`() = runTest(dispatcher) {
+        val startPoint = GeoPoint(37.5, 126.9)
+        val destinationPoint = GeoPoint(37.6, 127.0)
+        val routeResult = RouteResult(
+            points = listOf(startPoint, destinationPoint),
+            isRealRoute = true,
+            totalDistanceMeters = 3200,
+            snappedPoints = listOf(startPoint, destinationPoint),
+        )
+        val clearStarted = CompletableDeferred<Unit>()
+        val releaseClear = CompletableDeferred<Unit>()
+        val saveStarted = CompletableDeferred<Unit>()
+        val saveCancelled = CompletableDeferred<Unit>()
+        coEvery { auth.invoke() } returns AuthSession(
+            isLoggedIn = true,
+            hasRecentKakaoLogin = true,
+            isCourseTutorialCompleted = true,
+        )
+        coEvery { route.getStrictRoute(any(), any(), any()) } returns routeResult
+        stubReverseGeocode(startPoint, destinationPoint)
+        coEvery { registration.registerCourse(any()) } returns CourseRegistrationResult(1L, CourseApprovalStatus.PENDING)
+        coEvery { draft.save(match { it.description == "연습 코스" }) } coAnswers {
+            saveStarted.complete(Unit)
+            try {
+                awaitCancellation()
+            } catch (error: CancellationException) {
+                saveCancelled.complete(Unit)
+                throw error
+            }
+        }
+        coEvery { draft.clear() } coAnswers {
+            clearStarted.complete(Unit)
+            releaseClear.await()
+        }
+
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onIntent(CourseRegistrationIntent.MapReady(true))
+        viewModel.onIntent(
+            CourseRegistrationIntent.SelectWaypoint(
+                point = startPoint,
+                name = "출발",
+                address = "주소",
+                jibunAddress = null,
+            ),
+        )
+        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
+        viewModel.onIntent(
+            CourseRegistrationIntent.SelectWaypoint(
+                point = destinationPoint,
+                name = "도착",
+                address = "주소",
+                jibunAddress = null,
+            ),
+        )
+        advanceUntilIdle()
+        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("parking"))
+        viewModel.onIntent(CourseRegistrationIntent.ContinueToForm)
+        viewModel.onIntent(CourseRegistrationIntent.DescriptionChanged("연습 코스"))
+        runCurrent()
+        assertTrue(saveStarted.isCompleted)
+
+        viewModel.onIntent(CourseRegistrationIntent.Submit)
+        runCurrent()
+
+        assertTrue(saveCancelled.isCompleted)
+        assertTrue(clearStarted.isCompleted)
+        assertTrue(viewModel.state.value.isSubmitting)
+        assertNull(viewModel.state.value.registrationResult)
+        assertNull(viewModel.state.value.dialog)
+
+        viewModel.onIntent(CourseRegistrationIntent.DescriptionChanged("제출 중 수정"))
+        runCurrent()
+        coVerify(exactly = 0) { draft.save(match { it.description == "제출 중 수정" }) }
+
+        releaseClear.complete(Unit)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.state.value.isSubmitting)
+        assertEquals(CourseRegistrationDialog.Success, viewModel.state.value.dialog)
+        coVerify(exactly = 1) { draft.clear() }
+    }
+
+    @Test
+    fun `restoring draft with waypoints still requests current location before showing map`() = runTest {
         val startPoint = GeoPoint(37.5, 126.9)
         val sampleDraft = CourseDraft(
             waypoints = listOf(RegistrationWaypoint(RegistrationWaypointType.START, "출발", "주소", lat = startPoint.lat, lng = startPoint.lng)),
@@ -453,8 +541,8 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        assertEquals(startPoint, viewModel.state.value.mapCenter)
-        assertEquals(InitialLocationState.Resolved, viewModel.state.value.initialLocationState)
+        assertNull(viewModel.state.value.mapCenter)
+        assertEquals(InitialLocationState.Requesting, viewModel.state.value.initialLocationState)
     }
 
     @Test
