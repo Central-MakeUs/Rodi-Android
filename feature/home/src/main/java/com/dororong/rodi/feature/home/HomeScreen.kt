@@ -1378,6 +1378,7 @@ fun HomeScreen(
                                     HomeIntent.OnNavigateClick(
                                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                        notificationPermissionGranted = context.hasNotificationPermission(),
                                     ),
                                 )
                             },
@@ -1463,6 +1464,7 @@ fun HomeScreen(
                                             HomeIntent.OnNavigateClick(
                                                 kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                                 kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                                notificationPermissionGranted = context.hasNotificationPermission(),
                                             ),
                                         )
                                     },
@@ -1525,6 +1527,7 @@ fun HomeScreen(
                     HomeIntent.OnNavigateClick(
                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                        notificationPermissionGranted = context.hasNotificationPermission(),
                     ),
                 )
             },
@@ -1685,7 +1688,13 @@ fun HomeScreen(
         NaviPickerSheet(
             onDismiss = { naviPlaceId = null },
             onSelect = { app, always ->
-                vm.onIntent(HomeIntent.OnNaviAppSelected(app, always))
+                vm.onIntent(
+                    HomeIntent.OnNaviAppSelected(
+                        app = app,
+                        always = always,
+                        notificationPermissionGranted = context.hasNotificationPermission(),
+                    ),
+                )
                 naviPlaceId = null
             },
         )
@@ -1905,6 +1914,18 @@ private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
 private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
+
+/**
+ * "물어본 적 있는지"(DataStore 플래그)와 "지금 허용돼 있는지"는 다르다. 한 번 거부한 뒤에도
+ * 플래그만 보고 다음 요청을 그냥 통과시키면, 실제로는 여전히 거부 상태인데 추적이 시작된다.
+ * 매 요청마다 실제 OS 권한 상태를 다시 확인해야 한다.
+ */
+private fun Context.hasNotificationPermission(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
 
 private fun Context.missingDrivingPermissions(): Array<String> = buildList {
     if (!hasLocationPermission()) {
