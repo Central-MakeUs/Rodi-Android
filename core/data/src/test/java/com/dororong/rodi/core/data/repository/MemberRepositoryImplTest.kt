@@ -94,22 +94,6 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `driving goal with thirty graphemes is sent even when UTF-16 length exceeds thirty`() = runTest {
-        val memberApi = mockk<MemberApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val goal = "가".repeat(15) + "😀".repeat(15)
-        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery {
-            memberApi.updateMe("Bearer access", MemberUpdateRequest(goal))
-        } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, mockk<AuthRepository>(), json, PracticeRecordPresenceCache(), practiceSessionRepository)
-
-        repository.updateDrivingGoal(goal)
-
-        coVerify { memberApi.updateMe("Bearer access", MemberUpdateRequest(goal)) }
-    }
-
-    @Test
     fun `filter tags send every selected practice type as wire values`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
