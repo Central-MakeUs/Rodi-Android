@@ -37,6 +37,7 @@ enum class SearchResultState {
     Content,
     Empty,
     RegionEmpty,
+    Error,
 }
 
 data class SearchUiState(
@@ -56,6 +57,7 @@ data class SearchUiState(
 sealed interface SearchIntent {
     data class OnQueryChange(val query: String) : SearchIntent
     data object OnImeSearch : SearchIntent
+    data object OnRetry : SearchIntent
     data object OnLoadNextPage : SearchIntent
     data class OnRecentSearchClick(val search: RecentSearch) : SearchIntent
     data class OnRegionSuggestionClick(val region: RegionOfficeLocation) : SearchIntent
@@ -92,6 +94,7 @@ class SearchViewModel @Inject constructor(
     private var nextPageJob: Job? = null
     private var searchGeneration = 0L
     private var origin: GeoPoint? = null
+    private var lastRegionSearch: RegionOfficeLocation? = null
 
     init {
         loadRecentSearches()
@@ -101,6 +104,7 @@ class SearchViewModel @Inject constructor(
         when (intent) {
             is SearchIntent.OnQueryChange -> onQueryChange(intent.query)
             SearchIntent.OnImeSearch -> searchImmediately()
+            SearchIntent.OnRetry -> retrySearch()
             SearchIntent.OnLoadNextPage -> loadNextPage()
             is SearchIntent.OnRecentSearchClick -> onRecentSearchClick(intent.search)
             is SearchIntent.OnRegionSuggestionClick -> {
@@ -138,6 +142,7 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun onQueryChange(query: String) {
+        lastRegionSearch = null
         val limitedQuery = query.take(50)
         searchGeneration += 1
         searchJob?.cancel()
@@ -165,6 +170,7 @@ class SearchViewModel @Inject constructor(
     private fun searchImmediately() {
         val normalizedQuery = _state.value.query.trim()
         if (normalizedQuery.isBlank()) return
+        lastRegionSearch = null
         searchGeneration += 1
         val generation = searchGeneration
         searchJob?.cancel()
@@ -202,7 +208,7 @@ class SearchViewModel @Inject constructor(
             }
             .onFailure { error ->
                 if (generation != searchGeneration) return@onFailure
-                _state.update { it.copy(resultState = SearchResultState.Idle) }
+                _state.update { it.copy(resultState = SearchResultState.Error) }
                 _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
             }
     }
@@ -241,6 +247,11 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun selectRegion(region: RegionOfficeLocation) {
+        lastRegionSearch = region
+        searchRegion(region)
+    }
+
+    private fun searchRegion(region: RegionOfficeLocation) {
         val origin = origin ?: return
         searchJob?.cancel()
         nextPageJob?.cancel()
@@ -269,9 +280,18 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (generation != searchGeneration) return@onFailure
-                    _state.update { it.copy(resultState = SearchResultState.Idle) }
+                    _state.update { it.copy(resultState = SearchResultState.Error) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
+        }
+    }
+
+    private fun retrySearch() {
+        val region = lastRegionSearch
+        if (region != null) {
+            searchRegion(region)
+        } else {
+            searchImmediately()
         }
     }
 

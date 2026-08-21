@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
@@ -179,13 +180,15 @@ private fun SummaryRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
-            modifier = Modifier.width(51.dp),
+            modifier = Modifier.width(60.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = "추천해요",
                 style = RodiTheme.typography.body2SemiBold,
                 color = RodiTheme.colors.gray800,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),

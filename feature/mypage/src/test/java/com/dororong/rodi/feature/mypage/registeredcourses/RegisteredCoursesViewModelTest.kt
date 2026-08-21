@@ -128,6 +128,18 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
+    fun `filter menu includes all when a status filter is selected`() {
+        assertEquals(
+            listOf(
+                RegisteredCourseFilter.ALL,
+                RegisteredCourseFilter.APPROVED,
+                RegisteredCourseFilter.REJECTED,
+            ),
+            registeredCourseFilterMenuItems(RegisteredCourseFilter.PENDING),
+        )
+    }
+
+    @Test
     fun `initial failure retries the first page`() = runTest(dispatcher) {
         val failure = IllegalStateException("network")
         coEvery { getCourses(status = null, cursor = null, size = any()) } returnsMany listOf(

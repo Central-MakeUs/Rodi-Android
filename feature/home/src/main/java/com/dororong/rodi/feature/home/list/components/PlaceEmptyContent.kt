@@ -1,22 +1,17 @@
 package com.dororong.rodi.feature.home.list.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.components.SheetHandle
@@ -24,12 +19,12 @@ import com.dororong.rodi.feature.home.components.SheetHandle
 @Composable
 fun PlaceEmptyContent(
     isInitialError: Boolean,
+    onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
 ) {
-    // 목록이 비었을 땐 헤더(ListSheetHeader) 대신 이 컴포넌트가 바로 오는데, 드래그를 핸들 22dp
-    // 줄에만 걸면 다른 상태의 헤더 전체 드래그보다 훨씬 좁은 영역만 시트를 내릴 수 있게 된다.
-    // 안에 클릭 가능한 요소가 없으므로 전체 영역에 드래그를 걸어도 안전하다.
+    // 목록이 비었을 땐 헤더(ListSheetHeader) 대신 이 컴포넌트가 바로 오므로 전체 영역을
+    // 드래그할 수 있게 한다. 재시도 버튼의 탭은 anchoredDraggable이 이동으로 인식하지 않는다.
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -50,6 +45,16 @@ fun PlaceEmptyContent(
             } else {
                 "지도를 축소시켜, 전체 지역의\n연습 코스를 둘러보세요."
             },
+            footer = {
+                if (isInitialError) {
+                    Spacer(Modifier.height(16.dp))
+                    RodiButton(
+                        text = "다시 시도",
+                        onClick = onRetry,
+                        fillMaxWidth = false,
+                    )
+                }
+            },
         )
     }
 }
@@ -57,11 +62,11 @@ fun PlaceEmptyContent(
 @Preview(name = "Place empty", showBackground = true, widthDp = 375, heightDp = 380)
 @Composable
 private fun PlaceEmptyPreview() {
-    RodiTheme { PlaceEmptyContent(false) }
+    RodiTheme { PlaceEmptyContent(isInitialError = false, onRetry = {}) }
 }
 
 @Preview(name = "Place initial error", showBackground = true, widthDp = 375, heightDp = 380)
 @Composable
 private fun PlaceErrorPreview() {
-    RodiTheme { PlaceEmptyContent(true) }
+    RodiTheme { PlaceEmptyContent(isInitialError = true, onRetry = {}) }
 }

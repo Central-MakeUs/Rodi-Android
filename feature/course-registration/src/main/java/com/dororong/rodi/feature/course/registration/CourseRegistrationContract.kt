@@ -74,7 +74,7 @@ data class CourseRegistrationUiState(
     val mapCenter: GeoPoint? = null,
     val mapCenterGeneration: Long = 0L,
     // 지점 확정/핀 수정처럼 "같은 자리를 다시 보여주는" 재중심은 true — 사용자가 확대해
-    // 보던 줌 레벨을 유지한다. 검색 결과 선택처럼 새 지역으로 점프할 때만 false(기준 줌 14).
+    // 보던 줌 레벨을 유지한다. 검색 결과 선택처럼 새 지역으로 점프할 때만 false(기준 줌 15).
     val mapCenterKeepsZoom: Boolean = false,
     val searchKeyword: String = "",
     val isSearchVisible: Boolean = false,

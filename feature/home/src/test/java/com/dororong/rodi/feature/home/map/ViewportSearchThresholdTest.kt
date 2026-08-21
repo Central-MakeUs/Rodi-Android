@@ -111,6 +111,31 @@ class ViewportSearchThresholdTest {
         )
     }
 
+    @Test
+    fun `restored viewport is preferred while the location stream is restarting`() {
+        val savedViewport = MapViewport(
+            northEast = GeoPoint(37.60, 127.02),
+            southWest = GeoPoint(37.50, 126.92),
+        )
+
+        assertEquals(
+            GeoPoint(37.55, 126.97),
+            initialMapCenter(
+                savedViewport = savedViewport,
+                currentLocation = GeoPoint(36.10, 128.30),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+        assertEquals(
+            GeoPoint(36.10, 128.30),
+            initialMapCenter(
+                savedViewport = null,
+                currentLocation = GeoPoint(36.10, 128.30),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+    }
+
     private fun viewport(centerLongitude: Double) = MapViewport(
         northEast = GeoPoint(37.60, centerLongitude + 0.02),
         southWest = GeoPoint(37.50, centerLongitude - 0.02),

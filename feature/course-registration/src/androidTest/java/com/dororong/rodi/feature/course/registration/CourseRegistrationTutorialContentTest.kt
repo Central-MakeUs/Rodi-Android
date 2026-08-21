@@ -37,8 +37,26 @@ class CourseRegistrationTutorialContentTest {
         }
 
         composeRule.onNodeWithText("지도를 움직여 핀을 놓을 위치를 정하고").assertIsDisplayed()
-        composeRule.onRoot().performTouchInput { swipeLeft() }
+        composeRule.onNodeWithText("지도를 움직여 핀을 놓을 위치를 정하고")
+            .performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("아래 ‘출발지 선택’을 눌러, 위치를 선택해요").assertIsDisplayed()
+    }
+
+    @Test
+    fun locationSelectionTooltipIsDisplayedOnSecondPage() {
+        composeRule.setContent {
+            RodiTheme {
+                CourseRegistrationTutorialContent(
+                    page = 1,
+                    isCompleting = false,
+                    onPageChanged = {},
+                    onBack = {},
+                    onComplete = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("버튼을 눌러 위치를 선택해요").assertIsDisplayed()
     }
 }

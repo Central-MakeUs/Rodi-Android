@@ -215,6 +215,29 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `programmatic search retries the same failed viewport`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
+            Result.failure(IllegalStateException("failure")),
+            Result.success(page),
+        )
+        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        advanceUntilIdle()
+        assertEquals(HomeListState.InitialError, vm.state.value.listState)
+
+        vm.onIntent(HomeIntent.OnProgrammaticSearch(query()))
+        advanceUntilIdle()
+
+        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(page.items, vm.state.value.places)
+        coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
+    }
+
+    @Test
     fun `failed refresh keeps previous success data`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(

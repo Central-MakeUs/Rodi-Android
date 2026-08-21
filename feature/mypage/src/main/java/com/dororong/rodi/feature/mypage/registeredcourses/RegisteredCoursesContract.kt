@@ -24,6 +24,10 @@ internal fun resolveRegisteredCourseFilterSelection(
     tappedFilter
 }
 
+internal fun registeredCourseFilterMenuItems(
+    selectedFilter: RegisteredCourseFilter,
+): List<RegisteredCourseFilter> = RegisteredCourseFilter.entries.filterNot { it == selectedFilter }
+
 data class RegisteredCoursesUiState(
     val selectedFilter: RegisteredCourseFilter = RegisteredCourseFilter.ALL,
     val courses: List<RegisteredCourse> = emptyList(),

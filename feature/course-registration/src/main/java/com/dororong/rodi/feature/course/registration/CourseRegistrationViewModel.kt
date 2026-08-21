@@ -921,8 +921,7 @@ class CourseRegistrationViewModel @Inject constructor(
                         caution = current.caution.trim(),
                     ),
                 )
-                draftJob?.cancel()
-                draftRepository.clear()
+                clearDraftAfterSubmission()
                 _state.update {
                     it.copy(
                         isSubmitting = false,
@@ -938,6 +937,19 @@ class CourseRegistrationViewModel @Inject constructor(
                     it.copy(isSubmitting = false, submissionError = error.message ?: "코스 등록에 실패했어요.")
                 }
                 _effect.emit(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
+            }
+        }
+    }
+
+    private fun clearDraftAfterSubmission() {
+        draftJob?.cancel()
+        draftJob = viewModelScope.launch {
+            try {
+                draftRepository.clear()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // 서버 등록 성공을 로컬 draft 정리 실패로 되돌리지 않는다.
             }
         }
     }

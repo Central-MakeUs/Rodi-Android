@@ -168,6 +168,7 @@ import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
+import com.dororong.rodi.feature.home.map.initialMapCenter
 import com.dororong.rodi.feature.home.map.markMapLoaded
 import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
@@ -196,6 +197,8 @@ import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -816,9 +819,10 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
-    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
+    LaunchedEffect(kakaoMap, permissionGranted) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val location = currentLocation ?: return@LaunchedEffect
+        if (!permissionGranted) return@LaunchedEffect
+        val location = snapshotFlow { currentLocation }.filterNotNull().first()
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
             activeClusterMemberIds = null
             hasCenteredInitialLocation = true
@@ -1159,8 +1163,20 @@ fun HomeScreen(
                                                 }
                                             }
 
-                                            override fun getPosition(): LatLng = currentLocation ?: SEOUL
-                                            override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                            // 복귀 직후에는 위치 스트림보다 MapView가 먼저 시작될 수 있으므로
+                                            // 저장된 화면을 첫 프레임 위치로 사용해 현재 위치로 튀는 이동을 막는다.
+                                            override fun getPosition(): LatLng {
+                                                val center = initialMapCenter(
+                                                    savedViewport = currentViewport,
+                                                    currentLocation = currentLocation?.let {
+                                                        GeoPoint(it.latitude, it.longitude)
+                                                    },
+                                                    fallback = GeoPoint(SEOUL.latitude, SEOUL.longitude),
+                                                )
+                                                return LatLng.from(center.lat, center.lng)
+                                            }
+
+                                            override fun getZoomLevel(): Int = mapZoomLevel
                                         },
                                     )
                                     mapView
@@ -1321,6 +1337,11 @@ fun HomeScreen(
 
                                 isEmptySheet -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
+                                    onRetry = {
+                                        val query = state.searchedQuery
+                                            ?: currentViewport?.toQuery(currentLocation)
+                                        query?.let { vm.onIntent(HomeIntent.OnProgrammaticSearch(it)) }
+                                    },
                                     dragHandleModifier = listSheetDrag,
                                 )
 
