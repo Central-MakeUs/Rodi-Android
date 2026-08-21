@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,6 +41,7 @@ fun CourseDetailContent(
     reviewContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     showCloseButton: Boolean = true,
+    closeButtonAlpha: () -> Float = { if (showCloseButton) 1f else 0f },
     onSummaryHeightChanged: (Int) -> Unit = {},
 ) {
     val course = place.course ?: return
@@ -54,10 +56,10 @@ fun CourseDetailContent(
                 // 접힌 높이는 이 블록 높이로 정해진다. 아래 여백이 없으면 설명 칸이
                 // 하단 버튼 바에 붙어 보인다.
                 .padding(
-                    top = if (showCloseButton) 0.dp else RodiSpacing.md,
+                    top = 0.dp,
                     bottom = RodiSpacing.md,
                 ),
-            verticalArrangement = Arrangement.spacedBy(if (showCloseButton) RodiSpacing.sm else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(RodiSpacing.sm),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(RodiSpacing.sm)) {
                 Row(
@@ -92,17 +94,15 @@ fun CourseDetailContent(
                             color = RodiTheme.colors.gray700,
                         )
                     }
-                    if (showCloseButton) {
-                        RodiIconButton(
-                            painter = painterResource(R.drawable.ic_x),
-                            onClick = onDismiss,
-                            iconSize = 20.dp,
-                            contentDescription = "닫기",
-                            tint = RodiTheme.colors.black,
-                        )
-                    } else {
-                        Spacer(Modifier.width(48.dp))
-                    }
+                    RodiIconButton(
+                        painter = painterResource(R.drawable.ic_x),
+                        onClick = onDismiss,
+                        iconSize = 20.dp,
+                        contentDescription = "닫기",
+                        tint = RodiTheme.colors.black,
+                        enabled = showCloseButton,
+                        modifier = Modifier.graphicsLayer { alpha = closeButtonAlpha() },
+                    )
                 }
 
                 Column(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -53,6 +56,7 @@ import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
 import com.dororong.rodi.feature.home.detail.components.BookmarkButton
 import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
+import com.dororong.rodi.feature.home.layoutHeightPx
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -87,18 +91,20 @@ fun CourseDetailSheet(
     val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
     val sheetState = remember(place.id) { AnchoredDraggableState(CourseSheetAnchor.Collapsed) }
+    var anchorsInitialized by remember(place.id) { mutableStateOf(false) }
 
     var containerHeightPx by remember { mutableIntStateOf(0) }
-    var topBarHeightPx by remember { mutableIntStateOf(0) }
     var summaryHeightPx by remember { mutableIntStateOf(0) }
     var bottomBarHeightPx by remember { mutableIntStateOf(0) }
 
     val handleHeightPx = with(density) { HandleHeight.roundToPx() }
+    val expandedTopBarHeightPx = with(density) { TopBarHeight.roundToPx() } +
+        WindowInsets.statusBars.getTop(density)
     val collapsedHeightPx = handleHeightPx + summaryHeightPx + bottomBarHeightPx
     val anchorsReady = containerHeightPx > 0 && summaryHeightPx > 0 && bottomBarHeightPx > 0
 
-    LaunchedEffect(containerHeightPx, collapsedHeightPx, anchorsReady) {
-        if (!anchorsReady) return@LaunchedEffect
+    LaunchedEffect(anchorsReady) {
+        if (!anchorsReady || anchorsInitialized) return@LaunchedEffect
         sheetState.updateAnchors(
             DraggableAnchors {
                 CourseSheetAnchor.Expanded at 0f
@@ -107,6 +113,7 @@ fun CourseDetailSheet(
                 CourseSheetAnchor.Dismissed at containerHeightPx.toFloat()
             },
         )
+        anchorsInitialized = true
     }
 
     // 지도 카메라 패딩은 LaunchedEffect 키로 쓰여 매 프레임 갱신하면 카메라가 튄다.
@@ -133,7 +140,21 @@ fun CourseDetailSheet(
         }
     }
 
-    val isExpanded = sheetState.currentValue == CourseSheetAnchor.Expanded
+    // 드래그 중 currentValue가 앵커를 통과해 바뀌므로, 정착 전까지 시트 레이아웃을 유지한다.
+    val isExpanded = sheetState.settledValue == CourseSheetAnchor.Expanded
+    val expansionProgress: () -> Float = {
+        val collapsedOffset = (containerHeightPx - collapsedHeightPx).coerceAtLeast(0)
+        val offset = sheetOffsetPx()
+        if (!anchorsReady || collapsedOffset == 0) {
+            if (offset == 0) 1f else 0f
+        } else {
+            ((collapsedOffset - offset).toFloat() / collapsedOffset).coerceIn(0f, 1f)
+        }
+    }
+    val topBarHeightPx: () -> Int = {
+        val progress = expansionProgress()
+        (handleHeightPx + (expandedTopBarHeightPx - handleHeightPx) * progress).roundToInt()
+    }
     val showBottomBar = anchorsReady &&
         sheetState.currentValue != CourseSheetAnchor.Dismissed &&
         sheetState.targetValue != CourseSheetAnchor.Dismissed
@@ -151,91 +172,94 @@ fun CourseDetailSheet(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxSize()
-                .offset { IntOffset(0, sheetOffsetPx()) }
-                .anchoredDraggable(sheetState, Orientation.Vertical, enabled = !isExpanded),
+                .offset { IntOffset(0, sheetOffsetPx()) },
             shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             color = RodiTheme.colors.white,
             shadowElevation = 8.dp,
         ) {
             Box(Modifier.fillMaxSize().clipToBounds()) {
-                Column(Modifier.fillMaxSize()) {
-                    SheetTopBar(
-                        isExpanded = isExpanded,
-                        onCollapse = { scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) } },
-                        modifier = Modifier
-                            .onSizeChanged { topBarHeightPx = it.height }
-                            .anchoredDraggable(
-                                state = sheetState,
-                                orientation = Orientation.Vertical,
-                                enabled = !isExpanded,
-                            ),
-                    )
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .verticalScroll(scroll, enabled = isExpanded)
-                            .drawWithContent {
-                                val visibleHeight = (
-                                    containerHeightPx -
-                                        sheetOffsetPx().toFloat() -
-                                        topBarHeightPx -
-                                        bottomBarHeightPx
-                                    ).coerceIn(0f, size.height)
-                                clipRect(
-                                    left = 0f,
-                                    top = 0f,
-                                    right = size.width,
-                                    bottom = visibleHeight,
-                                ) {
-                                    this@drawWithContent.drawContent()
-                                }
-                            },
-                    ) {
-                        CourseDetailContent(
-                            place = place,
-                            onDismiss = onDismiss,
-                            reviewContent = { reviewContent(scroll) },
-                            showCloseButton = !isExpanded,
-                            onSummaryHeightChanged = { summaryHeightPx = it },
-                        )
-                    }
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .offset {
-                                if (showBottomBar) {
-                                    IntOffset(0, -sheetOffsetPx())
-                                } else {
-                                    IntOffset(0, containerHeightPx)
-                                }
-                            }
-                            .graphicsLayer { alpha = if (showBottomBar) 1f else 0f }
-                            .onSizeChanged { bottomBarHeightPx = it.height },
-                        color = RodiTheme.colors.white,
-                        shadowElevation = 4.dp,
-                    ) {
-                        Column {
-                            HorizontalDivider(color = RodiTheme.colors.gray100)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .navigationBarsPadding()
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .offset { IntOffset(0, topBarHeightPx()) }
+                        .verticalScroll(scroll, enabled = isExpanded)
+                        .drawWithContent {
+                            val visibleHeight = (
+                                containerHeightPx -
+                                    sheetOffsetPx().toFloat() -
+                                    topBarHeightPx().toFloat() -
+                                    bottomBarHeightPx
+                            ).coerceIn(0f, size.height)
+                            clipRect(
+                                left = 0f,
+                                top = 0f,
+                                right = size.width,
+                                bottom = visibleHeight,
                             ) {
-                                BookmarkButton(
-                                    isBookmarked = place.isBookmarked,
-                                    onClick = onBookmarkClick,
-                                    enabled = showBottomBar && !isBookmarkUpdating,
-                                )
-                                RodiButton(
-                                    text = "연습하러 가기",
-                                    onClick = onNavigate,
-                                    enabled = showBottomBar,
-                                    modifier = Modifier.weight(1f),
-                                )
+                                this@drawWithContent.drawContent()
                             }
+                        },
+                ) {
+                    CourseDetailContent(
+                        place = place,
+                        onDismiss = onDismiss,
+                        reviewContent = { reviewContent(scroll) },
+                        showCloseButton = !isExpanded,
+                        closeButtonAlpha = { 1f - expansionProgress() },
+                        onSummaryHeightChanged = { height ->
+                            if (!anchorsInitialized) summaryHeightPx = height
+                        },
+                    )
+                }
+                SheetTopBar(
+                    expansionProgress = expansionProgress,
+                    expandedHeightPx = expandedTopBarHeightPx,
+                    isExpanded = isExpanded,
+                    onCollapse = { scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) } },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .anchoredDraggable(
+                            state = sheetState,
+                            orientation = Orientation.Vertical,
+                        ),
+                )
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .offset {
+                            if (showBottomBar) {
+                                IntOffset(0, -sheetOffsetPx())
+                            } else {
+                                IntOffset(0, containerHeightPx)
+                            }
+                        }
+                        .graphicsLayer { alpha = if (showBottomBar) 1f else 0f }
+                        .onSizeChanged { bottomBarHeightPx = it.height },
+                    color = RodiTheme.colors.white,
+                    shadowElevation = 4.dp,
+                ) {
+                    Column {
+                        HorizontalDivider(color = RodiTheme.colors.gray100)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            BookmarkButton(
+                                isBookmarked = place.isBookmarked,
+                                onClick = onBookmarkClick,
+                                enabled = showBottomBar && !isBookmarkUpdating,
+                            )
+                            RodiButton(
+                                text = "연습하러 가기",
+                                onClick = onNavigate,
+                                enabled = showBottomBar,
+                                modifier = Modifier.weight(1f),
+                            )
                         }
                     }
                 }
@@ -246,15 +270,40 @@ fun CourseDetailSheet(
 
 @Composable
 private fun SheetTopBar(
+    expansionProgress: () -> Float,
+    expandedHeightPx: Int,
     isExpanded: Boolean,
     onCollapse: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (isExpanded) {
-        Column(
-            modifier = modifier
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .layoutHeightPx {
+                val progress = expansionProgress()
+                val collapsedHeight = HandleHeight.toPx()
+                collapsedHeight + (expandedHeightPx - collapsedHeight) * progress
+            }
+            .clipToBounds(),
+    ) {
+        Box(
+            modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding(),
+                .height(HandleHeight)
+                .graphicsLayer { alpha = 1f - expansionProgress() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Spacer(
+                Modifier
+                    .size(width = 60.dp, height = 4.dp)
+                    .background(RodiTheme.colors.handleBar, RoundedCornerShape(100.dp)),
+            )
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .graphicsLayer { alpha = expansionProgress() },
         ) {
             Row(
                 modifier = Modifier
@@ -267,22 +316,10 @@ private fun SheetTopBar(
                     onClick = onCollapse,
                     contentDescription = "접기",
                     tint = RodiTheme.colors.black,
+                    enabled = isExpanded,
                     modifier = Modifier.padding(start = 16.dp),
                 )
             }
-        }
-    } else {
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .height(HandleHeight),
-            contentAlignment = Alignment.Center,
-        ) {
-            Spacer(
-                Modifier
-                    .size(width = 60.dp, height = 4.dp)
-                    .background(RodiTheme.colors.handleBar, RoundedCornerShape(100.dp)),
-            )
         }
     }
 }
