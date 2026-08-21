@@ -468,6 +468,9 @@ fun HomeScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
+                hasCenteredInitialLocation = false
+                hasUserMovedMap = false
+                hasUserChosenMapViewport = false
                 // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
                 // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
                 reviewVm.refresh()
@@ -475,6 +478,12 @@ fun HomeScreen(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        hasCenteredInitialLocation = false
+        hasUserMovedMap = false
+        hasUserChosenMapViewport = false
     }
 
     LaunchedEffect(Unit) {
@@ -822,6 +831,9 @@ fun HomeScreen(
     LaunchedEffect(kakaoMap, permissionGranted) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (!permissionGranted) return@LaunchedEffect
+        // 상세 화면(Detail)에서는 선택한 장소를 보여주는 별도 카메라 포커스 이펙트가 있다 —
+        // 여기서 현위치로 재센터링하면 그 포커스를 덮어써 버리므로 건너뛴다.
+        if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         val location = snapshotFlow { currentLocation }.filterNotNull().first()
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
             activeClusterMemberIds = null

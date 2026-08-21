@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.common.graphemeLength
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
@@ -107,7 +108,7 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateDrivingGoal(drivingGoal: String) {
-        require(drivingGoal.length <= 30) { "운전 목표는 30자 이하여야 합니다." }
+        require(drivingGoal.graphemeLength() <= 30) { "운전 목표는 30자 이하여야 합니다." }
         authenticatedRequest { authorization ->
             memberApi.updateMe(authorization, MemberUpdateRequest(drivingGoal)).requireSuccess()
         }

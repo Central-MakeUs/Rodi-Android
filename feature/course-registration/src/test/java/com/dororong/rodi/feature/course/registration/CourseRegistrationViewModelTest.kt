@@ -755,6 +755,22 @@ class CourseRegistrationViewModelTest {
         assertEquals("basic", viewModel.state.value.selectedCategoryCode)
     }
 
+    @Test
+    fun `description keeps thirty graphemes even when UTF-16 length exceeds thirty`() = runTest(dispatcher) {
+        coEvery { registration.getRegistrationForm() } returns sampleForm().copy(
+            descriptionInput = CourseInputSpec(true, minLength = 1, maxLength = 30, placeholder = "설명"),
+        )
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        advanceUntilIdle()
+
+        val description = "가".repeat(15) + "😀".repeat(15)
+        viewModel.onIntent(CourseRegistrationIntent.DescriptionChanged(description))
+
+        assertEquals(description, viewModel.state.value.description)
+    }
+
     private fun twoCategoryForm() = CourseRegistrationForm(
         maxWaypoints = 4,
         sections = CourseRegistrationSections("코스 정보", "연습 카테고리", "연습 유형", "주의사항", "설명"),

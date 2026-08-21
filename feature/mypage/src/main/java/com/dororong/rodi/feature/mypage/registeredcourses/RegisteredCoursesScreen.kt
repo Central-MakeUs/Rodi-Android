@@ -556,7 +556,7 @@ private fun RegisteredCourseRow(
                 text = course.name,
                 style = RodiTheme.typography.body2SemiBold,
                 color = RodiTheme.colors.black,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )

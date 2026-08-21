@@ -51,6 +51,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.common.graphemeLength
+import com.dororong.rodi.core.common.takeGraphemes
 import com.dororong.rodi.core.domain.model.course.CourseInputSpec
 import com.dororong.rodi.core.domain.model.course.CoursePracticeCategory
 import com.dororong.rodi.core.domain.model.course.CoursePracticeType
@@ -310,7 +311,7 @@ private fun RodiInputField(
             value = value,
             onValueChange = {
                 hasInteracted = true
-                onValueChanged(it.take(spec.maxLength))
+                onValueChanged(it.takeGraphemes(spec.maxLength))
             },
             modifier = Modifier
                 .fillMaxWidth()

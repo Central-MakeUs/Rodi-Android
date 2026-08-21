@@ -47,4 +47,26 @@ class DrivingGoalViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    @Test
+    fun `thirty graphemes are sent without truncating emoji code units`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val update = mockk<UpdateDrivingGoalUseCase>()
+        val goal = "가".repeat(15) + "😀".repeat(15)
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("로디", OnboardingLevel.SEED, emptyList(), "", 0),
+        )
+        coEvery { update(goal) } returns Result.success(Unit)
+        val viewModel = DrivingGoalViewModel(getMyPage, update)
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.updateGoal(goal)
+            viewModel.save()
+            advanceUntilIdle()
+            assertEquals(DrivingGoalEffect.NavigateBack, awaitItem())
+            coVerify { update(goal) }
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

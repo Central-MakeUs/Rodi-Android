@@ -48,6 +48,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiEmptyStateDefaults
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -217,10 +218,28 @@ private fun PracticeRecordListItem(
 
 @Composable
 private fun PracticeRecordsEmpty() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("아직 연습기록이 없어요!", style = RodiTheme.typography.body2SemiBold, color = RodiTheme.colors.gray600)
-            Text("가까운 연습 장소부터 천천히 시작해볼까요?", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 4.dp))
+    // 마이페이지 홈 "연습기록" 카드(PracticeRecordSection)와 문구·폰트가 동일해야 하므로
+    // 공용 컴포넌트(RodiTextEmptyState)의 기본 폰트를 쓰지 않고 그 카드와 같은 스타일을 쓴다.
+    // 정렬만 위쪽 고정 여백으로 바꿔 다른 "내 활동" 탭들과 시작 높이를 맞춘다.
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Column(
+            modifier = Modifier.padding(top = RodiEmptyStateDefaults.IllustratedTopPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = "아직 연습기록이 없어요!",
+                style = RodiTheme.typography.body2SemiBold,
+                color = RodiTheme.colors.gray600,
+            )
+            Text(
+                text = "가까운 연습 장소부터 천천히 시작해볼까요?",
+                style = RodiTheme.typography.caption1Medium,
+                color = RodiTheme.colors.gray600,
+                modifier = Modifier.padding(top = 4.dp),
+            )
         }
     }
 }

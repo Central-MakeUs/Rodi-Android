@@ -52,7 +52,7 @@ private const val REGISTRATION_LABEL_LAYER_ID = "rodi-course-registration-layer"
 private const val CAMERA_MOVE_DURATION_MILLIS = 400
 private const val DEFAULT_LAT = 37.5665
 private const val DEFAULT_LNG = 126.9780
-private const val DEFAULT_ZOOM_LEVEL = 15
+private const val DEFAULT_ZOOM_LEVEL = 13
 private const val ROUTE_LINE_WIDTH = 13f
 
 /** Kakao MapView는 자체 생명주기를 가지므로 Compose가 제거될 때 finish를 호출한다. */
@@ -107,7 +107,7 @@ fun CourseRegistrationMapView(
     }
 
     // center는 사용자가 지도를 드래그/핀치할 때마다(onCameraMoveEnd) 바뀌므로 key에 넣지 않는다 —
-    // 넣으면 매번 이 effect가 재실행돼 카메라를 기준 줌으로 되돌려서 확대/축소가 즉시 원복돼 버린다.
+    // 넣으면 매번 이 effect가 재실행돼 카메라를 기준 줌(DEFAULT_ZOOM_LEVEL)으로 되돌려서 확대/축소가 즉시 원복돼 버린다.
     // 실제 "프로그래매틱 재중심" 트리거는 centerGeneration 증가뿐이다.
     //
     // 최초 진입 시의 위치는 onMapReady의 getPosition()/getZoomLevel()이 첫 프레임부터 반영한다.
@@ -127,7 +127,7 @@ fun CourseRegistrationMapView(
         appliedPadding = topPaddingPx to bottomPaddingPx
         // 지점 확정/핀 수정처럼 "같은 자리를 다시 보여주는" 재중심은 사용자가 확대해 보던
         // 레벨을 유지한다(자동 축소로 핀이 작아 보이는 문제). 검색 결과 선택처럼 새로운
-        // 지역으로 점프할 때만 기준 줌으로 맞춘다.
+        // 지역으로 점프할 때만 기준 줌(DEFAULT_ZOOM_LEVEL)으로 맞춘다.
         val update = if (currentCenterKeepsZoom) {
             CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng))
         } else {

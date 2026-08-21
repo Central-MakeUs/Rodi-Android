@@ -120,7 +120,7 @@ internal fun PracticeRecordSection(
                     Text(
                         text = "가까운 연습 장소부터 천천히 시작해볼까요?",
                         style = RodiTheme.typography.caption1Medium,
-                        color = RodiTheme.colors.gray500,
+                        color = RodiTheme.colors.gray600,
                     )
                 }
             }
