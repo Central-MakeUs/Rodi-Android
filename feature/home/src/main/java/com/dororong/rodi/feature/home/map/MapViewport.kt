@@ -13,6 +13,17 @@ data class MapViewport(
         point.lat in southWest.lat..northEast.lat && point.lng in southWest.lng..northEast.lng
 }
 
+internal fun MapViewport.centerPoint(): GeoPoint = GeoPoint(
+    lat = (northEast.lat + southWest.lat) / 2.0,
+    lng = (northEast.lng + southWest.lng) / 2.0,
+)
+
+internal fun initialMapCenter(
+    savedViewport: MapViewport?,
+    currentLocation: GeoPoint?,
+    fallback: GeoPoint,
+): GeoPoint = savedViewport?.centerPoint() ?: currentLocation ?: fallback
+
 internal fun markerViewportOrNull(
     currentViewport: MapViewport?,
     searchedQuery: PlaceViewportQuery?,
@@ -51,10 +62,15 @@ object InitialViewportSearchPolicy {
         hasCurrentLocation: Boolean,
         hasCenteredInitialLocation: Boolean,
         isInitialLocationCameraMovePending: Boolean,
-    ): Boolean = locationState == InitialLocationState.Ready &&
-        hasCurrentLocation &&
-        !isInitialLocationCameraMovePending &&
-        hasCenteredInitialLocation
+    ): Boolean {
+        if (isInitialLocationCameraMovePending) return false
+        return when (locationState) {
+            InitialLocationState.Pending -> false
+            InitialLocationState.Ready ->
+                hasCurrentLocation && hasCenteredInitialLocation
+            InitialLocationState.Unavailable -> true
+        }
+    }
 }
 
 enum class InitialLocationState { Pending, Ready, Unavailable }

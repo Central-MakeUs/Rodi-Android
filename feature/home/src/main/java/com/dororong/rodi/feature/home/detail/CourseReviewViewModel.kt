@@ -74,7 +74,7 @@ class CourseReviewViewModel @Inject constructor(
 
     fun load(placeId: Long) {
         val current = _state.value
-        if (current.placeId == placeId && !current.isLoading && current.errorMessage == null) return
+        if (current.placeId == placeId && current.isLoading) return
 
         summaryJob?.cancel()
         cancelReviewPageLoads()

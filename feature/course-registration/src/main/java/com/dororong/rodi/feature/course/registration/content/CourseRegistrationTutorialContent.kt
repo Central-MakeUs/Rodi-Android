@@ -31,11 +31,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -43,7 +46,15 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
@@ -150,7 +161,10 @@ fun CourseRegistrationTutorialContent(
                 modifier = Modifier.weight(1f),
                 verticalAlignment = Alignment.Top,
             ) { index ->
-                TutorialPageContent(page = tutorialPages[index])
+                TutorialPageContent(
+                    page = tutorialPages[index],
+                    showTooltipOverlay = pagerState.currentPage == index,
+                )
             }
         }
     }
@@ -242,7 +256,10 @@ private fun TutorialProgress(pagerState: PagerState) {
 }
 
 @Composable
-private fun TutorialPageContent(page: TutorialPage) {
+private fun TutorialPageContent(
+    page: TutorialPage,
+    showTooltipOverlay: Boolean = true,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -287,16 +304,90 @@ private fun TutorialPageContent(page: TutorialPage) {
                 contentScale = ContentScale.Crop,
             )
             TutorialHighlightOverlay(page = page)
-            TutorialTooltip(
-                text = page.tooltip,
-                modifier = Modifier
-                    .align(page.tooltipAlignment)
-                    .offset(
-                        x = maxWidth * page.tooltipOffsetXFraction,
-                        y = maxHeight * page.tooltipOffsetYFraction,
-                    ),
-            )
+            if (showTooltipOverlay) {
+                TutorialTooltipOverlay(
+                    page = page,
+                    maxWidth = maxWidth,
+                    maxHeight = maxHeight,
+                    inspectionModifier = Modifier.align(page.tooltipAlignment),
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun TutorialTooltipOverlay(
+    page: TutorialPage,
+    maxWidth: Dp,
+    maxHeight: Dp,
+    inspectionModifier: Modifier,
+) {
+    val density = LocalDensity.current
+    val offset = with(density) {
+        IntOffset(
+            x = (maxWidth * page.tooltipOffsetXFraction).roundToPx(),
+            y = (maxHeight * page.tooltipOffsetYFraction).roundToPx(),
+        )
+    }
+    val positionProvider = remember(page.tooltipAlignment, offset) {
+        TutorialTooltipPopupPositionProvider(
+            alignment = page.tooltipAlignment,
+            offset = offset,
+        )
+    }
+
+    if (LocalInspectionMode.current) {
+        TutorialTooltip(
+            text = page.tooltip,
+            modifier = inspectionModifier
+                .offset(
+                    x = with(density) { offset.x.toDp() },
+                    y = with(density) { offset.y.toDp() },
+                ),
+        )
+    } else {
+        Popup(
+            popupPositionProvider = positionProvider,
+            properties = PopupProperties(
+                clippingEnabled = false,
+                focusable = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+            ),
+        ) {
+            TutorialTooltip(text = page.tooltip)
+        }
+    }
+}
+
+private class TutorialTooltipPopupPositionProvider(
+    private val alignment: Alignment,
+    private val offset: IntOffset,
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val alignedOffset = alignment.align(
+            size = popupContentSize,
+            space = IntSize(anchorBounds.width, anchorBounds.height),
+            layoutDirection = layoutDirection,
+        )
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+        val anchorMinX = anchorBounds.left.coerceAtLeast(0)
+        val anchorMaxX = (anchorBounds.right - popupContentSize.width)
+            .coerceAtLeast(anchorMinX)
+        return IntOffset(
+            x = (anchorBounds.left + alignedOffset.x + offset.x).coerceIn(
+                anchorMinX,
+                minOf(anchorMaxX, maxX).coerceAtLeast(anchorMinX),
+            ),
+            y = (anchorBounds.top + alignedOffset.y + offset.y).coerceIn(0, maxY),
+        )
     }
 }
 

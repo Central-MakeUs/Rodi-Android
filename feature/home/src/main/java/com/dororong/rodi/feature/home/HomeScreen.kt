@@ -168,6 +168,7 @@ import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
+import com.dororong.rodi.feature.home.map.initialMapCenter
 import com.dororong.rodi.feature.home.map.markMapLoaded
 import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
@@ -196,6 +197,8 @@ import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -651,7 +654,7 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+    val handleSystemBack: () -> Unit = {
         if (state.isFilterSheetVisible) {
             if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
         } else {
@@ -660,6 +663,9 @@ fun HomeScreen(
                 else -> vm.onIntent(HomeIntent.OnListCollapse)
             }
         }
+    }
+    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        handleSystemBack()
     }
 
     CollectEffect(vm.effect) { effect ->
@@ -813,9 +819,10 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
-    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
+    LaunchedEffect(kakaoMap, permissionGranted) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val location = currentLocation ?: return@LaunchedEffect
+        if (!permissionGranted) return@LaunchedEffect
+        val location = snapshotFlow { currentLocation }.filterNotNull().first()
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
             activeClusterMemberIds = null
             hasCenteredInitialLocation = true
@@ -1156,8 +1163,20 @@ fun HomeScreen(
                                                 }
                                             }
 
-                                            override fun getPosition(): LatLng = currentLocation ?: SEOUL
-                                            override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                            // 복귀 직후에는 위치 스트림보다 MapView가 먼저 시작될 수 있으므로
+                                            // 저장된 화면을 첫 프레임 위치로 사용해 현재 위치로 튀는 이동을 막는다.
+                                            override fun getPosition(): LatLng {
+                                                val center = initialMapCenter(
+                                                    savedViewport = currentViewport,
+                                                    currentLocation = currentLocation?.let {
+                                                        GeoPoint(it.latitude, it.longitude)
+                                                    },
+                                                    fallback = GeoPoint(SEOUL.latitude, SEOUL.longitude),
+                                                )
+                                                return LatLng.from(center.lat, center.lng)
+                                            }
+
+                                            override fun getZoomLevel(): Int = mapZoomLevel
                                         },
                                     )
                                     mapView
@@ -1167,11 +1186,15 @@ fun HomeScreen(
 
                         HomeSearchBar(
                             onClick = {
-                                vm.onIntent(
-                                    HomeIntent.OnSearchClick(
-                                        currentViewport?.toQuery(currentLocation)?.origin,
-                                    ),
-                                )
+                                if (state.searchKeyword != null) {
+                                    handleSystemBack()
+                                } else {
+                                    vm.onIntent(
+                                        HomeIntent.OnSearchClick(
+                                            currentViewport?.toQuery(currentLocation)?.origin,
+                                        ),
+                                    )
+                                }
                             },
                             searchKeyword = state.searchKeyword,
                             modifier = Modifier
@@ -1314,6 +1337,11 @@ fun HomeScreen(
 
                                 isEmptySheet -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
+                                    onRetry = {
+                                        val query = state.searchedQuery
+                                            ?: currentViewport?.toQuery(currentLocation)
+                                        query?.let { vm.onIntent(HomeIntent.OnProgrammaticSearch(it)) }
+                                    },
                                     dragHandleModifier = listSheetDrag,
                                 )
 
@@ -1350,6 +1378,7 @@ fun HomeScreen(
                                     HomeIntent.OnNavigateClick(
                                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                        notificationPermissionGranted = context.hasNotificationPermission(),
                                     ),
                                 )
                             },
@@ -1435,6 +1464,7 @@ fun HomeScreen(
                                             HomeIntent.OnNavigateClick(
                                                 kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                                 kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                                notificationPermissionGranted = context.hasNotificationPermission(),
                                             ),
                                         )
                                     },
@@ -1497,6 +1527,7 @@ fun HomeScreen(
                     HomeIntent.OnNavigateClick(
                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                        notificationPermissionGranted = context.hasNotificationPermission(),
                     ),
                 )
             },
@@ -1624,7 +1655,6 @@ fun HomeScreen(
         }
     }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.
-    // errorMessage를 비우지는 않는다 — CourseReviewViewModel.load()의 가드가 이 값으로 재시도를 판단한다.
     LaunchedEffect(reviewState.errorMessage) {
         reviewState.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
@@ -1658,7 +1688,13 @@ fun HomeScreen(
         NaviPickerSheet(
             onDismiss = { naviPlaceId = null },
             onSelect = { app, always ->
-                vm.onIntent(HomeIntent.OnNaviAppSelected(app, always))
+                vm.onIntent(
+                    HomeIntent.OnNaviAppSelected(
+                        app = app,
+                        always = always,
+                        notificationPermissionGranted = context.hasNotificationPermission(),
+                    ),
+                )
                 naviPlaceId = null
             },
         )
@@ -1878,6 +1914,18 @@ private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
 private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
+
+/**
+ * "물어본 적 있는지"(DataStore 플래그)와 "지금 허용돼 있는지"는 다르다. 한 번 거부한 뒤에도
+ * 플래그만 보고 다음 요청을 그냥 통과시키면, 실제로는 여전히 거부 상태인데 추적이 시작된다.
+ * 매 요청마다 실제 OS 권한 상태를 다시 확인해야 한다.
+ */
+private fun Context.hasNotificationPermission(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
 
 private fun Context.missingDrivingPermissions(): Array<String> = buildList {
     if (!hasLocationPermission()) {
