@@ -36,8 +36,8 @@ android {
         applicationId = "com.dororong.rodi"
         minSdk = 30
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.4.1"
+        versionCode = 20
+        versionName = "1.4.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
