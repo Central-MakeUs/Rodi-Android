@@ -31,7 +31,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -131,10 +134,19 @@ fun CourseRegistrationTutorialContent(
         initialPage = page.coerceIn(0, tutorialPages.lastIndex),
         pageCount = { tutorialPages.size },
     )
+    // 스와이프로 페이지가 바뀌면(pagerState.currentPage) 아래 effect가 그 값을 onPageChanged로
+    // ViewModel에 보고하고, ViewModel의 page가 갱신되면 다음 effect가 다시 pagerState를
+    // 그 값으로 맞춘다. 이 두 effect가 서로를 갱신하는 순환 구조라, 스와이프 직후 재구성이
+    // 아직 반영되기 전에 page가 옛 값 그대로 읽히면 방금 스와이프한 결과를 되돌려버려
+    // "가끔 안 넘어가는" 것처럼 보인다. lastReportedPage로 "우리가 직접 보고한 값"인지
+    // 추적해, 그 경우엔 되돌리지 않고 외부(뒤로가기 등)에서 바뀐 경우에만 애니메이션한다.
+    var lastReportedPage by remember { mutableIntStateOf(pagerState.currentPage) }
     LaunchedEffect(pagerState.currentPage) {
+        lastReportedPage = pagerState.currentPage
         onPageChanged(pagerState.currentPage)
     }
     LaunchedEffect(page) {
+        if (page == lastReportedPage) return@LaunchedEffect
         val target = page.coerceIn(0, tutorialPages.lastIndex)
         if (pagerState.currentPage != target) pagerState.animateScrollToPage(target)
     }

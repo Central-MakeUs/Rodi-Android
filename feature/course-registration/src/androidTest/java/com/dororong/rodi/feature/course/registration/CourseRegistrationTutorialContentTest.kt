@@ -5,7 +5,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
@@ -41,6 +40,32 @@ class CourseRegistrationTutorialContentTest {
             .performTouchInput { swipeLeft() }
         composeRule.waitForIdle()
         composeRule.onNodeWithText("아래 ‘출발지 선택’을 눌러, 위치를 선택해요").assertIsDisplayed()
+    }
+
+    @Test
+    fun consecutiveSwipesAdvanceThroughAllPagesWithoutSnappingBack() {
+        var page by mutableIntStateOf(0)
+        composeRule.setContent {
+            RodiTheme {
+                CourseRegistrationTutorialContent(
+                    page = page,
+                    isCompleting = false,
+                    onPageChanged = { page = it },
+                    onBack = {},
+                    onComplete = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("지도를 움직여 핀을 놓을 위치를 정하고").assertIsDisplayed()
+        composeRule.onNodeWithText("지도를 움직여 핀을 놓을 위치를 정하고")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("아래 ‘출발지 선택’을 눌러, 위치를 선택해요")
+            .performTouchInput { swipeLeft() }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("위치 수정 시 해당 핀을 눌러주세요").assertIsDisplayed()
     }
 
     @Test
