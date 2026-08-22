@@ -92,7 +92,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `tutorial completion failure keeps page three and re-enables retry`() = runTest(dispatcher) {
+    fun `tutorial completion failure still advances to the map instead of trapping the user`() = runTest(dispatcher) {
         coEvery { member.completeCourseTutorial() } throws IllegalStateException("network")
         val viewModel = viewModel()
         advanceUntilIdle()
@@ -104,10 +104,11 @@ class CourseRegistrationViewModelTest {
         viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
         advanceUntilIdle()
 
-        assertEquals(CourseRegistrationPage.Tutorial, viewModel.state.value.page)
-        assertEquals(2, viewModel.state.value.tutorialPage)
+        // 완료 상태를 서버에 남기는 호출이 실패해도 튜토리얼에 가둬두지 않고 지도로 넘어간다 —
+        // 다음에 다시 들어오면 서버가 여전히 미완료로 보고 있을 테니 그때 다시 시도된다.
+        assertEquals(CourseRegistrationPage.Map, viewModel.state.value.page)
         assertEquals(CourseTutorialLoadState.Ready, viewModel.state.value.tutorialLoadState)
-        assertEquals(listOf(CourseRegistrationEffect.ShowSnackbar("network")), effects)
+        assertEquals(emptyList<CourseRegistrationEffect>(), effects)
         collector.cancel()
     }
 
