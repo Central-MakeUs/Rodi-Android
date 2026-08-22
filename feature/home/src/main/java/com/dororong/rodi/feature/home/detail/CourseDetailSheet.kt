@@ -40,9 +40,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -181,24 +180,11 @@ fun CourseDetailSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .offset { IntOffset(0, topBarHeightPx()) }
-                        .verticalScroll(scroll, enabled = isExpanded)
-                        .drawWithContent {
-                            val visibleHeight = (
-                                containerHeightPx -
-                                    sheetOffsetPx().toFloat() -
-                                    topBarHeightPx().toFloat() -
-                                    bottomBarHeightPx
-                            ).coerceIn(0f, size.height)
-                            clipRect(
-                                left = 0f,
-                                top = 0f,
-                                right = size.width,
-                                bottom = visibleHeight,
-                            ) {
-                                this@drawWithContent.drawContent()
-                            }
-                        },
+                        .sheetContentViewport(
+                            topBarHeightPx = topBarHeightPx,
+                            bottomBarHeightPx = bottomBarHeightPx,
+                        )
+                        .verticalScroll(scroll, enabled = isExpanded),
                 ) {
                     CourseDetailContent(
                         place = place,
@@ -265,6 +251,32 @@ fun CourseDetailSheet(
                 }
             }
         }
+    }
+}
+
+private fun Modifier.sheetContentViewport(
+    topBarHeightPx: () -> Int,
+    bottomBarHeightPx: Int,
+): Modifier = layout { measurable, constraints ->
+    if (!constraints.hasBoundedHeight) {
+        val placeable = measurable.measure(constraints)
+        return@layout layout(placeable.width, placeable.height) {
+            placeable.placeRelative(0, 0)
+        }
+    }
+
+    val topInset = topBarHeightPx().coerceIn(0, constraints.maxHeight)
+    val bottomInset = bottomBarHeightPx.coerceIn(0, constraints.maxHeight - topInset)
+    val viewportHeight = constraints.maxHeight - topInset - bottomInset
+    val placeable = measurable.measure(
+        constraints.copy(
+            minHeight = viewportHeight,
+            maxHeight = viewportHeight,
+        ),
+    )
+
+    layout(placeable.width, constraints.maxHeight) {
+        placeable.placeRelative(0, topInset)
     }
 }
 
