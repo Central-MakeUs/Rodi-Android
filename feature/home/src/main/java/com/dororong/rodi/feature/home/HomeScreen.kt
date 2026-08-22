@@ -471,6 +471,8 @@ fun HomeScreen(
                 hasCenteredInitialLocation = false
                 hasUserMovedMap = false
                 hasUserChosenMapViewport = false
+                // 진행 중이던 연습 세션이 있으면 "이어서 측정할까요?" 다이얼로그를 다시 띄운다.
+                vm.onIntent(HomeIntent.OnAppResumed)
                 // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
                 // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
                 reviewVm.refresh()
