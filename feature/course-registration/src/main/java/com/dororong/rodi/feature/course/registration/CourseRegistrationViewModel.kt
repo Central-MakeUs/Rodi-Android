@@ -212,25 +212,29 @@ class CourseRegistrationViewModel @Inject constructor(
         if (_state.value.tutorialLoadState == CourseTutorialLoadState.Completing) return
         _state.update { it.copy(tutorialLoadState = CourseTutorialLoadState.Completing) }
         viewModelScope.launch {
+            // 완료 여부를 서버에 남기는 호출이 실패해도(네트워크·일시적 서버 오류 등)
+            // 튜토리얼 화면에 가둬두지 않는다 — 다음에 다시 들어오면 서버가 아직
+            // 미완료로 보고 있을 테니 그때 다시 시도된다. 사용자는 일단 지도로 넘어가
+            // 코스 등록을 계속할 수 있어야 한다.
             try {
                 memberRepository.completeCourseTutorial()
-                val (initialCenter, initialLocationState) = initialMapLocationState()
-                _state.update {
-                    it.copy(
-                        tutorialCompleted = true,
-                        tutorialLoadState = CourseTutorialLoadState.Ready,
-                        page = CourseRegistrationPage.Map,
-                        mapCenter = initialCenter,
-                        initialLocationState = initialLocationState,
-                    )
-                }
-                loadRegistrationFormIfNeeded()
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update { it.copy(tutorialLoadState = CourseTutorialLoadState.Ready) }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "잠시 후 다시 시도해 주세요."))
+                // 저장 실패는 무시한다 — 다음 진입 시 서버가 여전히 미완료로 보고 있을 테니
+                // 그때 다시 시도된다.
             }
+            val (initialCenter, initialLocationState) = initialMapLocationState()
+            _state.update {
+                it.copy(
+                    tutorialCompleted = true,
+                    tutorialLoadState = CourseTutorialLoadState.Ready,
+                    page = CourseRegistrationPage.Map,
+                    mapCenter = initialCenter,
+                    initialLocationState = initialLocationState,
+                )
+            }
+            loadRegistrationFormIfNeeded()
         }
     }
 
