@@ -21,6 +21,8 @@
 - Compose 성능(recomposition/stability): `/recomposition_optimization`
 - 의존성 버전 관리: `/version_control_wisdom`
 - 커밋/릴리스: `/smart-commit`, `/git-release-publish`
+- PR 생성/리뷰 코멘트 대응: `/create-pr`, `/pr-review-resolve`
+- 클릭 영역 ripple이 컴포넌트 밖으로 번지는지 점검: `/compose-ripple-clipping`
 - 멀티모듈 셋업(향후): `/android_ca_multimodule`, `/agp9_module_setup`
 
 ## 향후
