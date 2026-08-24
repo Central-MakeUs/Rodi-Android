@@ -33,18 +33,24 @@
   없음을 재확인. Compose 화면을 PNG로 고정해 CI에서 diff로 회귀를 잡는다. 우선 대상: `core:ui`
   공용 컴포넌트(버튼/다이얼로그/스켈레톤), 코스 상세 시트의 접힘·펼침 상태, 후기 섹션의
   상태별 렌더.
-  **주의 — 착수 전 호환성부터 확인할 것.** 현재 툴체인이 생태계보다 앞서 있다(AGP 9.2.1 /
-  Kotlin 2.2.10). `androidx.baselineprofile`도 stable이 AGP 9.2.1을 지원하지 않아 alpha로
-  고정한 전례가 있다. Roborazzi는 Robolectric 의존이라 같은 문제가 날 수 있으니, 의존성 추가 →
+  **주의 — 착수 전 호환성부터 확인할 것.** 현재 툴체인은 AGP `9.2.1` / Kotlin `2.2.10`이고,
+  Roborazzi/Robolectric은 이 리포에 아직 전혀 없다(둘 다 미검증). 전례: `androidx.baselineprofile`은
+  stable(`1.4.1`)이 AGP 9.2.1을 지원하지 않아 alpha(`1.5.0-alpha07`)로 고정했다
+  (`gradle/libs.versions.toml`의 `baselineProfilePlugin` 참고). Roborazzi도 같은 AGP 9 호환성
+  문제가 날 수 있으니 — 착수 시 Roborazzi 릴리스 노트에서 AGP 9 지원 버전(예: `1.56.0` 이상)을
+  먼저 확인하고, 왜 그 버전을 골랐는지 여기 또는 커밋에 근거를 남긴다. 의존성 추가 직후
   `./gradlew test` 전체 통과까지 확인한 뒤에 테스트를 늘린다. 반쯤 붙은 상태로 두면 기존 574개
   단위 테스트까지 같이 망가진다.
 - [ ] **Compose UI Test(androidTest) 커버리지 확대 (2026-08-24 추가)** — 현재 `feature:course-registration`
   2개 파일, `feature:home`(`PlaceListContentTest`) 1개 파일뿐이고 `feature:auth`/`entry`/
   `mypage`/`settings`, `core:ui` 공용 컴포넌트에는 계측 테스트가 아예 없다. 단위 테스트로
   검증 못 하는 gesture·상태 전환·리플 클리핑 같은 영역(바로 위 항목 배경 참고)을 실제 터진
-  버그 우선순위로 좁혀서(코스 상세 시트 드래그, 리뷰 상태별 렌더, 드롭다운 등) Compose UI Test로
-  추가한다. Roborazzi(스크린샷)와는 별개로, gesture/상태전환처럼 스크린샷 diff만으로는 못 잡는
-  interaction 로직에 우선순위를 둔다.
+  버그 우선순위로 좁혀서(코스 상세 시트 드래그의 접힘·펼침 전환 자체, 리뷰 상태별 렌더, 드롭다운
+  등) Compose UI Test로 추가한다. Roborazzi(스크린샷)와는 별개로, gesture/상태전환처럼 스크린샷
+  diff만으로는 못 잡는 interaction 로직에 우선순위를 둔다.
+  **범위 아님**: 시트 드래그의 *프레임 잼(버벅임)* 자체는 이 항목이 다루지 않는다 — Compose UI
+  Test는 드래그가 올바른 상태 전환을 만드는지만 검증하고, 실제 janky frame 비율 측정은 아래
+  FrameTimingMetric 항목의 몫이다. 둘을 같은 것으로 착각하지 말 것.
 - [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
   uiautomator가 이미 붙어 있으므로(`StartupBenchmark.kt` 참고) 테스트만 추가하면 된다.
   **선결 과제: 로그인 우회 수단이 없다.** 코스 상세까지 가려면 카카오 로그인 → 위치 → 목록
