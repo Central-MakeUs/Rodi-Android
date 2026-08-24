@@ -36,6 +36,29 @@ object MockResponseRegistry {
         mocks.clear()
     }
 
+    /**
+     * 계측 테스트에서만 사용할 목 응답을 등록하고 블록이 끝나면 기존 상태로 되돌린다.
+     * 디버그 빌드에서 Hilt로 만든 네트워크 클라이언트를 재사용하는 테스트도 블록 안에서
+     * 원하는 응답을 서버와 무관하게 고정할 수 있다.
+     */
+    suspend fun <T> withMocks(
+        responses: Map<String, String>,
+        block: suspend () -> T,
+    ): T {
+        val previousEnabled = enabled
+        val previousMocks = mocks.toMap()
+        clear()
+        mocks.putAll(responses)
+        enabled = true
+        return try {
+            block()
+        } finally {
+            clear()
+            mocks.putAll(previousMocks)
+            enabled = previousEnabled
+        }
+    }
+
     internal fun find(requestPath: String): String? {
         if (!enabled) return null
         return mocks.entries.firstOrNull { (path, _) -> requestPath.endsWith(path) }?.value
