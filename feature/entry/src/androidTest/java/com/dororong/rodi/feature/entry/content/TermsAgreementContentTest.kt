@@ -4,6 +4,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -39,6 +40,8 @@ class TermsAgreementContentTest {
                 )
             }
         }
+
+        composeRule.onNodeWithText("다음").assertIsNotEnabled()
 
         composeRule.onNodeWithText("약관 전체 동의").performClick()
         composeRule.onNodeWithText("다음").assertIsEnabled().performClick()

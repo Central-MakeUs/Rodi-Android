@@ -1,7 +1,9 @@
 package com.dororong.rodi.feature.auth
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -51,5 +53,6 @@ class LoginContentTest {
         }
 
         composeRule.onNodeWithText("최근에 로그인했어요!").assertIsDisplayed()
+        composeRule.onAllNodesWithText("둘러보기").assertCountEquals(0)
     }
 }

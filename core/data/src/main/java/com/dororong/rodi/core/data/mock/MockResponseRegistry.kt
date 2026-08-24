@@ -1,6 +1,8 @@
 package com.dororong.rodi.core.data.mock
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 서버에 아직 없는 API를 화면에서 미리 확인할 때 쓴다. 등록된 경로만 로컬 JSON으로 가로채고,
@@ -22,6 +24,7 @@ object MockResponseRegistry {
     var enabled: Boolean = false
 
     private val mocks = ConcurrentHashMap<String, String>()
+    private val withMocksLock = Mutex()
 
     /** [path]는 요청 URL의 끝부분과 일치하는지로 비교한다(쿼리스트링 무시). 버전 프리픽스 없이 적는다. */
     fun set(path: String, json: String) {
@@ -40,17 +43,21 @@ object MockResponseRegistry {
      * 계측 테스트에서만 사용할 목 응답을 등록하고 블록이 끝나면 기존 상태로 되돌린다.
      * 디버그 빌드에서 Hilt로 만든 네트워크 클라이언트를 재사용하는 테스트도 블록 안에서
      * 원하는 응답을 서버와 무관하게 고정할 수 있다.
+     *
+     * 등록·복원 구간 전체를 [withMocksLock]으로 직렬화한다 — 겹치는 [withMocks] 호출이
+     * 서로의 상태를 덮어쓰지 않게 하기 위함이며, 재진입은 지원하지 않는다(같은 코루틴에서
+     * 중첩 호출하면 교착 상태가 된다).
      */
     suspend fun <T> withMocks(
         responses: Map<String, String>,
         block: suspend () -> T,
-    ): T {
+    ): T = withMocksLock.withLock {
         val previousEnabled = enabled
         val previousMocks = mocks.toMap()
         clear()
         mocks.putAll(responses)
         enabled = true
-        return try {
+        try {
             block()
         } finally {
             clear()
