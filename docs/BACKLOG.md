@@ -42,6 +42,10 @@
   정작 이 백로그가 처음에 지목했던 실제 회귀 유형 — 드래그/스와이프, 드롭다운·팝업 열림-닫힘,
   리플 클리핑 — 은 스크린샷 diff와 이번 androidTest 어느 쪽으로도 아직 안 잡힌다. `feature:mypage`/
   `feature:settings`도 여전히 androidTest 0개.
+  **범위 아님**: 시트 드래그의 *프레임 잼(버벅임)* 자체는 이 항목이 다루지 않는다 — Compose UI
+  Test는 드래그가 올바른 상태 전환을 만드는지만 검증하고, 실제 janky frame 비율 측정은 아래
+  FrameTimingMetric 항목의 몫이다. 둘을 같은 것으로 착각하지 말 것. 리플 클리핑도 본질적으로
+  시각적 결함이라 semantics 기반 Compose UI Test로는 검증 불가 — Roborazzi 스크린샷 쪽 소관.
 - [ ] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-24 후속, 리뷰에서 발견) — `TESTING.md`는
   `src/test`에 JUnit5만 쓰라고 명시하는데, 새로 추가한 Roborazzi 테스트는 Robolectric 생태계
   제약으로 JUnit4(`AndroidJUnit4` 러너)를 쓴다(`junit-vintage-engine`으로 JUnit5 플랫폼에 연결).

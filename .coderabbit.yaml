@@ -36,7 +36,7 @@ reviews:
         [UI/Feature 레이어 체크]
         - Composable 함수가 ViewModel을 직접 생성하지 않고 hiltViewModel() 또는 파라미터로 주입받는지 확인합니다.
         - UI 상태(UiState)가 불변(immutable) data class로 정의되어 있는지 확인합니다.
-        - 재사용 가능한 UI 컴포넌트는 디자인 시스템 토큰(RoutiTheme)을 사용하는지 확인합니다.
+        - 재사용 가능한 UI 컴포넌트는 디자인 시스템 토큰(RodiTheme)을 사용하는지 확인합니다.
         - Side Effect(navigation, snackbar 등)가 LaunchedEffect 또는 SideEffect로 처리되는지 확인합니다.
     - path: "**/data/**/*.kt"
       instructions: |
