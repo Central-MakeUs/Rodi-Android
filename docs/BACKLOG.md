@@ -18,31 +18,42 @@
   추론만으로 원인을 단정하지 말 것(이미 한 번 잘못된 진단 — 이미 고쳐진 옛 코드를 보고
   같은 원인이라 재판단한 사례 있음).
 
-### ★ 최우선 — UI 회귀 안전망 (2026-08-14 추가)
-> 배경: 이 리포는 **단위 테스트 76개 대비 계측(androidTest) 1개, 스크린샷 테스트 0개**다.
-> 그런데 실제로 터지는 버그는 마커 겹침·시트 드래그 잼·리플 클리핑·드롭다운처럼 전부
-> **단위 테스트가 볼 수 없는 영역**이다. `./gradlew test` 통과가 "검증됨"의 근거로 계속
-> 오용됐고, 그 결과 같은 QA 라운드에서 회귀가 반복됐다. 기능 하나 더 만드는 것보다 이 그물을
-> 먼저 치는 게 이득이 크다.
+### ★ 최우선 — UI 회귀 안전망 (2026-08-14 추가, 2026-08-24 1차 도입 완료)
+> 배경: 이 리포는 단위 테스트 574개(2026-08-24 기준) 대비 계측(androidTest)이 사실상 없었고
+> 스크린샷 테스트는 0개였다. 마커 겹침·시트 드래그 잼·리플 클리핑·드롭다운처럼 실제로 터지는
+> 버그는 전부 **단위 테스트가 볼 수 없는 영역**이었다. `./gradlew test` 통과가 "검증됨"의
+> 근거로 계속 오용됐고, 같은 QA 라운드에서 회귀가 반복됐다.
 
-- [ ] **Roborazzi 스크린샷 테스트 도입 (최우선)** — Compose 화면을 PNG로 고정해 CI에서 diff로
-  회귀를 잡는다. 우선 대상: `core:ui` 공용 컴포넌트(버튼/다이얼로그/스켈레톤), 코스 상세 시트의
-  접힘·펼침 상태, 후기 섹션의 상태별 렌더.
-  **주의 — 착수 전 호환성부터 확인할 것.** 현재 툴체인이 생태계보다 앞서 있다(AGP 9.2.1 /
-  Kotlin 2.2.10). `androidx.baselineprofile`도 stable이 AGP 9.2.1을 지원하지 않아 alpha로
-  고정한 전례가 있다. Roborazzi는 Robolectric 의존이라 같은 문제가 날 수 있으니, 의존성 추가 →
-  `./gradlew test` 전체 통과까지 확인한 뒤에 테스트를 늘린다. 반쯤 붙은 상태로 두면 기존 76개
-  단위 테스트까지 같이 망가진다.
+- [x] **Roborazzi 스크린샷 테스트 도입** — `test/ui-regression-safety-net` 브랜치에서 완료
+  (2026-08-24). `core:ui`(`RodiButton`/`RodiSelectableChip`/`RodiSnackbar`)와
+  `feature:home`(`LevelReviewSection` 빈 상태/요약)에 Roborazzi 1.68.0 + Robolectric 4.16.1로
+  스크린샷 5장 커밋. AGP 9.2.1/Kotlin 2.2.10 호환성 확인 후 `./gradlew test` 전체 통과 유지한
+  채로 도입 완료. `CourseDetailSheet`(접힘/펼침)는 이번엔 다루지 않음 — 후속으로 남김.
+- [x] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격** — `withMocks(responses, block)`
+  suspend 헬퍼 추가 완료(2026-08-24, 상태 복원 포함). 아직 실제 androidTest에서 쓰인 곳은 없음 —
+  진입점만 마련된 상태.
+- [ ] **`CourseDetailSheet` 접힘/펼침 Roborazzi 스크린샷 추가** (2026-08-24 후속) — 위 1차
+  도입에서 `core:ui`/`LevelReviewSection`만 다뤘고, 처음에 최우선으로 지목했던 코스 상세 시트
+  자체는 아직 없다.
+- [ ] **Compose UI Test — 제스처/드롭다운/리플 클리핑 커버리지** (2026-08-24 후속, 리뷰에서
+  발견) — 1차 도입에서 `feature:auth`/`feature:entry`/`core:ui`에 추가한 androidTest 3개는
+  전부 클릭/토글 기반 상태 전환 검증이다(`LoginContentTest`/`TermsAgreementContentTest`/
+  `CoreUiComponentsTest` 참고 — HANDOFF는 로컬 전용이라 원문은 리뷰 시점 세션에만 있음).
+  정작 이 백로그가 처음에 지목했던 실제 회귀 유형 — 드래그/스와이프, 드롭다운·팝업 열림-닫힘,
+  리플 클리핑 — 은 스크린샷 diff와 이번 androidTest 어느 쪽으로도 아직 안 잡힌다. `feature:mypage`/
+  `feature:settings`도 여전히 androidTest 0개.
+- [ ] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-24 후속, 리뷰에서 발견) — `TESTING.md`는
+  `src/test`에 JUnit5만 쓰라고 명시하는데, 새로 추가한 Roborazzi 테스트는 Robolectric 생태계
+  제약으로 JUnit4(`AndroidJUnit4` 러너)를 쓴다(`junit-vintage-engine`으로 JUnit5 플랫폼에 연결).
+  불가피한 예외지만 문서에 왜 그런지 한 줄이 없어 다음에 헷갈릴 수 있다.
 - [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
   uiautomator가 이미 붙어 있으므로(`StartupBenchmark.kt` 참고) 테스트만 추가하면 된다.
   **선결 과제: 로그인 우회 수단이 없다.** 코스 상세까지 가려면 카카오 로그인 → 위치 → 목록
   선택을 거쳐야 해서 벤치마크가 안정적으로 화면에 도달하지 못한다. 디버그 빌드 전용 진입점
-  (예: 특정 화면으로 바로 가는 deep link, 또는 테스트용 토큰 주입)이 먼저 필요하다.
+  (예: 특정 화면으로 바로 가는 deep link, 또는 테스트용 토큰 주입)이 먼저 필요하다 — 이 진입점
+  자체가 보안·스펙 판단이 필요해 2026-08-24 배치에서도 그대로 남겼다.
   그때까지는 수동으로 `adb shell dumpsys gfxinfo com.dororong.rodi`의 janky frame 비율을
   수정 전/후 비교하는 방식으로 대체한다.
-- [ ] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격 검토** — 디버그 빌드에 이미 API 목
-  인터셉터가 있다(`core/data/.../mock/`). 위 두 항목 모두 "서버 상태에 의존하지 않는 화면 재현"이
-  필요한데, 이걸 테스트에서 켤 수 있게 하면 스크린샷·벤치마크 양쪽에 쓸 수 있다.
 
 - [x] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
   (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
