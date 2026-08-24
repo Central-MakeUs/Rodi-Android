@@ -312,6 +312,8 @@ flowchart TB
     COURSE --> DOMAIN
     MYPAGE --> DOMAIN
 
+    SETTINGS --> DOMAIN
+
     AUTH --> UI
     ENTRY --> UI
     HOME --> UI
@@ -323,7 +325,7 @@ flowchart TB
     DATA --> COMMON
 ```
 
-### Dependency Rule
+## Dependency Rule
 
 ```text
 app → feature:*
@@ -336,7 +338,7 @@ feature:* → core:ui / core:common
 
 또한 Feature끼리 직접 의존하지 않고 화면 전환은 `app`의 route가 조정합니다.
 
-### Module Responsibility
+## Module Responsibility
 
 | Module | Responsibility |
 | --- | --- |
@@ -400,7 +402,7 @@ flowchart LR
 | Tutorial 완료 저장 실패 | 사용자의 핵심 진행은 허용하고 이후 다시 동기화 가능 |
 | Offline | 짧은 유예 후 안내하고 재연결 시 복구 |
 
-### Failure severity follows user impact
+## Failure severity follows user impact
 
 모든 오류를 동일하게 blocking하지 않습니다.
 
@@ -498,7 +500,7 @@ Draw
 
 모든 프레임 의존 값을 Composition에서 읽기보다, 위치·크기·투명도처럼 렌더링 단계에서만 필요한 값은 가능한 경우 `Modifier.layout { ... }`, `Modifier.graphicsLayer { ... }`처럼 더 뒤쪽 phase에서 처리합니다.
 
-### Cold Start Performance
+## Cold Start Performance
 
 프로젝트에는 실제 앱 시작 성능을 검증하기 위한 `:benchmark` 모듈과 Baseline Profile 인프라를 구성했습니다.
 
@@ -597,7 +599,7 @@ RodiTheme.radius
 <details>
 <summary><strong>실행 방법 보기</strong></summary>
 
-### Requirements
+## Requirements
 
 - Android Studio
 - Android SDK
@@ -606,14 +608,14 @@ RodiTheme.radius
 - Kakao Native App Key
 - Kakao REST API Key
 
-### Clone
+## Clone
 
 ```bash
 git clone git@github.com:Central-MakeUs/Rodi-Android.git
 cd Rodi-Android
 ```
 
-### Secrets
+## Secrets
 
 루트의 `local.properties`에 필요한 키를 설정합니다.
 
@@ -625,25 +627,25 @@ KAKAO_REST_API_KEY=your_rest_api_key
 
 실제 Key와 `local.properties`는 버전 관리에 포함하지 않습니다.
 
-### Build
+## Build
 
 ```bash
 ./gradlew assembleDebug
 ```
 
-### Test
+## Test
 
 ```bash
 ./gradlew test
 ```
 
-### Lint
+## Lint
 
 ```bash
 ./gradlew lint
 ```
 
-### Release Build
+## Release Build
 
 릴리스 서명 환경이 구성된 경우 다음 명령으로 release build를 검증할 수 있습니다.
 
