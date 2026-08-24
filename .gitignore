@@ -59,5 +59,6 @@ docs/QUEUE.md
 # 빈 스키마인 TEMPLATE.md와 목차 역할의 archive/README.md만 공개로 남긴다.
 # 새로 클론하면 HANDOFF.md가 없다 — 작업 시작 전 `cp docs/handoff/TEMPLATE.md docs/handoff/HANDOFF.md`로 만든다.
 docs/handoff/HANDOFF.md
+docs/handoff/QUEUE.md
 docs/handoff/archive/*
 !docs/handoff/archive/README.md
