@@ -38,6 +38,14 @@ fun `rethrows cancellation`() = runTest {
 }
 ```
 
+## Roborazzi 예외
+- Roborazzi/Robolectric 스크린샷 테스트는 `org.junit.jupiter.api.Test`가 아니라 `org.junit.Test`와
+  `@RunWith(AndroidJUnit4::class)`를 사용하는 JUnit4 예외를 적용한다.
+- Robolectric이 JUnit4 러너 생태계에 묶여 있기 때문이며, `junit-vintage-engine`으로 JUnit5 플랫폼과
+  연결한다.
+- 이 예외는 [`LevelReviewSectionRoborazziTest.kt`](../feature/home/src/test/java/com/dororong/rodi/feature/home/detail/components/LevelReviewSectionRoborazziTest.kt)처럼
+  `*RoborazziTest.kt` 파일에만 적용하고, 나머지 단위 테스트는 여전히 JUnit5를 사용한다.
+
 ## MockK
 - 동기 함수는 `every { } returns`와 `verify { }`를 사용한다.
 - `suspend` 함수는 `coEvery { } returns`와 `coVerify { }`를 사용한다.
