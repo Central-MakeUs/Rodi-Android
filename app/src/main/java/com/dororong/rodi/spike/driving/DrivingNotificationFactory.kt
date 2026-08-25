@@ -107,7 +107,6 @@ internal object DrivingNotificationFactory {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setWhen(session.startedAtEpochMillis)
             .setShowWhen(true)
-            .setUsesChronometer(!isOnTheWayToCourse)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(
                 R.drawable.ic_launcher_foreground,
