@@ -67,4 +67,29 @@ class RodiPopupMenuTest {
 
         composeRule.onNodeWithText("전체").assertDoesNotExist()
     }
+
+    @Test
+    fun `menu appears when expanded toggles from false to true`() {
+        var expanded by mutableStateOf(false)
+
+        composeRule.setContent {
+            RodiTheme {
+                Box(Modifier.fillMaxSize()) {
+                    RodiPopupMenu(
+                        expanded = expanded,
+                        items = listOf("전체", "새싹", "가지", "나무"),
+                        onSelect = {},
+                        onDismissRequest = { expanded = false },
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("전체").assertDoesNotExist()
+
+        expanded = true
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("전체").assertIsDisplayed()
+    }
 }
