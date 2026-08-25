@@ -99,6 +99,7 @@ class HomeViewModel @Inject constructor(
     private var practicePromptJob: Job? = null
     private var practicePromptRequestGeneration = 0L
     private var practiceLaunchJob: Job? = null
+    private var pendingPlaceSwitch: PendingPlaceSwitch? = null
     private var requestGeneration = 0L
     private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
@@ -766,6 +767,12 @@ class HomeViewModel @Inject constructor(
      */
     private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
         if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
+        val activeSession = _state.value.activePracticeSession
+        if (activeSession != null && activeSession.placeId != place.id) {
+            pendingPlaceSwitch = PendingPlaceSwitch(place, app, notificationPermissionGranted)
+            _state.update { it.copy(isPracticeContinueDialogVisible = true) }
+            return
+        }
         practiceLaunchJob = viewModelScope.launch {
             _state.update { it.copy(isPracticeLaunchInProgress = true) }
             if (notificationPermissionGranted) {
@@ -921,6 +928,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun hidePracticeContinueDialog() {
+        pendingPlaceSwitch = null
         _state.update { it.copy(isPracticeContinueDialogVisible = false) }
     }
 
@@ -959,6 +967,10 @@ class HomeViewModel @Inject constructor(
                     )
                 }
                 _effect.send(HomeEffect.StopDrivingTracking)
+                pendingPlaceSwitch?.let { switch ->
+                    pendingPlaceSwitch = null
+                    requestPracticeNavigation(switch.place, switch.app, switch.notificationPermissionGranted)
+                }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
@@ -1139,6 +1151,12 @@ class HomeViewModel @Inject constructor(
         false
     }
 }
+
+private data class PendingPlaceSwitch(
+    val place: PlaceDetail,
+    val app: NaviApp,
+    val notificationPermissionGranted: Boolean,
+)
 
 private fun PendingPracticeNavigation.navigationEffect(
     startDriving: Boolean = true,
