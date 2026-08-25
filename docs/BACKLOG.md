@@ -32,24 +32,24 @@
 - [x] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격** — `withMocks(responses, block)`
   suspend 헬퍼 추가 완료(2026-08-24, 상태 복원 포함). 아직 실제 androidTest에서 쓰인 곳은 없음 —
   진입점만 마련된 상태.
-- [ ] **`CourseDetailSheet` 접힘/펼침 Roborazzi 스크린샷 추가** (2026-08-24 후속) — 위 1차
-  도입에서 `core:ui`/`LevelReviewSection`만 다뤘고, 처음에 최우선으로 지목했던 코스 상세 시트
-  자체는 아직 없다.
+- [x] **`CourseDetailSheet` 접힘/펼침 Roborazzi 스크린샷 추가** (2026-08-25 완료) — 접힌 상태의
+  기본/저장됨 2종을 `CourseDetailSheetRoborazziTest`로 추가했다. 펼침 상태는 이번 범위에서
+  다루지 않고 후속으로 남긴다.
 - [ ] **Compose UI Test — 제스처/드롭다운/리플 클리핑 커버리지** (2026-08-24 후속, 리뷰에서
   발견) — 1차 도입에서 `feature:auth`/`feature:entry`/`core:ui`에 추가한 androidTest 3개는
   전부 클릭/토글 기반 상태 전환 검증이다(`LoginContentTest`/`TermsAgreementContentTest`/
   `CoreUiComponentsTest` 참고 — HANDOFF는 로컬 전용이라 원문은 리뷰 시점 세션에만 있음).
-  정작 이 백로그가 처음에 지목했던 실제 회귀 유형 — 드래그/스와이프, 드롭다운·팝업 열림-닫힘,
-  리플 클리핑 — 은 스크린샷 diff와 이번 androidTest 어느 쪽으로도 아직 안 잡힌다. `feature:mypage`/
+  정작 이 백로그가 처음에 지목했던 실제 회귀 유형 — 드래그/스와이프, 리플 클리핑 — 은
+  스크린샷 diff와 이번 androidTest 어느 쪽으로도 아직 안 잡힌다. `feature:mypage`/
   `feature:settings`도 여전히 androidTest 0개.
+  드롭다운은 `RodiPopupMenuTest`로 커버됨(2026-08-25). 드래그/스와이프와 리플 클리핑은 여전히
+  이번 범위 밖이다.
   **범위 아님**: 시트 드래그의 *프레임 잼(버벅임)* 자체는 이 항목이 다루지 않는다 — Compose UI
   Test는 드래그가 올바른 상태 전환을 만드는지만 검증하고, 실제 janky frame 비율 측정은 아래
   FrameTimingMetric 항목의 몫이다. 둘을 같은 것으로 착각하지 말 것. 리플 클리핑도 본질적으로
   시각적 결함이라 semantics 기반 Compose UI Test로는 검증 불가 — Roborazzi 스크린샷 쪽 소관.
-- [ ] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-24 후속, 리뷰에서 발견) — `TESTING.md`는
-  `src/test`에 JUnit5만 쓰라고 명시하는데, 새로 추가한 Roborazzi 테스트는 Robolectric 생태계
-  제약으로 JUnit4(`AndroidJUnit4` 러너)를 쓴다(`junit-vintage-engine`으로 JUnit5 플랫폼에 연결).
-  불가피한 예외지만 문서에 왜 그런지 한 줄이 없어 다음에 헷갈릴 수 있다.
+- [x] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-25 완료) — `TESTING.md`의 JUnit5
+  규칙 뒤에 Roborazzi/Robolectric의 JUnit4 예외와 적용 범위를 문서화했다.
 - [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
   uiautomator가 이미 붙어 있으므로(`StartupBenchmark.kt` 참고) 테스트만 추가하면 된다.
   **선결 과제: 로그인 우회 수단이 없다.** 코스 상세까지 가려면 카카오 로그인 → 위치 → 목록
