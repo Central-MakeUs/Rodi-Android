@@ -15,6 +15,8 @@
 ![Architecture](https://img.shields.io/badge/Architecture-Multi--module%20%2B%20Clean-black)
 
 <sub>Current version: 1.4.5 · minSdk 30 · targetSdk 36</sub>
+
+[![Google Play](https://img.shields.io/badge/Google%20Play-Rodi-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.dororong.rodi)
 </div>
 
 ---
@@ -50,6 +52,13 @@ flowchart LR
 ---
 
 ## Product Experience
+
+<p align="center">
+  <img src="docs/readme/home.webp" width="23%" alt="Rodi 홈 지도" />
+  <img src="docs/readme/detail.webp" width="23%" alt="Rodi 코스 상세" />
+  <img src="docs/readme/course-map.webp" width="23%" alt="Rodi 코스 등록 지도" />
+  <img src="docs/readme/course-form.webp" width="23%" alt="Rodi 코스 등록 폼" />
+</p>
 
 | Explore | Register | Practice |
 | --- | --- | --- |
