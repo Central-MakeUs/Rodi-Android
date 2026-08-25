@@ -857,6 +857,58 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `navigating to a different place while a session is active shows continue dialog instead of switching`() =
+        runTest(dispatcher) {
+            val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+            val otherPlace = navigationPlace().copy(id = 20L, name = "다른 코스")
+            coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+            coEvery { deps.getDetail(20L) } returns Result.success(otherPlace)
+            val vm = deps.viewModel()
+            vm.onIntent(HomeIntent.OnAppResumed)
+            advanceUntilIdle()
+            vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
+            vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.Map))
+            advanceUntilIdle()
+
+            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+            advanceUntilIdle()
+
+            assertTrue(vm.state.value.isPracticeContinueDialogVisible)
+            assertEquals(27L, vm.state.value.activePracticeSession?.placeId)
+            coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+            coVerify(exactly = 0) { deps.clearActiveSession() }
+        }
+
+    @Test
+    fun `ending measurement to switch places stops the old session and starts the new one`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        val otherPlace = navigationPlace().copy(id = 20L, name = "다른 코스")
+        coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        coEvery { deps.getDetail(20L) } returns Result.success(otherPlace)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
+        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
+            advanceUntilIdle()
+            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
+            assertEquals(HomeEffect.LaunchKakaoMap(otherPlace), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertEquals(20L, vm.state.value.activePracticeSession?.placeId)
+        coVerify(exactly = 1) { deps.clearActiveSession() }
+        coVerify(exactly = 1) { deps.saveActiveSession(any()) }
+    }
+
+    @Test
     fun `dismissed practice prompt does not come back on the next resume`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
