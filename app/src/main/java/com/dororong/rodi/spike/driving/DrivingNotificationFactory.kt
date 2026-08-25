@@ -85,7 +85,7 @@ internal object DrivingNotificationFactory {
         val title = if (isOnTheWayToCourse) {
             "연습 코스로 이동하고 있어요"
         } else {
-            "${session.placeName.removeSuffix("코스").trimEnd()} 코스 주행 중"
+            "${session.placeName.trimEnd().removeSuffix("코스").trimEnd()} 코스 주행 중"
         }
         val message = if (isOnTheWayToCourse) {
             "코스에 도착하면 Rodi가 주행을 기록해 드릴게요."
