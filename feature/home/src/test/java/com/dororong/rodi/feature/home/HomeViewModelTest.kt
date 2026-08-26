@@ -803,6 +803,23 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `GPS-confirmed arrival shows the visit prompt even before ten minutes`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:03:00Z"))
+        val session = activeSession(
+            startedAt = Instant.parse("2026-08-15T00:00:00Z"),
+            isArrivalConfirmed = true,
+        )
+        coEvery { deps.getActiveSession() } returns session
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+    }
+
+    @Test
     fun `exactly ten minutes shows visited prompt`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
@@ -1448,12 +1465,14 @@ private fun activeSession(
     startedAt: Instant,
     placeType: PlaceType = PlaceType.COURSE,
     practiceId: Long? = null,
+    isArrivalConfirmed: Boolean = false,
 ) = ActivePracticeSession(
     placeId = 27L,
     placeName = "강남역 주변 코스",
     placeType = placeType,
     startedAt = startedAt,
     practiceId = practiceId,
+    isArrivalConfirmed = isArrivalConfirmed,
 )
 
 private fun clockAt(value: String): Clock = Clock.fixed(Instant.parse(value), ZoneOffset.UTC)

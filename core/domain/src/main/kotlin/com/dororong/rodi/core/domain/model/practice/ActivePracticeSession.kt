@@ -10,4 +10,5 @@ data class ActivePracticeSession(
     val startedAt: Instant,
     val practiceId: Long? = null,
     val isCompleted: Boolean = false,
+    val isArrivalConfirmed: Boolean = false,
 )

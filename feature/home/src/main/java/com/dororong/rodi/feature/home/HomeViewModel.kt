@@ -907,7 +907,11 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
             val elapsed = Duration.between(session.startedAt, Instant.now(clock))
-            if (elapsed >= PRACTICE_MEASUREMENT_DURATION) {
+            // 알림 권한을 허용해 실제 GPS 추적이 돌았다면 DrivingTrackingService가 도착 반경
+            // 진입을 확인하는 즉시 isArrivalConfirmed를 채워준다 — 그 경우 10분을 더 기다리지
+            // 않고 바로 방문 확인을 띄운다. 권한을 거부해 추적이 아예 없었던 세션만 경과 시간
+            // 휴리스틱에 의존한다.
+            if (session.isArrivalConfirmed || elapsed >= PRACTICE_MEASUREMENT_DURATION) {
                 _state.update {
                     it.copy(
                         activePracticeSession = session,
