@@ -14,7 +14,7 @@ data class ArrivalDecision(
 )
 
 class RadiusArrivalPolicy(
-    private val radiusMeters: Double = 100.0,
+    private val radiusMeters: Double = 180.0,
     private val requiredConsecutiveSamples: Int = 2,
     private val maxAccuracyMeters: Float = 50f,
 ) {

@@ -38,8 +38,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import timber.log.Timber
 
-private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 100.0
-private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 60_000L
+private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
+private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
 
 @AndroidEntryPoint
 internal class DrivingTrackingService : Service() {
