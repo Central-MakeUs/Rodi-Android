@@ -1,6 +1,8 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.data.mock.LocalTestPlaces
 import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
@@ -28,26 +30,40 @@ class PlaceRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
 ) : PlaceRepository {
-    override suspend fun getCoordinates(): List<PlaceCoordinate> = publicRequest {
-        api.getCoordinates().requireData().map { it.toDomain() }
+    override suspend fun getCoordinates(): List<PlaceCoordinate> {
+        val coordinates = publicRequest {
+            api.getCoordinates().requireData().map { it.toDomain() }
+        }
+        return if (BuildConfig.DEBUG) coordinates + LocalTestPlaces.coordinate() else coordinates
     }
 
     override suspend fun getPlaces(
         query: PlaceViewportQuery,
         cursor: String?,
         size: Int,
-    ): CursorPage<PlaceSummary> = optionalAuthenticatedRequest { accessToken ->
-        api.getPlaces(
-            authorization = accessToken?.let { "Bearer $it" },
-            swLat = query.southWest.lat,
-            swLng = query.southWest.lng,
-            neLat = query.northEast.lat,
-            neLng = query.northEast.lng,
-            lat = query.origin.lat,
-            lng = query.origin.lng,
-            size = size,
-            cursor = cursor,
-        ).requireData().toDomain()
+    ): CursorPage<PlaceSummary> {
+        val page = optionalAuthenticatedRequest { accessToken ->
+            api.getPlaces(
+                authorization = accessToken?.let { "Bearer $it" },
+                swLat = query.southWest.lat,
+                swLng = query.southWest.lng,
+                neLat = query.northEast.lat,
+                neLng = query.northEast.lng,
+                lat = query.origin.lat,
+                lng = query.origin.lng,
+                size = size,
+                cursor = cursor,
+            ).requireData().toDomain()
+        }
+        val includeTestPlace = BuildConfig.DEBUG && cursor == null && LocalTestPlaces.containedIn(query)
+        return if (includeTestPlace) {
+            page.copy(
+                items = listOf(LocalTestPlaces.summary()) + page.items,
+                totalCount = page.totalCount?.plus(1),
+            )
+        } else {
+            page
+        }
     }
 
     override suspend fun searchPlaces(
@@ -79,8 +95,11 @@ class PlaceRepositoryImpl @Inject constructor(
         ).requireData().toDomain()
     }
 
-    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = authenticatedRequest { accessToken ->
-        api.getPlaceDetail("Bearer $accessToken", placeId).requireData().toDomain()
+    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
+        if (BuildConfig.DEBUG && placeId == LocalTestPlaces.ID) return LocalTestPlaces.detail()
+        return authenticatedRequest { accessToken ->
+            api.getPlaceDetail("Bearer $accessToken", placeId).requireData().toDomain()
+        }
     }
 
     override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
@@ -89,6 +108,10 @@ class PlaceRepositoryImpl @Inject constructor(
         }
 
     override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
+        if (BuildConfig.DEBUG && place.id == LocalTestPlaces.ID) {
+            savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
+            return
+        }
         authenticatedRequest { accessToken ->
             val response = if (bookmarked) {
                 api.bookmark("Bearer $accessToken", place.id)
