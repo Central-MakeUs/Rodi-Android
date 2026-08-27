@@ -28,7 +28,7 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
-import com.dororong.rodi.core.domain.usecase.entry.GetNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.entry.MarkNotificationPermissionRequestedUseCase
 import com.dororong.rodi.core.domain.usecase.practice.ClearActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
@@ -44,6 +44,7 @@ import javax.inject.Inject
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -78,7 +79,7 @@ class HomeViewModel @Inject constructor(
     private val getActivePracticeSessionUseCase: GetActivePracticeSessionUseCase,
     private val saveActivePracticeSessionUseCase: SaveActivePracticeSessionUseCase,
     private val clearActivePracticeSessionUseCase: ClearActivePracticeSessionUseCase,
-    private val getNotificationPermissionRequestedUseCase: GetNotificationPermissionRequestedUseCase,
+    private val observeDrivingSessionUseCase: ObserveDrivingSessionUseCase,
     private val markNotificationPermissionRequestedUseCase: MarkNotificationPermissionRequestedUseCase,
     private val clock: Clock,
 ) : ViewModel() {
@@ -759,16 +760,16 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * "물어본 적 있는지" DataStore 플래그만으로 분기하면, 한 번 거부한 뒤에는 시스템 권한이
-     * 여전히 거부 상태여도 다음 요청부터 그냥 추적을 시작해버린다(플래그가 "다시 안내를
-     * 보여줄지"뿐 아니라 "허용 여부"까지 대신 판단해버렸던 게 원인). 그래서 매 요청마다
-     * 호출부(HomeScreen)가 실측한 현재 OS 권한 상태(notificationPermissionGranted)를 우선
-     * 신뢰하고, 플래그는 "처음 요청이라 안내 문구를 보여줄지"에만 쓴다.
+     * 알림 권한이 허용 상태가 아니면(거부, 또는 일회성 허용이 만료돼 다시 거부로 돌아온 경우
+     * 포함) 매번 실측한 현재 OS 권한 상태를 기준으로 우리 쪽 안내 다이얼로그를 다시 띄운다.
+     * "한 번 물어봤으면 이후로는 조용히 넘어간다" 식으로 플래그만 보고 판단하면, 일회성
+     * 허용이 만료돼 실제로는 다시 거부 상태가 된 사용자에게도 안내 없이 그냥 경로만 열어
+     * 버린다 — 알림 권한을 확인할 기회 자체가 사라진다.
      */
     private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
         if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
         val activeSession = _state.value.activePracticeSession
-        if (activeSession != null && activeSession.placeId != place.id) {
+        if (activeSession != null && activeSession.isMeasured && activeSession.placeId != place.id) {
             pendingPlaceSwitch = PendingPlaceSwitch(place, app, notificationPermissionGranted)
             _state.update { it.copy(isPracticeContinueDialogVisible = true) }
             return
@@ -779,19 +780,13 @@ class HomeViewModel @Inject constructor(
                 startPracticeNavigation(PendingPracticeNavigation(place, app))
                 return@launch
             }
-            if (!hasRequestedNotificationPermission()) {
-                _state.update {
-                    it.copy(
-                        isPracticeLaunchInProgress = false,
-                        isNotificationPermissionRationaleVisible = true,
-                        pendingPracticeNavigation = PendingPracticeNavigation(place, app),
-                    )
-                }
-                return@launch
+            _state.update {
+                it.copy(
+                    isPracticeLaunchInProgress = false,
+                    isNotificationPermissionRationaleVisible = true,
+                    pendingPracticeNavigation = PendingPracticeNavigation(place, app),
+                )
             }
-            // 이미 한 번 물어봤는데 여전히 거부 상태 — 다시 안내하지 않고 추적 없이 경로만 연다.
-            _state.update { it.copy(pendingPracticeNavigation = PendingPracticeNavigation(place, app)) }
-            routeWithoutPracticeMeasurement()
         }
     }
 
@@ -809,6 +804,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 알림 권한이 없어 실제 GPS 측정 없이 경로만 여는 경우에도, 10분 뒤 재진입하면 "다녀오셨나요?"
+     * 확인(RV-01)은 여전히 떠야 한다 — 측정이 없었다는 표시(isMeasured=false)만 남겨서
+     * loadActivePracticeSession()이 10분 전에는 아무 다이얼로그도 안 띄우고, 10분 후에는
+     * 방문 확인만 띄우도록 한다.
+     */
     private fun routeWithoutPracticeMeasurement() {
         val pending = _state.value.pendingPracticeNavigation ?: return
         viewModelScope.launch {
@@ -818,6 +819,21 @@ class HomeViewModel @Inject constructor(
                     pendingPracticeNavigation = null,
                     isPracticeLaunchInProgress = false,
                 )
+            }
+            val session = ActivePracticeSession(
+                placeId = pending.place.id,
+                placeName = pending.place.name,
+                placeType = pending.place.type,
+                startedAt = Instant.now(clock),
+                isMeasured = false,
+            )
+            try {
+                saveActivePracticeSessionWithRetry(session)
+                _state.update { it.copy(activePracticeSession = session) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // 저장에 실패해도 경로 안내 자체는 막지 않는다 — 재진입 확인만 못 받을 뿐이다.
             }
             _effect.send(pending.navigationEffect(startDriving = false))
         }
@@ -919,12 +935,22 @@ class HomeViewModel @Inject constructor(
                         isPracticeContinueDialogVisible = false,
                     )
                 }
-            } else {
+            } else if (session.isMeasured) {
                 _state.update {
                     it.copy(
                         activePracticeSession = session,
                         practicePrompt = null,
                         isPracticeContinueDialogVisible = true,
+                    )
+                }
+            } else {
+                // 알림 권한을 거부해 애초에 측정이 없었던 세션 — 10분 전에는 "계속 측정할까요?"도,
+                // 방문 확인도 아무것도 띄우지 않는다. 세션 자체는 10분 판정을 위해 남겨둔다.
+                _state.update {
+                    it.copy(
+                        activePracticeSession = session,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
                     )
                 }
             }
@@ -1052,7 +1078,18 @@ class HomeViewModel @Inject constructor(
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                     }
                 }
-                val result = recordPracticeVisitUseCase(practiceId)
+                // GPS로 실제 도착을 확인한 세션만 인정거리를 방문 인증에 실어 보낸다.
+                // 10분 휴리스틱으로만 판단된(알림 미허용) 세션은 실측 거리가 없으므로 null.
+                val certifiedDistanceMeters = if (session.isArrivalConfirmed) {
+                    runCatching { observeDrivingSessionUseCase().first() }
+                        .getOrNull()
+                        ?.takeIf { it.placeId == session.placeId }
+                        ?.traveledDistanceMeters
+                        ?.roundToInt()
+                } else {
+                    null
+                }
+                val result = recordPracticeVisitUseCase(practiceId, certifiedDistanceMeters)
                 result.onSuccess { visitResult ->
                     val completedSession = session.copy(
                         practiceId = practiceId,
@@ -1097,14 +1134,6 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    private suspend fun hasRequestedNotificationPermission(): Boolean = try {
-        getNotificationPermissionRequestedUseCase().first()
-    } catch (error: CancellationException) {
-        throw error
-    } catch (_: Throwable) {
-        false
     }
 
     private suspend fun markNotificationPermissionRequestedSafely() {

@@ -178,7 +178,7 @@ private fun PermissionRow(title: String, granted: Boolean, description: String, 
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(if (granted) "허용됨" else "허용 안 됨", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
+                Text(if (granted) "허용됨" else "미허용", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
                 Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.size(20.dp))
             }
         }

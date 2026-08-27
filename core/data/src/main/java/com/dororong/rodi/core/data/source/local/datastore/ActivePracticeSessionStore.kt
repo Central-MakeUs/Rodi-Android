@@ -70,6 +70,7 @@ class ActivePracticeSessionStore @Inject constructor(
         practiceId = practiceId,
         isCompleted = isCompleted,
         isArrivalConfirmed = isArrivalConfirmed,
+        isMeasured = isMeasured,
     )
 
     private fun StoredActivePracticeSession.toDomain(): ActivePracticeSession? {
@@ -82,6 +83,7 @@ class ActivePracticeSessionStore @Inject constructor(
             practiceId = practiceId,
             isCompleted = isCompleted,
             isArrivalConfirmed = isArrivalConfirmed,
+            isMeasured = isMeasured,
         )
     }
 
@@ -96,4 +98,5 @@ private data class StoredActivePracticeSession(
     val practiceId: Long? = null,
     val isCompleted: Boolean = false,
     val isArrivalConfirmed: Boolean = false,
+    val isMeasured: Boolean = true,
 )

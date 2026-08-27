@@ -5,6 +5,8 @@ import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.driving.DrivingSession
+import com.dororong.rodi.core.domain.model.driving.DrivingSessionStatus
 import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
@@ -21,6 +23,7 @@ import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
@@ -820,6 +823,74 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `unmeasured session shows nothing before ten minutes`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        coEvery { deps.getActiveSession() } returns activeSession(
+            startedAt = Instant.parse("2026-08-15T00:00:00Z"),
+            isMeasured = false,
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        // 알림 미허용으로 측정 자체가 없었던 세션은 "계속 측정할까요?"를 물을 이유가 없다.
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertNull(vm.state.value.practicePrompt)
+    }
+
+    @Test
+    fun `unmeasured session shows the visit prompt after ten minutes`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(
+            startedAt = Instant.parse("2026-08-15T00:00:00Z"),
+            isMeasured = false,
+        )
+        coEvery { deps.getActiveSession() } returns session
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+    }
+
+    @Test
+    fun `visited flow sends the recognized driving distance only when arrival was GPS-confirmed`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
+        val session = activeSession(
+            startedAt = Instant.parse("2026-08-15T00:00:00Z"),
+            practiceId = 108L,
+            isArrivalConfirmed = true,
+        )
+        coEvery { deps.getActiveSession() } returns session
+        every { deps.observeDrivingSession() } returns flowOf(
+            DrivingSession(
+                id = "driving-1",
+                placeId = session.placeId,
+                placeName = session.placeName,
+                destination = GeoPoint(37.5, 127.0),
+                plannedDistanceMeters = 1_000,
+                startedAtEpochMillis = 0L,
+                arrivedAtEpochMillis = 1_000L,
+                traveledDistanceMeters = 412.0,
+                status = DrivingSessionStatus.ARRIVED,
+                isArrivalNoticePending = true,
+            ),
+        )
+        coEvery { deps.recordPracticeVisit(108L, 412) } returns Result.success(visitResult())
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { deps.recordPracticeVisit(108L, 412) }
+    }
+
+    @Test
     fun `exactly ten minutes shows visited prompt`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
@@ -870,7 +941,7 @@ class HomeViewModelTest {
         assertNull(vm.state.value.practicePrompt)
         coVerify(exactly = 1) { deps.clearActiveSession() }
         coVerify(exactly = 0) { deps.registerPractice(any()) }
-        coVerify(exactly = 0) { deps.recordPracticeVisit(any()) }
+        coVerify(exactly = 0) { deps.recordPracticeVisit(any(), any()) }
     }
 
     @Test
@@ -973,7 +1044,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `route only decision launches navigation without creating local session`() = runTest(dispatcher) {
+    fun `route only decision launches navigation and saves an unmeasured session for reentry`() = runTest(dispatcher) {
         val deps = Dependencies()
         val notificationRequested = MutableStateFlow(false)
         every { deps.notificationRequested() } returns notificationRequested
@@ -994,10 +1065,11 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        // 측정은 안 하지만, 10분 뒤 재진입 시 RV-01을 띄우려면 isMeasured=false 세션은 남아있어야 한다.
+        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
         assertFalse(vm.state.value.isPracticeContinueDialogVisible)
         assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
-        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 0) { deps.markNotificationRequested() }
 
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
@@ -1009,7 +1081,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `denying notification permission routes without starting local session`() = runTest(dispatcher) {
+    fun `denying notification permission routes and still saves an unmeasured session`() = runTest(dispatcher) {
         val deps = Dependencies()
         val notificationRequested = MutableStateFlow(false)
         every { deps.notificationRequested() } returns notificationRequested
@@ -1033,11 +1105,11 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
         assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
         assertNull(vm.state.value.pendingPracticeNavigation)
         assertFalse(vm.state.value.isPracticeLaunchInProgress)
-        coVerify(exactly = 0) { deps.saveActiveSession(any()) }
+        coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
 
@@ -1116,7 +1188,7 @@ class HomeViewModelTest {
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
             Practice(101L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
-        coEvery { deps.recordPracticeVisit(101L) } returns Result.success(visitResult())
+        coEvery { deps.recordPracticeVisit(101L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -1133,7 +1205,7 @@ class HomeViewModelTest {
         coVerifyOrder {
             deps.registerPractice(session.placeId)
             deps.saveActiveSession(any())
-            deps.recordPracticeVisit(101L)
+            deps.recordPracticeVisit(101L, any())
             deps.saveActiveSession(any())
             deps.clearActiveSession()
         }
@@ -1148,7 +1220,7 @@ class HomeViewModelTest {
             Practice(104L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
         coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
-        coEvery { deps.recordPracticeVisit(104L) } returns Result.success(visitResult())
+        coEvery { deps.recordPracticeVisit(104L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -1157,7 +1229,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
-        coVerify(exactly = 1) { deps.recordPracticeVisit(104L) }
+        coVerify(exactly = 1) { deps.recordPracticeVisit(104L, any()) }
         assertNull(vm.state.value.activePracticeSession)
     }
 
@@ -1170,7 +1242,7 @@ class HomeViewModelTest {
             Practice(106L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
         coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
-        coEvery { deps.recordPracticeVisit(106L) } returnsMany listOf(
+        coEvery { deps.recordPracticeVisit(106L, any()) } returnsMany listOf(
             Result.failure(IllegalStateException("방문 기록 실패")),
             Result.success(visitResult()),
         )
@@ -1186,7 +1258,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
-        coVerify(exactly = 2) { deps.recordPracticeVisit(106L) }
+        coVerify(exactly = 2) { deps.recordPracticeVisit(106L, any()) }
         assertNull(vm.state.value.activePracticeSession)
     }
 
@@ -1199,7 +1271,7 @@ class HomeViewModelTest {
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
             Practice(105L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
-        coEvery { deps.recordPracticeVisit(105L) } returns Result.success(visitResult())
+        coEvery { deps.recordPracticeVisit(105L, any()) } returns Result.success(visitResult())
         coEvery { deps.clearActiveSession() } coAnswers {
             clearCalls += 1
             if (clearCalls == 1) throw IllegalStateException("일시적인 저장 실패")
@@ -1224,7 +1296,7 @@ class HomeViewModelTest {
             Practice(107L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
         coEvery { deps.saveActiveSession(any()) } returns Unit
-        coEvery { deps.recordPracticeVisit(107L) } returns Result.success(visitResult())
+        coEvery { deps.recordPracticeVisit(107L, any()) } returns Result.success(visitResult())
         coEvery { deps.clearActiveSession() } throws IllegalStateException("정리 실패")
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
@@ -1242,7 +1314,7 @@ class HomeViewModelTest {
 
         assertNull(vm.state.value.activePracticeSession)
         assertNull(vm.state.value.practicePrompt)
-        coVerify(exactly = 1) { deps.recordPracticeVisit(107L) }
+        coVerify(exactly = 1) { deps.recordPracticeVisit(107L, any()) }
     }
 
     @Test
@@ -1253,7 +1325,7 @@ class HomeViewModelTest {
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
             Practice(101L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
-        coEvery { deps.recordPracticeVisit(101L) } returnsMany listOf(
+        coEvery { deps.recordPracticeVisit(101L, any()) } returnsMany listOf(
             Result.failure(IllegalStateException("실패")),
             Result.success(visitResult()),
         )
@@ -1268,7 +1340,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
-        coVerify(exactly = 2) { deps.recordPracticeVisit(101L) }
+        coVerify(exactly = 2) { deps.recordPracticeVisit(101L, any()) }
         assertNull(vm.state.value.activePracticeSession)
     }
 
@@ -1283,7 +1355,7 @@ class HomeViewModelTest {
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
             Practice(102L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
-        coEvery { deps.recordPracticeVisit(102L) } returns Result.success(visitResult())
+        coEvery { deps.recordPracticeVisit(102L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -1341,7 +1413,7 @@ class HomeViewModelTest {
         coEvery { deps.registerPractice(session.placeId) } returns Result.success(
             Practice(103L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
-        coEvery { deps.recordPracticeVisit(103L) } coAnswers { pendingVisit.await() }
+        coEvery { deps.recordPracticeVisit(103L, any()) } coAnswers { pendingVisit.await() }
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
@@ -1349,7 +1421,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         runCurrent()
-        coVerify(exactly = 1) { deps.recordPracticeVisit(103L) }
+        coVerify(exactly = 1) { deps.recordPracticeVisit(103L, any()) }
         pendingVisit.complete(Result.success(visitResult()))
         advanceUntilIdle()
     }
@@ -1404,6 +1476,7 @@ private class Dependencies(
     val getActiveSession = mockk<GetActivePracticeSessionUseCase>()
     val saveActiveSession = mockk<SaveActivePracticeSessionUseCase>()
     val clearActiveSession = mockk<ClearActivePracticeSessionUseCase>()
+    val observeDrivingSession = mockk<ObserveDrivingSessionUseCase>()
     val notificationRequested = mockk<GetNotificationPermissionRequestedUseCase>()
     val markNotificationRequested = mockk<MarkNotificationPermissionRequestedUseCase>()
 
@@ -1422,10 +1495,11 @@ private class Dependencies(
                 requiredDistanceMeters = 0,
             ),
         )
-        coEvery { recordPracticeVisit(any()) } returns Result.success(visitResult())
+        coEvery { recordPracticeVisit(any(), any()) } returns Result.success(visitResult())
         coEvery { getActiveSession() } returns null
         coEvery { saveActiveSession(any()) } returns Unit
         coEvery { clearActiveSession() } returns Unit
+        every { observeDrivingSession() } returns flowOf(null)
         every { notificationRequested() } returns flowOf(true)
         coEvery { markNotificationRequested() } returns Unit
     }
@@ -1449,7 +1523,7 @@ private class Dependencies(
         getActivePracticeSessionUseCase = getActiveSession,
         saveActivePracticeSessionUseCase = saveActiveSession,
         clearActivePracticeSessionUseCase = clearActiveSession,
-        getNotificationPermissionRequestedUseCase = notificationRequested,
+        observeDrivingSessionUseCase = observeDrivingSession,
         markNotificationPermissionRequestedUseCase = markNotificationRequested,
         clock = clock,
     )
@@ -1466,6 +1540,7 @@ private fun activeSession(
     placeType: PlaceType = PlaceType.COURSE,
     practiceId: Long? = null,
     isArrivalConfirmed: Boolean = false,
+    isMeasured: Boolean = true,
 ) = ActivePracticeSession(
     placeId = 27L,
     placeName = "강남역 주변 코스",
@@ -1473,6 +1548,7 @@ private fun activeSession(
     startedAt = startedAt,
     practiceId = practiceId,
     isArrivalConfirmed = isArrivalConfirmed,
+    isMeasured = isMeasured,
 )
 
 private fun clockAt(value: String): Clock = Clock.fixed(Instant.parse(value), ZoneOffset.UTC)
