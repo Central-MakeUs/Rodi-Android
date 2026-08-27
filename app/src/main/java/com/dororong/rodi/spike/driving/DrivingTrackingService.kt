@@ -21,8 +21,10 @@ import com.dororong.rodi.core.domain.usecase.driving.DrivingProgressAccumulator
 import com.dororong.rodi.core.domain.usecase.driving.EndDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.MarkDrivingArrivedUseCase
 import com.dororong.rodi.core.domain.usecase.driving.RadiusArrivalPolicy
+import com.dororong.rodi.core.domain.usecase.driving.RouteProgressTracker
 import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
+import com.dororong.rodi.core.domain.usecase.driving.distanceTo
 import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.practice.SaveActivePracticeSessionUseCase
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
@@ -40,6 +42,12 @@ import timber.log.Timber
 
 private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
 private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
+
+// 목적지 반경 도달을 완료 조건으로 같이 쓰되, 출발-도착이 가까운 순환/왕복 코스에서
+// 출발하자마자 "도착"으로 잡히는 걸 막기 위한 안전장치. 코스 길이 자체가 짧으면 반경
+// fallback을 아예 안 쓰고, 인정거리를 어느 정도 쌓은 뒤에만 허용한다.
+private const val MIN_START_TO_DESTINATION_METERS_FOR_ARRIVAL_FALLBACK = 300.0
+private const val MIN_RECOGNIZED_DISTANCE_METERS_FOR_ARRIVAL_FALLBACK = 50.0
 
 @AndroidEntryPoint
 internal class DrivingTrackingService : Service() {
@@ -116,7 +124,75 @@ internal class DrivingTrackingService : Service() {
         }
     }
 
+    /**
+     * 코스 웨이포인트가 있으면(일반 등록 코스) RouteProgressTracker로 경로 위 진행거리를
+     * 추적하고, 없으면(예: 주차장처럼 코스 개념이 없는 장소) 기존 단순 반경 도착 모델로
+     * 되돌아간다.
+     */
     private suspend fun collectLocations(session: DrivingSession) {
+        if (session.courseRoute.size >= 2) {
+            collectLocationsWithRouteProgress(session, session.courseRoute)
+        } else {
+            collectLocationsWithLegacyModel(session)
+        }
+    }
+
+    private suspend fun collectLocationsWithRouteProgress(
+        session: DrivingSession,
+        route: List<GeoPoint>,
+    ) {
+        val tracker = RouteProgressTracker(
+            route = route,
+            requiredDistanceMeters = session.requiredDistanceMeters ?: 0,
+        )
+        val destinationArrivalPolicy = RadiusArrivalPolicy()
+        val startToDestinationMeters = route.first().distanceTo(session.destination)
+        val destinationFallbackEnabled =
+            startToDestinationMeters >= MIN_START_TO_DESTINATION_METERS_FOR_ARRIVAL_FALLBACK
+        var consecutiveDestinationMatches = 0
+        var lastPublishedDistance = 0.0
+        var lastPublishedAt = SystemClock.elapsedRealtime()
+        rawCurrentLocationUpdates().collect { location ->
+            if (isFinishing || activeSession?.id != session.id) return@collect
+            if (!canKeepTrackingVisible()) {
+                trackingJob = null
+                finishSession(session.id, removeNotification = true, clearSession = true)
+                return@collect
+            }
+            val sample = location.toDrivingLocationSample()
+            val progress = tracker.add(sample)
+            var hasArrived = progress.isComplete
+            if (
+                !hasArrived &&
+                destinationFallbackEnabled &&
+                progress.recognizedDistanceMeters >= MIN_RECOGNIZED_DISTANCE_METERS_FOR_ARRIVAL_FALLBACK
+            ) {
+                val destinationArrival = destinationArrivalPolicy.evaluate(
+                    sample = sample,
+                    destination = session.destination,
+                    previousConsecutiveMatches = consecutiveDestinationMatches,
+                )
+                consecutiveDestinationMatches = destinationArrival.consecutiveMatches
+                hasArrived = destinationArrival.hasArrived
+            }
+            if (hasArrived) {
+                handleArrival(session, progress.recognizedDistanceMeters)
+                return@collect
+            }
+            val now = SystemClock.elapsedRealtime()
+            if (
+                progress.recognizedDistanceMeters - lastPublishedDistance >= NOTIFICATION_UPDATE_DISTANCE_METERS ||
+                now - lastPublishedAt >= NOTIFICATION_UPDATE_INTERVAL_MILLIS
+            ) {
+                updateDrivingProgress(session.id, progress.recognizedDistanceMeters)
+                publishOngoing(session, progress.recognizedDistanceMeters)
+                lastPublishedDistance = progress.recognizedDistanceMeters
+                lastPublishedAt = now
+            }
+        }
+    }
+
+    private suspend fun collectLocationsWithLegacyModel(session: DrivingSession) {
         val arrivalPolicy = RadiusArrivalPolicy()
         val progressAccumulator = DrivingProgressAccumulator()
         var consecutiveMatches = 0
@@ -269,6 +345,8 @@ internal class DrivingTrackingService : Service() {
         const val EXTRA_DESTINATION_LAT = "destination_lat"
         const val EXTRA_DESTINATION_LNG = "destination_lng"
         const val EXTRA_PLANNED_DISTANCE_METERS = "planned_distance_meters"
+        const val EXTRA_COURSE_ROUTE_LAT_LNG = "course_route_lat_lng"
+        const val EXTRA_REQUIRED_DISTANCE_METERS = "required_distance_meters"
     }
 }
 
@@ -283,6 +361,15 @@ private fun Intent.toDrivingSession(): DrivingSession? {
         DrivingTrackingService.EXTRA_PLANNED_DISTANCE_METERS,
         -1,
     ).takeIf { it > 0 }
+    val requiredDistance = getIntExtra(
+        DrivingTrackingService.EXTRA_REQUIRED_DISTANCE_METERS,
+        -1,
+    ).takeIf { it > 0 }
+    val route = getDoubleArrayExtra(DrivingTrackingService.EXTRA_COURSE_ROUTE_LAT_LNG)
+        ?.toList()
+        ?.chunked(2)
+        ?.mapNotNull { pair -> pair.getOrNull(0)?.let { lat -> pair.getOrNull(1)?.let { lng -> GeoPoint(lat, lng) } } }
+        .orEmpty()
     return DrivingSession(
         id = sessionId,
         placeId = placeId,
@@ -294,6 +381,8 @@ private fun Intent.toDrivingSession(): DrivingSession? {
         traveledDistanceMeters = 0.0,
         status = DrivingSessionStatus.ACTIVE,
         isArrivalNoticePending = false,
+        courseRoute = route,
+        requiredDistanceMeters = requiredDistance,
     )
 }
 

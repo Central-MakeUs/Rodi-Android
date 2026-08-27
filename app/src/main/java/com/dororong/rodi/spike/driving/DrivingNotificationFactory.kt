@@ -74,10 +74,10 @@ internal object DrivingNotificationFactory {
         session: DrivingSession,
         traveledDistanceMeters: Double,
     ): Notification {
-        val progress = session.plannedDistanceMeters
+        val progress = (session.requiredDistanceMeters ?: session.plannedDistanceMeters)
             ?.takeIf { it > 0 }
-            ?.let { planned ->
-                ((traveledDistanceMeters / planned) * PROGRESS_MAX)
+            ?.let { required ->
+                ((traveledDistanceMeters / required) * PROGRESS_MAX)
                     .toInt()
                     .coerceIn(0, 99)
             }
