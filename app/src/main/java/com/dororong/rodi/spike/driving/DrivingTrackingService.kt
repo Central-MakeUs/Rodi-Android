@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -50,6 +51,13 @@ private const val MIN_RECOGNIZED_DISTANCE_METERS_FOR_ARRIVAL_FALLBACK = 50.0
 
 @AndroidEntryPoint
 internal class DrivingTrackingService : Service() {
+    private sealed interface Command {
+        data class Start(val intent: Intent) : Command
+        data class Stop(val sessionId: String?) : Command
+    }
+
+    private val commandChannel = Channel<Command>(Channel.UNLIMITED)
+
     @Inject lateinit var startDrivingSession: StartDrivingSessionUseCase
     @Inject lateinit var updateDrivingProgress: UpdateDrivingProgressUseCase
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
@@ -64,25 +72,38 @@ internal class DrivingTrackingService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    override fun onCreate() {
+        super.onCreate()
+        serviceScope.launch {
+            for (command in commandChannel) {
+                when (command) {
+                    is Command.Start -> handleStartCommand(command.intent)
+                    is Command.Stop -> handleStopCommand(command.sessionId)
+                }
+            }
+        }
+    }
+
     override fun onStartCommand(
         intent: Intent?,
         flags: Int,
         startId: Int,
     ): Int {
         when (intent?.action) {
-            ACTION_START -> startTracking(intent)
-            ACTION_STOP -> stopTracking(intent.getStringExtra(EXTRA_SESSION_ID))
+            ACTION_START -> commandChannel.trySend(Command.Start(intent))
+            ACTION_STOP -> commandChannel.trySend(Command.Stop(intent.getStringExtra(EXTRA_SESSION_ID)))
         }
         return START_NOT_STICKY
     }
 
     override fun onDestroy() {
         trackingJob?.cancel()
+        commandChannel.close()
         serviceScope.cancel()
         super.onDestroy()
     }
 
-    private fun startTracking(intent: Intent) {
+    private suspend fun handleStartCommand(intent: Intent) {
         if (activeSession != null || isFinishing) return
         val session = intent.toDrivingSession() ?: run {
             stopSelf()
@@ -108,9 +129,17 @@ internal class DrivingTrackingService : Service() {
             stopSelf()
             return
         }
+        try {
+            startDrivingSession(session)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Timber.e(error, "Driving tracking stopped unexpectedly.")
+            finishSession(session.id, removeNotification = true, clearSession = true)
+            return
+        }
         trackingJob = serviceScope.launch {
             try {
-                startDrivingSession(session)
                 collectLocations(session)
             } catch (error: CancellationException) {
                 throw error
@@ -270,7 +299,7 @@ internal class DrivingTrackingService : Service() {
         }
     }
 
-    private fun stopTracking(sessionId: String?) {
+    private suspend fun handleStopCommand(sessionId: String?) {
         val active = activeSession ?: run {
             stopSelf()
             return
@@ -278,9 +307,7 @@ internal class DrivingTrackingService : Service() {
         if (sessionId != null && sessionId != active.id) return
         if (isFinishing) return
         isFinishing = true
-        serviceScope.launch {
-            finishSession(active.id, removeNotification = true, clearSession = true)
-        }
+        finishSession(active.id, removeNotification = true, clearSession = true)
     }
 
     private suspend fun finishSession(
