@@ -25,8 +25,7 @@ import com.dororong.rodi.core.domain.usecase.driving.RouteProgressTracker
 import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
-import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
-import com.dororong.rodi.core.domain.usecase.practice.SaveActivePracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -55,8 +54,7 @@ internal class DrivingTrackingService : Service() {
     @Inject lateinit var updateDrivingProgress: UpdateDrivingProgressUseCase
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
     @Inject lateinit var endDrivingSession: EndDrivingSessionUseCase
-    @Inject lateinit var getActivePracticeSession: GetActivePracticeSessionUseCase
-    @Inject lateinit var saveActivePracticeSession: SaveActivePracticeSessionUseCase
+    @Inject lateinit var confirmPracticeArrivalUseCase: ConfirmPracticeArrivalUseCase
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
@@ -124,13 +122,9 @@ internal class DrivingTrackingService : Service() {
         }
     }
 
-    /**
-     * 코스 웨이포인트가 있으면(일반 등록 코스) RouteProgressTracker로 경로 위 진행거리를
-     * 추적하고, 없으면(예: 주차장처럼 코스 개념이 없는 장소) 기존 단순 반경 도착 모델로
-     * 되돌아간다.
-     */
     private suspend fun collectLocations(session: DrivingSession) {
-        if (session.courseRoute.size >= 2) {
+        val requiredDistanceMeters = session.requiredDistanceMeters
+        if (session.courseRoute.size >= 2 && requiredDistanceMeters != null && requiredDistanceMeters > 0) {
             collectLocationsWithRouteProgress(session, session.courseRoute)
         } else {
             collectLocationsWithLegacyModel(session)
@@ -249,7 +243,7 @@ internal class DrivingTrackingService : Service() {
             isFinishing = false
             return
         }
-        confirmPracticeArrival()
+        confirmPracticeArrival(session.placeId)
         val arrivedSession = session.copy(
             arrivedAtEpochMillis = arrivedAt,
             traveledDistanceMeters = traveledDistanceMeters,
@@ -266,16 +260,12 @@ internal class DrivingTrackingService : Service() {
         stopSelf()
     }
 
-    /**
-     * ActivePracticeSession(홈의 방문 확인 다이얼로그가 보는 상태)은 이 DrivingSession과 별개
-     * DataStore다. GPS로 실제 도착을 확인한 순간 여기서 바로 표시해두지 않으면, 홈은 여전히
-     * "10분 경과" 휴리스틱만 보고 이미 도착한 사용자에게도 "계속 측정 중이신가요?"를 묻는다.
-     */
-    private suspend fun confirmPracticeArrival() {
-        runCatching {
-            val practiceSession = getActivePracticeSession() ?: return@runCatching
-            saveActivePracticeSession(practiceSession.copy(isArrivalConfirmed = true))
-        }.onFailure { error ->
+    private suspend fun confirmPracticeArrival(placeId: Long) {
+        try {
+            confirmPracticeArrivalUseCase(placeId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             Timber.e(error, "Could not confirm practice arrival on the active session.")
         }
     }

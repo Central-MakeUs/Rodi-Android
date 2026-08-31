@@ -15,18 +15,6 @@ data class RouteProgress(
     val isComplete: Boolean,
 )
 
-/**
- * 코스 웨이포인트를 이은 폴리라인 위에서 "지금까지 도달한 지점"을 시작점 기준 누적거리로
- * 추적한다. 전체 폴리라인에서 매번 가장 가까운 점을 찾으면 왕복·순환 코스에서 같은 도로를
- * 두 번 지나갈 때(좌표가 물리적으로 겹침) 오는 길이 가는 길로 잘못 매칭돼 진행률이 절반에서
- * 멈춘다. 그래서 "지금 도달한 위치 근처(뒤로 조금~앞으로 한동안)" 창 안에서만 최근접점을
- * 찾고, 포인터를 앞으로만 전진시킨다 — 가는 길 구간을 완전히 지나면 검색 창에서 빠지므로
- * 오는 길 좌표와 자연스럽게 구분된다.
- *
- * 포인터가 앞으로만 가기 때문에, 직선 경로에서 수직으로 잠깐 벗어났다 돌아오는 경우에도
- * 진행률이 줄어들지 않는다 — 벗어난 지점의 투영 위치가 창 안에 있으면 최댓값을 갱신할 뿐,
- * 되돌아왔을 때 다시 줄이지 않는다.
- */
 class RouteProgressTracker(
     route: List<GeoPoint>,
     private val requiredDistanceMeters: Int,
@@ -34,6 +22,8 @@ class RouteProgressTracker(
     private val maxAccuracyMeters: Float = 50f,
     private val forwardSearchMeters: Double = 300.0,
     private val backwardToleranceMeters: Double = 50.0,
+    private val maxPlausibleSpeedMetersPerSecond: Double = 40.0,
+    private val maxRecoveryGapMillis: Long = 300_000L,
 ) {
     // route.distinct()를 쓰면 안 된다 — 왕복 코스는 출발점이 목록 끝에 다시 나오는데,
     // distinct는 리스트 전체에서 중복을 지우기 때문에 그 왕복 구간 자체가 사라진다.
@@ -43,6 +33,7 @@ class RouteProgressTracker(
 
     private var pointerArcLengthMeters = 0.0
     private var completed = false
+    private var lastSampleElapsedRealtimeMillis: Long? = null
 
     init {
         require(requiredDistanceMeters >= 0)
@@ -50,6 +41,8 @@ class RouteProgressTracker(
         require(maxAccuracyMeters > 0)
         require(forwardSearchMeters > 0)
         require(backwardToleranceMeters >= 0)
+        require(maxPlausibleSpeedMetersPerSecond > 0)
+        require(maxRecoveryGapMillis >= 0)
     }
 
     fun add(sample: DrivingLocationSample): RouteProgress {
@@ -75,6 +68,37 @@ class RouteProgressTracker(
             }
         }
 
+        if (bestArcLength == null) {
+            val previousSampleElapsedRealtimeMillis = lastSampleElapsedRealtimeMillis
+            if (previousSampleElapsedRealtimeMillis != null) {
+                val elapsedMillis =
+                    (sample.elapsedRealtimeMillis - previousSampleElapsedRealtimeMillis).coerceAtLeast(0)
+                val cappedElapsedMillis = elapsedMillis.coerceAtMost(maxRecoveryGapMillis)
+                val plausibleJumpMeters =
+                    (cappedElapsedMillis / 1000.0) * maxPlausibleSpeedMetersPerSecond
+                val recoveryWindowEnd =
+                    (pointerArcLengthMeters + plausibleJumpMeters).coerceAtMost(totalRouteLengthMeters)
+                if (recoveryWindowEnd > windowEnd) {
+                    for (index in 0 until vertices.size - 1) {
+                        val start = vertices[index]
+                        val end = vertices[index + 1]
+                        if (end.cumulativeDistance < windowStart || start.cumulativeDistance > recoveryWindowEnd) {
+                            continue
+                        }
+                        val projection = sample.point.projectOntoSegment(start.point, end.point)
+                        val arcLength = start.cumulativeDistance +
+                            projection.fraction * (end.cumulativeDistance - start.cumulativeDistance)
+                        if (arcLength !in windowStart..recoveryWindowEnd) continue
+                        if (projection.perpendicularDistanceMeters < bestPerpendicularDistance) {
+                            bestPerpendicularDistance = projection.perpendicularDistanceMeters
+                            bestArcLength = arcLength
+                        }
+                    }
+                }
+            }
+        }
+
+        lastSampleElapsedRealtimeMillis = sample.elapsedRealtimeMillis
         val isInCourseScope = bestArcLength != null && bestPerpendicularDistance <= scopeRadiusMeters
         if (isInCourseScope) {
             pointerArcLengthMeters = maxOf(pointerArcLengthMeters, requireNotNull(bestArcLength))

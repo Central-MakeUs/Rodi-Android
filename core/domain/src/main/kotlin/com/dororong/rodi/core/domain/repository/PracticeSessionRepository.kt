@@ -7,5 +7,7 @@ interface PracticeSessionRepository {
 
     suspend fun save(session: ActivePracticeSession)
 
+    suspend fun confirmArrival(placeId: Long): Boolean
+
     suspend fun clear()
 }

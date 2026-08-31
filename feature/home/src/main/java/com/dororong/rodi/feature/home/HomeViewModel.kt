@@ -759,13 +759,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 
-    /**
-     * 알림 권한이 허용 상태가 아니면(거부, 또는 일회성 허용이 만료돼 다시 거부로 돌아온 경우
-     * 포함) 매번 실측한 현재 OS 권한 상태를 기준으로 우리 쪽 안내 다이얼로그를 다시 띄운다.
-     * "한 번 물어봤으면 이후로는 조용히 넘어간다" 식으로 플래그만 보고 판단하면, 일회성
-     * 허용이 만료돼 실제로는 다시 거부 상태가 된 사용자에게도 안내 없이 그냥 경로만 열어
-     * 버린다 — 알림 권한을 확인할 기회 자체가 사라진다.
-     */
     private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
         if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
         val activeSession = _state.value.activePracticeSession
@@ -804,12 +797,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 알림 권한이 없어 실제 GPS 측정 없이 경로만 여는 경우에도, 10분 뒤 재진입하면 "다녀오셨나요?"
-     * 확인(RV-01)은 여전히 떠야 한다 — 측정이 없었다는 표시(isMeasured=false)만 남겨서
-     * loadActivePracticeSession()이 10분 전에는 아무 다이얼로그도 안 띄우고, 10분 후에는
-     * 방문 확인만 띄우도록 한다.
-     */
     private fun routeWithoutPracticeMeasurement() {
         val pending = _state.value.pendingPracticeNavigation ?: return
         viewModelScope.launch {
@@ -923,10 +910,6 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
             val elapsed = Duration.between(session.startedAt, Instant.now(clock))
-            // 알림 권한을 허용해 실제 GPS 추적이 돌았다면 DrivingTrackingService가 도착 반경
-            // 진입을 확인하는 즉시 isArrivalConfirmed를 채워준다 — 그 경우 10분을 더 기다리지
-            // 않고 바로 방문 확인을 띄운다. 권한을 거부해 추적이 아예 없었던 세션만 경과 시간
-            // 휴리스틱에 의존한다.
             if (session.isArrivalConfirmed || elapsed >= PRACTICE_MEASUREMENT_DURATION) {
                 _state.update {
                     it.copy(
@@ -944,8 +927,6 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } else {
-                // 알림 권한을 거부해 애초에 측정이 없었던 세션 — 10분 전에는 "계속 측정할까요?"도,
-                // 방문 확인도 아무것도 띄우지 않는다. 세션 자체는 10분 판정을 위해 남겨둔다.
                 _state.update {
                     it.copy(
                         activePracticeSession = session,
@@ -1081,11 +1062,16 @@ class HomeViewModel @Inject constructor(
                 // GPS로 실제 도착을 확인한 세션만 인정거리를 방문 인증에 실어 보낸다.
                 // 10분 휴리스틱으로만 판단된(알림 미허용) 세션은 실측 거리가 없으므로 null.
                 val certifiedDistanceMeters = if (session.isArrivalConfirmed) {
-                    runCatching { observeDrivingSessionUseCase().first() }
-                        .getOrNull()
-                        ?.takeIf { it.placeId == session.placeId }
-                        ?.traveledDistanceMeters
-                        ?.roundToInt()
+                    try {
+                        observeDrivingSessionUseCase().first()
+                            ?.takeIf { it.placeId == session.placeId }
+                            ?.traveledDistanceMeters
+                            ?.roundToInt()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        null
+                    }
                 } else {
                     null
                 }

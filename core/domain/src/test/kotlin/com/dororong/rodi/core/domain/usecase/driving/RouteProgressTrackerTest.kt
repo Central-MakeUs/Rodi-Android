@@ -74,6 +74,30 @@ class RouteProgressTrackerTest {
     }
 
     @Test
+    fun `recovers a forward gps jump when elapsed time makes it plausible`() {
+        val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0200))
+        val tracker = RouteProgressTracker(route, requiredDistanceMeters = 2_000)
+
+        tracker.add(sample(37.5000, 127.0000, 1_000))
+        val recovered = tracker.add(sample(37.5000, 127.0060, 16_000))
+
+        assertTrue(recovered.isInCourseScope)
+        assertTrue(recovered.recognizedDistanceMeters > 300.0)
+    }
+
+    @Test
+    fun `does not recover a forward gps jump that is physically implausible`() {
+        val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0200))
+        val tracker = RouteProgressTracker(route, requiredDistanceMeters = 2_000)
+
+        tracker.add(sample(37.5000, 127.0000, 1_000))
+        val rejected = tracker.add(sample(37.5000, 127.0060, 2_000))
+
+        assertFalse(rejected.isInCourseScope)
+        assertEquals(0.0, rejected.recognizedDistanceMeters)
+    }
+
+    @Test
     fun `required certified distance is forty percent of course length capped at five kilometers`() {
         assertEquals(520, requiredCertifiedDistanceMeters(1_300))
         assertEquals(5_000, requiredCertifiedDistanceMeters(14_800))

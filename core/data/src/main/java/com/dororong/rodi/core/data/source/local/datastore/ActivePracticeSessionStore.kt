@@ -54,6 +54,25 @@ class ActivePracticeSessionStore @Inject constructor(
         }
     }
 
+    override suspend fun confirmArrival(placeId: Long): Boolean = withContext(Dispatchers.IO) {
+        var confirmed = false
+        context.activePracticeSessionDataStore.edit { preferences ->
+            val current = preferences[activeSessionKey]
+                ?.let { encoded ->
+                    runCatching {
+                        json.decodeFromString<StoredActivePracticeSession>(encoded)
+                    }.getOrNull()
+                }
+            if (current != null && !current.isCompleted && current.placeId == placeId) {
+                preferences[activeSessionKey] = json.encodeToString(
+                    current.copy(isArrivalConfirmed = true),
+                )
+                confirmed = true
+            }
+        }
+        confirmed
+    }
+
     override suspend fun clear() {
         withContext(Dispatchers.IO) {
             context.activePracticeSessionDataStore.edit { preferences ->
