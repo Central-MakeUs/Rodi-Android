@@ -121,6 +121,8 @@ class DrivingSessionPreferences @Inject constructor(
         val KEY_TRAVELED_DISTANCE_METERS = doublePreferencesKey("traveled_distance_meters")
         val KEY_STATUS = stringPreferencesKey("status")
         val KEY_ARRIVAL_NOTICE_PENDING = booleanPreferencesKey("arrival_notice_pending")
+        val KEY_COURSE_ROUTE = stringPreferencesKey("course_route")
+        val KEY_REQUIRED_DISTANCE_METERS = intPreferencesKey("required_distance_meters")
     }
 
     private fun MutablePreferences.write(session: DrivingSession) {
@@ -137,6 +139,9 @@ class DrivingSessionPreferences @Inject constructor(
         this[KEY_TRAVELED_DISTANCE_METERS] = session.traveledDistanceMeters
         this[KEY_STATUS] = session.status.name
         this[KEY_ARRIVAL_NOTICE_PENDING] = session.isArrivalNoticePending
+        this[KEY_COURSE_ROUTE] = session.courseRoute.encodeRoute()
+        session.requiredDistanceMeters?.let { this[KEY_REQUIRED_DISTANCE_METERS] = it }
+            ?: remove(KEY_REQUIRED_DISTANCE_METERS)
     }
 
     private fun Preferences.toDrivingSession(): DrivingSession? {
@@ -160,6 +165,22 @@ class DrivingSessionPreferences @Inject constructor(
             traveledDistanceMeters = this[KEY_TRAVELED_DISTANCE_METERS] ?: 0.0,
             status = status,
             isArrivalNoticePending = this[KEY_ARRIVAL_NOTICE_PENDING] ?: false,
+            courseRoute = this[KEY_COURSE_ROUTE].decodeRoute(),
+            requiredDistanceMeters = this[KEY_REQUIRED_DISTANCE_METERS],
         )
     }
 }
+
+// Preferences DataStore에 List<GeoPoint>를 직접 저장할 수 없어 "lat,lng;lat,lng" 형태로 직렬화한다.
+private fun List<GeoPoint>.encodeRoute(): String = joinToString(";") { "${it.lat},${it.lng}" }
+
+private fun String?.decodeRoute(): List<GeoPoint> = this
+    ?.takeIf(String::isNotBlank)
+    ?.split(";")
+    ?.mapNotNull { entry ->
+        val parts = entry.split(",")
+        val lat = parts.getOrNull(0)?.toDoubleOrNull()
+        val lng = parts.getOrNull(1)?.toDoubleOrNull()
+        if (lat != null && lng != null) GeoPoint(lat, lng) else null
+    }
+    ?: emptyList()

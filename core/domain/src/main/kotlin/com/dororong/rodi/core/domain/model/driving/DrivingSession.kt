@@ -18,6 +18,8 @@ data class DrivingSession(
     val traveledDistanceMeters: Double,
     val status: DrivingSessionStatus,
     val isArrivalNoticePending: Boolean,
+    val courseRoute: List<GeoPoint> = emptyList(),
+    val requiredDistanceMeters: Int? = null,
 )
 
 data class DrivingLocationSample(

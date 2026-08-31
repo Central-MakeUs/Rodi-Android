@@ -28,7 +28,7 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
-import com.dororong.rodi.core.domain.usecase.entry.GetNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.entry.MarkNotificationPermissionRequestedUseCase
 import com.dororong.rodi.core.domain.usecase.practice.ClearActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
@@ -44,6 +44,7 @@ import javax.inject.Inject
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -78,7 +79,7 @@ class HomeViewModel @Inject constructor(
     private val getActivePracticeSessionUseCase: GetActivePracticeSessionUseCase,
     private val saveActivePracticeSessionUseCase: SaveActivePracticeSessionUseCase,
     private val clearActivePracticeSessionUseCase: ClearActivePracticeSessionUseCase,
-    private val getNotificationPermissionRequestedUseCase: GetNotificationPermissionRequestedUseCase,
+    private val observeDrivingSessionUseCase: ObserveDrivingSessionUseCase,
     private val markNotificationPermissionRequestedUseCase: MarkNotificationPermissionRequestedUseCase,
     private val clock: Clock,
 ) : ViewModel() {
@@ -758,17 +759,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 
-    /**
-     * "물어본 적 있는지" DataStore 플래그만으로 분기하면, 한 번 거부한 뒤에는 시스템 권한이
-     * 여전히 거부 상태여도 다음 요청부터 그냥 추적을 시작해버린다(플래그가 "다시 안내를
-     * 보여줄지"뿐 아니라 "허용 여부"까지 대신 판단해버렸던 게 원인). 그래서 매 요청마다
-     * 호출부(HomeScreen)가 실측한 현재 OS 권한 상태(notificationPermissionGranted)를 우선
-     * 신뢰하고, 플래그는 "처음 요청이라 안내 문구를 보여줄지"에만 쓴다.
-     */
     private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
         if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
         val activeSession = _state.value.activePracticeSession
-        if (activeSession != null && activeSession.placeId != place.id) {
+        if (activeSession != null && activeSession.isMeasured && activeSession.placeId != place.id) {
             pendingPlaceSwitch = PendingPlaceSwitch(place, app, notificationPermissionGranted)
             _state.update { it.copy(isPracticeContinueDialogVisible = true) }
             return
@@ -779,19 +773,13 @@ class HomeViewModel @Inject constructor(
                 startPracticeNavigation(PendingPracticeNavigation(place, app))
                 return@launch
             }
-            if (!hasRequestedNotificationPermission()) {
-                _state.update {
-                    it.copy(
-                        isPracticeLaunchInProgress = false,
-                        isNotificationPermissionRationaleVisible = true,
-                        pendingPracticeNavigation = PendingPracticeNavigation(place, app),
-                    )
-                }
-                return@launch
+            _state.update {
+                it.copy(
+                    isPracticeLaunchInProgress = false,
+                    isNotificationPermissionRationaleVisible = true,
+                    pendingPracticeNavigation = PendingPracticeNavigation(place, app),
+                )
             }
-            // 이미 한 번 물어봤는데 여전히 거부 상태 — 다시 안내하지 않고 추적 없이 경로만 연다.
-            _state.update { it.copy(pendingPracticeNavigation = PendingPracticeNavigation(place, app)) }
-            routeWithoutPracticeMeasurement()
         }
     }
 
@@ -818,6 +806,21 @@ class HomeViewModel @Inject constructor(
                     pendingPracticeNavigation = null,
                     isPracticeLaunchInProgress = false,
                 )
+            }
+            val session = ActivePracticeSession(
+                placeId = pending.place.id,
+                placeName = pending.place.name,
+                placeType = pending.place.type,
+                startedAt = Instant.now(clock),
+                isMeasured = false,
+            )
+            try {
+                saveActivePracticeSessionWithRetry(session)
+                _state.update { it.copy(activePracticeSession = session) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // 저장에 실패해도 경로 안내 자체는 막지 않는다 — 재진입 확인만 못 받을 뿐이다.
             }
             _effect.send(pending.navigationEffect(startDriving = false))
         }
@@ -907,7 +910,7 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
             val elapsed = Duration.between(session.startedAt, Instant.now(clock))
-            if (elapsed >= PRACTICE_MEASUREMENT_DURATION) {
+            if (session.isArrivalConfirmed || elapsed >= PRACTICE_MEASUREMENT_DURATION) {
                 _state.update {
                     it.copy(
                         activePracticeSession = session,
@@ -915,12 +918,20 @@ class HomeViewModel @Inject constructor(
                         isPracticeContinueDialogVisible = false,
                     )
                 }
-            } else {
+            } else if (session.isMeasured) {
                 _state.update {
                     it.copy(
                         activePracticeSession = session,
                         practicePrompt = null,
                         isPracticeContinueDialogVisible = true,
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        activePracticeSession = session,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
                     )
                 }
             }
@@ -1048,7 +1059,23 @@ class HomeViewModel @Inject constructor(
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                     }
                 }
-                val result = recordPracticeVisitUseCase(practiceId)
+                // GPS로 실제 도착을 확인한 세션만 인정거리를 방문 인증에 실어 보낸다.
+                // 10분 휴리스틱으로만 판단된(알림 미허용) 세션은 실측 거리가 없으므로 null.
+                val certifiedDistanceMeters = if (session.isArrivalConfirmed) {
+                    try {
+                        observeDrivingSessionUseCase().first()
+                            ?.takeIf { it.placeId == session.placeId }
+                            ?.traveledDistanceMeters
+                            ?.roundToInt()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        null
+                    }
+                } else {
+                    null
+                }
+                val result = recordPracticeVisitUseCase(practiceId, certifiedDistanceMeters)
                 result.onSuccess { visitResult ->
                     val completedSession = session.copy(
                         practiceId = practiceId,
@@ -1093,14 +1120,6 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    private suspend fun hasRequestedNotificationPermission(): Boolean = try {
-        getNotificationPermissionRequestedUseCase().first()
-    } catch (error: CancellationException) {
-        throw error
-    } catch (_: Throwable) {
-        false
     }
 
     private suspend fun markNotificationPermissionRequestedSafely() {

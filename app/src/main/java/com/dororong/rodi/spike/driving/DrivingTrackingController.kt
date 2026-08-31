@@ -10,6 +10,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
+import com.dororong.rodi.core.domain.usecase.driving.requiredCertifiedDistanceMeters
 import java.util.UUID
 
 internal object DrivingTrackingController {
@@ -21,10 +22,13 @@ internal object DrivingTrackingController {
         DrivingNotificationFactory.createChannels(context)
         requireNotificationsEnabled(context)
 
-        val destination = place.course?.waypoints.orEmpty()
+        val orderedWaypoints = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
+        val route = orderedWaypoints.map { it.point }
+        val destination = orderedWaypoints
             .firstOrNull { it.type == PlaceWaypointType.DESTINATION }
             ?.point
             ?: place.point
+        val courseDistanceMeters = place.course?.distanceMeters
         val sessionId = UUID.randomUUID().toString()
         ContextCompat.startForegroundService(
             context,
@@ -37,7 +41,15 @@ internal object DrivingTrackingController {
                 .putExtra(DrivingTrackingService.EXTRA_DESTINATION_LNG, destination.lng)
                 .putExtra(
                     DrivingTrackingService.EXTRA_PLANNED_DISTANCE_METERS,
-                    place.course?.distanceMeters ?: -1,
+                    courseDistanceMeters ?: -1,
+                )
+                .putExtra(
+                    DrivingTrackingService.EXTRA_COURSE_ROUTE_LAT_LNG,
+                    route.flatMap { listOf(it.lat, it.lng) }.toDoubleArray(),
+                )
+                .putExtra(
+                    DrivingTrackingService.EXTRA_REQUIRED_DISTANCE_METERS,
+                    courseDistanceMeters?.let { requiredCertifiedDistanceMeters(it) } ?: -1,
                 ),
         )
         sessionId

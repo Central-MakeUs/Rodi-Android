@@ -10,4 +10,7 @@ data class ActivePracticeSession(
     val startedAt: Instant,
     val practiceId: Long? = null,
     val isCompleted: Boolean = false,
+    val isArrivalConfirmed: Boolean = false,
+    /** 실제 GPS 측정 없이 경로만 연 세션인지. */
+    val isMeasured: Boolean = true,
 )

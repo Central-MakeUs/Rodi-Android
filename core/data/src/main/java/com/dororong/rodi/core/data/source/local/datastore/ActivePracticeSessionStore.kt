@@ -54,6 +54,25 @@ class ActivePracticeSessionStore @Inject constructor(
         }
     }
 
+    override suspend fun confirmArrival(placeId: Long): Boolean = withContext(Dispatchers.IO) {
+        var confirmed = false
+        context.activePracticeSessionDataStore.edit { preferences ->
+            val current = preferences[activeSessionKey]
+                ?.let { encoded ->
+                    runCatching {
+                        json.decodeFromString<StoredActivePracticeSession>(encoded)
+                    }.getOrNull()
+                }
+            if (current != null && !current.isCompleted && current.placeId == placeId) {
+                preferences[activeSessionKey] = json.encodeToString(
+                    current.copy(isArrivalConfirmed = true),
+                )
+                confirmed = true
+            }
+        }
+        confirmed
+    }
+
     override suspend fun clear() {
         withContext(Dispatchers.IO) {
             context.activePracticeSessionDataStore.edit { preferences ->
@@ -69,6 +88,8 @@ class ActivePracticeSessionStore @Inject constructor(
         startedAtEpochMillis = startedAt.toEpochMilli(),
         practiceId = practiceId,
         isCompleted = isCompleted,
+        isArrivalConfirmed = isArrivalConfirmed,
+        isMeasured = isMeasured,
     )
 
     private fun StoredActivePracticeSession.toDomain(): ActivePracticeSession? {
@@ -80,6 +101,8 @@ class ActivePracticeSessionStore @Inject constructor(
             startedAt = Instant.ofEpochMilli(startedAtEpochMillis),
             practiceId = practiceId,
             isCompleted = isCompleted,
+            isArrivalConfirmed = isArrivalConfirmed,
+            isMeasured = isMeasured,
         )
     }
 
@@ -93,4 +116,6 @@ private data class StoredActivePracticeSession(
     val startedAtEpochMillis: Long = 0L,
     val practiceId: Long? = null,
     val isCompleted: Boolean = false,
+    val isArrivalConfirmed: Boolean = false,
+    val isMeasured: Boolean = true,
 )
