@@ -65,6 +65,8 @@ fun MainScreen(
     onLoginRequired: () -> Unit = {},
     openCourseRegistrationOnStart: Boolean = false,
     onCourseRegistrationOpened: () -> Unit = {},
+    openArrivalOnStart: Boolean = false,
+    onArrivalHandled: () -> Unit = {},
     courseRegistrationEntryModeOnStart: CourseRegistrationEntryMode = CourseRegistrationEntryMode.Normal,
     onCourseRegistrationLoginRequired: ((CourseRegistrationEntryMode) -> Unit)? = null,
 ) {
@@ -91,6 +93,16 @@ fun MainScreen(
             backStack.add(HomeRoute)
         }
         pendingCourseRegistrationPreflight = true
+    }
+
+    LaunchedEffect(openArrivalOnStart) {
+        if (openArrivalOnStart) {
+            if (backStack.lastOrNull() != HomeRoute) {
+                backStack.clear()
+                backStack.add(HomeRoute)
+            }
+            onArrivalHandled()
+        }
     }
 
     LaunchedEffect(openCourseRegistrationOnStart, courseRegistrationEntryModeOnStart) {
