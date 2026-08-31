@@ -22,6 +22,7 @@ import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
 class PlaceRepositoryImpl @Inject constructor(
@@ -96,7 +97,11 @@ class PlaceRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
-        if (BuildConfig.DEBUG && placeId == LocalTestPlaces.ID) return LocalTestPlaces.detail()
+        if (BuildConfig.DEBUG && placeId == LocalTestPlaces.ID) {
+            val isBookmarked = savedPlaceLocalDataSource.observeSavedPlaces().first()
+                .any { it.id == LocalTestPlaces.ID }
+            return LocalTestPlaces.detail().copy(isBookmarked = isBookmarked)
+        }
         return authenticatedRequest { accessToken ->
             api.getPlaceDetail("Bearer $accessToken", placeId).requireData().toDomain()
         }

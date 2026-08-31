@@ -86,7 +86,7 @@ object LocalTestPlaces {
                     type = PlaceWaypointType.DESTINATION,
                     sequence = 4,
                     point = GeoPoint(36.1083791755929, 128.4176176786423),
-                    name = "36.1105, 128.4258",
+                    name = "36.1084, 128.4176",
                 ),
             ),
         ),
