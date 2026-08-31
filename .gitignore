@@ -44,6 +44,9 @@ google-services.json
 .kotlin/
 **/.kotlin/
 
+# graphify 스킬 검색용 로컬 지식그래프 캐시
+graphify-out/
+
 # 큐 자동화 실행 로그/상태 (scripts/queue-relay.sh, PR 리뷰 넛지 크론)
 docs/handoff/queue-run.log
 docs/handoff/queue-run*.log
