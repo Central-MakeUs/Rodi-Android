@@ -171,5 +171,5 @@ private fun Throwable.toReviewException(operation: ReviewOperation): ReviewExcep
         else -> ReviewException.Unexpected(message(), this)
     }
     is IOException -> ReviewException.Network("네트워크 연결을 확인해주세요.", this)
-    else -> ReviewException.Unexpected(message ?: "후기 요청에 실패했습니다.", this)
+    else -> ReviewException.Unexpected("후기 요청에 실패했습니다.", this)
 }

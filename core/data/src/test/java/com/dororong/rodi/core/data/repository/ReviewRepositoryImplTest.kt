@@ -51,6 +51,21 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
+    fun `unexpected transport error uses generic review message`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviews("Bearer access", 7, null, 10, null) } throws
+            IllegalStateException("Field 'totalCount' is required")
+        val repository = repository(api)
+
+        val exception = assertThrowsSuspend<ReviewException.Unexpected> {
+            repository.getReviews(7)
+        }
+
+        assertEquals("후기 요청에 실패했습니다.", exception.userMessage)
+        assertEquals("Field 'totalCount' is required", exception.cause?.message)
+    }
+
+    @Test
     fun `unauthorized response refreshes once and retries with new token`() = runTest {
         val api = mockk<ReviewApi>()
         val tokenStore = mockk<AuthTokenStore>()
