@@ -14,7 +14,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Multi--module%20%2B%20Clean-black)
 
-<sub>Current version: 1.4.5 · minSdk 30 · targetSdk 36</sub>
+<sub>Current version: 1.5.0-alpha01 · minSdk 30 · targetSdk 36</sub>
 
 [![Google Play](https://img.shields.io/badge/Google%20Play-Rodi-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.dororong.rodi)
 </div>
