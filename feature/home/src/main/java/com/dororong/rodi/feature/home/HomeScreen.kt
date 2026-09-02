@@ -142,8 +142,11 @@ import androidx.core.app.ActivityCompat
 import com.dororong.rodi.core.ui.permission.findActivity
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.openAppSettings
+import com.dororong.rodi.core.ui.map.lastMapCameraOrNull
+import com.dororong.rodi.core.ui.map.saveLastMapCamera
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
+import com.dororong.rodi.feature.home.map.centerPoint
 import com.dororong.rodi.core.ui.network.isNetworkAvailable
 import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
@@ -295,6 +298,7 @@ fun HomeScreen(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val lastSavedCamera = remember { context.lastMapCameraOrNull() }
 
     var kakaoMap by remember { mutableStateOf<KakaoMap?>(null) }
     var mapViewSize by remember { mutableStateOf(IntSize.Zero) }
@@ -466,16 +470,27 @@ fun HomeScreen(
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                permissionGranted = context.hasLocationPermission()
-                hasCenteredInitialLocation = false
-                hasUserMovedMap = false
-                hasUserChosenMapViewport = false
-                // 진행 중이던 연습 세션이 있으면 "이어서 측정할까요?" 다이얼로그를 다시 띄운다.
-                vm.onIntent(HomeIntent.OnAppResumed)
-                // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
-                // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
-                reviewVm.refresh()
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    permissionGranted = context.hasLocationPermission()
+                    hasCenteredInitialLocation = false
+                    hasUserMovedMap = false
+                    hasUserChosenMapViewport = false
+                    // 진행 중이던 연습 세션이 있으면 "이어서 측정할까요?" 다이얼로그를 다시 띄운다.
+                    vm.onIntent(HomeIntent.OnAppResumed)
+                    // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
+                    // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
+                    reviewVm.refresh()
+                }
+
+                Lifecycle.Event.ON_PAUSE -> {
+                    currentViewport?.centerPoint()?.let { center ->
+                        context.saveLastMapCamera(center, mapZoomLevel)
+                    }
+                    Unit
+                }
+
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1186,12 +1201,18 @@ fun HomeScreen(
                                                     currentLocation = currentLocation?.let {
                                                         GeoPoint(it.latitude, it.longitude)
                                                     },
+                                                    lastSavedCenter = lastSavedCamera?.center,
                                                     fallback = GeoPoint(SEOUL.latitude, SEOUL.longitude),
                                                 )
                                                 return LatLng.from(center.lat, center.lng)
                                             }
 
-                                            override fun getZoomLevel(): Int = mapZoomLevel
+                                            override fun getZoomLevel(): Int =
+                                                if (currentViewport == null) {
+                                                    lastSavedCamera?.zoomLevel ?: mapZoomLevel
+                                                } else {
+                                                    mapZoomLevel
+                                                }
                                         },
                                     )
                                     mapView

@@ -123,6 +123,7 @@ class ViewportSearchThresholdTest {
             initialMapCenter(
                 savedViewport = savedViewport,
                 currentLocation = GeoPoint(36.10, 128.30),
+                lastSavedCenter = GeoPoint(35.10, 129.10),
                 fallback = GeoPoint(37.5665, 126.9780),
             ),
         )
@@ -131,6 +132,70 @@ class ViewportSearchThresholdTest {
             initialMapCenter(
                 savedViewport = null,
                 currentLocation = GeoPoint(36.10, 128.30),
+                lastSavedCenter = GeoPoint(35.10, 129.10),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+    }
+
+    @Test
+    fun `last saved center is used when viewport and current location are absent`() {
+        val lastSavedCenter = GeoPoint(36.1195, 128.3446)
+
+        assertEquals(
+            lastSavedCenter,
+            initialMapCenter(
+                savedViewport = null,
+                currentLocation = null,
+                lastSavedCenter = lastSavedCenter,
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+    }
+
+    @Test
+    fun `fallback is used when all camera centers are absent`() {
+        val fallback = GeoPoint(37.5665, 126.9780)
+
+        assertEquals(
+            fallback,
+            initialMapCenter(
+                savedViewport = null,
+                currentLocation = null,
+                lastSavedCenter = null,
+                fallback = fallback,
+            ),
+        )
+    }
+
+    @Test
+    fun `current location is preferred over the last saved center`() {
+        val currentLocation = GeoPoint(36.10, 128.30)
+
+        assertEquals(
+            currentLocation,
+            initialMapCenter(
+                savedViewport = null,
+                currentLocation = currentLocation,
+                lastSavedCenter = GeoPoint(35.10, 129.10),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+    }
+
+    @Test
+    fun `saved viewport is preferred over current location and last saved center`() {
+        val savedViewport = MapViewport(
+            northEast = GeoPoint(37.60, 127.02),
+            southWest = GeoPoint(37.50, 126.92),
+        )
+
+        assertEquals(
+            GeoPoint(37.55, 126.97),
+            initialMapCenter(
+                savedViewport = savedViewport,
+                currentLocation = GeoPoint(36.10, 128.30),
+                lastSavedCenter = GeoPoint(35.10, 129.10),
                 fallback = GeoPoint(37.5665, 126.9780),
             ),
         )

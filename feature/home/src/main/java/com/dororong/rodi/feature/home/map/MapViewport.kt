@@ -21,8 +21,9 @@ internal fun MapViewport.centerPoint(): GeoPoint = GeoPoint(
 internal fun initialMapCenter(
     savedViewport: MapViewport?,
     currentLocation: GeoPoint?,
+    lastSavedCenter: GeoPoint?,
     fallback: GeoPoint,
-): GeoPoint = savedViewport?.centerPoint() ?: currentLocation ?: fallback
+): GeoPoint = savedViewport?.centerPoint() ?: currentLocation ?: lastSavedCenter ?: fallback
 
 internal fun markerViewportOrNull(
     currentViewport: MapViewport?,
