@@ -212,6 +212,7 @@ internal class DrivingTrackingService : Service() {
             }
             if (hasArrived) {
                 commandChannel.trySend(Command.Arrive(session, progress.recognizedDistanceMeters))
+                trackingJob?.cancel()
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
@@ -250,6 +251,7 @@ internal class DrivingTrackingService : Service() {
             consecutiveMatches = arrival.consecutiveMatches
             if (arrival.hasArrived) {
                 commandChannel.trySend(Command.Arrive(session, traveledDistance))
+                trackingJob?.cancel()
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
