@@ -25,6 +25,7 @@ class MainActivity : ComponentActivity() {
         )
         if (intent?.action == DrivingTrackingService.ACTION_OPEN_ARRIVAL) {
             openDrivingArrival.value = true
+            intent?.action = null
         }
         setContent {
             RodiTheme {
@@ -41,6 +42,7 @@ class MainActivity : ComponentActivity() {
         setIntent(intent)
         if (intent.action == DrivingTrackingService.ACTION_OPEN_ARRIVAL) {
             openDrivingArrival.value = true
+            intent.action = null
         }
     }
 }

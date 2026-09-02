@@ -52,8 +52,9 @@ private const val MIN_RECOGNIZED_DISTANCE_METERS_FOR_ARRIVAL_FALLBACK = 50.0
 @AndroidEntryPoint
 internal class DrivingTrackingService : Service() {
     private sealed interface Command {
-        data class Start(val intent: Intent) : Command
+        data class Start(val session: DrivingSession) : Command
         data class Stop(val sessionId: String?) : Command
+        data class Arrive(val session: DrivingSession, val traveledDistanceMeters: Double) : Command
     }
 
     private val commandChannel = Channel<Command>(Channel.UNLIMITED)
@@ -68,7 +69,7 @@ internal class DrivingTrackingService : Service() {
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private var trackingJob: Job? = null
     private var activeSession: DrivingSession? = null
-    private var isFinishing = false
+    @Volatile private var isFinishing = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -77,8 +78,9 @@ internal class DrivingTrackingService : Service() {
         serviceScope.launch {
             for (command in commandChannel) {
                 when (command) {
-                    is Command.Start -> handleStartCommand(command.intent)
+                    is Command.Start -> handleStartCommand(command.session)
                     is Command.Stop -> handleStopCommand(command.sessionId)
+                    is Command.Arrive -> handleArrival(command.session, command.traveledDistanceMeters)
                 }
             }
         }
@@ -90,20 +92,19 @@ internal class DrivingTrackingService : Service() {
         startId: Int,
     ): Int {
         when (intent?.action) {
-            ACTION_START -> commandChannel.trySend(Command.Start(intent))
+            ACTION_START -> handleStartAction(intent)
             ACTION_STOP -> commandChannel.trySend(Command.Stop(intent.getStringExtra(EXTRA_SESSION_ID)))
         }
         return START_NOT_STICKY
     }
 
-    override fun onDestroy() {
-        trackingJob?.cancel()
-        commandChannel.close()
-        serviceScope.cancel()
-        super.onDestroy()
-    }
-
-    private suspend fun handleStartCommand(intent: Intent) {
+    /**
+     * startForegroundService()로 시작된 서비스는 시스템 제한 시간(약 5초) 안에
+     * startForeground()를 호출해야 한다. 세션 파싱·권한 체크와 startForeground 호출을
+     * 커맨드 채널의 비동기 소비자로 미루면 그 지연만으로 ForegroundServiceDidNotStartInTimeException이
+     * 날 수 있어, 이 검증·승격은 onStartCommand에서 동기적으로 끝낸다.
+     */
+    private fun handleStartAction(intent: Intent) {
         if (activeSession != null || isFinishing) return
         val session = intent.toDrivingSession() ?: run {
             stopSelf()
@@ -129,6 +130,17 @@ internal class DrivingTrackingService : Service() {
             stopSelf()
             return
         }
+        commandChannel.trySend(Command.Start(session))
+    }
+
+    override fun onDestroy() {
+        trackingJob?.cancel()
+        commandChannel.close()
+        serviceScope.cancel()
+        super.onDestroy()
+    }
+
+    private suspend fun handleStartCommand(session: DrivingSession) {
         try {
             startDrivingSession(session)
         } catch (error: CancellationException) {
@@ -199,7 +211,7 @@ internal class DrivingTrackingService : Service() {
                 hasArrived = destinationArrival.hasArrived
             }
             if (hasArrived) {
-                handleArrival(session, progress.recognizedDistanceMeters)
+                commandChannel.trySend(Command.Arrive(session, progress.recognizedDistanceMeters))
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
@@ -237,7 +249,7 @@ internal class DrivingTrackingService : Service() {
             )
             consecutiveMatches = arrival.consecutiveMatches
             if (arrival.hasArrived) {
-                handleArrival(session, traveledDistance)
+                commandChannel.trySend(Command.Arrive(session, traveledDistance))
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
