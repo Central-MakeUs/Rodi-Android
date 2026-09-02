@@ -22,6 +22,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 
 class ReviewRepositoryImplTest {
@@ -53,8 +54,8 @@ class ReviewRepositoryImplTest {
     @Test
     fun `unexpected transport error uses generic review message`() = runTest {
         val api = mockk<ReviewApi>()
-        coEvery { api.getReviews("Bearer access", 7, null, 10, null) } throws
-            IllegalStateException("Field 'totalCount' is required")
+        val cause = IllegalStateException("Field 'totalCount' is required")
+        coEvery { api.getReviews("Bearer access", 7, null, 10, null) } throws cause
         val repository = repository(api)
 
         val exception = assertThrowsSuspend<ReviewException.Unexpected> {
@@ -62,7 +63,7 @@ class ReviewRepositoryImplTest {
         }
 
         assertEquals("후기 요청에 실패했습니다.", exception.userMessage)
-        assertEquals("Field 'totalCount' is required", exception.cause?.message)
+        assertSame(cause, exception.cause)
     }
 
     @Test

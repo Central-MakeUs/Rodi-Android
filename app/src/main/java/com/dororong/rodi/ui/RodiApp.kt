@@ -44,6 +44,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun RodiApp(
     viewModel: RodiAppViewModel = hiltViewModel(),
+    openDrivingArrival: Boolean = false,
+    onDrivingArrivalHandled: () -> Unit = {},
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -53,6 +55,14 @@ fun RodiApp(
     var resumeCourseRegistration by rememberSaveable { mutableStateOf(false) }
     var resumeCourseRegistrationEntryModeName by rememberSaveable {
         mutableStateOf(CourseRegistrationEntryMode.Normal.name)
+    }
+    var openArrivalOnStart by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(openDrivingArrival) {
+        if (openDrivingArrival) {
+            openArrivalOnStart = true
+            onDrivingArrivalHandled()
+        }
     }
 
     CollectEffect(viewModel.effect) { effect ->
@@ -156,6 +166,8 @@ fun RodiApp(
                             resumeCourseRegistration = false
                             resumeCourseRegistrationEntryModeName = CourseRegistrationEntryMode.Normal.name
                         },
+                        openArrivalOnStart = openArrivalOnStart,
+                        onArrivalHandled = { openArrivalOnStart = false },
                         onSessionEnded = {
                             viewModel.onSessionEnded()
                         },

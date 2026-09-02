@@ -65,6 +65,8 @@ fun MainScreen(
     onLoginRequired: () -> Unit = {},
     openCourseRegistrationOnStart: Boolean = false,
     onCourseRegistrationOpened: () -> Unit = {},
+    openArrivalOnStart: Boolean = false,
+    onArrivalHandled: () -> Unit = {},
     courseRegistrationEntryModeOnStart: CourseRegistrationEntryMode = CourseRegistrationEntryMode.Normal,
     onCourseRegistrationLoginRequired: ((CourseRegistrationEntryMode) -> Unit)? = null,
 ) {
@@ -93,14 +95,29 @@ fun MainScreen(
         pendingCourseRegistrationPreflight = true
     }
 
+    LaunchedEffect(openArrivalOnStart) {
+        if (openArrivalOnStart) {
+            // 도착 알림은 일회성 최우선 이벤트다 — 코스 등록 재개 흐름이 같은 프레임에
+            // 함께 활성화돼 있어도 여기서 정리해 HomeRoute 전환 뒤 복원 다이얼로그나
+            // 등록 화면이 따라 열리지 않게 한다.
+            pendingCourseRegistrationPreflight = false
+            showResumeDialog = false
+            if (backStack.lastOrNull() != HomeRoute) {
+                backStack.clear()
+                backStack.add(HomeRoute)
+            }
+            onArrivalHandled()
+        }
+    }
+
     LaunchedEffect(openCourseRegistrationOnStart, courseRegistrationEntryModeOnStart) {
-        if (openCourseRegistrationOnStart) {
+        if (openCourseRegistrationOnStart && !openArrivalOnStart) {
             courseRegistrationEntryMode = courseRegistrationEntryModeOnStart
             requestCourseRegistration()
         }
     }
     LaunchedEffect(pendingCourseRegistrationPreflight, entryState) {
-        if (!pendingCourseRegistrationPreflight) return@LaunchedEffect
+        if (!pendingCourseRegistrationPreflight || openArrivalOnStart) return@LaunchedEffect
         val readyState = entryState as? CourseRegistrationEntryState.Ready ?: return@LaunchedEffect
         pendingCourseRegistrationPreflight = false
         when (readyState.draft.courseRegistrationPreflightDecision()) {
