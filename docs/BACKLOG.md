@@ -88,8 +88,7 @@
   levelReviewCount·totalReviewCount로 나뉜다. 동률이면 더 어려운 난이도를 고르고, 후기가 없으면
   topDifficulty 키 자체가 빠진다."
   같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
-  그대로 실어 보냄)도 `AuthErrorMapper`(`876f3142`)·`PracticeRepositoryImpl`과 같은 패턴이라
-  이 작업과 함께 고치는 게 맞다.
+  그대로 실어 보냄)는 2026-09-01에 사용자 메시지를 고정하고 회귀 테스트를 추가해 해결했다.
 
   **2026-08-13 부분 해결.** 지난 QA 라운드에서 "totalCount 오류 토스트"를 크래시만 막고 넘어갔다가
   (기본값 0L만 채움), 이번에 Swagger를 다시 대조해 진짜 원인을 잡았다. `ReviewSummaryResponse`를
@@ -97,13 +96,14 @@
   옮기도록 매퍼를 고쳤다 — 이제 파싱은 항상 성공하고 "전체보기" 링크도 실제 후기 수를 반영한다.
   **남은 범위**: `topDifficulty`(서버가 동률까지 계산해 내려주는 신규 필드)는 매핑하지 않았다 —
   클라이언트가 `difficultyCounts`로 이미 같은 규칙을 계산 중이라 당장 필요하지 않았다. `levelReviewCount`도
-  아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 원문 노출(`else` 분기) 정리도 남아있다.
+  아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 미분류 예외 원문 노출은 해결됐다.
   `placeId 106`의 테스트 후기 2건 정리는 여전히 미확인.
 
   **남은 작업**
   - [ ] `topDifficulty` 서버 필드 매핑·노출 여부 결정
   - [ ] `levelReviewCount` UI 사용 여부 검토
-  - [ ] `ReviewRepositoryImpl.toReviewException`의 예외 원문 fallback 제거
+  - [x] `ReviewRepositoryImpl.toReviewException`의 예외 원문 fallback 제거 — 사용자 메시지를 고정하고
+    회귀 테스트 추가(2026-09-01)
   - [ ] 관련 후기 테스트의 성공·실패·취소 경로 검토 및 정리
 - [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
   가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
