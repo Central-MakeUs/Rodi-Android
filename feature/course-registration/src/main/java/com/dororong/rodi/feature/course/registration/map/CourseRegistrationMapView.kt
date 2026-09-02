@@ -56,6 +56,17 @@ private const val DEFAULT_LNG = 126.9780
 private const val DEFAULT_ZOOM_LEVEL = 13
 private const val ROUTE_LINE_WIDTH = 13f
 
+/**
+ * 콜드 스타트 복원(저장된 카메라를 첫 위치로 쓰는 경우)에서만 저장된 줌을 유지한다.
+ * 검색 결과 점프 등 이후 재중심은 늘 기준 줌(defaultZoom)으로 맞춘다.
+ */
+internal fun initialOrDefaultZoom(
+    isFirstApply: Boolean,
+    hadInitialCenter: Boolean,
+    savedZoom: Int?,
+    defaultZoom: Int,
+): Int = if (isFirstApply && !hadInitialCenter && savedZoom != null) savedZoom else defaultZoom
+
 /** Kakao MapView는 자체 생명주기를 가지므로 Compose가 제거될 때 finish를 호출한다. */
 @Composable
 fun CourseRegistrationMapView(
@@ -81,6 +92,7 @@ fun CourseRegistrationMapView(
     }
     val context = LocalContext.current
     val lastSavedCamera = remember { context.lastMapCameraOrNull() }
+    val hadInitialCenter = remember(retryToken) { center != null }
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentMapTapped by rememberUpdatedState(onMapTapped)
@@ -133,7 +145,13 @@ fun CourseRegistrationMapView(
         val update = if (currentCenterKeepsZoom) {
             CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng))
         } else {
-            CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), DEFAULT_ZOOM_LEVEL)
+            val zoom = initialOrDefaultZoom(
+                isFirstApply = isFirstApply,
+                hadInitialCenter = hadInitialCenter,
+                savedZoom = lastSavedCamera?.zoomLevel,
+                defaultZoom = DEFAULT_ZOOM_LEVEL,
+            )
+            CameraUpdateFactory.newCenterPosition(LatLng.from(target.lat, target.lng), zoom)
         }
         // 거리에 비례해 느려지지 않도록 애니메이션 길이를 고정한다 — 서울에서 먼 곳을 들렀다 오면
         // 예전엔 이동에 한참 걸렸다.
