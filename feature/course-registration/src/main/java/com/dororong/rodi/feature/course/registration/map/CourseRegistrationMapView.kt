@@ -28,6 +28,7 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.ui.map.lastMapCameraOrNull
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.course.registration.R
 import com.kakao.vectormap.KakaoMap
@@ -79,6 +80,7 @@ fun CourseRegistrationMapView(
         return
     }
     val context = LocalContext.current
+    val lastSavedCamera = remember { context.lastMapCameraOrNull() }
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentCenterChanged by rememberUpdatedState(onCameraCenterChanged)
     val currentMapTapped by rememberUpdatedState(onMapTapped)
@@ -181,10 +183,16 @@ fun CourseRegistrationMapView(
                             // 카메라가 "스윽" 움직이는 것처럼 보인다. 여기서 첫 프레임부터 목표
                             // 위치에 있게 하면 그 이동 자체가 사라진다.
                             override fun getPosition(): LatLng {
-                                val initialCenter = currentCenter ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
+                                val initialCenter =
+                                    currentCenter ?: lastSavedCamera?.center ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
                                 return LatLng.from(initialCenter.lat, initialCenter.lng)
                             }
-                            override fun getZoomLevel(): Int = DEFAULT_ZOOM_LEVEL
+                            override fun getZoomLevel(): Int =
+                                if (currentCenter == null) {
+                                    lastSavedCamera?.zoomLevel ?: DEFAULT_ZOOM_LEVEL
+                                } else {
+                                    DEFAULT_ZOOM_LEVEL
+                                }
                             override fun onMapReady(readyMap: KakaoMap) {
                                 if (currentRetryToken != generation) return
                                 map = readyMap
@@ -204,7 +212,8 @@ fun CourseRegistrationMapView(
                                     (label.tag as? Int)?.let(currentWaypointTapped)
                                     true
                                 }
-                                val initialCenter = currentCenter ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
+                                val initialCenter =
+                                    currentCenter ?: lastSavedCamera?.center ?: GeoPoint(DEFAULT_LAT, DEFAULT_LNG)
                                 currentCenterChanged(initialCenter)
                                 onReady(true)
                             }
