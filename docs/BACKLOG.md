@@ -205,14 +205,12 @@
   `PlaceApi` 기반 검색/상세 경로로 이미 대체됐고, 이쪽은 초기 PoC 잔재로 보인다. 릴리스 빌드에
   섞여 나가진 않지만(호출부가 없어 도달 불가) 죽은 코드라 헷갈릴 수 있다 — 완전히 제거하거나,
   아직 쓸 곳이 있다면 실제 API로 교체할 것.
-- [ ] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — `ACTION_START`가
-  비동기로 `startDrivingSession()`을 저장하는 도중 `ACTION_STOP`이 먼저 처리되면, 저장되지 않은
-  세션을 `clear()`가 지우지 못하고 뒤늦게 완료된 `startDrivingSession()`이 이미 종료된 세션을
-  ACTIVE로 남길 수 있다. `Mutex`나 단일 명령 처리 코루틴으로 시작·종료를 직렬화해야 함.
-- [ ] **운전 도착 알림 탭 시 도착 흐름 미연결 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
-  `ACTION_OPEN_ARRIVAL`을 붙인 PendingIntent를 만들지만 `MainActivity`/라우팅 어디서도 이 action을
-  소비하지 않는다. 알림을 탭해도 도착 흐름으로 이동하지 않음 — 처리 경로를 연결하거나 미사용
-  action을 제거할 것.
+- [x] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — PR #113에서
+  해결. `onStartCommand()`가 명령을 `Channel`로만 넘기고 `onCreate()`의 단일 소비자 코루틴이
+  도착 순서대로 처리하도록 재구성해 START/STOP 저장 순서를 구조적으로 보장했다.
+- [x] **운전 도착 알림 탭 시 도착 흐름 미연결 (2026-08-16 CodeRabbit 발견)** — PR #113에서 해결.
+  `MainActivity`가 `ACTION_OPEN_ARRIVAL`을 받아 도착 화면으로 라우팅하고, config change 재생성
+  시 같은 이벤트가 재처리되지 않도록 처리 후 `intent.action`을 비운다.
 - [ ] **운전 알림 색상의 Compose 외부 테마 브릿지 검토 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
   `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
   참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
