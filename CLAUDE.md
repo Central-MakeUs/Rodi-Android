@@ -15,6 +15,9 @@
 - 승인 게이트를 포함한 세부 진행 절차와 자동화는 로컬 파이프라인 도구가 관리하며 이 리포에는 두지 않는다.
 
 ## Skills
+- **코드 작성·리뷰 규범: `/android-code-standard`** — 이 리포가 그 규범의 정본이다.
+  PROJECT.md 컨벤션에 더해 "왜 그 규칙인지"(실제 사고 사례)와 정본 파일 경로가 정리돼 있다.
+  코드를 쓰거나 리뷰하기 전에 참조하고, Rodi에서 규범이 바뀌면 이 스킬도 함께 갱신한다.
 - 기능 개발(설계→구현→검증): `/maintainable-android-delivery`
 - 디자인 → Compose 변환: `/design-to-compose`
 - 구현 결과를 Figma·기기에서 자가 검증: `/figma-device-verify`
