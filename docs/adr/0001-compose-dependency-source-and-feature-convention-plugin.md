@@ -29,10 +29,10 @@ Gradle 항목("feature 7개가 `library.compose`를 직접 적용", "각 feature
 - [x] `docs/PROJECT.md` — 모듈 맵에 `build-logic`이 아예 없고 의존성이 어디서 오는지 서술이
   없어서, 이 문서만 읽으면 Compose 출처를 알 수 없었다 → `build-logic` 행과 "의존성 출처는
   하나" 컨벤션 항목을 추가했다.
-- [x] `~/.claude/skills/android-code-standard/references/rodi/gradle.md` (리포 밖 전역 스킬) —
+- [x] `docs/conventions/gradle.md` —
   "Compose library 7개가 `library.compose`를 직접 적용"은 이제 "`:core:ui` 1개만 직접,
   feature 6개는 `android.feature`를 통해 간접"이다. feature별 Compose·Hilt 중복 선언 근거와
-  BOM 중복 불일치 항목도 사라졌다 → 해당 파일을 이 결정 기준으로 작성했다.
+  BOM 중복 불일치 항목도 사라졌다 → 해당 파일을 이 결정 기준으로 다시 썼다.
 - [x] `docs/BACKLOG.md` — "app이 convention plugin 미사용"과 "`core:data`가 `useJUnitPlatform()`
   직접 선언"은 이 PR 이후에도 **여전히 유효**하므로 그대로 남긴다(실측 확인 2026-09-06).
 

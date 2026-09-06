@@ -1,4 +1,4 @@
-# docs/decisions — Architecture Decision Records
+# docs/adr — Architecture Decision Records
 
 구조·규약을 바꾸는 결정을 기록한다. "왜 이렇게 돼 있지?"에 답하기 위한 문서이고,
 코드만 봐서는 복원할 수 없는 정보(선택지, 트레이드오프, 뺀 이유)를 남기는 게 목적이다.

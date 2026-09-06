@@ -75,5 +75,17 @@
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.
 
-## 후속/기술부채
-→ `docs/BACKLOG.md` (Claude 메모리를 못 보는 Codex와 공유하는 채널)
+## 문서 책임 배치
+지식의 종류마다 정본이 다르다. **하나를 여러 곳에 복사하지 않는다.**
+
+| 알고 싶은 것 | 정본 |
+|---|---|
+| 현재 구현이 어떤가 | **코드**. 문서는 코드의 복사본이 아니다 |
+| 왜 이 구조인가 | `docs/adr/` |
+| Rodi 고유 규칙 | `docs/conventions/` |
+| 자동 판정 가능한 규칙의 집행 | `.github/scripts/check-conventions.sh` (CI) |
+| 규칙과 코드의 현재 차이 | `docs/BACKLOG.md` |
+| 특정 시점 조사 수치 | `docs/audits/` (스냅샷. 갱신하지 않고 새로 만든다) |
+| 프로젝트 무관 규범 | 전역 스킬 `/android-code-standard` |
+
+`docs/BACKLOG.md`는 Claude 메모리를 못 보는 Codex와 공유하는 채널이기도 하다.

@@ -26,9 +26,13 @@
 > PR #117이 feature 의존성 구조를 바꾸자 직전에 끝낸 관용구 조사의 Gradle 항목이 통째로
 > 틀렸다.
 >
-> **확인 대상**: `docs/PROJECT.md`, `docs/TESTING.md`, `docs/BACKLOG.md`,
-> `docs/ARCHITECTURE_TARGET.md`, 그리고 리포 **밖**의 전역 스킬
-> `~/.claude/skills/android-code-standard/`(SKILL.md + `references/rodi/`).
+> **확인 대상** (coarse domain 단위로만 본다 — 규칙 하나하나에 의존성 표를 만들지 않는다):
+> `docs/conventions/`, `docs/PROJECT.md`, `docs/TESTING.md`, `docs/BACKLOG.md`,
+> `docs/ARCHITECTURE_TARGET.md`, `.github/scripts/check-conventions.sh`,
+> 그리고 리포 **밖**의 전역 스킬 `/android-code-standard`(프로젝트 무관 규범이 바뀐 경우에만).
+>
+> 이미 지난 조사 수치(`docs/audits/`)는 **갱신 대상이 아니다.** 스냅샷은 역사로 남기고,
+> 다시 조사할 필요가 생기면 새 날짜로 새 Audit을 만든다.
 >
 > 정말 없으면 **"없음"이라고 명시**한다. 비워두면 확인을 한 것인지 안 한 것인지 알 수 없다.
 
