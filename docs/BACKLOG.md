@@ -266,6 +266,16 @@
   `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.
 
 ### 에러 처리 경계
+- [ ] **`ReviewWriteViewModel`이 취소를 실패로 표시한다 (2026-09-06 발견)** — 후기 수정 초기
+  로드의 `catch (error: CancellationException)`이 `throw error`로 재전파는 하지만, **그 전에**
+  `initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요."`를 상태에
+  쓴다. 취소는 사용자가 화면을 벗어났거나 재시도가 이전 작업을 대체한 정상 흐름인데 에러로
+  표시되고, `error.message`는 취소 예외의 내부 문구("... was cancelled")라 사용자에게 그대로
+  노출될 수 있다. **취소 경로에서는 상태를 건드리지 말고 바로 재전파해야 한다.**
+  같은 함수의 `.onFailure`도 `error.message`를 그대로 쓰고 있어 아래 사용자 메시지 통일
+  항목과 함께 고치면 된다.
+  정본: `feature/home/.../review/ReviewWriteViewModel.kt` — 앵커 `catch (error: CancellationException)`
+  재검증: `rg -U -P -n 'catch \([^)]*CancellationException\)\s*\{\s*\n(?!\s*throw)' --glob '**/*.kt' --glob '!**/build/**' --glob '!**/src/test/**'`
 - [ ] **사용자 메시지 변환 경계가 통일되지 않음** — 공통 `Throwable.userMessage()`를 쓰는
   ViewModel은 3개(`Home`/`Search`/`CourseReview`)뿐이고, 9개가 `error.message`를 화면에 그대로
   쓴다(`RegisteredCourses`/`MyPosts`/`SavedCourses`/`CourseRegistration`/`Login`/`BlockedMembers`/

@@ -17,7 +17,12 @@
 ## Skills
 - **코드 작성·리뷰 규범: `/android-code-standard`** — 이 리포가 그 규범의 정본이다.
   PROJECT.md 컨벤션에 더해 "왜 그 규칙인지"(실제 사고 사례)와 정본 파일 경로가 정리돼 있다.
+  세부 관용구(이름·MVI 계약·에러 계층·매퍼·Compose·테스트·Gradle)는 그 스킬의
+  `references/rodi/`에 주제별로 있고, 각 규칙에 재검증 `rg` 명령이 붙어 있다 — 수치를 인용할
+  땐 문서를 믿지 말고 명령을 돌린다.
   코드를 쓰거나 리뷰하기 전에 참조하고, Rodi에서 규범이 바뀌면 이 스킬도 함께 갱신한다.
+  갱신 누락을 막는 장치는 ADR이다 → `docs/decisions/TEMPLATE.md`의 "무효화하는 규범 항목" 칸.
+  구조를 바꾸는 결정을 내릴 땐 그 칸에서 이 스킬을 포함해 어떤 문서가 틀리게 되는지 짚는다.
 - 기능 개발(설계→구현→검증): `/maintainable-android-delivery`
 - 디자인 → Compose 변환: `/design-to-compose`
 - 구현 결과를 Figma·기기에서 자가 검증: `/figma-device-verify`
