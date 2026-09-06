@@ -14,6 +14,8 @@ Compose는 `:core:ui`가 `api`로 재노출하는 것을 유일한 출처로 삼
 
 `dororong.rodi.android.feature` 플러그인은 화면 아키텍처 라이브러리인 activity-compose, lifecycle-compose, hilt-compose, Hilt compiler, ui-tooling과 `:core:ui` 의존성만 담는다. Compose BOM과 Compose bundle은 담지 않는다.
 
+Compose BOM은 `androidTestImplementation` configuration에도 같은 원칙으로 적용한다 — `AndroidLibraryComposeConventionPlugin`(Compose를 쓰는 모든 모듈이 `feature` 플러그인을 거치든 직접 적용하든 공통으로 지나가는 지점)에 한 번만 선언하고, `:core:ui`와 feature 모듈에서 중복 선언하던 걸 제거했다.
+
 ## 결과
 
 모듈의 `build.gradle.kts`만 봐서는 Compose가 어디서 오는지 보이지 않고, 전체 의존성 구성을 이해하려면 `build-logic`과 `:core:ui`를 함께 읽어야 한다. 대신 Compose 버전을 조정하는 지점은 `:core:ui` 한 곳으로 줄었다.

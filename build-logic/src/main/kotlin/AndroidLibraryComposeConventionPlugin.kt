@@ -1,8 +1,11 @@
 import com.android.build.api.dsl.LibraryExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.artifacts.VersionCatalogsExtension
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.dependencies
+import org.gradle.kotlin.dsl.getByType
 import org.gradle.kotlin.dsl.withType
 import org.jetbrains.kotlin.compose.compiler.gradle.ComposeCompilerGradlePluginExtension
 
@@ -20,6 +23,13 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
                 buildFeatures {
                     compose = true
                 }
+            }
+            val libs = extensions.getByType<VersionCatalogsExtension>().named("libs")
+            dependencies {
+                add(
+                    "androidTestImplementation",
+                    platform(libs.findLibrary("androidx-compose-bom").get()),
+                )
             }
             extensions.configure<ComposeCompilerGradlePluginExtension> {
                 // :core:domain 등 Compose 플러그인이 없는 모듈의 모델(Course, RouteResult 등)이

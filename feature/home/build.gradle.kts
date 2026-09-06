@@ -39,7 +39,6 @@ dependencies {
     testImplementation(libs.bundles.flow.test)
     testImplementation(libs.bundles.roborazzi.test)
     testRuntimeOnly(libs.junit.vintage.engine)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
