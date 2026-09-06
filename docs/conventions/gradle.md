@@ -72,8 +72,8 @@ rg -n '(implementation|androidTestImplementation)\(platform\(libs\.androidx\.com
   -g 'build.gradle.kts' core feature app
 ```
 > `core/ui`의 `api(platform(...))`은 **유일 출처 그 자체**라 걸리면 안 된다 — 그래서 `api`를
-> 패턴에서 뺐다. 지금 걸리는 건 `app` 2건뿐이고, 아직 Convention Plugin 밖이라 그렇다
-> → `../BACKLOG.md`.
+> 패턴에서 뺐다. 걸리는 건 아직 Convention Plugin 밖에 있는 `app`뿐이다 → `../BACKLOG.md`.
+> (건수는 여기 적지 않는다 — 명령을 돌리거나 `../audits/`를 본다.)
 
 ## 버전 카탈로그 접근 방식
 

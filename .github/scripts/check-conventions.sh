@@ -26,7 +26,7 @@
 #   * 0건은 "깨끗함"과 "고장"이 구분되지 않는다. 그래서 아래 sanity check가 있다.
 
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || { echo "리포 루트로 이동하지 못했습니다."; exit 2; }
 
 command -v rg >/dev/null || { echo "ripgrep(rg)이 필요합니다."; exit 2; }
 
@@ -95,9 +95,21 @@ block_fail=0
 warn_total=0
 
 # $1 등급  $2 이름  $3 셸 표현식(줄 단위 출력, 위반이 있으면 출력)
+# rg는 매치 없음이 1, **실제 오류가 2**다. 출력만 보면 오류가 "0건 통과"로 둔갑한다.
+# PIPESTATUS를 되받아 파이프 안 어느 단계든 2 이상이면 검증기 고장으로 중단한다.
 check() {
-  local grade="$1" name="$2" expr="$3" out count
-  out="$(eval "$expr" 2>/dev/null)"
+  local grade="$1" name="$2" expr="$3" raw out count rcs rc
+  raw="$(eval "$expr"'; printf "\n__RC:%s" "${PIPESTATUS[*]}"' 2>/dev/null)"
+  rcs="${raw##*__RC:}"
+  out="${raw%$'\n'__RC:*}"
+  out="$(printf '%s' "$out")"   # 마커 앞 개행이 남아 카운트가 1씩 늘어난다
+  for rc in $rcs; do
+    if [ "${rc:-0}" -ge 2 ]; then
+      printf '  \033[31m! %s — 검사 명령이 오류로 종료했습니다 (exit %s)\033[0m\n' "$name" "$rc"
+      echo "    0건과 구분되지 않으므로 통과로 처리하지 않습니다."
+      exit 2
+    fi
+  done
   count=$([ -z "$out" ] && echo 0 || printf '%s\n' "$out" | wc -l | tr -d ' ')
   if [ "$count" -eq 0 ]; then
     printf '  \033[32m✓\033[0m %s\n' "$name"
@@ -169,7 +181,7 @@ check WARN "app이 Compose BOM 직접 선언" \
   "rg -n -g 'build.gradle.kts' 'platform\(libs\.androidx\.compose\.bom\)' app"
 
 check WARN "예외 원문(error.message)을 화면에 그대로 노출" \
-  "rg -l -g '*ViewModel.kt' '\.message\b' . | grep -v '/src/test/'"
+  "rg -l -g '*ViewModel.kt' '(error|throwable|exception|e|it)\.message\b' . | grep -v '/src/test/'"
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="

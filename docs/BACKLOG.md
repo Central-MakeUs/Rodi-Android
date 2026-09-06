@@ -161,6 +161,9 @@
   `Practice`/`Review` 의 각 `RepositoryImpl` (`Onboarding`은 빠짐). 인자 형태도 갈렸다 — 헬퍼가 완성된
   `"Bearer $token"`을 넘기는 쪽 4개, raw token을 넘기고 호출부에서 Bearer를 조합하는 쪽 2개.
   중앙화 전까지 **새 Repository에 이 헬퍼를 또 복사하지 말 것.**
+  **중앙화 시 인자 형식을 먼저 하나로 정한다** — 다수인 "헬퍼가 완성된 `Bearer <token>`을
+  넘긴다"로 통일하고, raw token을 넘기던 2곳의 호출부를 함께 고친다. 이걸 정하지 않고 합치면
+  `Bearer` 누락이나 `Bearer Bearer ...`가 난다.
   재검증: `rg -l 'authenticatedRequest' --glob '**/*.kt' --glob '!**/build/**'`
   **refreshToken 재사용으로 전 세션이 폐기되는(`AUTH_401_4`) 레이스는 이미 막혀 있다** — 2026-08-08
   확인: `AuthRepositoryImpl`이 `@Singleton`이고 `reissueToken()`이 인스턴스 `refreshMutex`로 감싼 뒤

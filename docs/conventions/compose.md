@@ -72,7 +72,9 @@ val shouldLoadNextPage by remember(listState, hasNextPage) {
 **정본**: `feature/mypage/.../registeredcourses/RegisteredCoursesScreen.kt` —
 앵커 `key = { it.courseId }`
 
-**재검증** (key 없는 items — 개수가 고정된 skeleton은 정상 결과다):
+**재검증** (key 없는 items — 개수가 고정된 skeleton은 정상 결과다).
+**한계**: `[^)]*`가 첫 닫는 괄호에서 멈추므로 `items(items = load())`처럼 인자 안에 함수
+호출이 있으면 **놓친다.** 후보를 좁히는 용도이고 최종 판단은 코드를 본다:
 ```bash
 rg -U -P -n 'items(Indexed)?\((?![^)]*key)[^)]*\)\s*\{' -g '*.kt' . \
 | grep -v -E '/src/(test|androidTest)/'

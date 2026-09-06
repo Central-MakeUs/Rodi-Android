@@ -16,6 +16,12 @@
 ## 재현 방법
 
 모든 명령은 리포 루트에서 실행한다. `build/`는 `.gitignore`에 있어 rg가 알아서 건너뛴다.
+
+**주의 — 명령의 범위가 위 '범위'보다 넓다.** 대부분 `.`(리포 전체)에서 돌기 때문에
+`app`/`core`/`feature` 밖의 `.kt`와 `spike` 같은 제외 대상이 섞일 수 있고, `SampleCourses`
+같은 **심볼 단위 제외는 명령에 반영돼 있지 않다.** 아래 수치는 그 오차를 안고 있는 값이며,
+정밀한 재측정이 필요하면 경로를 좁혀서(`rg ... core feature`) 다시 돌린다.
+`Channel<`·`MutableSharedFlow` 계열도 "Effect 전달인가"까지는 판별하지 않는다 — 파일을 열어 확인한다.
 **경로 글롭(`--glob '**/*.kt'`)은 쓰지 않는다** — ripgrep 14와 15에서 결과가 다르다.
 베이스네임 글롭(`-g '*.kt'`)과 명시 경로(`.`)를 쓴다.
 
@@ -52,7 +58,7 @@
 | 취소 재전파가 catch 첫 문장이 아님 | 1 (`ReviewWriteViewModel`) | `conventions/error-handling.md` #2 |
 | `authenticatedRequest` 헬퍼 중복 | 6 RepositoryImpl | `rg -l 'authenticatedRequest' -g '*.kt' .` |
 | 공통 `userMessage()` 호출 ViewModel | 3 | `rg -l '\.userMessage\(\)' -g '*ViewModel.kt' .` |
-| 예외 원문(`.message`)을 쓰는 ViewModel | 12 파일 | `rg -l -g '*ViewModel.kt' '\.message\b' . \| grep -v '/src/test/'` |
+| 예외 원문(`.message`)을 쓰는 ViewModel (넓은 패턴) | 12 파일 | `rg -l -g '*ViewModel.kt' '\.message\b' . \| grep -v '/src/test/'` |
 | 그중 `error`/`it`/`e`/`throwable`의 `.message` | 9 파일 | 같은 명령에 `'(error\|it\|e\|throwable)\.message\b'` |
 | `UserMessageProvider` 구현 예외 | 4 (`Place`/`Review`/`Practice`/`Auth`) | `rg -l 'UserMessageProvider' -g '*.kt' .` |
 

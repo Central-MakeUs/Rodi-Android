@@ -54,7 +54,8 @@
 - **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.
   BOM·compiler·debug/runtime 전용 의존성은 bundle에서 제외한다.
 - **의존성 출처는 하나**: 같은 의존성이 두 경로로 들어오지 않게 한다(→ ADR 0001).
-  feature 모듈은 `id("dororong.rodi.android.feature")` 하나만 선언하고 모듈 고유 의존성만 추가한다.
+  feature 모듈은 공통 설정을 `id("dororong.rodi.android.feature")` 하나로 받고, 모듈 고유
+  의존성과 그 모듈에만 필요한 플러그인(예: `feature:home`의 roborazzi)만 추가한다.
   Compose는 `:core:ui`가 `api`로 재노출하는 것이 유일한 출처이고, androidTest용 Compose BOM은
   `AndroidLibraryComposeConventionPlugin`이 주입한다. **모듈 `build.gradle.kts`에 다시 선언하지 말 것.**
 - **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
