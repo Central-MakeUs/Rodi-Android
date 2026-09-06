@@ -76,7 +76,12 @@ rg -n '\.name\b' -g '*Mapper.kt' core/data/src/main
 **Rodi는 이게 3방식으로 갈려 있다** — 임의값 대체 2건은 수정 대상이다 →
 `../BACKLOG.md`. 따라 할 사례가 아니다.
 
-**재검증** (enum 폴백):
+**재검증**: `getOrElse`와 `valueOf(`는 **성격이 다르니 나눠서 본다.**
+`valueOf(`는 알 수 없는 값에서 예외를 던지는 엄격한 변환이고, `getOrElse`도 예외를 다시
+던지는 곳이 있다. **실제 폴백은 임의의 enum 상수로 대체하는 것뿐이다.**
 ```bash
-rg -n 'getOrElse|valueOf\(' -g '*Mapper.kt' core/data/src/main
+# 엄격 변환 (정상)
+rg -n 'valueOf\(' -g '*Mapper.kt' core/data/src/main
+# 폴백 후보 — 각 결과를 열어 '예외 재전파'인지 '상수 대체'인지 확인한다
+rg -n -A2 'getOrElse' -g '*Mapper.kt' core/data/src/main
 ```

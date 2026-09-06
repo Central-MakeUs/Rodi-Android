@@ -60,8 +60,12 @@ add("androidTestImplementation", platform(libs.findLibrary("androidx-compose-bom
 
 **왜**: `androidTestImplementation`은 `api`로 노출된 BOM 제약을 **자동으로 상속하지 않는다.**
 `:core:ui`가 `api(platform(bom))`을 해도 계측 테스트 쪽 버전은 정렬되지 않는다. 그래서 BOM은
-main과 androidTest에 각각 필요한데, Compose를 쓰는 모든 모듈이 공통으로 지나가는
-`AndroidLibraryComposeConventionPlugin`에 한 번만 두면 출처는 여전히 하나다.
+main과 androidTest에 각각 필요한데, **Compose library 모듈**(`:core:ui`와 feature 6개)이 공통으로
+지나가는 `AndroidLibraryComposeConventionPlugin`에 한 번만 두면 그 범위 안에서는 출처가 하나다.
+
+**`app`은 이 범위 밖이다.** 이 플러그인은 `com.android.library`를 적용하므로 application 모듈에는
+걸리지 않는다. `app`이 BOM을 직접 선언하는 건 **중복이 아니라 별도 공급 경로**이므로 지우면 안 된다.
+app까지 Convention Plugin으로 들이는 건 별도 작업이다 → `../BACKLOG.md`
 
 **정본**: `build-logic/src/main/kotlin/AndroidLibraryComposeConventionPlugin.kt` —
 앵커 `androidTestImplementation`

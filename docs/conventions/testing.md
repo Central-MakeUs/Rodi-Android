@@ -71,7 +71,7 @@ rg -l 'Dispatchers\.setMain' -g '*.kt' . | grep '/src/test/' \
 ```
 > `-L`은 ripgrep에서 `--files-without-match`가 **아니라** `--follow`(심볼릭 링크)다. 짧다고
 > `-L`을 쓰면 조건이 뒤집혀 정상 파일이 위반으로 잡힌다 — 2026-09-06에 실제로 CI 점검
-> 스크립트가 이 실수로 18건을 오탐했다.
+> 스크립트가 이 실수로 정상 파일을 무더기로 오탐했다. (당시 수치는 `../audits/` 참고)
 
 ## Roborazzi는 JVM 스크린샷 테스트, 스냅샷 경로는 클래스별로
 

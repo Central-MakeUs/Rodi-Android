@@ -17,7 +17,7 @@
 
 **재검증** (소문자로 시작하는 Composable 목록):
 ```bash
-rg -B1 '^fun [a-z]' -g '*.kt' . | rg -A1 '@Composable'
+rg -B1 '^\s*(private |internal |public )?fun [a-z]' -g '*.kt' . | rg -A1 '@Composable'
 ```
 
 ## ViewModel은 `<Feature>ViewModel`, 같은 이름 파일에 단독으로

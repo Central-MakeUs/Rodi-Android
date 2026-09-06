@@ -137,7 +137,7 @@ check BLOCK "TextStyle 직접 생성 금지 (테마 밖)" \
   "rg -n -g '*.kt' '\bTextStyle\(' . | grep -v '/theme/'"
 
 check BLOCK "collectAsState() 대신 collectAsStateWithLifecycle()" \
-  "rg -n -g '*.kt' 'collectAsState\(\)' ."
+  "rg -n -g '*.kt' 'collectAsState\s*\(' ."
 
 check BLOCK "runSuspendCatching은 UseCase에서만" \
   "rg -l -g '*.kt' 'runSuspendCatching' . | grep -v -E 'UseCase|RunSuspendCatching'"

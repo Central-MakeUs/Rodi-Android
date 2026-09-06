@@ -63,7 +63,11 @@ val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
 ```
 
 **왜**: Effect는 "스낵바를 띄워라", "이 화면으로 가라" 같은 **명령**이고, 소비자는 화면 하나다.
-Channel은 정확히 한 번 전달을 보장한다. `SharedFlow`(replay=0)를 쓰면 수집자가 없는 순간에
+Channel은 각 원소를 **한 소비자에게만** 전달하고, 소비자가 없는 동안 버퍼에 쌓아둔다.
+
+**보장하지 않는 것**: *정확히 한 번 실행*은 아니다. `repeatOnLifecycle` 수집이 원소를 꺼낸 뒤
+처리 전에 취소되면 그 Effect는 **유실된다.** 반드시 실행돼야 하는 것(결제 완료 기록 같은)은
+Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `SharedFlow`(replay=0)를 쓰면 수집자가 없는 순간에
 보낸 이벤트가 조용히 사라진다 — 화면 전환 직후나 회전 중에 스낵바가 안 뜨는 형태로 터진다.
 재생·다중 소비가 실제로 필요하다면 그때만 SharedFlow를 쓰고 이유를 Contract에 남긴다.
 
@@ -104,5 +108,5 @@ Composable이 `remember`로 소유한다.
 
 **재검증** (lifecycle 미인식 수집):
 ```bash
-rg -n 'collectAsState\(\)' -g '*.kt' .
+rg -n 'collectAsState\s*\(' -g '*.kt' .
 ```
