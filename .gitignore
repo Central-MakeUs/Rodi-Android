@@ -54,7 +54,9 @@ docs/handoff/queue-logs/
 docs/handoff/.pr-nudge-count
 
 # 로컬 전용 자동화 파이프라인 — 디스크엔 유지하되 원격 저장소엔 올리지 않는다.
-scripts/
+# 루트 한정(`/`)이다. 앵커가 없으면 `.github/scripts/`처럼 하위 경로의 동명 디렉터리까지
+# 무시해 CI 스크립트가 조용히 커밋에서 빠진다(2026-09-06 실제로 겪음).
+/scripts/
 docs/QUEUE.md
 .claude/relay.local.md
 

@@ -11,6 +11,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  conventions:
+    name: Convention Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ripgrep
+        run: command -v rg || sudo apt-get install -y ripgrep
+
+      - name: Check conventions
+        run: .github/scripts/check-conventions.sh
+
   build:
     name: Build & Lint
     runs-on: ubuntu-latest

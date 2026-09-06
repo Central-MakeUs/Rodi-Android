@@ -17,7 +17,9 @@
 ## Skills
 - **코드 작성·리뷰 규범: `/android-code-standard`** — 이 리포가 그 규범의 정본이다.
   PROJECT.md 컨벤션에 더해 "왜 그 규칙인지"(실제 사고 사례)와 정본 파일 경로가 정리돼 있다.
-  코드를 쓰거나 리뷰하기 전에 참조하고, Rodi에서 규범이 바뀌면 이 스킬도 함께 갱신한다.
+  **그 스킬은 프로젝트 무관 규범만 담는다.** Rodi 고유 규칙은 `docs/conventions/`에 있고,
+  충돌하면 **`docs/conventions/`가 우선**한다.
+  갱신 누락을 막는 장치는 ADR이다 → `docs/adr/TEMPLATE.md`의 "무효화하는 규범 항목" 칸.
 - 기능 개발(설계→구현→검증): `/maintainable-android-delivery`
 - 디자인 → Compose 변환: `/design-to-compose`
 - 구현 결과를 Figma·기기에서 자가 검증: `/figma-device-verify`
@@ -27,6 +29,18 @@
 - PR 생성/리뷰 코멘트 대응: `/create-pr`, `/pr-review-resolve`
 - 클릭 영역 ripple이 컴포넌트 밖으로 번지는지 점검: `/compose-ripple-clipping`
 - 멀티모듈 셋업(향후): `/android_ca_multimodule`, `/agp9_module_setup`
+
+## 지식의 정본 (섞지 말 것)
+지식 종류마다 수명과 최신화 방법이 다르다. 자세한 표는 `docs/PROJECT.md`.
+
+- **현재 구현** → 코드. 문서를 근거로 코드를 되돌리지 않는다.
+- **왜 이 구조인가** → `docs/adr/`
+- **Rodi 고유 규칙** → `docs/conventions/`
+- **자동 판정 가능한 규칙** → `.github/scripts/check-conventions.sh` (CI가 판정자)
+- **규칙과 코드의 차이** → `docs/BACKLOG.md`
+- **특정 시점 조사 수치** → `docs/audits/` — **스냅샷이지 현재값이 아니다.**
+  "지금 몇 개야?"에 이 숫자를 답하지 말고 리포에서 재측정한다. 갱신하지 않고 새 날짜로 새로 만든다.
+- **프로젝트 무관 규범** → 전역 스킬 `/android-code-standard`
 
 ## 향후
 - 멀티모듈 목표 구조: `docs/ARCHITECTURE_TARGET.md`

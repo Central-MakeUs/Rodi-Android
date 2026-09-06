@@ -18,6 +18,7 @@
   - 테스트 `./gradlew test`
   - 릴리스 `./gradlew assembleRelease`
   - 린트 `./gradlew lint`
+  - 규범 점검 `.github/scripts/check-conventions.sh` (ripgrep 필요, CI에서 병렬 job으로 실행)
 - 테스트 컨벤션: `docs/TESTING.md` 참고
 
 ## `:app`에 남은 것
@@ -27,6 +28,7 @@
 ## 모듈 맵
 | 모듈 | 역할 |
 |---|---|
+| `build-logic` | Convention Plugin(`dororong.rodi.android.{application,library,library.compose,hilt,feature}`, `dororong.rodi.jvm.library`). 모듈 공통 빌드 설정과 의존성의 출처 |
 | `:core:domain` | 도메인 모델(`Course` 등) |
 | `:core:data` | `EntryPreferences`/온보딩 동기화 상태(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`MemberApi`/`PlaceApi`/`AuthTokenStore`(인증·회원·장소 API와 세션 관리, Android Keystore AES-GCM + DataStore) |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
@@ -51,6 +53,11 @@
   Contract는 feature 루트에 하나로 유지하고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
 - **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.
   BOM·compiler·debug/runtime 전용 의존성은 bundle에서 제외한다.
+- **의존성 출처는 하나**: 같은 의존성이 두 경로로 들어오지 않게 한다(→ ADR 0001).
+  feature 모듈은 공통 설정을 `id("dororong.rodi.android.feature")` 하나로 받고, 모듈 고유
+  의존성과 그 모듈에만 필요한 플러그인(예: `feature:home`의 roborazzi)만 추가한다.
+  Compose는 `:core:ui`가 `api`로 재노출하는 것이 유일한 출처이고, androidTest용 Compose BOM은
+  `AndroidLibraryComposeConventionPlugin`이 주입한다. **모듈 `build.gradle.kts`에 다시 선언하지 말 것.**
 - **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
   widthDp = 360)` + `RodiTheme { }` 래핑으로 최소 1개(variant/상태가 여러 개면 그만큼) 작성한다.
   기존 예시는 `RodiButton.kt`/`RodiSnackbar.kt` 참고.
@@ -69,5 +76,17 @@
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.
 
-## 후속/기술부채
-→ `docs/BACKLOG.md` (Claude 메모리를 못 보는 Codex와 공유하는 채널)
+## 문서 책임 배치
+지식의 종류마다 정본이 다르다. **하나를 여러 곳에 복사하지 않는다.**
+
+| 알고 싶은 것 | 정본 |
+|---|---|
+| 현재 구현이 어떤가 | **코드**. 문서는 코드의 복사본이 아니다 |
+| 왜 이 구조인가 | `docs/adr/` |
+| Rodi 고유 규칙 | `docs/conventions/` |
+| 자동 판정 가능한 규칙의 집행 | `.github/scripts/check-conventions.sh` (CI) |
+| 규칙과 코드의 현재 차이 | `docs/BACKLOG.md` |
+| 특정 시점 조사 수치 | `docs/audits/` (스냅샷. 갱신하지 않고 새로 만든다) |
+| 프로젝트 무관 규범 | 전역 스킬 `/android-code-standard` |
+
+`docs/BACKLOG.md`는 Claude 메모리를 못 보는 Codex와 공유하는 채널이기도 하다.
