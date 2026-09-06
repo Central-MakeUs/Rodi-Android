@@ -154,10 +154,14 @@
   `HomeViewModel.openPlace()`의 `onFailure`가 `_effect.send(HomeEffect.ShowSnackbar(error.userMessage()))`를
   호출 중.
 - [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
-  API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, `OnboardingRepositoryImpl`/
-  `MemberRepositoryImpl`/`PlaceRepositoryImpl`(+`ReviewRepositoryImpl`) 각각이 401을 잡아
+  API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, Repository들이 각각 401을 잡아
   `authRepository.reissueToken()`을 호출하는 `authenticatedRequest` 헬퍼를 **거의 동일하게 복사**해
   들고 있다. 남은 문제는 **중복뿐**이다.
+  **2026-09-06 실측: 6개로 늘었다** — `Place`/`RecentSearch`/`Member`/`CourseRegistration`/
+  `Practice`/`Review` 의 각 `RepositoryImpl` (`Onboarding`은 빠짐). 인자 형태도 갈렸다 — 헬퍼가 완성된
+  `"Bearer $token"`을 넘기는 쪽 4개, raw token을 넘기고 호출부에서 Bearer를 조합하는 쪽 2개.
+  중앙화 전까지 **새 Repository에 이 헬퍼를 또 복사하지 말 것.**
+  재검증: `rg -l 'authenticatedRequest' --glob '**/*.kt' --glob '!**/build/**'`
   **refreshToken 재사용으로 전 세션이 폐기되는(`AUTH_401_4`) 레이스는 이미 막혀 있다** — 2026-08-08
   확인: `AuthRepositoryImpl`이 `@Singleton`이고 `reissueToken()`이 인스턴스 `refreshMutex`로 감싼 뒤
   "요청 시점 refreshToken ≠ 현재 저장된 refreshToken이면 재발급하지 않고 return"하는 single-flight
@@ -215,6 +219,96 @@
   `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
   참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
   구독해 정적 필드에 반영)를 검토할 것.
+
+## 코드 관용구 정합성 (2026-09-06 전수 조사)
+
+> `app`/`core`/`feature` 전 소스에서 관용구를 추출하다 나온 **Rodi 내부 불일치**만 모은다.
+> 규범 자체("어떻게 쓰는 게 맞는가")는 `/android-code-standard` 스킬이 정본이고, 여기엔
+> "Rodi가 그 규범과 어긋난 지점"만 남긴다 — 규범과 할 일을 한 문서에 섞지 않는다.
+>
+> **수치는 전부 `91799c57` 기준 실측이며 재검증 명령을 함께 적는다.** 시간이 지나면 수치를
+> 믿지 말고 명령을 다시 돌릴 것. (조사 원본의 수치 4건이 이미 실측과 달랐다.)
+
+### MVI 계약이 화면마다 갈린다
+- [ ] **상태 property가 `state`/`uiState`로 양분** — `_state` 8개, `_uiState` 9개. 상태 타입이
+  전부 `*UiState`이므로 `_uiState`/`uiState`로 통일한다.
+  재검증: `rg -l 'private val _state\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+- [ ] **Effect 전달·소비 방식 불일치** — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
+  `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
+  직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
+  `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
+  Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
+  그 이유를 Contract에 주석으로 남길 것.
+  재검증: `rg -l 'MutableSharedFlow' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+- [ ] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** — `HomeContract`/`SearchViewModel`은
+  `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
+  이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
+  않는 이점도 있다.
+- [ ] **Contract 선언 위치가 컨벤션과 절반만 맞다** — 루트 `*Contract.kt` 8개 대 UiState를
+  ViewModel 파일에 내장한 것 9개(`SavedCourses`/`MyPage`/`PracticeRecords`/`DrivingGoal`/
+  `AccountSettings`/`BlockedMembers`/`Search`/`RodiApp`/`ReviewActions`). PROJECT.md는 "Contract는
+  feature 루트에 하나"인데 지켜지지 않는다. **컨벤션대로 옮기거나, 하위 화면별 Contract를
+  허용하도록 컨벤션을 고치거나 — 둘 중 하나로 먼저 정할 것.** 지금은 근거 없이 갈려 있다.
+  재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+
+### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
+- [ ] **ViewModel이 다른 파일에 내장된 2건** — `CourseRegistrationEntryViewModel`이
+  `app/.../ui/CourseRegistrationEntryCoordinator.kt`에, `PracticeSkipReasonViewModel`이
+  `feature/home/.../review/notvisited/PracticeSkipReasonScreen.kt`에 있다. 나머지는 전부
+  선언명과 파일명이 같다. 별도 파일로 추출하거나, 앞의 것처럼 "app 레벨 coordinator가
+  ViewModel을 소유한다"는 예외를 유지하려면 그 이유를 `ARCHITECTURE_TARGET.md`에 명시한다.
+- [ ] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** — `SearchViewModel`/`SearchUiState`는
+  `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
+  내린다.
+- [ ] **`component`(단수) 패키지 1개** — `feature/entry/.../entry/component`만 단수고 나머지
+  8개는 `components`. `components`로 통일.
+- [ ] **`HomeSheetAnchorsTest.kt` 한 파일에 클래스 2개** — `ListSheetAnchorPolicyTest`와
+  `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.
+
+### 에러 처리 경계
+- [ ] **사용자 메시지 변환 경계가 통일되지 않음** — 공통 `Throwable.userMessage()`를 쓰는
+  ViewModel은 3개(`Home`/`Search`/`CourseReview`)뿐이고, 9개가 `error.message`를 화면에 그대로
+  쓴다(`RegisteredCourses`/`MyPosts`/`SavedCourses`/`CourseRegistration`/`Login`/`BlockedMembers`/
+  `AccountSettings`/`ReviewWrite`/`ReviewActions`). `UserMessageProvider`를 구현한 예외도 4개
+  (`Place`/`Review`/`Practice`/`Auth`)뿐이라 `CourseRegistrationException`은 빠져 있다.
+  **서버 JSON·개발자용 예외 원문이 사용자에게 노출되는 경로다** — 2026-09-01에 후기 쪽 한 건을
+  이미 같은 이유로 고쳤다. 승인된 도메인 예외가 `UserMessageProvider`를 구현하고 모든 ViewModel이
+  공통 `userMessage()`만 호출하도록 통일한다.
+  재검증: `rg -l '\.message\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+- [ ] **DTO enum의 알 수 없는 값 처리가 3방식으로 갈림** — 필수 값 명시적 실패(3개 파일),
+  임의 정상값으로 대체(2개), 선택 값 null/drop(5개). `MemberMapper`가 알 수 없는 레벨을
+  `OnboardingLevel.SEED`로, `PracticeMapper`가 `PLANNED`로 바꾸는 두 건이 특히 위험하다 —
+  **파싱은 성공하는데 값이 조용히 틀린다.** PROJECT.md의 "기본값만 채워 덮지 말 것" 규칙과
+  정면으로 어긋나므로 우선 수정 대상. 필수·제어 값은 도메인 예외로 실패시키고 화면에서 생략
+  가능한 선택 값만 null/drop한다.
+
+### Gradle 설정이 Convention Plugin 밖에 남은 지점
+- [ ] **`app`이 `AndroidApplicationConventionPlugin`을 쓰지 않는다** — `build-logic`에 등록은
+  돼 있는데 `app/build.gradle.kts`는 `dororong.rodi.android.hilt`만 쓰고 compileSdk/minSdk/
+  Java 21/Compose/Compose BOM·activity-compose를 직접 반복 선언한다. PR #117이 feature 6개를
+  정리했지만 app은 그대로다.
+- [ ] **`core:data`만 `useJUnitPlatform()`을 직접 선언** — `AndroidLibraryComposeConventionPlugin`엔
+  들어 있는데 `AndroidLibraryConventionPlugin`엔 없어서 Compose를 안 쓰는 모듈이 각자 선언해야
+  한다. library convention이 JVM 단위 테스트 엔진을 책임지도록 옮긴다.
+  재검증: `rg -ln 'useJUnitPlatform' --glob '**/build.gradle.kts' --glob '!**/build/**'`
+
+### 문서와 코드가 어긋난 곳
+- [ ] **`docs/TESTING.md`의 JUnit4 예외 서술이 사실과 다르다** — 문서는 "JUnit4 예외는
+  `*RoborazziTest.kt`에만 적용하고 나머지는 JUnit5"라고 하는데, 실제로는 `app`의 JVM 테스트
+  4개(`MainScreenNavigationTest`, `CourseRegistrationEntryCoordinatorTest`, `RodiAppViewModelTest`,
+  `RodiAppRouteTest`)가 `org.junit.Test`를 쓴다. 문서를 실제에 맞게 고치고(계측·Roborazzi는
+  JUnit4, 일반 JVM은 JUnit5) `app`의 낡은 JUnit4 테스트는 JUnit5로 이전한다. "파일 위치"
+  절의 모듈 목록에도 실제 테스트가 있는 `app`/`core:ui`/`feature:auth`/`feature:course-registration`/
+  `feature:mypage`/`feature:settings`가 빠져 있다.
+  재검증: `rg -l 'org\.junit\.Test' --glob '**/src/test/**/*.kt' --glob '!**/build/**'`
+
+### 죽은 코드
+- [ ] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용** — PR #16에서 공통 뼈대로 넣었지만
+  정의 파일(`core/data/.../source/remote/network/`) 밖에서의 참조가 **0건**이다. 실제 Repository는
+  `ApiEnvelope` + 도메인별 예외를 쓴다. 제거하거나 실제 도입 여부를 정한다 — 새 프로젝트의
+  표준으로 옮기지 말 것. (같은 성격의 `CourseRepository`/`SampleCourses` 죽은 코드 항목이
+  위 "열린 항목"에 따로 있다.)
+  재검증: `rg -l 'safeApiCall|NetworkResult|DataError' --glob '**/*.kt' --glob '!**/build/**' | rg -v 'source/remote/network/'`
 
 ## 마이페이지 개편 후속
 - [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
