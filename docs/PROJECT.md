@@ -27,6 +27,7 @@
 ## 모듈 맵
 | 모듈 | 역할 |
 |---|---|
+| `build-logic` | Convention Plugin(`dororong.rodi.android.{application,library,library.compose,hilt,feature}`, `dororong.rodi.jvm.library`). 모듈 공통 빌드 설정과 의존성의 출처 |
 | `:core:domain` | 도메인 모델(`Course` 등) |
 | `:core:data` | `EntryPreferences`/온보딩 동기화 상태(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`MemberApi`/`PlaceApi`/`AuthTokenStore`(인증·회원·장소 API와 세션 관리, Android Keystore AES-GCM + DataStore) |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
@@ -51,6 +52,10 @@
   Contract는 feature 루트에 하나로 유지하고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
 - **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.
   BOM·compiler·debug/runtime 전용 의존성은 bundle에서 제외한다.
+- **의존성 출처는 하나**: 같은 의존성이 두 경로로 들어오지 않게 한다(→ ADR 0001).
+  feature 모듈은 `id("dororong.rodi.android.feature")` 하나만 선언하고 모듈 고유 의존성만 추가한다.
+  Compose는 `:core:ui`가 `api`로 재노출하는 것이 유일한 출처이고, androidTest용 Compose BOM은
+  `AndroidLibraryComposeConventionPlugin`이 주입한다. **모듈 `build.gradle.kts`에 다시 선언하지 말 것.**
 - **`core:ui` 컴포넌트 Preview 필수**: `core:ui`에 새 컴포저블을 추가하면 `@Preview(showBackground = true,
   widthDp = 360)` + `RodiTheme { }` 래핑으로 최소 1개(variant/상태가 여러 개면 그만큼) 작성한다.
   기존 예시는 `RodiButton.kt`/`RodiSnackbar.kt` 참고.
