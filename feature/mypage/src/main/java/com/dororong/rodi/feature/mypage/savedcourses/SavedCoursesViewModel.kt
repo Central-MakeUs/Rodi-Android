@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.savedcourses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.usecase.place.GetSavedPlacesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,7 +54,7 @@ class SavedCoursesViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = SavedCoursesUiState(
                         isLoading = false,
-                        initialError = error.message ?: "저장목록을 불러오지 못했어요.",
+                        initialError = error.userMessage("저장목록을 불러오지 못했어요."),
                     )
                 }
         }
@@ -80,7 +81,7 @@ class SavedCoursesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isNextPageLoading = false,
-                            nextPageError = error.message ?: "다음 장소를 불러오지 못했어요.",
+                            nextPageError = error.userMessage("다음 장소를 불러오지 못했어요."),
                         )
                     }
                 }

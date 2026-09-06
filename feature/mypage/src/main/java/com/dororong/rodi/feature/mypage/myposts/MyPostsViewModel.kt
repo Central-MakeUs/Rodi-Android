@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.myposts
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.usecase.member.GetMyReviewsUseCase
@@ -46,7 +47,7 @@ class MyPostsViewModel @Inject constructor(
                 if (loadedPage == null) {
                     _uiState.value = MyPostsUiState(
                         isLoading = false,
-                        errorMessage = result.exceptionOrNull()?.message ?: "후기를 불러오지 못했어요.",
+                        errorMessage = result.exceptionOrNull().userMessage("후기를 불러오지 못했어요."),
                     )
                     return@launch
                 }
@@ -105,7 +106,7 @@ class MyPostsViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isLoadingMore = false,
-                            errorMessage = error.message ?: "다음 후기를 불러오지 못했어요.",
+                            errorMessage = error.userMessage("다음 후기를 불러오지 못했어요."),
                         )
                     }
                 }
@@ -136,7 +137,7 @@ class MyPostsViewModel @Inject constructor(
                 }
             } else {
                 _uiState.update {
-                    it.copy(errorMessage = deleteResult.exceptionOrNull()?.message ?: "후기를 삭제하지 못했어요.")
+                    it.copy(errorMessage = deleteResult.exceptionOrNull().userMessage("후기를 삭제하지 못했어요."))
                 }
             }
         }

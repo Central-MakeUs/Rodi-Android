@@ -80,7 +80,7 @@ class PracticeRecordsViewModelTest {
         coEvery { getPracticeRecords(null, 20) } returns Result.failure(IllegalStateException("처음 오류"))
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
         advanceUntilIdle()
-        assertEquals("처음 오류", viewModel.uiState.value.initialError)
+        assertEquals("연습기록을 불러오지 못했어요.", viewModel.uiState.value.initialError)
     }
 
     @Test

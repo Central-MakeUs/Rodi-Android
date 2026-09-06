@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.home.detail.reviewactions
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
@@ -70,7 +71,7 @@ class ReviewActionsViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isReportFormLoading = false,
-                            reportErrorMessage = error.message,
+                            reportErrorMessage = error.userMessage("신고 사유를 불러오지 못했어요."),
                         )
                     }
                 }
@@ -122,7 +123,7 @@ class ReviewActionsViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         isReportSubmitting = false,
-                        reportErrorMessage = error.message,
+                        reportErrorMessage = error.userMessage("신고하지 못했어요."),
                     )
                 }
             }
@@ -142,7 +143,7 @@ class ReviewActionsViewModel @Inject constructor(
                     _state.update {
                         it.copy(
                             isBlocking = false,
-                            blockErrorMessage = error.message,
+                            blockErrorMessage = error.userMessage("차단하지 못했어요."),
                         )
                     }
                 }
@@ -179,7 +180,7 @@ class ReviewActionsViewModel @Inject constructor(
             deleteReviewUseCase(reviewId).onSuccess {
                 _state.update { it.copy(isDeleting = false, deletedReviewId = reviewId) }
             }.onFailure { error ->
-                _state.update { it.copy(isDeleting = false, deleteErrorMessage = error.message) }
+                _state.update { it.copy(isDeleting = false, deleteErrorMessage = error.userMessage("후기를 삭제하지 못했어요.")) }
             }
         }
     }

@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.settings.account
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.usecase.auth.LogoutUseCase
 import com.dororong.rodi.core.domain.usecase.member.WithdrawUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,7 +54,7 @@ class AccountSettingsViewModel @Inject constructor(
                 onFailure = { error ->
                     effectChannel.send(
                         AccountSettingsEffect.ShowError(
-                            error.message ?: "요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
+                            error.userMessage("요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."),
                         ),
                     )
                 },

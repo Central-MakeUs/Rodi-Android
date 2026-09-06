@@ -52,6 +52,19 @@ class SavedCoursesViewModelTest {
         assertFalse(viewModel.uiState.value.hasNext)
     }
 
+    @Test
+    fun `unapproved initial failure hides the exception detail`() = runTest(dispatcher) {
+        val detail = "Field 'totalCount' is required for type with serial name 'SavedPlacesResponse'"
+        val getSaved = mockk<GetSavedPlacesUseCase>()
+        coEvery { getSaved(null, 20) } returns Result.failure(IllegalStateException(detail))
+
+        val viewModel = SavedCoursesViewModel(getSaved)
+        advanceUntilIdle()
+
+        assertEquals("저장목록을 불러오지 못했어요.", viewModel.uiState.value.initialError)
+        assertFalse(viewModel.uiState.value.initialError.orEmpty().contains(detail))
+    }
+
     private fun place(id: Long, type: PlaceType) = PlaceSummary(
         id = id,
         type = type,

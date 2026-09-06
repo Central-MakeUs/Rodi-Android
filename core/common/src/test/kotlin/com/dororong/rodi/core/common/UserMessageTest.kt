@@ -19,6 +19,20 @@ class UserMessageTest {
     }
 
     @Test
+    fun `uses the caller fallback for an unapproved throwable`() {
+        assertEquals(
+            "저장목록을 불러오지 못했어요.",
+            IllegalStateException("JSON field 'totalCount' is missing")
+                .userMessage("저장목록을 불러오지 못했어요."),
+        )
+    }
+
+    @Test
+    fun `uses the caller fallback for a null throwable`() {
+        assertEquals("저장목록을 불러오지 못했어요.", null.userMessage("저장목록을 불러오지 못했어요."))
+    }
+
+    @Test
     fun `falls back when an approved message is blank`() {
         assertEquals(
             "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",

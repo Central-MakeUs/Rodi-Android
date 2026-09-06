@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.course.registration
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.model.course.CourseDraft
 import com.dororong.rodi.core.domain.model.course.CourseLocationSuggestion
@@ -165,7 +166,7 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: Throwable) {
                 _state.update { it.copy(isAuthResolved = true, tutorialLoadState = CourseTutorialLoadState.Error) }
                 _effect.tryEmit(
-                    CourseRegistrationEffect.ShowSnackbar(error.message ?: "등록 화면을 불러오지 못했어요."),
+                    CourseRegistrationEffect.ShowSnackbar(error.userMessage("등록 화면을 불러오지 못했어요.")),
                 )
             }
         }
@@ -583,7 +584,7 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "위치 정보를 확인하지 못했어요."))
+                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("위치 정보를 확인하지 못했어요.")))
             } finally {
                 _state.update { it.copy(isMapPointLoading = false) }
             }
@@ -733,7 +734,7 @@ class CourseRegistrationViewModel @Inject constructor(
         } catch (error: Throwable) {
             if (generation != searchGeneration) return
             _state.update {
-                it.copy(isSearchLoading = false, searchError = error.message ?: "검색에 실패했어요.")
+                it.copy(isSearchLoading = false, searchError = error.userMessage("검색에 실패했어요."))
             }
             _effect.emit(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
         }
@@ -889,7 +890,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         formLoadState = CourseRegistrationFormLoadState.Error,
-                        submissionError = error.message ?: "등록 양식을 불러오지 못했어요.",
+                        submissionError = error.userMessage("등록 양식을 불러오지 못했어요."),
                     )
                 }
             }
@@ -938,7 +939,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 _state.update {
-                    it.copy(isSubmitting = false, submissionError = error.message ?: "코스 등록에 실패했어요.")
+                    it.copy(isSubmitting = false, submissionError = error.userMessage("코스 등록에 실패했어요."))
                 }
                 _effect.emit(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
             }
@@ -1014,7 +1015,7 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: Throwable) {
                 if (generation != routeGeneration) return@launch
                 _state.update { it.copy(isRouteLoading = false) }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.message ?: "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
+                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.")))
             }
         }
     }

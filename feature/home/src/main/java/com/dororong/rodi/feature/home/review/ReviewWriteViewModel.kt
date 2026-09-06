@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @HiltViewModel
@@ -57,41 +56,31 @@ class ReviewWriteViewModel @Inject constructor(
             isInitializing = true,
         )
         viewModelScope.launch {
-            try {
-                getReview(reviewId)
-                    .onSuccess { review ->
-                        val initial = review.toInitialValues()
-                        _state.update {
-                            it.copy(
-                                original = initial,
-                                isRecommended = initial.isRecommended,
-                                difficulty = initial.difficulty,
-                                congestion = initial.congestion,
-                                caution = initial.caution.orEmpty(),
-                                practiceMethod = initial.practiceMethod,
-                                content = initial.content.orEmpty(),
-                                isInitializing = false,
-                                initializationErrorMessage = null,
-                            )
-                        }
+            getReview(reviewId)
+                .onSuccess { review ->
+                    val initial = review.toInitialValues()
+                    _state.update {
+                        it.copy(
+                            original = initial,
+                            isRecommended = initial.isRecommended,
+                            difficulty = initial.difficulty,
+                            congestion = initial.congestion,
+                            caution = initial.caution.orEmpty(),
+                            practiceMethod = initial.practiceMethod,
+                            content = initial.content.orEmpty(),
+                            isInitializing = false,
+                            initializationErrorMessage = null,
+                        )
                     }
-                    .onFailure { error ->
-                        _state.update {
-                            it.copy(
-                                isInitializing = false,
-                                initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
-                            )
-                        }
-                    }
-            } catch (error: CancellationException) {
-                _state.update {
-                    it.copy(
-                        isInitializing = false,
-                        initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요.",
-                    )
                 }
-                throw error
-            }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isInitializing = false,
+                            initializationErrorMessage = error.userMessage("수정할 후기를 불러오지 못했어요."),
+                        )
+                    }
+                }
         }
     }
 

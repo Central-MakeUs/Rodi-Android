@@ -2,7 +2,7 @@ package com.dororong.rodi.feature.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.usecase.auth.GrantGuestAccessUseCase
@@ -50,8 +50,7 @@ class LoginViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    val message = (error as? AuthException)?.message
-                        ?: "로그인에 실패했습니다. 잠시 후 다시 시도해주세요."
+                    val message = error.userMessage("로그인에 실패했습니다. 잠시 후 다시 시도해주세요.")
                     _effect.send(LoginEffect.ShowSnackbar(message))
                     _uiState.update { LoginUiState.Idle }
                 }
@@ -75,7 +74,7 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     _uiState.update { LoginUiState.RecoveryRequired() }
-                    _effect.send(LoginEffect.ShowSnackbar(error.message ?: "계정 복구에 실패했습니다."))
+                    _effect.send(LoginEffect.ShowSnackbar(error.userMessage("계정 복구에 실패했습니다.")))
                 }
         }
     }

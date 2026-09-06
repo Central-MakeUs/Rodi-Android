@@ -66,10 +66,25 @@ val c = vm.state.collectAsState()
 val d = TextStyle(fontSize = 1.sp)
 val e = Color(0xFF123456)
 class FixtureMapper
+val errorMessage = error.message
+
+try {
+  Unit
+} catch (error: CancellationException) {
+  val ignored = true
+}
 FIXTURE
   cat > "$d/Lookalike.kt" <<'FIXTURE'
 val ok1 = NotificationCompat.BigTextStyle().bigText(msg)
 val ok2 = vm.state.collectAsStateWithLifecycle()
+val ok3 = error.userMessage("fallback")
+val ok4 = intent.message
+
+try {
+  Unit
+} catch (error: CancellationException) {
+  throw error
+}
 FIXTURE
 
   # 위반 fixture에서 반드시 잡혀야 하는 패턴
@@ -81,6 +96,36 @@ FIXTURE
   for pat in '\bTextStyle\(' 'collectAsState\(\)'; do
     rg -q "$pat" "$d/Lookalike.kt" 2>/dev/null && { echo "  오탐: $pat"; rc=1; }
   done
+
+  rg -n '\.message\b' "$d/Violation.kt" 2>/dev/null \
+    | grep -v 'intent\.message' >/dev/null 2>&1 \
+    || { echo '  탐지 실패: ViewModel 예외 message 원문 노출'; rc=1; }
+  if rg -n '\.message\b' "$d/Lookalike.kt" 2>/dev/null \
+    | grep -v 'intent\.message' >/dev/null 2>&1; then
+    echo '  오탐: ViewModel 예외 message 원문 노출'
+    rc=1
+  fi
+
+  local violation_catch_line lookalike_catch_line
+  violation_catch_line="$(rg -n 'catch \([^)]*CancellationException\)' "$d/Violation.kt" 2>/dev/null | head -1 | cut -d: -f1)"
+  if [ -z "$violation_catch_line" ]; then
+    echo '  탐지 실패: 취소 재전파가 catch 첫 문장이 아님'
+    rc=1
+  else
+    case "$(sed -n "$((violation_catch_line + 1))p" "$d/Violation.kt")" in
+      *throw*) echo '  탐지 실패: 취소 재전파가 catch 첫 문장이 아님'; rc=1;;
+    esac
+  fi
+  lookalike_catch_line="$(rg -n 'catch \([^)]*CancellationException\)' "$d/Lookalike.kt" 2>/dev/null | head -1 | cut -d: -f1)"
+  if [ -z "$lookalike_catch_line" ]; then
+    echo '  탐지 실패: 취소 재전파 lookalike'
+    rc=1
+  else
+    case "$(sed -n "$((lookalike_catch_line + 1))p" "$d/Lookalike.kt")" in
+      *throw*) ;;
+      *) echo '  오탐: 취소 재전파 lookalike'; rc=1;;
+    esac
+  fi
 
   rm -rf "$d"
   if [ "$rc" -ne 0 ]; then
@@ -152,6 +197,16 @@ check BLOCK "Dispatchers.setMain 후 resetMain 누락" \
 check BLOCK "core/feature 모듈에서 Compose BOM 재선언" \
   "rg -n -g 'build.gradle.kts' '(implementation|androidTestImplementation)\(platform\(libs\.androidx\.compose\.bom\)\)' core feature"
 
+check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
+  "rg -n -g '*.kt' 'catch \([^)]*CancellationException\)' . \
+   | grep -v -E '/src/(test|androidTest)/' \
+   | while IFS=: read -r f n _; do \
+       case \"\$(sed -n \"\$((n+1))p\" \"\$f\")\" in *throw*) ;; *) echo \"\$f:\$n\";; esac \
+     done"
+
+check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
+  "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | grep -v 'intent\\.message'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -163,14 +218,6 @@ check WARN "ViewModel 선언명 ≠ 파일명" \
    | grep -v -E '/src/(test|androidTest)/' \
    | while IFS=: read -r f _ vm; do [ \"\$(basename \"\$f\" .kt)\" != \"\$vm\" ] && echo \"\$vm ← \$f\"; done"
 
-# 취소 재전파가 catch의 첫 문장이 아닌 곳. PCRE2 없이 다음 줄을 직접 본다.
-check WARN "취소 재전파가 catch 첫 문장이 아님" \
-  "rg -n -g '*.kt' 'catch \([^)]*CancellationException\)' . \
-   | grep -v -E '/src/(test|androidTest)/' \
-   | while IFS=: read -r f n _; do \
-       case \"\$(sed -n \"\$((n+1))p\" \"\$f\")\" in *throw*) ;; *) echo \"\$f:\$n\";; esac; \
-     done"
-
 check WARN "Effect를 SharedFlow로 전달" \
   "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
 
@@ -179,9 +226,6 @@ check WARN "component(단수) 패키지" \
 
 check WARN "app이 Compose BOM 직접 선언" \
   "rg -n -g 'build.gradle.kts' 'platform\(libs\.androidx\.compose\.bom\)' app"
-
-check WARN "예외 원문(error.message)을 화면에 그대로 노출" \
-  "rg -l -g '*ViewModel.kt' '(error|throwable|exception|e|it)\.message\b' . | grep -v '/src/test/'"
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="
