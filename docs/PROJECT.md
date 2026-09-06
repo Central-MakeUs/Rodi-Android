@@ -18,6 +18,7 @@
   - 테스트 `./gradlew test`
   - 릴리스 `./gradlew assembleRelease`
   - 린트 `./gradlew lint`
+  - 규범 점검 `.github/scripts/check-conventions.sh` (ripgrep 필요, CI에서 병렬 job으로 실행)
 - 테스트 컨벤션: `docs/TESTING.md` 참고
 
 ## `:app`에 남은 것
