@@ -30,6 +30,10 @@ gradlePlugin {
             id = "dororong.rodi.android.hilt"
             implementationClass = "AndroidHiltConventionPlugin"
         }
+        register("androidFeature") {
+            id = "dororong.rodi.android.feature"
+            implementationClass = "AndroidFeatureConventionPlugin"
+        }
         register("jvmLibrary") {
             id = "dororong.rodi.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"

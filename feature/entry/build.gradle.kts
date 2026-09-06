@@ -1,6 +1,5 @@
 plugins {
-    id("dororong.rodi.android.library.compose")
-    id("dororong.rodi.android.hilt")
+    id("dororong.rodi.android.feature")
 }
 
 android {
@@ -10,20 +9,11 @@ android {
 dependencies {
     implementation(project(":core:common"))
     api(project(":core:domain"))
-    implementation(project(":core:ui"))
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.bundles.compose)
     implementation(libs.bundles.coil)
-    implementation(libs.bundles.hilt.compose)
-    implementation(libs.bundles.lifecycle.compose)
     implementation(libs.timber)
-    ksp(libs.hilt.compiler)
-    debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.bundles.unit.test)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.bundles.flow.test)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
