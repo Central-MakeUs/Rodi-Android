@@ -52,7 +52,8 @@
 | 취소 재전파가 catch 첫 문장이 아님 | 1 (`ReviewWriteViewModel`) | `conventions/error-handling.md` #2 |
 | `authenticatedRequest` 헬퍼 중복 | 6 RepositoryImpl | `rg -l 'authenticatedRequest' -g '*.kt' .` |
 | 공통 `userMessage()` 호출 ViewModel | 3 | `rg -l '\.userMessage\(\)' -g '*ViewModel.kt' .` |
-| `error.message` 직접 노출 ViewModel | 9 파일 | `conventions/error-handling.md` #3 |
+| 예외 원문(`.message`)을 쓰는 ViewModel | 12 파일 | `rg -l -g '*ViewModel.kt' '\.message\b' . \| grep -v '/src/test/'` |
+| 그중 `error`/`it`/`e`/`throwable`의 `.message` | 9 파일 | 같은 명령에 `'(error\|it\|e\|throwable)\.message\b'` |
 | `UserMessageProvider` 구현 예외 | 4 (`Place`/`Review`/`Practice`/`Auth`) | `rg -l 'UserMessageProvider' -g '*.kt' .` |
 
 ### 테마·Compose

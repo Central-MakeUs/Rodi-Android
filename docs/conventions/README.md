@@ -47,6 +47,7 @@
 
 | 파일 | 다루는 것 |
 |---|---|
+| `structure.md` | 소스 루트, 패키지 임계, Contract 배치, namespace |
 | `naming.md` | Composable·ViewModel·UseCase·Repository·콜백·Boolean·컬렉션 이름 |
 | `mvi.md` | UiState/Intent/Effect 형태, Contract 순서, 상태 노출, Effect 전달·소비 |
 | `error-handling.md` | `runSuspendCatching`, 취소 재전파, API 경계, 사용자 메시지 변환 |

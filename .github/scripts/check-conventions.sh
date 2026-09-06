@@ -3,9 +3,15 @@
 # **기계로 판정 가능한 것만** 본다. 리뷰를 대체하지 않는다.
 #
 # 두 등급:
-#   BLOCK — 현재 위반 0건인 규칙. 새 위반이 들어오면 CI를 실패시킨다.
-#   WARN  — 이미 부채가 있는 규칙. 건수만 보고하고 실패시키지 않는다.
-#           부채를 갚으면 BLOCK으로 승격한다(docs/BACKLOG.md "코드 관용구 정합성").
+#   BLOCK — 명확한 invariant. false positive가 낮고 예외가 거의 없으며 현재 위반 0건.
+#           새 위반이 들어오면 CI를 실패시킨다.
+#   WARN  — 옳은 방향이지만 기존 부채가 있는 규칙. 건수만 보고하고 실패시키지 않는다.
+#           부채를 다 갚으면 BLOCK으로 승격한다(docs/BACKLOG.md "코드 관용구 정합성").
+#   INFO  — heuristic·구조적 관찰. 강제할 근거는 없지만 리뷰 때 볼 가치가 있다.
+#           실패시키지 않고, 승격을 전제하지도 않는다.
+#
+# 규범의 *이유*와 *예외 정책*은 여기 있지 않다 — docs/conventions/ 와 docs/adr/ 에 있다.
+# 이 스크립트는 판정자일 뿐이다.
 #
 # 작성 규칙 — 과거에 전부 한 번씩 당한 것들이라 지킬 것:
 #   * 글롭은 `-g '*.kt'`처럼 **베이스네임**만 쓴다. `-g '**/src/test/**/*.kt'` 같은 경로 글롭은
@@ -23,6 +29,14 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."
 
 command -v rg >/dev/null || { echo "ripgrep(rg)이 필요합니다."; exit 2; }
+
+# 검증된 버전: 14.1.0(CI) / 15.2.0(로컬). 13 미만은 글롭 동작이 달라 결과를 신뢰할 수 없다.
+RG_MAJOR=$(rg --version | head -1 | sed -E 's/[^0-9]*([0-9]+).*/\1/')
+if [ "${RG_MAJOR:-0}" -lt 13 ]; then
+  echo "ripgrep ${RG_MAJOR}.x는 지원하지 않습니다 (최소 13, 검증된 버전 14/15)."
+  echo "글롭 동작이 달라 검사 결과를 신뢰할 수 없습니다. 중단합니다."
+  exit 2
+fi
 echo "$(rg --version | head -1)  |  $(rg --files -g '*.kt' . | wc -l | tr -d ' ') kt files"
 echo
 
@@ -39,6 +53,44 @@ sanity() {
 }
 sanity
 
+# regex가 민감한 BLOCK 규칙이 "알려진 위반"을 실제로 잡는지 확인한다.
+# 0건이 성공을 뜻하는 검사에서, 검증기가 고장 나면 전부 통과로 보인다.
+# fixture는 임시 디렉터리에 만든다 — 리포에 두면 본 검사가 그걸 위반으로 잡는다.
+positive_control() {
+  local d rc=0
+  d=$(mktemp -d) || { echo "임시 디렉터리를 만들지 못했습니다."; exit 2; }
+  cat > "$d/Violation.kt" <<'FIXTURE'
+val a = Icons.Default.Add
+val b = MaterialTheme.colorScheme.primary
+val c = vm.state.collectAsState()
+val d = TextStyle(fontSize = 1.sp)
+val e = Color(0xFF123456)
+class FixtureMapper
+FIXTURE
+  cat > "$d/Lookalike.kt" <<'FIXTURE'
+val ok1 = NotificationCompat.BigTextStyle().bigText(msg)
+val ok2 = vm.state.collectAsStateWithLifecycle()
+FIXTURE
+
+  # 위반 fixture에서 반드시 잡혀야 하는 패턴
+  for pat in 'Icons\.' 'MaterialTheme\.colorScheme' 'collectAsState\(\)' '\bTextStyle\(' \
+             'Color\(0xFF' '(class|object) \w+Mapper'; do
+    rg -q "$pat" "$d/Violation.kt" 2>/dev/null || { echo "  탐지 실패: $pat"; rc=1; }
+  done
+  # 유사어 fixture에서 잡히면 안 되는 패턴
+  for pat in '\bTextStyle\(' 'collectAsState\(\)'; do
+    rg -q "$pat" "$d/Lookalike.kt" 2>/dev/null && { echo "  오탐: $pat"; rc=1; }
+  done
+
+  rm -rf "$d"
+  if [ "$rc" -ne 0 ]; then
+    echo "검증기 자체가 고장났습니다 — 알려진 위반을 못 잡거나 정상 코드를 잡습니다."
+    echo "이 상태의 '통과'는 의미가 없으므로 중단합니다."
+    exit 2
+  fi
+}
+positive_control
+
 block_fail=0
 warn_total=0
 
@@ -53,9 +105,11 @@ check() {
     printf '  \033[31m✗ %s — %s건\033[0m\n' "$name" "$count"
     printf '%s\n' "$out" | head -20 | sed 's/^/      /'
     block_fail=1
-  else
+  elif [ "$grade" = WARN ]; then
     printf '  \033[33m! %s — %s건 (기존 부채)\033[0m\n' "$name" "$count"
     warn_total=$((warn_total + count))
+  else
+    printf '  \033[36mi %s — %s건\033[0m\n' "$name" "$count"
   fi
 }
 
@@ -113,6 +167,25 @@ check WARN "component(단수) 패키지" \
 
 check WARN "app이 Compose BOM 직접 선언" \
   "rg -n -g 'build.gradle.kts' 'platform\(libs\.androidx\.compose\.bom\)' app"
+
+check WARN "예외 원문(error.message)을 화면에 그대로 노출" \
+  "rg -l -g '*ViewModel.kt' '\.message\b' . | grep -v '/src/test/'"
+
+echo
+echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="
+
+# 컨벤션을 어느 쪽으로 정할지 아직 미결이라 규칙으로 강제하지 않는다 → docs/conventions/structure.md
+check INFO "Contract를 ViewModel 파일에 내장한 화면" \
+  "rg -l -g '*ViewModel.kt' 'data class \w+UiState' ."
+
+check INFO "상태 프로퍼티를 _state로 쓰는 ViewModel (_uiState로 통일 예정)" \
+  "rg -l -g '*ViewModel.kt' 'private val _state\b' ."
+
+check INFO "authenticatedRequest 헬퍼를 자체 보유한 Repository" \
+  "rg -l -g '*.kt' 'authenticatedRequest' . | grep -v '/src/test/'"
+
+check INFO "JUnit4를 쓰는 JVM 테스트 (Roborazzi는 정상)" \
+  "rg -l -g '*.kt' 'org\.junit\.Test' . | grep '/src/test/'"
 
 echo
 if [ "$block_fail" -ne 0 ]; then
