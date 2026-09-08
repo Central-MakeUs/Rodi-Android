@@ -50,7 +50,7 @@ class BlockedMembersViewModelTest {
         viewModel.unblock(member)
         advanceUntilIdle()
         assertEquals(listOf(member), viewModel.uiState.value.members)
-        assertEquals("실패", viewModel.uiState.value.errorMessage)
+        assertEquals("차단을 해제하지 못했어요.", viewModel.uiState.value.errorMessage)
     }
 
     @Test

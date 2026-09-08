@@ -1,7 +1,11 @@
 package com.dororong.rodi.core.domain.model.course
 
-sealed class CourseRegistrationException(message: String, cause: Throwable? = null) :
-    RuntimeException(message, cause) {
+import com.dororong.rodi.core.common.UserMessageProvider
+
+sealed class CourseRegistrationException(
+    override val userMessage: String,
+    cause: Throwable? = null,
+) : RuntimeException(userMessage, cause), UserMessageProvider {
     class RouteUnavailable(cause: Throwable? = null) :
         CourseRegistrationException("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.", cause)
 

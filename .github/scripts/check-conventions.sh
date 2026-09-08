@@ -53,6 +53,27 @@ sanity() {
 }
 sanity
 
+# 아래 두 헬퍼는 실제 BLOCK 규칙과 positive_control() 양쪽에서 **같은 함수**로 쓴다.
+# 규칙과 검증 컨트롤이 각자 패턴을 따로 들고 있으면 둘이 따로 놀 수 있다 — 컨트롤은 통과하는데
+# 실제 규칙은 다르게 동작하는 경우가 생긴다.
+
+# catch(CancellationException) 다음 줄이 실제로 throw 문인지 본다. "throw"를 부분 문자열로
+# 찾으면 `val throwableAlias = true`처럼 throw를 담은 식별자에도 걸려 재전파로 오판한다.
+first_statement_is_throw() {
+  local file="$1" line="$2"
+  sed -n "$((line + 1))p" "$file" | grep -qE '^[[:space:]]*throw\b'
+}
+
+# "\.message\b" 매치 중 intent.message는 예외로 뺀다. grep -v로 줄 전체를 지우면 같은 줄에
+# intent.message와 error.message가 같이 있는 경우 후자까지 함께 사라진다.
+message_violation_filter() {
+  local f n rest cleaned
+  while IFS=: read -r f n rest; do
+    cleaned="${rest//intent.message/}"
+    case "$cleaned" in *.message*) echo "$f:$n" ;; esac
+  done
+}
+
 # regex가 민감한 BLOCK 규칙이 "알려진 위반"을 실제로 잡는지 확인한다.
 # 0건이 성공을 뜻하는 검사에서, 검증기가 고장 나면 전부 통과로 보인다.
 # fixture는 임시 디렉터리에 만든다 — 리포에 두면 본 검사가 그걸 위반으로 잡는다.
@@ -66,10 +87,26 @@ val c = vm.state.collectAsState()
 val d = TextStyle(fontSize = 1.sp)
 val e = Color(0xFF123456)
 class FixtureMapper
+val errorMessage = error.message
+val combinedMessage = intent.message + error.message
+
+try {
+  Unit
+} catch (error: CancellationException) {
+  val throwableAlias = true
+}
 FIXTURE
   cat > "$d/Lookalike.kt" <<'FIXTURE'
 val ok1 = NotificationCompat.BigTextStyle().bigText(msg)
 val ok2 = vm.state.collectAsStateWithLifecycle()
+val ok3 = error.userMessage("fallback")
+val ok4 = intent.message
+
+try {
+  Unit
+} catch (error: CancellationException) {
+  throw error
+}
 FIXTURE
 
   # 위반 fixture에서 반드시 잡혀야 하는 패턴
@@ -81,6 +118,35 @@ FIXTURE
   for pat in '\bTextStyle\(' 'collectAsState\(\)'; do
     rg -q "$pat" "$d/Lookalike.kt" 2>/dev/null && { echo "  오탐: $pat"; rc=1; }
   done
+
+  # Violation.kt엔 error.message 단독 줄 하나와, intent.message와 같은 줄에 있는
+  # error.message 하나가 있다 — 둘 다 잡혀야 한다. grep -v로 줄 전체를 지우는 예전 방식은
+  # 후자를 intent.message 예외로 착각해 놓친다.
+  local violation_message_hits lookalike_message_hits
+  violation_message_hits="$(rg -nH '\.message\b' "$d/Violation.kt" 2>/dev/null | message_violation_filter | wc -l | tr -d ' ')"
+  if [ "${violation_message_hits:-0}" -ne 2 ]; then
+    echo "  탐지 실패: ViewModel 예외 message 원문 노출 (기대 2건, 실제 ${violation_message_hits:-0}건)"
+    rc=1
+  fi
+  lookalike_message_hits="$(rg -nH '\.message\b' "$d/Lookalike.kt" 2>/dev/null | message_violation_filter | wc -l | tr -d ' ')"
+  if [ "${lookalike_message_hits:-0}" -ne 0 ]; then
+    echo '  오탐: ViewModel 예외 message 원문 노출'
+    rc=1
+  fi
+
+  # Violation.kt의 catch 다음 줄은 throw가 아니라 "throw"를 담은 식별자(throwableAlias)다.
+  # 부분 문자열 매치였다면 이 줄을 재전파로 오판해 통과시켰을 것이다.
+  local violation_catch_line lookalike_catch_line
+  violation_catch_line="$(rg -n 'catch \([^)]*CancellationException\)' "$d/Violation.kt" 2>/dev/null | head -1 | cut -d: -f1)"
+  if [ -z "$violation_catch_line" ] || first_statement_is_throw "$d/Violation.kt" "$violation_catch_line"; then
+    echo '  탐지 실패: 취소 재전파가 catch 첫 문장이 아님'
+    rc=1
+  fi
+  lookalike_catch_line="$(rg -n 'catch \([^)]*CancellationException\)' "$d/Lookalike.kt" 2>/dev/null | head -1 | cut -d: -f1)"
+  if [ -z "$lookalike_catch_line" ] || ! first_statement_is_throw "$d/Lookalike.kt" "$lookalike_catch_line"; then
+    echo '  오탐: 취소 재전파 lookalike'
+    rc=1
+  fi
 
   rm -rf "$d"
   if [ "$rc" -ne 0 ]; then
@@ -152,6 +218,16 @@ check BLOCK "Dispatchers.setMain 후 resetMain 누락" \
 check BLOCK "core/feature 모듈에서 Compose BOM 재선언" \
   "rg -n -g 'build.gradle.kts' '(implementation|androidTestImplementation)\(platform\(libs\.androidx\.compose\.bom\)\)' core feature"
 
+check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
+  "rg -n -g '*.kt' 'catch \([^)]*CancellationException\)' . \
+   | grep -v -E '/src/(test|androidTest)/' \
+   | while IFS=: read -r f n _; do \
+       first_statement_is_throw \"\$f\" \"\$n\" || echo \"\$f:\$n\"; \
+     done"
+
+check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
+  "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | message_violation_filter"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -163,14 +239,6 @@ check WARN "ViewModel 선언명 ≠ 파일명" \
    | grep -v -E '/src/(test|androidTest)/' \
    | while IFS=: read -r f _ vm; do [ \"\$(basename \"\$f\" .kt)\" != \"\$vm\" ] && echo \"\$vm ← \$f\"; done"
 
-# 취소 재전파가 catch의 첫 문장이 아닌 곳. PCRE2 없이 다음 줄을 직접 본다.
-check WARN "취소 재전파가 catch 첫 문장이 아님" \
-  "rg -n -g '*.kt' 'catch \([^)]*CancellationException\)' . \
-   | grep -v -E '/src/(test|androidTest)/' \
-   | while IFS=: read -r f n _; do \
-       case \"\$(sed -n \"\$((n+1))p\" \"\$f\")\" in *throw*) ;; *) echo \"\$f:\$n\";; esac; \
-     done"
-
 check WARN "Effect를 SharedFlow로 전달" \
   "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
 
@@ -179,9 +247,6 @@ check WARN "component(단수) 패키지" \
 
 check WARN "app이 Compose BOM 직접 선언" \
   "rg -n -g 'build.gradle.kts' 'platform\(libs\.androidx\.compose\.bom\)' app"
-
-check WARN "예외 원문(error.message)을 화면에 그대로 노출" \
-  "rg -l -g '*ViewModel.kt' '(error|throwable|exception|e|it)\.message\b' . | grep -v '/src/test/'"
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="

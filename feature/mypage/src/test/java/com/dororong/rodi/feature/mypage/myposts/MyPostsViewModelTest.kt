@@ -57,7 +57,7 @@ class MyPostsViewModelTest {
         viewModel.delete(post)
         advanceUntilIdle()
         assertEquals(listOf(post), viewModel.uiState.value.posts)
-        assertEquals("실패", viewModel.uiState.value.errorMessage)
+        assertEquals("후기를 삭제하지 못했어요.", viewModel.uiState.value.errorMessage)
     }
 
     @Test

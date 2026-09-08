@@ -62,7 +62,7 @@ class AccountSettingsViewModelTest {
             advanceUntilIdle()
 
             assertEquals(
-                AccountSettingsEffect.ShowError("탈퇴에 실패했습니다."),
+                AccountSettingsEffect.ShowError("요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."),
                 awaitItem(),
             )
         }

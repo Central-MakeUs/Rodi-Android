@@ -2,7 +2,7 @@ package com.dororong.rodi.feature.mypage
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.onboarding.recommendations
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
@@ -107,13 +107,6 @@ class MyPageViewModel @Inject constructor(
         }
     }
 }
-
-/**
- * `AuthException`만 사용자에게 보여줄 만한 문구를 갖는다. 나머지(직렬화·파싱 실패 등)의
- * `message`는 JSON 필드명이 그대로 박힌 개발자용 텍스트라 화면에 노출하면 안 된다.
- */
-private fun Throwable.userMessage(fallback: String): String =
-    (this as? AuthException)?.message?.ifBlank { null } ?: fallback
 
 private fun MyPage.toUiProfile() = MyPageProfile(
     nickname = nickname,

@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.practicerecords
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -75,8 +76,9 @@ class PracticeRecordsViewModel @Inject constructor(
             val pageResult = getPracticeRecords(cursor = requestCursor, size = PAGE_SIZE)
             chainRequests++
             if (pageResult.isFailure) {
-                val errorMessage = pageResult.exceptionOrNull()?.message
-                    ?: if (initial) "연습기록을 불러오지 못했어요." else "다음 연습기록을 불러오지 못했어요."
+                val errorMessage = pageResult.exceptionOrNull().userMessage(
+                    if (initial) "연습기록을 불러오지 못했어요." else "다음 연습기록을 불러오지 못했어요.",
+                )
                 if (initial) {
                     _uiState.value = PracticeRecordsUiState(
                         isLoading = false,

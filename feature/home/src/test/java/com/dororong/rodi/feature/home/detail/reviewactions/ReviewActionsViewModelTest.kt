@@ -117,6 +117,19 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
+    fun `unapproved report form failure hides the exception detail`() = runTest(dispatcher) {
+        val detail = "Field 'totalCount' is required for type with serial name 'ReportFormResponse'"
+        coEvery { getReportForm() } returns Result.failure(IllegalStateException(detail))
+
+        val viewModel = viewModel()
+        viewModel.loadReportForm(REVIEW_ID)
+        advanceUntilIdle()
+
+        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.state.value.reportErrorMessage)
+        assertFalse(viewModel.state.value.reportErrorMessage.orEmpty().contains(detail))
+    }
+
+    @Test
     fun `report submission failure restores the submit state`() = runTest(dispatcher) {
         coEvery { getReportForm() } returns Result.success(reportForm())
         coEvery { reportReview(any(), any()) } returns Result.failure(IllegalStateException("신고하지 못했어요."))

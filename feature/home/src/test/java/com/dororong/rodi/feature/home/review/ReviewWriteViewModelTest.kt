@@ -290,23 +290,20 @@ class ReviewWriteViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.state.value.isInitializing)
-        assertEquals("offline", viewModel.state.value.initializationErrorMessage)
+        assertEquals("수정할 후기를 불러오지 못했어요.", viewModel.state.value.initializationErrorMessage)
         assertFalse(viewModel.state.value.canSubmit)
     }
 
     @Test
-    fun `review lookup cancellation propagates after initialization stops`() = runTest(dispatcher) {
+    fun `review lookup cancellation preserves initialization state`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } coAnswers { throw CancellationException("취소") }
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
-        try {
-            advanceUntilIdle()
-        } catch (_: CancellationException) {
-        }
+        advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isInitializing)
-        assertNotNull(viewModel.state.value.initializationErrorMessage)
+        assertTrue(viewModel.state.value.isInitializing)
+        assertNull(viewModel.state.value.initializationErrorMessage)
     }
 
     @Test

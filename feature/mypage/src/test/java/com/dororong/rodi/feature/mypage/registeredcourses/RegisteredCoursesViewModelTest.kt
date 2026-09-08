@@ -148,7 +148,10 @@ class RegisteredCoursesViewModelTest {
         )
         val viewModel = RegisteredCoursesViewModel(getCourses, deleteCourse)
         advanceUntilIdle()
-        assertEquals(failure.message, viewModel.uiState.value.errorMessage)
+        assertEquals(
+            "내 활동을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
+            viewModel.uiState.value.errorMessage,
+        )
 
         viewModel.retry()
         advanceUntilIdle()
@@ -185,7 +188,10 @@ class RegisteredCoursesViewModelTest {
         advanceUntilIdle()
 
         assertEquals(listOf(approved, pending), viewModel.uiState.value.courses)
-        assertEquals(failure.message, viewModel.uiState.value.errorMessage)
+        assertEquals(
+            "코스를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.",
+            viewModel.uiState.value.errorMessage,
+        )
         assertEquals(null, viewModel.uiState.value.deletingCourseId)
     }
 

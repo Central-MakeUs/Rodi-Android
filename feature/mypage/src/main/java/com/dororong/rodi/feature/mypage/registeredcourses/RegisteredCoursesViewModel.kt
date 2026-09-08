@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.mypage.registeredcourses
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.course.RegisteredCourse
 import com.dororong.rodi.core.domain.usecase.course.DeleteRegisteredCourseUseCase
 import com.dororong.rodi.core.domain.usecase.course.GetMyRegisteredCoursesUseCase
@@ -87,7 +88,7 @@ class RegisteredCoursesViewModel @Inject constructor(
                 val next = current.copy(
                     loaded = true,
                     isLoading = false,
-                    errorMessage = error.message ?: "내 활동을 불러오지 못했어요. 잠시 후 다시 시도해주세요.",
+                    errorMessage = error.userMessage("내 활동을 불러오지 못했어요. 잠시 후 다시 시도해주세요."),
                 )
                 pages[filter] = next
                 if (selectedFilter == filter) publish(next)
@@ -122,7 +123,7 @@ class RegisteredCoursesViewModel @Inject constructor(
                 }.onFailure { error ->
                     val next = pages.getValue(filter).copy(
                         isLoadingMore = false,
-                        appendErrorMessage = error.message ?: "다음 코스를 불러오지 못했어요.",
+                        appendErrorMessage = error.userMessage("다음 코스를 불러오지 못했어요."),
                     )
                     pages[filter] = next
                     if (selectedFilter == filter) publish(next)
@@ -168,7 +169,7 @@ class RegisteredCoursesViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             deletingCourseId = null,
-                            errorMessage = error.message ?: "코스를 삭제하지 못했어요. 잠시 후 다시 시도해주세요.",
+                            errorMessage = error.userMessage("코스를 삭제하지 못했어요. 잠시 후 다시 시도해주세요."),
                         )
                     }
                 }

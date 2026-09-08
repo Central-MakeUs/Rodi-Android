@@ -269,7 +269,7 @@
   `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.
 
 ### 에러 처리 경계
-- [ ] **`ReviewWriteViewModel`이 취소를 실패로 표시한다 (2026-09-06 발견)** — 후기 수정 초기
+- [x] **`ReviewWriteViewModel`이 취소를 실패로 표시한다 (2026-09-06 발견)** — 후기 수정 초기
   로드의 `catch (error: CancellationException)`이 `throw error`로 재전파는 하지만, **그 전에**
   `initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요."`를 상태에
   쓴다. 취소는 사용자가 화면을 벗어났거나 재시도가 이전 작업을 대체한 정상 흐름인데 에러로
@@ -279,7 +279,8 @@
   항목과 함께 고치면 된다.
   정본: `feature/home/.../review/ReviewWriteViewModel.kt` — 앵커 `catch (error: CancellationException)`
   재검증: `rg -U -P -n 'catch \([^)]*CancellationException\)\s*\{\s*\n(?!\s*throw)' --glob '**/*.kt' --glob '!**/build/**' --glob '!**/src/test/**'`
-- [ ] **사용자 메시지 변환 경계가 통일되지 않음** — 공통 `Throwable.userMessage()`를 쓰는
+-  해결(2026-09-07): `CancellationException` catch에서 상태를 갱신하지 않고 즉시 코루틴 취소를 전파하도록 정리했다.
+- [x] **사용자 메시지 변환 경계가 통일되지 않음** — 공통 `Throwable.userMessage()`를 쓰는
   ViewModel은 3개(`Home`/`Search`/`CourseReview`)뿐이고, 9개가 `error.message`를 화면에 그대로
   쓴다(`RegisteredCourses`/`MyPosts`/`SavedCourses`/`CourseRegistration`/`Login`/`BlockedMembers`/
   `AccountSettings`/`ReviewWrite`/`ReviewActions`). `UserMessageProvider`를 구현한 예외도 4개
@@ -288,6 +289,7 @@
   이미 같은 이유로 고쳤다. 승인된 도메인 예외가 `UserMessageProvider`를 구현하고 모든 ViewModel이
   공통 `userMessage()`만 호출하도록 통일한다.
   재검증: `rg -l '\.message\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+-  해결(2026-09-07): 승인된 도메인 예외와 맥락별 fallback을 공통 nullable `userMessage(fallback)`으로 변환하고 ViewModel의 예외 원문 노출을 차단했다.
 - [ ] **DTO enum의 알 수 없는 값 처리가 3방식으로 갈림** — 필수 값 명시적 실패(3개 파일),
   임의 정상값으로 대체(2개), 선택 값 null/drop(5개). `MemberMapper`가 알 수 없는 레벨을
   `OnboardingLevel.SEED`로, `PracticeMapper`가 `PLANNED`로 바꾸는 두 건이 특히 위험하다 —

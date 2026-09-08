@@ -2,6 +2,7 @@ package com.dororong.rodi.feature.settings.blocked
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.domain.model.member.BlockedMember as DomainBlockedMember
 import com.dororong.rodi.core.domain.usecase.member.GetBlockedMembersUseCase
 import com.dororong.rodi.core.domain.usecase.member.UnblockMemberUseCase
@@ -56,7 +57,7 @@ class BlockedMembersViewModel @Inject constructor(
                 .onFailure { error ->
                     _uiState.value = BlockedMembersUiState(
                         isLoading = false,
-                        initialError = error.message ?: "차단목록을 불러오지 못했어요.",
+                        initialError = error.userMessage("차단목록을 불러오지 못했어요."),
                     )
                 }
         }
@@ -80,7 +81,7 @@ class BlockedMembersViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { error -> _uiState.update { it.copy(isLoadingMore = false, nextPageError = error.message ?: "다음 차단목록을 불러오지 못했어요.") } }
+                .onFailure { error -> _uiState.update { it.copy(isLoadingMore = false, nextPageError = error.userMessage("다음 차단목록을 불러오지 못했어요.")) } }
         }
     }
 
@@ -102,7 +103,7 @@ class BlockedMembersViewModel @Inject constructor(
                     }
                     .onFailure { error ->
                         excludedMemberIds -= member.memberId
-                        _uiState.update { it.copy(errorMessage = error.message ?: "차단을 해제하지 못했어요.") }
+                        _uiState.update { it.copy(errorMessage = error.userMessage("차단을 해제하지 못했어요.")) }
                     }
             } finally {
                 unblockInFlightIds -= member.memberId
