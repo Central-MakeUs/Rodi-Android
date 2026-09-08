@@ -295,15 +295,12 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review lookup cancellation propagates without changing initialization state`() = runTest(dispatcher) {
+    fun `review lookup cancellation preserves initialization state`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } coAnswers { throw CancellationException("취소") }
         val viewModel = viewModel()
 
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
-        try {
-            advanceUntilIdle()
-        } catch (_: CancellationException) {
-        }
+        advanceUntilIdle()
 
         assertTrue(viewModel.state.value.isInitializing)
         assertNull(viewModel.state.value.initializationErrorMessage)

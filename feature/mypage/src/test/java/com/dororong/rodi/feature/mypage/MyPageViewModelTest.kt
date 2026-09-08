@@ -26,6 +26,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -164,6 +165,22 @@ class MyPageViewModelTest {
 
         assertEquals("서버 닉네임", viewModel.uiState.value.profile.nickname)
         assertEquals("연습기록을 불러오지 못했어요.", viewModel.uiState.value.practiceRecordsErrorMessage)
+    }
+
+    @Test
+    fun `practice record success leaves the error message null`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getMyPage() } returns Result.success(
+            MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), "골목길", 7),
+        )
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.practiceRecordsErrorMessage)
     }
 
     @Test

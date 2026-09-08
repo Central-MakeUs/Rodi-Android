@@ -63,7 +63,7 @@ class MyPageViewModel @Inject constructor(
                     .filter { it.status == PracticeStatus.VISITED }
                     .map { it.toFeatureModel() }
                 val recordsErrorMessage = recordsResult.exceptionOrNull()
-                    .userMessage("연습기록을 불러오지 못했어요.")
+                    ?.userMessage("연습기록을 불러오지 못했어요.")
                 profileDeferred.await()
                     .onSuccess { page ->
                         _uiState.value = MyPageUiState(
