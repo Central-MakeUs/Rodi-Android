@@ -37,6 +37,7 @@ dependencies {
     testImplementation(libs.bundles.unit.test)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.bundles.flow.test)
+    testImplementation(libs.bundles.robolectric.test)
     testImplementation(libs.bundles.roborazzi.test)
     testRuntimeOnly(libs.junit.vintage.engine)
     androidTestImplementation(libs.bundles.android.test)

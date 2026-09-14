@@ -42,9 +42,10 @@ coVerify(exactly = 1) { getPlacesUseCase(any(), any(), any()) }
 **예외**: Robolectric/Roborazzi와 계측 테스트는 JUnit4 러너 생태계에 묶여 있어
 `org.junit.Test` + `@RunWith(AndroidJUnit4::class)`를 쓴다.
 
-**재검증** (JUnit4를 쓰는 JVM 테스트 — Roborazzi가 아니면 정리 대상):
+**재검증** (Robolectric이 아닌데 JUnit4를 쓰는 JVM 테스트 — 정리 대상):
 ```bash
-rg -l 'org\.junit\.Test' -g '*.kt' . | grep '/src/test/'
+rg -l 'org\.junit\.Test' -g '*.kt' . | grep '/src/test/' \
+| while read -r f; do grep -q '@RunWith(AndroidJUnit4' "$f" || echo "$f"; done
 ```
 
 ## 코루틴 테스트는 `runTest` + 제어 가능한 `TestDispatcher`

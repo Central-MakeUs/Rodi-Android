@@ -4,6 +4,9 @@ plugins {
 
 android {
     namespace = "com.dororong.rodi.feature.course.registration"
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
@@ -16,6 +19,8 @@ dependencies {
     testImplementation(libs.bundles.unit.test)
     testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.bundles.flow.test)
+    testImplementation(libs.bundles.robolectric.test)
+    testRuntimeOnly(libs.junit.vintage.engine)
     androidTestImplementation(libs.bundles.android.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

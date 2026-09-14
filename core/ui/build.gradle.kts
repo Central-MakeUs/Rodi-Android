@@ -40,6 +40,7 @@ dependencies {
     implementation(libs.timber)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.bundles.unit.test)
+    testImplementation(libs.bundles.robolectric.test)
     testImplementation(libs.bundles.roborazzi.test)
     testRuntimeOnly(libs.junit.vintage.engine)
     testRuntimeOnly(libs.junit.platform.launcher)
