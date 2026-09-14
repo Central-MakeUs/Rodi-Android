@@ -35,7 +35,7 @@ core/data/.../data/
   mapper/
   repository/
   source/
-    local/{database,datastore,preferences,security,sample}/
+    local/{database,datastore,preferences,security}/
     remote/{api,directions,model,network}/
 ```
 

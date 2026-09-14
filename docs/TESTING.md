@@ -14,15 +14,14 @@
 
 ```kotlin
 @Test
-fun `invoke returns courses from repository`() {
+fun `invoke returns success when repository returns route`() = runTest {
     val repository = mockk<CourseRepository>()
-    val expected = listOf(mockk<Course>())
-    every { repository.getCourses() } returns expected
-    val useCase = GetCoursesUseCase(repository)
+    coEvery { repository.getRoute(course) } returns routeResult
+    val useCase = GetRouteUseCase(repository)
 
-    val result = useCase()
+    val result = useCase(course)
 
-    assertEquals(expected, result)
+    assertEquals(routeResult, result.getOrThrow())
 }
 ```
 
@@ -64,12 +63,13 @@ fun `rethrows cancellation`() = runTest {
 - 기본은 엄격 모크(`mockk<T>()`)다. 반환값이 테스트와 무관한 부수 의존성에만 `relaxed = true`를 예외적으로 쓴다.
 
 ```kotlin
-val repository = mockk<CourseRepository>()
-every { repository.getCourses() } returns courses
-coEvery { repository.getRoute(course) } returns route
+val draftRepository = mockk<CourseDraftRepository>()
+val courseRepository = mockk<CourseRepository>()
+every { draftRepository.observe() } returns flowOf(draft)
+coEvery { courseRepository.getRoute(course) } returns route
 
-verify(exactly = 1) { repository.getCourses() }
-coVerify(exactly = 1) { repository.getRoute(course) }
+verify(exactly = 1) { draftRepository.observe() }
+coVerify(exactly = 1) { courseRepository.getRoute(course) }
 ```
 
 ## 코루틴 테스트
