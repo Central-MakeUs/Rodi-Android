@@ -233,6 +233,13 @@
   `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
   참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
   구독해 정적 필드에 반영)를 검토할 것.
+- [ ] **GitHub Actions 외부 액션을 커밋 SHA로 고정 (2026-09-15 CodeRabbit 발견, PR #120)** — 워크플로가
+  `actions/checkout@v4`, `upload-artifact@v4`, `setup-java@v4`, `setup-python@v5`, `gradle/actions/setup-gradle@v4`,
+  `softprops/action-gh-release@v2`를 태그로 참조한다. 태그는 가리키는 커밋이 바뀔 수 있다. `build` job은 시크릿으로
+  `local.properties`(Kakao 키)를 만든 뒤 이 액션들을 실행하므로, 태그가 악성 커밋으로 옮겨지면 키가 노출될 수 있다.
+  `ci.yml`, `release.yml`, `playstore-watch.yml`의 모든 외부 액션을 `@<sha> # vX` 형태로 한꺼번에 고정하고,
+  갱신은 Renovate/Dependabot에 맡기는 방안을 검토한다. 워크플로에 `permissions:` 블록이 없는 점(zizmor 경고)도 함께 본다.
+  재검증: `rg -n 'uses: [^@]+@v[0-9]' .github/workflows`
 
 ## 코드 관용구 정합성 (2026-09-06 전수 조사)
 
