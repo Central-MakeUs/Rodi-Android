@@ -46,6 +46,11 @@ fun `rethrows cancellation`() = runTest {
 - 이 예외는 [`LevelReviewSectionRoborazziTest.kt`](../feature/home/src/test/java/com/dororong/rodi/feature/home/detail/components/LevelReviewSectionRoborazziTest.kt)처럼
   `*RoborazziTest.kt` 파일에만 적용하고, 나머지 단위 테스트는 여전히 JUnit5를 사용한다.
 
+## 스냅샷 검증과 갱신
+- `./gradlew test`는 기준 이미지와 비교하지 않는다. 비교는 `./gradlew verifyRoborazziDebug`가 하고, CI는 이 태스크가 실패하면 빌드를 막는다.
+- UI를 의도적으로 바꿨다면 `./gradlew recordRoborazziDebug`로 `src/test/snapshots/`의 기준 이미지를 갱신해 같은 PR에 커밋한다.
+- CI에서 실패하면 `roborazzi-diff` 아티팩트의 `*_compare.png`로 차이를 확인한다.
+
 ## MockK
 - 동기 함수는 `every { } returns`와 `verify { }`를 사용한다.
 - `suspend` 함수는 `coEvery { } returns`와 `coVerify { }`를 사용한다.
