@@ -15,6 +15,7 @@ class AndroidLibraryComposeConventionPlugin : Plugin<Project> {
             with(pluginManager) {
                 apply("com.android.library")
                 apply("org.jetbrains.kotlin.plugin.compose")
+                apply("dororong.rodi.kover")
             }
             extensions.configure<LibraryExtension> {
                 compileSdk = 37
