@@ -35,6 +35,13 @@ enum class HomeListState {
     InitialError,
 }
 
+data class HomeFilterState(
+    val isSheetVisible: Boolean = false,
+    val activeCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
+    val selectedPracticeTypes: Set<PracticeType> = emptySet(),
+    val isSaving: Boolean = false,
+)
+
 data class HomeUiState(
     val coordinates: List<PlaceCoordinate> = emptyList(),
     val places: List<PlaceSummary> = emptyList(),
@@ -58,10 +65,7 @@ data class HomeUiState(
     val isLoginInProgress: Boolean = false,
     val hasPendingRestore: Boolean = false,
     val isRestoreInProgress: Boolean = false,
-    val isFilterSheetVisible: Boolean = false,
-    val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
-    val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
-    val isFilterSaving: Boolean = false,
+    val filter: HomeFilterState = HomeFilterState(),
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
@@ -113,12 +117,14 @@ sealed interface HomeIntent {
         val region: RegionOfficeLocation,
         val initialPlaces: List<PlaceSummary>,
     ) : HomeIntent
-    data object OnFilterOpen : HomeIntent
-    data class OnFilterCategorySelect(val category: FilterCategory) : HomeIntent
-    data class OnFilterPracticeOptionToggle(val option: FilterPracticeOption) : HomeIntent
-    data object OnFilterReset : HomeIntent
-    data object OnFilterApply : HomeIntent
-    data object OnFilterDismiss : HomeIntent
+    sealed interface Filter : HomeIntent {
+        data object OnOpen : Filter
+        data class OnCategorySelect(val category: FilterCategory) : Filter
+        data class OnPracticeOptionToggle(val option: FilterPracticeOption) : Filter
+        data object OnReset : Filter
+        data object OnApply : Filter
+        data object OnDismiss : Filter
+    }
     data object OnDismissLogin : HomeIntent
     data class OnKakaoLoginCredential(val accessToken: String) : HomeIntent
     data class OnKakaoLoginFailed(val message: String) : HomeIntent

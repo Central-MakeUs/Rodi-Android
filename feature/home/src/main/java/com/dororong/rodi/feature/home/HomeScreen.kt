@@ -682,8 +682,8 @@ fun HomeScreen(
     }
 
     val handleSystemBack: () -> Unit = {
-        if (state.isFilterSheetVisible) {
-            if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
+        if (state.filter.isSheetVisible) {
+            if (!state.filter.isSaving) vm.onIntent(HomeIntent.Filter.OnDismiss)
         } else {
             when (state.surfaceState) {
                 HomeSurfaceState.Detail -> dismissDetail()
@@ -691,7 +691,7 @@ fun HomeScreen(
             }
         }
     }
-    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+    BackHandler(enabled = state.filter.isSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
         handleSystemBack()
     }
 
@@ -1358,7 +1358,7 @@ fun HomeScreen(
                                     expansionProgress = listSheetProgress,
                                     isExpanded = state.surfaceState == HomeSurfaceState.FullList,
                                     onBack = { vm.onIntent(HomeIntent.OnListCollapse) },
-                                    onFilterClick = { vm.onIntent(HomeIntent.OnFilterOpen) },
+                                    onFilterClick = { vm.onIntent(HomeIntent.Filter.OnOpen) },
                                     modifier = Modifier
                                         .layoutHeightPx { listHeaderHeightPx() }
                                         .then(listSheetDrag),
@@ -1708,16 +1708,16 @@ fun HomeScreen(
         )
     }
 
-    if (state.isFilterSheetVisible) {
+    if (state.filter.isSheetVisible) {
         FilterBottomSheet(
-            activeCategory = state.activeFilterCategory,
-            selectedPracticeTypes = state.selectedFilterPracticeTypes,
-            onCategorySelect = { vm.onIntent(HomeIntent.OnFilterCategorySelect(it)) },
-            onPracticeOptionToggle = { vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(it)) },
-            onReset = { vm.onIntent(HomeIntent.OnFilterReset) },
-            onApply = { vm.onIntent(HomeIntent.OnFilterApply) },
-            onDismiss = { vm.onIntent(HomeIntent.OnFilterDismiss) },
-            isSaving = state.isFilterSaving,
+            activeCategory = state.filter.activeCategory,
+            selectedPracticeTypes = state.filter.selectedPracticeTypes,
+            onCategorySelect = { vm.onIntent(HomeIntent.Filter.OnCategorySelect(it)) },
+            onPracticeOptionToggle = { vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(it)) },
+            onReset = { vm.onIntent(HomeIntent.Filter.OnReset) },
+            onApply = { vm.onIntent(HomeIntent.Filter.OnApply) },
+            onDismiss = { vm.onIntent(HomeIntent.Filter.OnDismiss) },
+            isSaving = state.filter.isSaving,
         )
     }
 

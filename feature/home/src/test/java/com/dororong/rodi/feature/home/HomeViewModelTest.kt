@@ -644,13 +644,13 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterOpen)
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.ALL))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.Filter.OnOpen)
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.ALL))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.Filter.OnApply)
         advanceUntilIdle()
 
         assertEquals(
@@ -661,9 +661,9 @@ class HomeViewModelTest {
                 PracticeType.INTERSECTION,
                 PracticeType.PARKING,
             ),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.state.value.filter.selectedPracticeTypes,
         )
-        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertFalse(vm.state.value.filter.isSheetVisible)
         coVerify {
             deps.updateFilterTags(
                 setOf(
@@ -681,39 +681,39 @@ class HomeViewModelTest {
     fun `tapping an active category clears it without clearing selected practice types`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.BASIC_DRIVING))
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.BASIC_DRIVING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertNull(vm.state.value.filter.activeCategory)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.filter.selectedPracticeTypes)
     }
 
     @Test
     fun `tapping parking twice removes its tag and clears the active category`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        assertEquals(FilterCategory.PARKING, vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.PARKING), vm.state.value.selectedFilterPracticeTypes)
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
+        assertEquals(FilterCategory.PARKING, vm.state.value.filter.activeCategory)
+        assertEquals(setOf(PracticeType.PARKING), vm.state.value.filter.selectedPracticeTypes)
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertNull(vm.state.value.filter.activeCategory)
+        assertTrue(vm.state.value.filter.selectedPracticeTypes.isEmpty())
     }
 
     @Test
     fun `moving from parking keeps its tag but activates only the new category`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.MERGING))
 
-        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.activeFilterCategory)
+        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.filter.activeCategory)
         assertEquals(
             setOf(PracticeType.PARKING, PracticeType.MERGING),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.state.value.filter.selectedPracticeTypes,
         )
     }
 
@@ -721,13 +721,13 @@ class HomeViewModelTest {
     fun `reset activates basic driving and clears all filter tags`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
-        vm.onIntent(HomeIntent.OnFilterReset)
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.Filter.OnReset)
 
-        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.filter.activeCategory)
+        assertTrue(vm.state.value.filter.selectedPracticeTypes.isEmpty())
     }
 
     @Test
@@ -737,13 +737,53 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.Filter.OnApply)
         runCurrent()
-        vm.onIntent(HomeIntent.OnFilterReset)
+        vm.onIntent(HomeIntent.Filter.OnReset)
 
-        assertTrue(vm.state.value.isFilterSaving)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertTrue(vm.state.value.filter.isSaving)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.filter.selectedPracticeTypes)
+    }
+
+    @Test
+    fun `dismiss is ignored while filter tags are saving`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val saveResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.Filter.OnOpen)
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.Filter.OnApply)
+        runCurrent()
+        vm.onIntent(HomeIntent.Filter.OnDismiss)
+
+        assertTrue(vm.state.value.filter.isSheetVisible)
+        assertTrue(vm.state.value.filter.isSaving)
+    }
+
+    @Test
+    fun `filter slice keeps sibling fields when saving starts`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val saveResult = CompletableDeferred<Result<Unit>>()
+        coEvery { deps.updateFilterTags(setOf(PracticeType.PARKING, PracticeType.MERGING)) } coAnswers {
+            saveResult.await()
+        }
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.Filter.OnCategorySelect(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.Filter.OnApply)
+        runCurrent()
+
+        assertTrue(vm.state.value.filter.isSaving)
+        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.filter.activeCategory)
+        assertEquals(
+            setOf(PracticeType.PARKING, PracticeType.MERGING),
+            vm.state.value.filter.selectedPracticeTypes,
+        )
     }
 
     @Test
@@ -760,12 +800,12 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnFilterOpen)
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.Filter.OnOpen)
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.Filter.OnApply)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertFalse(vm.state.value.filter.isSheetVisible)
         assertEquals(listOf(2L), vm.state.value.places.map { it.id })
         coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
     }
@@ -777,8 +817,8 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.Filter.OnPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.Filter.OnApply)
         advanceUntilIdle()
         assertEquals(
             PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
