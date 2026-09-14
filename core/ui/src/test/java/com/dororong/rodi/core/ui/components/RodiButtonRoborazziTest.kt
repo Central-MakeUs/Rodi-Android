@@ -37,7 +37,7 @@ class RodiButtonRoborazziTest {
 @Composable
 private fun ButtonStates() {
     Column(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(40.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         RodiButton(text = "확인", onClick = {})
