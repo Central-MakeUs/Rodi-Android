@@ -53,6 +53,19 @@ jobs:
       - name: Unit Test
         run: ./gradlew test --stacktrace
 
+      - name: Verify Screenshots
+        run: ./gradlew verifyRoborazziDebug --stacktrace
+
+      - name: Upload Screenshot Diff
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roborazzi-diff
+          path: |
+            **/build/outputs/roborazzi/**
+            **/build/reports/roborazzi/**
+          retention-days: 7
+
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4

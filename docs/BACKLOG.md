@@ -21,6 +21,9 @@
   `feature:home`(`LevelReviewSection` 빈 상태/요약)에 Roborazzi 1.68.0 + Robolectric 4.16.1로
   스크린샷 5장 커밋. AGP 9.2.1/Kotlin 2.2.10 호환성 확인 후 `./gradlew test` 전체 통과 유지한
   채로 도입 완료. `CourseDetailSheet`(접힘/펼침)는 이번엔 다루지 않음 — 후속으로 남김.
+- [x] **Roborazzi 스냅샷 비교를 CI 게이트로 연결** (2026-09-15 완료) — 그전까지 CI는 `./gradlew test`만
+  돌렸고, 이 태스크는 기준 이미지와 비교하지 않아 UI가 깨져도 통과했다. `ci.yml`에
+  `verifyRoborazziDebug` 스텝을 추가하고, 실패하면 `roborazzi-diff` 아티팩트를 올리게 했다.
 - [x] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격** — `withMocks(responses, block)`
   suspend 헬퍼 추가 완료(2026-08-24, 상태 복원 포함). 아직 실제 androidTest에서 쓰인 곳은 없음 —
   진입점만 마련된 상태.
