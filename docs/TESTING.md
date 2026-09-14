@@ -4,6 +4,8 @@
 - `src/main/kotlin/...`에 있는 JVM 모듈 소스(`core:domain`, `core:common`)는 `src/test/kotlin/...`에 둔다.
 - `src/main/java/...`에 있는 Android 라이브러리 소스(`feature:home`, `feature:entry`, `core:data`)는 `src/test/java/...`에 둔다.
 - 패키지 경로는 대상 클래스와 동일하게 미러링한다.
+- Compose UI 테스트(`createComposeRule`)도 `src/androidTest`가 아니라 `src/test`에 두고 Robolectric으로 실행한다.
+  CI에는 에뮬레이터가 없어서 androidTest는 실행되지 않기 때문이다. 아래 "Robolectric 예외"를 따른다.
 
 ## 네이밍
 - 파일명은 `<대상클래스>Test.kt`로 쓴다.
@@ -38,13 +40,18 @@ fun `rethrows cancellation`() = runTest {
 }
 ```
 
-## Roborazzi 예외
-- Roborazzi/Robolectric 스크린샷 테스트는 `org.junit.jupiter.api.Test`가 아니라 `org.junit.Test`와
-  `@RunWith(AndroidJUnit4::class)`를 사용하는 JUnit4 예외를 적용한다.
+## Robolectric 예외
+- Robolectric에서 실행하는 테스트(Roborazzi 스크린샷, Compose UI 테스트)는 `org.junit.jupiter.api.Test`가 아니라
+  `org.junit.Test`와 `@RunWith(AndroidJUnit4::class)`를 사용하는 JUnit4 예외를 적용한다.
 - Robolectric이 JUnit4 러너 생태계에 묶여 있기 때문이며, `junit-vintage-engine`으로 JUnit5 플랫폼과
-  연결한다.
-- 이 예외는 [`LevelReviewSectionRoborazziTest.kt`](../feature/home/src/test/java/com/dororong/rodi/feature/home/detail/components/LevelReviewSectionRoborazziTest.kt)처럼
-  `*RoborazziTest.kt` 파일에만 적용하고, 나머지 단위 테스트는 여전히 JUnit5를 사용한다.
+  연결한다. 모듈에는 `libs.bundles.robolectric.test`, `testRuntimeOnly(libs.junit.vintage.engine)`,
+  `testOptions { unitTests.isIncludeAndroidResources = true }`가 필요하다.
+- 렌더링 환경을 고정하려고 `@Config(sdk = [36], qualifiers = "w375dp-h812dp")`를 붙인다. 참고:
+  [`LoginContentTest.kt`](../feature/auth/src/test/java/com/dororong/rodi/feature/auth/LoginContentTest.kt),
+  [`LevelReviewSectionRoborazziTest.kt`](../feature/home/src/test/java/com/dororong/rodi/feature/home/detail/components/LevelReviewSectionRoborazziTest.kt)
+- 이 예외는 `@RunWith(AndroidJUnit4::class)`를 쓰는 Robolectric 테스트에만 적용하고, 나머지 단위 테스트는 여전히 JUnit5를 사용한다.
+- Robolectric에서 재현되지 않는 상호작용은 `src/androidTest`에 남긴다. 예를 들어
+  `CourseRegistrationTutorialContentTest`는 `HorizontalPager`에서 `swipeLeft` 후 페이지가 넘어가지 않는다.
 
 ## 스냅샷 검증과 갱신
 - `./gradlew test`는 기준 이미지와 비교하지 않는다. 비교는 `./gradlew verifyRoborazziDebug`가 하고, CI는 이 태스크가 실패하면 빌드를 막는다.

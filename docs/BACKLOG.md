@@ -45,6 +45,14 @@
   Test는 드래그가 올바른 상태 전환을 만드는지만 검증하고, 실제 janky frame 비율 측정은 아래
   FrameTimingMetric 항목의 몫이다. 둘을 같은 것으로 착각하지 말 것. 리플 클리핑도 본질적으로
   시각적 결함이라 semantics 기반 Compose UI Test로는 검증 불가 — Roborazzi 스크린샷 쪽 소관.
+- [x] **androidTest Compose UI 테스트를 Robolectric(`src/test`)으로 이전** (2026-09-15 완료) — CI에
+  에뮬레이터가 없어 한 번도 실행되지 않던 androidTest 8개 파일 중 7개(12개 테스트)를 옮겼다. 이제
+  `./gradlew test`와 CI에서 돈다. `CourseRegistrationSearchContentTest`는 `430fd08a`(2026-08-18)에서
+  빠진 `onClear` 인자를 계속 넘기고 있어 컴파일조차 되지 않았고, 인자만 지웠다(단언은 그대로).
+- [ ] **`CourseRegistrationTutorialContentTest` Robolectric 이전 보류** — 3개 중 스와이프 테스트 2개가
+  Robolectric에서 실패한다. `HorizontalPager`에서 `swipeLeft` 후 다음 페이지 문구가 표시되지 않는다
+  (문구 자체는 코드와 일치). 기기(AVD)에서도 실제로 통과하는지 먼저 확인하고, 통과하면 원인을
+  Robolectric의 pager fling/애니메이션 처리 쪽에서 찾는다. 확인 전까지 `src/androidTest`에 남겨 두며, 이 파일은 CI에서 돌지 않는다.
 - [x] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-25 완료) — `TESTING.md`의 JUnit5
   규칙 뒤에 Roborazzi/Robolectric의 JUnit4 예외와 적용 범위를 문서화했다.
 - [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
@@ -318,7 +326,9 @@
   JUnit4, 일반 JVM은 JUnit5) `app`의 낡은 JUnit4 테스트는 JUnit5로 이전한다. "파일 위치"
   절의 모듈 목록에도 실제 테스트가 있는 `app`/`core:ui`/`feature:auth`/`feature:course-registration`/
   `feature:mypage`/`feature:settings`가 빠져 있다.
-  재검증: `rg -l 'org\.junit\.Test' --glob '**/src/test/**/*.kt' --glob '!**/build/**'`
+  **2026-09-15 부분 반영**: `TESTING.md`의 예외 서술은 "Robolectric(`@RunWith(AndroidJUnit4)`) 테스트는 JUnit4"로
+  고쳤다. 남은 일은 `app` 테스트 4개를 JUnit5로 옮기는 것과 "파일 위치" 절의 모듈 목록을 보강하는 것이다.
+  재검증: `docs/conventions/testing.md`의 JUnit4 재검증 명령 (check-conventions INFO에서도 같은 조건으로 잡힌다)
 
 ### 죽은 코드
 - [ ] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용** — PR #16에서 공통 뼈대로 넣었지만
