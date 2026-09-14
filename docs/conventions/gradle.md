@@ -79,6 +79,27 @@ rg -n '(implementation|androidTestImplementation)\(platform\(libs\.androidx\.com
 > 패턴에서 뺐다. 걸리는 건 아직 Convention Plugin 밖에 있는 `app`뿐이다 → `../BACKLOG.md`.
 > (건수는 여기 적지 않는다 — 명령을 돌리거나 `../audits/`를 본다.)
 
+## 커버리지(Kover)는 `dororong.rodi.kover` 하나가 설정한다
+
+```kotlin
+// AndroidLibraryConventionPlugin / AndroidLibraryComposeConventionPlugin / JvmLibraryConventionPlugin
+apply("dororong.rodi.kover")
+```
+
+**왜**: 제외 규칙(Hilt·Room 생성 코드, `@Preview`)이 모듈마다 달라지면 모듈 간 수치를 비교할 수 없다.
+library·jvm Convention Plugin이 자동으로 적용하므로 새 모듈도 빠짐없이 측정된다.
+
+**`app`은 예외다.** Convention Plugin 밖에 있어서 `app/build.gradle.kts`에 `id("dororong.rodi.kover")`
+한 줄을 직접 둔다. 설정 자체는 여전히 build-logic에만 있다. 루트 `build.gradle.kts`는 같은 플러그인을 적용하고
+`kover(project(...))`로 모듈을 모아 통합 리포트를 만든다. **새 모듈을 추가하면 루트의 `kover(...)` 목록에도 넣는다.**
+
+**정본**: `build-logic/src/main/kotlin/KoverConventionPlugin.kt`
+
+**재검증** (Kover를 모듈에서 직접 설정한 곳 — 루트와 `app`의 id 한 줄 외에는 없어야 한다):
+```bash
+rg -n 'kover' -g 'build.gradle.kts' .
+```
+
 ## 버전 카탈로그 접근 방식
 
 ```kotlin
