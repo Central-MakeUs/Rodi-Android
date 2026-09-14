@@ -12,8 +12,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
+@Config(sdk = [36], qualifiers = "w375dp-h812dp")
 class LoginContentTest {
     @get:Rule
     val composeRule = createComposeRule()

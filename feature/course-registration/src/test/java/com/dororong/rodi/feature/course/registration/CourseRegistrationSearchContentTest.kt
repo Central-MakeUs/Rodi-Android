@@ -16,8 +16,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.annotation.Config
 
 @RunWith(AndroidJUnit4::class)
+@Config(sdk = [36], qualifiers = "w375dp-h812dp")
 class CourseRegistrationSearchContentTest {
     @get:Rule
     val composeRule = createComposeRule()
@@ -35,7 +37,6 @@ class CourseRegistrationSearchContentTest {
                     onBack = { backPressed = true },
                     onKeywordChanged = {},
                     onSubmit = {},
-                    onClear = {},
                     onSelect = {},
                     onDeleteRecent = {},
                     onDeleteAll = {},
@@ -73,7 +74,6 @@ class CourseRegistrationSearchContentTest {
                     onBack = {},
                     onKeywordChanged = {},
                     onSubmit = {},
-                    onClear = {},
                     onSelect = {},
                     onDeleteRecent = {},
                     onDeleteAll = {},
