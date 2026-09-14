@@ -261,8 +261,9 @@ check INFO "상태 프로퍼티를 _state로 쓰는 ViewModel (_uiState로 통�
 check INFO "authenticatedRequest 헬퍼를 자체 보유한 Repository" \
   "rg -l -g '*.kt' 'authenticatedRequest' . | grep -v '/src/test/'"
 
-check INFO "JUnit4를 쓰는 JVM 테스트 (Roborazzi는 정상)" \
-  "rg -l -g '*.kt' 'org\.junit\.Test' . | grep '/src/test/'"
+check INFO "Robolectric이 아닌데 JUnit4를 쓰는 JVM 테스트" \
+  "rg -l -g '*.kt' 'org\.junit\.Test' . | grep '/src/test/' \
+   | while read -r f; do grep -q '@RunWith(AndroidJUnit4' \"\$f\" || echo \"\$f\"; done"
 
 echo
 if [ "$block_fail" -ne 0 ]; then
