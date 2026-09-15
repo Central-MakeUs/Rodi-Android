@@ -171,6 +171,7 @@ import com.dororong.rodi.feature.home.map.boundsOrNull
 import com.dororong.rodi.feature.home.map.applyMapContentPadding
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
+import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.kakao.vectormap.GestureType
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
@@ -586,6 +587,7 @@ fun HomeScreen(
         handleSystemBack()
     }
 
+    var pendingRegionMove by remember { mutableStateOf<RegionOfficeLocation?>(null) }
     CollectEffect(vm.effect) { effect ->
         when (effect) {
             is HomeEffect.LaunchNavi -> {
@@ -602,6 +604,8 @@ fun HomeScreen(
                 }
             }
             is HomeEffect.ShowNaviPicker -> overlay.naviPlaceId = effect.place.id
+            is HomeEffect.MoveToRegion -> pendingRegionMove = effect.region
+            HomeEffect.RefreshReviews -> reviewVm.refresh()
             is HomeEffect.ShowInstallNaviPicker -> overlay.installNaviPlaceId = effect.place.id
             is HomeEffect.OpenPracticeReview -> {
                 overlay.reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
@@ -739,13 +743,12 @@ fun HomeScreen(
         }
     }
 
-    var consumedRegionSearchGeneration by remember { mutableStateOf(0L) }
-    LaunchedEffect(kakaoMap, state.regionSearchGeneration) {
+    // 지역 선택은 검색 화면에서 돌아오는 중에 도착해 지도가 아직 다시 만들어지지 않았을 수 있다.
+    // 지도가 준비될 때까지 보관했다가 한 번만 소비해, 이후 재진입에서는 이동이 반복되지 않게 한다.
+    LaunchedEffect(kakaoMap, pendingRegionMove) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val region = state.regionSearch ?: return@LaunchedEffect
-        if (state.regionSearchGeneration == 0L) return@LaunchedEffect
-        if (state.regionSearchGeneration == consumedRegionSearchGeneration) return@LaunchedEffect
-        consumedRegionSearchGeneration = state.regionSearchGeneration
+        val region = pendingRegionMove ?: return@LaunchedEffect
+        pendingRegionMove = null
         mapState.hasUserChosenMapViewport = true
         mapState.isAtCurrentLocation = false
         mapState.moveWithSearch(
@@ -1400,9 +1403,6 @@ fun HomeScreen(
         reviewState.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
         }
-    }
-    LaunchedEffect(state.reviewRefreshGeneration) {
-        if (state.reviewRefreshGeneration > 0) reviewVm.refresh()
     }
 }
 

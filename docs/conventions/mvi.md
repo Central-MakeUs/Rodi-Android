@@ -71,6 +71,12 @@ Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `Sha
 보낸 이벤트가 조용히 사라진다 — 화면 전환 직후나 회전 중에 스낵바가 안 뜨는 형태로 터진다.
 재생·다중 소비가 실제로 필요하다면 그때만 SharedFlow를 쓰고 이유를 Contract에 남긴다.
 
+**generation 카운터를 명령 대신 쓰지 않는다**: "지도를 이 지역으로 옮겨라"를 상태의 증가 카운터로 보내고
+화면이 `remember`로 소비 여부를 기억하면, 화면이 다시 그려질 때(다른 route에서 복귀) 기억이 초기화돼
+명령이 **반복 실행된다.** 이런 명령은 Effect로 보낸다. 받는 쪽 자원(지도 등)이 아직 준비되지 않았으면
+화면 로컬 pending에 담았다가 준비되면 한 번 소비한다(`HomeEffect.MoveToRegion`). Compose `key`처럼
+화면이 계속 읽는 값은 상태로 둔다(`HomeUiState.placeListGeneration`).
+
 **정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `Channel<HomeEffect>(Channel.BUFFERED)`
 
 **재검증** (SharedFlow로 Effect를 내보내는 곳 — 이유가 적혀 있어야 한다):
