@@ -89,6 +89,24 @@ class KakaoMapLauncherTest {
         assertFalse(result.contains("129.2,35.1"))
     }
 
+    @Test
+    fun `current location goes to sp before the course start in vp`() {
+        val result = KakaoMapLauncher.buildRouteUri(course, origin = GeoPoint(lat = 37.5, lng = 127.0))
+
+        assertEquals(
+            "kakaomap://route?sp=37.5,127.0&vp=37.5563,126.922&vp2=37.5497,126.914&vp3=37.5477,126.9229" +
+                "&ep=37.5572,126.9254&by=car",
+            result,
+        )
+    }
+
+    @Test
+    fun `parking sends current location and destination only`() {
+        val result = KakaoMapLauncher.buildRouteUri(HomePreviewData.parkingDetail, origin = GeoPoint(lat = 37.5, lng = 127.0))
+
+        assertEquals("kakaomap://route?sp=37.5,127.0&ep=37.5568,126.919&by=car", result)
+    }
+
     private fun waypoint(type: PlaceWaypointType, sequence: Int, lat: Double, lng: Double) =
         PlaceWaypoint(type, sequence, GeoPoint(lat, lng), name = null)
 }

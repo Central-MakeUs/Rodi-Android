@@ -14,19 +14,20 @@ import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 /**
  * 코스(출발→경유→목적)를 **카카오맵 앱**으로 보내 지도 위에 경로선을 표시한다.
  *
- * URL Scheme: `kakaomap://route?vp=위도,경도&vp2=...&ep=위도,경도&by=car`
+ * URL Scheme: `kakaomap://route?sp=위도,경도&vp=위도,경도&vp2=...&ep=위도,경도&by=car`
  * (https://apis.map.kakao.com/android_v2/docs/api-guide/urlscheme/)
  *
- * 카카오맵은 sp(출발지)를 지정해도 현재 GPS로 덮어쓰므로, 코스 출발지를 경로에 포함하려면
- * 첫 번째 vp 로 넣는다. 경유지(vp~vp5)는 최대 5개.
+ * 연습은 지금 있는 곳에서 코스 출발지로 가는 것부터 시작하므로 sp(출발지)는 현위치, 코스 출발지는
+ * 첫 번째 vp 로 넣는다. sp를 생략하면 현재 카카오맵은 출발지를 비워 둔 채 연다(2026-09 실기기 확인).
+ * 경유지(vp~vp5)는 최대 5개.
  */
 object KakaoMapLauncher {
 
     private const val MAX_VIA_COUNT = 5
     private const val KAKAO_MAP_PACKAGE = "net.daum.android.map"
 
-    fun launch(context: Context, place: PlaceDetail) {
-        val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(place).toUri())
+    fun launch(context: Context, place: PlaceDetail, origin: GeoPoint?) {
+        val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(place, origin).toUri())
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
@@ -40,9 +41,10 @@ object KakaoMapLauncher {
 
     fun openInstallPage(context: Context) = context.openPlayStore(KAKAO_MAP_PACKAGE)
 
-    /** 출발지(vp) → 경유지(vp2..) → 목적지(ep). 주차장은 목적지만 전달한다. */
-    internal fun buildRouteUri(place: PlaceDetail): String {
+    /** 현위치(sp) → 코스 출발지(vp) → 경유지(vp2..) → 목적지(ep). 주차장은 현위치와 목적지만 전달한다. */
+    internal fun buildRouteUri(place: PlaceDetail, origin: GeoPoint? = null): String {
         val params = buildList {
+            origin?.let { add("sp=${it.toMapParam()}") }
             if (place.type == PlaceType.COURSE) {
                 val ordered = place.course?.waypoints.orEmpty().sortedBy { it.sequence }
                 val viaPoints = ordered
