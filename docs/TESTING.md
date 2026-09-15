@@ -58,6 +58,12 @@ fun `rethrows cancellation`() = runTest {
 - UI를 의도적으로 바꿨다면 `./gradlew recordRoborazziDebug`로 `src/test/snapshots/`의 기준 이미지를 갱신해 같은 PR에 커밋한다.
 - CI에서 실패하면 `roborazzi-diff` 아티팩트의 `*_compare.png`로 차이를 확인한다.
 
+## 커버리지
+- `./gradlew verifyRoborazziDebug koverHtmlReport`는 전체 모듈을 합친 리포트를 `build/reports/kover/html/`에 만든다. 모듈 하나만 볼 때는 `./gradlew :core:data:koverHtmlReport`를 쓴다.
+- `verifyRoborazziDebug`를 빼면 안 된다. Roborazzi 테스트는 verify 모드일 때만 컴포저블을 렌더링하므로, 빼면 `core:ui`와 `feature:home` 수치가 낮게 나오고 CI 수치와 달라진다.
+- 커버리지는 테스트가 무엇을 덮는지 보려고 쓰는 도구다. 임계값을 걸어 CI를 실패시키지 않는다. CI는 `kover-report` 아티팩트로 리포트를 올린다.
+- 생성 코드(Hilt·Dagger·Room·`BuildConfig`·`R`·`ComposableSingletons`)와 `@Preview` 함수는 `KoverConventionPlugin`이 제외한다.
+
 ## MockK
 - 동기 함수는 `every { } returns`와 `verify { }`를 사용한다.
 - `suspend` 함수는 `coEvery { } returns`와 `coVerify { }`를 사용한다.

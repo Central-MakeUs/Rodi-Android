@@ -24,6 +24,10 @@
 - [x] **Roborazzi 스냅샷 비교를 CI 게이트로 연결** (2026-09-15 완료) — 그전까지 CI는 `./gradlew test`만
   돌렸고, 이 태스크는 기준 이미지와 비교하지 않아 UI가 깨져도 통과했다. `ci.yml`에
   `verifyRoborazziDebug` 스텝을 추가하고, 실패하면 `roborazzi-diff` 아티팩트를 올리게 했다.
+- [x] **Kover 커버리지 리포트 도입** (2026-09-15 완료) — `dororong.rodi.kover` Convention Plugin으로 11개 모듈을
+  측정하고, CI는 `kover-report` 아티팩트를 올린다. 임계값은 걸지 않았다. 첫 측정 결과는
+  `audits/2026-09-15-coverage.md`에 있다. `core:data` 수치는 `SampleCourses.kt`(앱 미사용 샘플 데이터)
+  때문에 부풀려져 있다는 점에 주의한다.
 - [x] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격** — `withMocks(responses, block)`
   suspend 헬퍼 추가 완료(2026-08-24, 상태 복원 포함). 아직 실제 androidTest에서 쓰인 곳은 없음 —
   진입점만 마련된 상태.

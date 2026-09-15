@@ -10,6 +10,7 @@ dependencies {
     compileOnly(libs.hilt.gradlePlugin)
     compileOnly(libs.ksp.gradlePlugin)
     compileOnly(libs.kotlin.gradlePlugin)
+    compileOnly(libs.kover.gradlePlugin)
 }
 
 gradlePlugin {
@@ -37,6 +38,10 @@ gradlePlugin {
         register("jvmLibrary") {
             id = "dororong.rodi.jvm.library"
             implementationClass = "JvmLibraryConventionPlugin"
+        }
+        register("kover") {
+            id = "dororong.rodi.kover"
+            implementationClass = "KoverConventionPlugin"
         }
     }
 }

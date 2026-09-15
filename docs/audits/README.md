@@ -45,3 +45,4 @@
 | 날짜 | 문서 | 범위 |
 |---|---|---|
 | 2026-09-06 | `2026-09-06-code-conventions.md` | 이름·MVI·에러 처리·Compose·테스트·Gradle 전반 |
+| 2026-09-15 | `2026-09-15-coverage.md` | Kover 라인 커버리지 — 모듈별·repository·feature:home·0% 파일 |
