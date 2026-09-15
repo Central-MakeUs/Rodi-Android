@@ -52,7 +52,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -145,7 +144,6 @@ import com.dororong.rodi.core.ui.map.saveLastMapCamera
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.centerPoint
-import com.dororong.rodi.core.ui.network.isNetworkAvailable
 import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
@@ -158,6 +156,7 @@ import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
 import com.dororong.rodi.feature.home.map.MapSearchMoveReason
 import com.dororong.rodi.feature.home.map.MapScreenState
 import com.dororong.rodi.feature.home.map.rememberHomeMapState
+import com.dororong.rodi.feature.home.map.rememberMapLoadStatus
 import com.dororong.rodi.feature.home.map.MapViewport
 import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
@@ -167,7 +166,6 @@ import com.dororong.rodi.feature.home.map.clearCurrentLocationMarker
 import com.dororong.rodi.feature.home.map.deselectParkingMarker
 import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
-import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.initialMapCenter
 import com.dororong.rodi.feature.home.map.markMapLoaded
@@ -226,10 +224,6 @@ private val BOTTOM_CONTROL_MIN_OFFSET = 68.dp
 private val BOTTOM_CONTROL_SHEET_GAP = 12.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
-private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
-
-/** 오프라인이 이만큼 이어지면 지도를 덮고 안내 화면을 띄운다. */
-internal const val MAP_NETWORK_ERROR_GRACE_MILLIS = 3_000L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
 // 주차장 상세는 내용 길이와 무관하게 코스 상세와 같은 높이로 고정한다.
 private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
@@ -280,21 +274,7 @@ fun HomeScreen(
     var currentLocation by remember { mutableStateOf<LatLng?>(null) }
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
     var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
-    var mapRetryKey by remember { mutableIntStateOf(0) }
-    var lastMapRetryAtMillis by remember { mutableLongStateOf(0L) }
-    var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
-    var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
-    var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
-    // 최초 진입이 오프라인이어도 여기서 곧장 NetworkError로 시작하지 않는다 — 그러면 아래
-    // LaunchedEffect(isOnline)의 3초 유예를 건너뛰게 된다. 유예는 그 이펙트가 책임진다.
-    var mapScreenState by remember {
-        mutableStateOf(
-            when {
-                hasLoadedMapInSession || context.hasLoadedMapBefore() -> MapScreenState.Ready
-                else -> MapScreenState.Loading
-            },
-        )
-    }
+    val mapLoad = rememberMapLoadStatus(context)
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var pendingDrivingEffect by remember { mutableStateOf<HomeEffect.LaunchNavi?>(null) }
@@ -696,22 +676,12 @@ fun HomeScreen(
     }
 
     fun retryMap() {
-        if (!isOnline) {
-            mapScreenState = MapScreenState.NetworkError
-            return
-        }
-
-        val now = System.currentTimeMillis()
-        if (now - lastMapRetryAtMillis < MAP_RETRY_DEBOUNCE_MILLIS) return
-        lastMapRetryAtMillis = now
-        if (mapScreenState != MapScreenState.Ready) mapScreenState = MapScreenState.Loading
-        kakaoMap = null
-        mapRetryKey += 1
+        if (mapLoad.retry()) kakaoMap = null
     }
 
     val networkErrorSnackbarIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
-    LaunchedEffect(showMapNetworkSnackbar) {
-        if (showMapNetworkSnackbar) {
+    LaunchedEffect(mapLoad.showNetworkSnackbar) {
+        if (mapLoad.showNetworkSnackbar) {
             snackbarHostState.showImmediately(
                 RodiSnackbarData(
                     id = MAP_NETWORK_SNACKBAR_ID,
@@ -741,19 +711,15 @@ fun HomeScreen(
     }
 
     LaunchedEffect(Unit) {
-        networkAvailabilityFlow(context).collect { isOnline = it }
+        networkAvailabilityFlow(context).collect { mapLoad.isOnline = it }
     }
 
-    // 끊기자마자 지도를 덮으면 잠깐 끊겼다 붙는 구간에서 화면이 번쩍인다. 토스트는 바로,
-    // 안내 화면은 유예 시간을 넘겨 계속 끊겨 있을 때만 덮는다(iOS와 동일).
-    // isOnline이 다시 true가 되면 이 이펙트가 재시작되며 delay가 취소돼 원래 화면으로 돌아온다.
-    LaunchedEffect(isOnline) {
-        if (isOnline) {
-            if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
+    // 연결이 돌아오면 이 이펙트가 재시작되며 오프라인 유예 delay가 취소된다(MapLoadStatus.awaitOfflineGrace).
+    LaunchedEffect(mapLoad.isOnline) {
+        if (mapLoad.isOnline) {
+            if (mapLoad.shouldRetryOnReconnect) retryMap()
         } else {
-            showMapNetworkSnackbar = true
-            delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
-            mapScreenState = MapScreenState.NetworkError
+            mapLoad.awaitOfflineGrace()
         }
     }
 
@@ -991,7 +957,7 @@ fun HomeScreen(
                     .onSizeChanged { containerSize = it },
             ) {
                 Box(Modifier.fillMaxSize()) {
-                        key(mapRetryKey) {
+                        key(mapLoad.retryKey) {
                             val mapView = rememberMapViewWithLifecycle()
                             AndroidView(
                                 modifier = Modifier
@@ -1003,17 +969,7 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                // SDK 초기화·렌더링 실패도 이 콜백을 타므로, 온라인
-                                                // 상태에서까지 "네트워크 연결이 원활하지 않아요"로
-                                                // 안내하면 원인과 다른 메시지가 뜬다.
-                                                if (isOnline) {
-                                                    showMapNetworkSnackbar = false
-                                                    mapScreenState = MapScreenState.Error
-                                                } else {
-                                                    // 오프라인 안내 화면 전환은 3초 유예를 갖고 있는
-                                                    // LaunchedEffect(isOnline)에 맡긴다.
-                                                    showMapNetworkSnackbar = true
-                                                }
+                                                mapLoad.onMapError()
                                             }
                                         },
                                         object : KakaoMapReadyCallback() {
@@ -1048,12 +1004,9 @@ fun HomeScreen(
                                                             CameraSettleAction.None -> Unit
                                                         }
                                                     }
-                                                    if (isOnline) {
+                                                    if (mapLoad.onMapRendered()) {
                                                         hasLoadedMapInSession = true
-                                                        hasMapLoadedThisEntry = true
                                                         context.markMapLoaded()
-                                                        mapScreenState = MapScreenState.Ready
-                                                        showMapNetworkSnackbar = false
                                                     }
                                                 }
                                                 map.setOnLabelClickListener { _, _, label ->
@@ -1408,7 +1361,7 @@ fun HomeScreen(
                     }
                 }
 
-                when (mapScreenState) {
+                when (mapLoad.screenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
                     MapScreenState.NetworkError -> MapNetworkErrorScreen()
                     MapScreenState.Error -> HomeMapErrorOverlay(
@@ -1420,7 +1373,7 @@ fun HomeScreen(
 
                 RodiSnackbarHost(
                     state = snackbarHostState,
-                    bottomPadding = if (mapScreenState == MapScreenState.NetworkError) 20.dp else 114.dp,
+                    bottomPadding = if (mapLoad.screenState == MapScreenState.NetworkError) 20.dp else 114.dp,
                 )
             }
         },
