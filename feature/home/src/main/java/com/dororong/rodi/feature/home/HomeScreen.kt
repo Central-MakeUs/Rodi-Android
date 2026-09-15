@@ -92,14 +92,10 @@ import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
-import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
-import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
-import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
-import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -107,30 +103,19 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.HomeSearchBar
 import com.dororong.rodi.feature.home.components.MapListButton
 import com.dororong.rodi.core.ui.components.map.MapLoadingScreen
 import com.dororong.rodi.core.ui.components.map.MapNetworkErrorScreen
 import com.dororong.rodi.feature.home.components.MapResearchButton
 import com.dororong.rodi.feature.home.components.MyLocationButton
-import com.dororong.rodi.feature.home.components.NaviPickerMode
-import com.dororong.rodi.feature.home.components.NaviPickerSheet
 import com.dororong.rodi.feature.home.detail.CourseDetailSheet
 import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
-import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
-import com.dororong.rodi.feature.home.review.ReviewWriteScreen
-import com.dororong.rodi.feature.home.review.NotificationPermissionDialog
-import com.dororong.rodi.feature.home.review.PracticeContinueDialog
-import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsEffect
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
-import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
 import com.dororong.rodi.feature.home.detail.components.PlaceDetailLoading
-import com.dororong.rodi.feature.home.filter.FilterBottomSheet
 import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
@@ -238,12 +223,6 @@ typealias KakaoLoginRequest = (
 ) -> Unit
 typealias DrivingStartRequest = (PlaceDetail) -> Result<String>
 
-private data class ReviewWriteTarget(
-    val placeId: Long,
-    val placeName: String,
-    val review: Review?,
-)
-
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
@@ -275,34 +254,12 @@ fun HomeScreen(
     var permissionGranted by remember { mutableStateOf(context.hasLocationPermission()) }
     var initialLocationState by remember { mutableStateOf(InitialLocationState.Pending) }
     val mapLoad = rememberMapLoadStatus(context)
-    var naviPlaceId by remember { mutableStateOf<Long?>(null) }
-    var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
+    val overlay = rememberHomeOverlayState()
     var pendingDrivingEffect by remember { mutableStateOf<HomeEffect.LaunchNavi?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
-    var reviewToReport by remember { mutableStateOf<Review?>(null) }
-    var reviewToBlock by remember { mutableStateOf<Review?>(null) }
-    var reviewToDelete by remember { mutableStateOf<Review?>(null) }
-    var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
-    var ownReviewActionToastMessage by remember { mutableStateOf<String?>(null) }
     var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
-    fun handleReportReviewClick(review: Review) {
-        if (review.isMine) {
-            ownReviewActionToastMessage = "내가 쓴 후기는 신고할 수 없습니다"
-        } else {
-            reviewToReport = review
-        }
-    }
-
-    fun handleBlockMemberClick(review: Review) {
-        if (review.isMine) {
-            ownReviewActionToastMessage = "내가 쓴 후기는 차단할 수 없습니다"
-        } else {
-            reviewToBlock = review
-        }
-    }
-
     val deviceHeading = rememberDeviceHeading()
     val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
@@ -644,10 +601,10 @@ fun HomeScreen(
                     }
                 }
             }
-            is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
-            is HomeEffect.ShowInstallNaviPicker -> installNaviPlaceId = effect.place.id
+            is HomeEffect.ShowNaviPicker -> overlay.naviPlaceId = effect.place.id
+            is HomeEffect.ShowInstallNaviPicker -> overlay.installNaviPlaceId = effect.place.id
             is HomeEffect.OpenPracticeReview -> {
-                reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
+                overlay.reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
             }
             is HomeEffect.OpenPracticeSkipReason -> onPracticeSkipReasonClick(effect.practiceId)
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
@@ -1289,11 +1246,11 @@ fun HomeScreen(
                                         review = reviewState.latestReviews.firstOrNull(),
                                         onSelectLevel = reviewVm::selectLevel,
                                         onAllClick = { vm.onIntent(HomeIntent.OnLevelReviewsOpen) },
-                                        onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
-                                        onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
-                                        onDeleteReviewClick = { reviewToDelete = it },
-                                        onReportReviewClick = ::handleReportReviewClick,
-                                        onBlockMemberClick = ::handleBlockMemberClick,
+                                        onWriteReviewClick = { overlay.reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
+                                        onEditReviewClick = { overlay.reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
+                                        onDeleteReviewClick = { overlay.reviewToDelete = it },
+                                        onReportReviewClick = overlay::requestReport,
+                                        onBlockMemberClick = overlay::requestBlock,
                                         scrollState = sheetScrollState,
                                     )
                                 }
@@ -1379,134 +1336,52 @@ fun HomeScreen(
         },
     )
 
-    if (state.pendingAction != null && !state.hasPendingRestore) {
-        LoginRequiredDialog(
-            isLoggingIn = state.isLoginInProgress,
-            onDismiss = dismissLogin,
-            onKakaoLoginClick = {
-                onRequestKakaoLogin(
-                    { token -> vm.onIntent(HomeIntent.OnKakaoLoginCredential(token)) },
-                    { message ->
-                        if (message.contains("취소")) dismissLogin()
-                        else vm.onIntent(HomeIntent.OnKakaoLoginFailed(message))
-                    },
-                )
-            },
-        )
-    }
-
-    val levelReviewsPlace = state.selectedPlace
-    if (state.isLevelReviewsVisible && levelReviewsPlace?.type == PlaceType.COURSE) {
-        LevelReviewsOverlay(
-            recommendCount = reviewState.recommendCount,
-            selectedLevel = reviewState.selectedLevel,
-            difficultyCounts = reviewState.difficultyCounts,
-            reviews = reviewState.reviews,
-            isBookmarked = levelReviewsPlace.isBookmarked,
-            isBookmarkUpdating = state.isBookmarkUpdating,
-            onClose = { vm.onIntent(HomeIntent.OnLevelReviewsClose) },
+    HomeOverlayHost(
+        state = state,
+        reviewState = reviewState,
+        isBlocking = reviewActionsState.isBlocking,
+        isDeleting = reviewActionsState.isDeleting,
+        overlay = overlay,
+        onIntent = vm::onIntent,
+        reviewActions = HomeReviewOverlayActions(
             onSelectLevel = reviewVm::selectLevelAndLoadReviews,
-            onLoadInitial = reviewVm::loadInitialReviews,
-            onLoadNext = reviewVm::loadNextPage,
-            onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-            onNavigate = requestNavigate,
-            onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
-            onDeleteReviewClick = { reviewToDelete = it },
-            onReportReviewClick = ::handleReportReviewClick,
-            onBlockMemberClick = ::handleBlockMemberClick,
-        )
-    }
-    reviewToReport?.let { review ->
-        ReviewReportScreen(
-            reviewId = review.reviewId,
-            onClose = { reviewToReport = null },
-            modifier = Modifier.fillMaxSize(),
-            onReported = reviewVm::excludeReportedReview,
-        )
-    }
-    reviewToWrite?.let { target ->
-        ReviewWriteScreen(
-            placeId = target.placeId,
-            placeName = target.placeName,
-            editingReviewId = target.review?.reviewId,
-            onClose = { reviewToWrite = null },
-            onCompleted = { result ->
-                reviewToWrite = null
+            onLoadInitialReviews = reviewVm::loadInitialReviews,
+            onLoadNextReviews = reviewVm::loadNextPage,
+            onReviewReported = reviewVm::excludeReportedReview,
+            onReviewSubmitted = { result ->
                 reviewVm.onReviewSubmitted(result)
                 reviewVm.refresh()
             },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-    state.practicePrompt?.let { session ->
-        PracticePromptDialog(
-            practice = session,
-            onVisited = {
-                vm.onIntent(HomeIntent.OnPracticePromptVisited)
-            },
-            onNotVisited = {
-                vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
-            },
-            onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
-        )
-    }
-    state.activePracticeSession
-        ?.takeIf { state.isPracticeContinueDialogVisible }
-        ?.let { session ->
-            PracticeContinueDialog(
-                placeName = session.placeName,
-                onContinue = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
-                onStop = { vm.onIntent(HomeIntent.OnPracticeStopMeasurement) },
-                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+            onBlockMember = reviewActionsVm::blockMember,
+            onDeleteReview = reviewActionsVm::deleteReview,
+        ),
+        onNavigate = requestNavigate,
+        onDismissLogin = dismissLogin,
+        onKakaoLoginClick = {
+            onRequestKakaoLogin(
+                { token -> vm.onIntent(HomeIntent.OnKakaoLoginCredential(token)) },
+                { message ->
+                    if (message.contains("취소")) dismissLogin()
+                    else vm.onIntent(HomeIntent.OnKakaoLoginFailed(message))
+                },
             )
-        }
-    if (state.isNotificationPermissionRationaleVisible) {
-        NotificationPermissionDialog(
-            onAllow = { vm.onIntent(HomeIntent.OnNotificationPermissionAllow) },
-            onRouteOnly = { vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly) },
-        )
-    }
-    state.levelUp?.let { level ->
-        LevelUpDialog(
-            level = level,
-            onConfirm = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
-            onDismissRequest = { vm.onIntent(HomeIntent.OnLevelUpDismiss) },
-        )
-    }
-    reviewToBlock?.let { review ->
-        BlockMemberDialog(
-            isBlocking = reviewActionsState.isBlocking,
-            onConfirm = { reviewActionsVm.blockMember(review.memberId) },
-            onDismiss = { reviewToBlock = null },
-        )
-    }
-    reviewToDelete?.let { review ->
-        RodiAlertDialog(
-            title = "후기를 삭제할까요?",
-            description = "삭제한 후기는 되돌릴 수 없어요.",
-            confirmText = if (reviewActionsState.isDeleting) "삭제 중" else "삭제",
-            dismissText = "취소",
-            enabled = !reviewActionsState.isDeleting,
-            dismissible = !reviewActionsState.isDeleting,
-            onConfirm = { reviewActionsVm.deleteReview(review.reviewId) },
-            onDismiss = { reviewToDelete = null },
-            onDismissRequest = { if (!reviewActionsState.isDeleting) reviewToDelete = null },
-        )
-    }
+        },
+        notificationPermissionGranted = context::hasNotificationPermission,
+    )
     CollectEffect(reviewActionsVm.effect) { effect ->
         when (effect) {
             is ReviewActionsEffect.Blocked -> {
                 reviewVm.excludeMemberReviews(effect.memberId)
-                reviewToBlock = null
+                overlay.reviewToBlock = null
                 snackbarHostState.show(RodiSnackbarData(message = "사용자를 차단했습니다."))
             }
             is ReviewActionsEffect.BlockFailed -> {
-                reviewToBlock = null
+                overlay.reviewToBlock = null
                 snackbarHostState.show(RodiSnackbarData(message = effect.message))
             }
             is ReviewActionsEffect.Deleted -> {
                 reviewVm.removeReview(effect.reviewId)
-                reviewToDelete = null
+                overlay.reviewToDelete = null
                 snackbarHostState.show(RodiSnackbarData(message = "후기를 삭제했습니다."))
             }
             is ReviewActionsEffect.DeleteFailed -> {
@@ -1514,10 +1389,10 @@ fun HomeScreen(
             }
         }
     }
-    LaunchedEffect(ownReviewActionToastMessage) {
-        ownReviewActionToastMessage?.let { message ->
+    LaunchedEffect(overlay.ownReviewActionToastMessage) {
+        overlay.ownReviewActionToastMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
-            ownReviewActionToastMessage = null
+            overlay.ownReviewActionToastMessage = null
         }
     }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.
@@ -1528,52 +1403,6 @@ fun HomeScreen(
     }
     LaunchedEffect(state.reviewRefreshGeneration) {
         if (state.reviewRefreshGeneration > 0) reviewVm.refresh()
-    }
-    if (state.hasPendingRestore) {
-        AccountRecoveryDialog(
-            isRestoring = state.isRestoreInProgress,
-            onConfirm = { vm.onIntent(HomeIntent.OnRestoreAccount) },
-            onDismiss = { vm.onIntent(HomeIntent.OnDismissRestore) },
-        )
-    }
-
-    if (state.isFilterSheetVisible) {
-        FilterBottomSheet(
-            activeCategory = state.activeFilterCategory,
-            selectedPracticeTypes = state.selectedFilterPracticeTypes,
-            onCategorySelect = { vm.onIntent(HomeIntent.OnFilterCategorySelect(it)) },
-            onPracticeOptionToggle = { vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(it)) },
-            onReset = { vm.onIntent(HomeIntent.OnFilterReset) },
-            onApply = { vm.onIntent(HomeIntent.OnFilterApply) },
-            onDismiss = { vm.onIntent(HomeIntent.OnFilterDismiss) },
-            isSaving = state.isFilterSaving,
-        )
-    }
-
-    naviPlaceId?.let {
-        NaviPickerSheet(
-            onDismiss = { naviPlaceId = null },
-            onSelect = { app, always ->
-                vm.onIntent(
-                    HomeIntent.OnNaviAppSelected(
-                        app = app,
-                        always = always,
-                        notificationPermissionGranted = context.hasNotificationPermission(),
-                    ),
-                )
-                naviPlaceId = null
-            },
-        )
-    }
-    installNaviPlaceId?.let {
-        NaviPickerSheet(
-            mode = NaviPickerMode.INSTALL,
-            onDismiss = { installNaviPlaceId = null },
-            onSelect = { app, _ ->
-                vm.onIntent(HomeIntent.OnInstallNaviAppSelected(app))
-                installNaviPlaceId = null
-            },
-        )
     }
 }
 
