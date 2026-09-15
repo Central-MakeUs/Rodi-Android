@@ -110,6 +110,7 @@ class DrivingSessionPreferences @Inject constructor(
         val KEY_ARRIVAL_NOTICE_PENDING = booleanPreferencesKey("arrival_notice_pending")
         val KEY_REQUIRED_DISTANCE_METERS = intPreferencesKey("required_distance_meters")
         val KEY_IN_COURSE_SCOPE = booleanPreferencesKey("in_course_scope")
+        val KEY_COURSE_ROUTE = stringPreferencesKey("course_route")
     }
 
     private fun MutablePreferences.write(session: DrivingSession) {
@@ -129,6 +130,11 @@ class DrivingSessionPreferences @Inject constructor(
         session.requiredDistanceMeters?.let { this[KEY_REQUIRED_DISTANCE_METERS] = it }
             ?: remove(KEY_REQUIRED_DISTANCE_METERS)
         this[KEY_IN_COURSE_SCOPE] = session.isInCourseScope
+        session.courseRoute.takeIf { it.isNotEmpty() }?.let { route ->
+            this[KEY_COURSE_ROUTE] = route.joinToString(ROUTE_POINT_SEPARATOR) { point ->
+                "${point.lat}$ROUTE_VALUE_SEPARATOR${point.lng}"
+            }
+        } ?: remove(KEY_COURSE_ROUTE)
     }
 
     private fun Preferences.toDrivingSession(): DrivingSession? {
@@ -154,6 +160,18 @@ class DrivingSessionPreferences @Inject constructor(
             isArrivalNoticePending = this[KEY_ARRIVAL_NOTICE_PENDING] ?: false,
             requiredDistanceMeters = this[KEY_REQUIRED_DISTANCE_METERS],
             isInCourseScope = this[KEY_IN_COURSE_SCOPE] ?: false,
+            courseRoute = this[KEY_COURSE_ROUTE].orEmpty().toCourseRoute(),
         )
     }
+}
+
+private const val ROUTE_POINT_SEPARATOR = ";"
+private const val ROUTE_VALUE_SEPARATOR = ","
+
+private fun String.toCourseRoute(): List<GeoPoint> = split(ROUTE_POINT_SEPARATOR).mapNotNull { value ->
+    val parts = value.split(ROUTE_VALUE_SEPARATOR)
+    if (parts.size != 2) return@mapNotNull null
+    val latitude = parts[0].toDoubleOrNull() ?: return@mapNotNull null
+    val longitude = parts[1].toDoubleOrNull() ?: return@mapNotNull null
+    GeoPoint(latitude, longitude)
 }

@@ -6,6 +6,8 @@ import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.driving.DrivingSession
+import com.dororong.rodi.core.domain.model.driving.DrivingSessionStatus
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -837,6 +839,30 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `continue resumes the persisted driving session`() = runTest(dispatcher) {
+        val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
+        val localSession = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
+        val drivingSession = drivingSession()
+        coEvery { deps.getActiveSession() } returns localSession
+        every { deps.observeDrivingSession() } returns flowOf(drivingSession)
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.OnAppResumed)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.ResumeDrivingTracking(drivingSession), awaitItem())
+        }
+
+        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertFalse(vm.state.value.isPracticeActionInProgress)
+        coVerify(exactly = 0) { deps.clearActiveSession() }
+    }
+
+    @Test
     fun `stop clears only local session and never calls practice APIs`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
@@ -1410,6 +1436,19 @@ private fun activeSession(
     placeType = placeType,
     startedAt = startedAt,
     practiceId = practiceId,
+)
+
+private fun drivingSession() = DrivingSession(
+    id = "driving-session",
+    placeId = 27L,
+    placeName = "강남역 주변 코스",
+    destination = GeoPoint(37.4979, 127.0276),
+    plannedDistanceMeters = 1_000,
+    startedAtEpochMillis = Instant.parse("2026-08-15T00:00:00Z").toEpochMilli(),
+    arrivedAtEpochMillis = null,
+    traveledDistanceMeters = 120.0,
+    status = DrivingSessionStatus.ACTIVE,
+    isArrivalNoticePending = false,
 )
 
 private fun clockAt(value: String): Clock = Clock.fixed(Instant.parse(value), ZoneOffset.UTC)

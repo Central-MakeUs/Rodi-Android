@@ -90,7 +90,11 @@ class DrivingTrackingService : Service() {
         }
         activeSession = session
         DrivingNotificationFactory.createChannels(this)
-        val notification = DrivingNotificationFactory.ongoing(this, session, 0.0)
+        val notification = DrivingNotificationFactory.ongoing(
+            this,
+            session,
+            session.traveledDistanceMeters,
+        )
         try {
             ServiceCompat.startForeground(
                 this,
@@ -121,24 +125,30 @@ class DrivingTrackingService : Service() {
 
     private suspend fun collectLocations(session: DrivingSession) {
         val arrivalPolicy = RadiusArrivalPolicy()
-        val progressAccumulator = DrivingProgressAccumulator()
+        val progressAccumulator = DrivingProgressAccumulator(
+            initialDistanceMeters = session.traveledDistanceMeters,
+        )
         val courseAccumulator = session.courseRoute
             .takeIf { it.size >= 2 && (session.requiredDistanceMeters ?: 0) > 0 }
             ?.let {
                 CourseScopeDistanceAccumulator(
                     route = it,
                     requiredDistanceMeters = requireNotNull(session.requiredDistanceMeters),
+                    initialRecognizedDistanceMeters = session.traveledDistanceMeters,
                 )
             }
         var consecutiveMatches = 0
-        var lastPublishedDistance = 0.0
+        var lastPublishedDistance = session.traveledDistanceMeters
         var lastPublishedAt = SystemClock.elapsedRealtime()
-        var lastPublishedScope = false
+        var lastPublishedScope = session.isInCourseScope
         rawCurrentLocationUpdates().collect { location ->
             if (isFinishing || activeSession?.id != session.id) return@collect
             if (!canKeepTrackingVisible()) {
                 trackingJob = null
-                finishSession(session.id, removeNotification = true, clearSession = true)
+                // 알림이 꺼진 동안에는 보이지 않는 위치 추적을 계속하지 않는다.
+                // 다만 사용자가 설정에서 알림을 다시 켠 뒤 측정을 이어갈 수 있도록
+                // 현재 ACTIVE 세션은 유지한다.
+                finishSession(session.id, removeNotification = true, clearSession = false)
                 return@collect
             }
             val sample = location.toDrivingLocationSample()
@@ -300,6 +310,9 @@ class DrivingTrackingService : Service() {
         const val EXTRA_REQUIRED_DISTANCE_METERS = "required_distance_meters"
         const val EXTRA_ROUTE_LATITUDES = "route_latitudes"
         const val EXTRA_ROUTE_LONGITUDES = "route_longitudes"
+        const val EXTRA_STARTED_AT_EPOCH_MILLIS = "started_at_epoch_millis"
+        const val EXTRA_TRAVELED_DISTANCE_METERS = "traveled_distance_meters"
+        const val EXTRA_IN_COURSE_SCOPE = "in_course_scope"
     }
 }
 
@@ -323,18 +336,30 @@ private fun Intent.toDrivingSession(): DrivingSession? {
     val routeLongitudes = getDoubleArrayExtra(DrivingTrackingService.EXTRA_ROUTE_LONGITUDES)
         ?: doubleArrayOf()
     val courseRoute = routeLatitudes.zip(routeLongitudes).map { (lat, lng) -> GeoPoint(lat, lng) }
+    val startedAt = getLongExtra(
+        DrivingTrackingService.EXTRA_STARTED_AT_EPOCH_MILLIS,
+        Long.MIN_VALUE,
+    ).takeIf { it != Long.MIN_VALUE } ?: System.currentTimeMillis()
+    val traveledDistance = getDoubleExtra(
+        DrivingTrackingService.EXTRA_TRAVELED_DISTANCE_METERS,
+        Double.NaN,
+    ).takeUnless(Double::isNaN) ?: 0.0
     return DrivingSession(
         id = sessionId,
         placeId = placeId,
         placeName = placeName,
         destination = GeoPoint(destinationLat, destinationLng),
         plannedDistanceMeters = plannedDistance,
-        startedAtEpochMillis = System.currentTimeMillis(),
+        startedAtEpochMillis = startedAt,
         arrivedAtEpochMillis = null,
-        traveledDistanceMeters = 0.0,
+        traveledDistanceMeters = traveledDistance,
         status = DrivingSessionStatus.ACTIVE,
         isArrivalNoticePending = false,
         requiredDistanceMeters = requiredDistance,
+        isInCourseScope = getBooleanExtra(
+            DrivingTrackingService.EXTRA_IN_COURSE_SCOPE,
+            false,
+        ),
         courseRoute = courseRoute,
     )
 }

@@ -26,13 +26,14 @@ class CourseScopeDistanceAccumulator(
     private val maxAccuracyMeters: Float = 50f,
     private val minMovementMeters: Double = 3.0,
     private val maxMovementMeters: Double = 200.0,
+    initialRecognizedDistanceMeters: Double = 0.0,
 ) {
     private val route = route.distinct()
     private var previousSample: DrivingLocationSample? = null
     private var previousInCourseScope = false
     private var completed = false
 
-    var recognizedDistanceMeters: Double = 0.0
+    var recognizedDistanceMeters: Double = initialRecognizedDistanceMeters
         private set
 
     init {
@@ -41,6 +42,7 @@ class CourseScopeDistanceAccumulator(
         require(maxAccuracyMeters > 0)
         require(minMovementMeters >= 0)
         require(maxMovementMeters >= minMovementMeters)
+        require(initialRecognizedDistanceMeters >= 0.0)
     }
 
     fun add(sample: DrivingLocationSample): CourseProgress {

@@ -186,3 +186,70 @@ Service와 Android 16 ProgressStyle의 동작·커스텀 가능 범위를 확인
   `app/src/main/res/drawable/ic_notification_rodi.xml`, `feature/home/.../HomeScreen.kt`
 - Verification: `./gradlew :app:assembleDebug` GREEN. 실제 SM-M446K(Android 16) 설치는 완료했으며,
   운전 시작·종료와 제조사별 아이콘 렌더링은 실기기에서 추가 확인이 필요하다.
+
+## Follow-up Result — 최신 develop 병합 및 공식 Live Updates 조건 재검증
+
+- Baseline: `git fetch origin --prune` 후 최신 `origin/develop`(`1b3dc6ff`, v1.4.5)을
+  `codex/spike-driving-live-updates`에 병합했다. 최신 develop의 코스 등록·활동 세션 구조는 유지하고,
+  스파이크의 위치 FGS·ProgressStyle·도착 DataStore 흐름을 결합했다. 병합 결과는 커밋하지 않고 현재
+  워크트리에 staged 상태로 보존한다.
+- Official checklist: [실시간 업데이트 공식 문서](https://developer.android.com/develop/ui/compose/notifications/live-update?hl=ko)의
+  표준/BigText/ProgressStyle, `POST_PROMOTED_NOTIFICATIONS`, `setRequestPromotedOngoing(true)`, ongoing,
+  content title, RemoteViews·group summary·colorized 제외, 채널 `IMPORTANCE_MIN` 제외 조건을 모두 코드에
+  반영했다. 채널이 `IMPORTANCE_MIN`으로 내려가면 서비스 시작을 막고, 추적 중 채널이 내려가도 즉시 정리한다.
+- Diagnostics: API 36 이상 서비스 시작 시 `request`, `promotable`, `allowed` 값을 로그로 기록한다.
+  `allowed`는 사용자의 프로모션 설정과 OEM 정책을 포함하고, `promotable`은 알림 형식 조건만 검사한다.
+  Live Update 승격 실패 시에도 일반 ongoing 알림은 유지한다.
+- Root cause evidence: 현재 연결된 Pixel API 36/37 AVD는 `POST_NOTIFICATION: ignore` 및
+  `POST_NOTIFICATIONS granted=false` 상태라 승격 전제인 알림 게시 자체가 비활성화되어 있다.
+  삼성 실기기 검증에서 확인한 `promotable=true`, `allowed=false`, `PROMOTED_ONGOING` 미설정도 같은
+  결론을 뒷받침한다. 실제 승격·상태바 chip·기본 확장 여부는 SystemUI/OEM/사용자 설정이 결정한다.
+- UI: 최신 Home 구조에 저장된 ARRIVED 세션 관찰과 STARTED 수명주기 조건의 도착 다이얼로그를 다시 연결했다.
+  백그라운드에서는 다이얼로그/Activity를 만들지 않고 알림만 남기며, 도착 알림 제목은
+  `목적지에 도착한 것 같아요`로 통일했다.
+- Verification: `git diff --check`,
+  `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest`,
+  `./gradlew lint assembleDebug`, 마지막 `ProgressStyle` tracker 아이콘 반영 후
+  `./gradlew :app:compileDebugKotlin :app:testDebugUnitTest`와 `./gradlew :app:lint` GREEN.
+  API 35 표준 알림과 OEM별 Live Update 렌더링은 실기기에서 별도 확인한다.
+
+## Follow-up Result — platform-samples 대조 및 승격 설정 경로 보강
+
+- Android 공식 `platform-samples/samples/user-interface/live-updates`와 대조했다. 샘플은
+  `POST_NOTIFICATIONS` 런타임 권한을 먼저 요청하고, `NotificationManager.canPostPromotedNotifications()`를
+  `ON_RESUME`마다 확인한 뒤 `android.settings.APP_NOTIFICATION_PROMOTION_SETTINGS`로 앱별 설정을 연다.
+- 운전 채널을 샘플과 같이 `IMPORTANCE_DEFAULT`로 만들고 기존 기기에 남은 낮은 중요도 채널과 분리하기 위해
+  `driving_tracking_live_updates`로 변경했다. 소리·진동은 계속 끈 상태라 반복 알림은 발생하지 않는다.
+- `core:ui`에 Live Updates 허용 상태 확인 및 시스템 설정 이동 helper를 추가하고, 설정 화면에 Android 16 이상
+  `실시간 업데이트` 행을 노출했다. OEM이 설정 Activity를 제공하지 않으면 일반 앱 알림 설정으로 fallback한다.
+- 최신 개발 문서에 표기된 `ACTION_MANAGE_APP_PROMOTED_NOTIFICATIONS`와 현재 API 36 SDK/API reference 및
+  공식 샘플이 사용하는 `ACTION_APP_NOTIFICATION_PROMOTION_SETTINGS`를 순서대로 시도하도록 설정 Intent를
+  호환 처리했다.
+- API 36 에뮬레이터에서 해당 설정 인텐트가 `com.android.settings/.Settings$AppNotificationSettingsActivity`로
+  정상 해석되는 것을 확인했다. 현재 AVD에서는 `POST_NOTIFICATIONS`를 테스트용으로 허용했으며,
+  실제 승격 여부는 서비스가 사용자 동작으로 시작된 뒤 `request/promotable/allowed` 로그와
+  `PROMOTED_ONGOING` 플래그로 확인해야 한다.
+- Verification: `./gradlew :core:ui:compileDebugKotlin :feature:settings:compileDebugKotlin :app:compileDebugKotlin
+  :feature:settings:testDebugUnitTest :app:testDebugUnitTest`, `./gradlew lint assembleDebug`,
+  `git diff --check` GREEN. 공식 샘플처럼 실제 기기에서 앱별 프로모션 설정을 켠 뒤 승격 카드와 상태바 chip을
+  확인하는 수동 검증은 남아 있다.
+
+## Follow-up Result — 측정 재개와 알림 설정 분리
+
+- Behavior: 일반 알림 게시 권한·운전 알림 채널과 Android 16 Live Updates 승격 권한을 별도 상태로 다룬다.
+  Live Updates가 꺼져도 표준 ongoing 알림으로 측정을 이어가며, 일반 알림이 꺼진 경우에는 보이지 않는 위치
+  추적을 계속하지 않고 ACTIVE 세션만 DataStore에 남긴다.
+- Resume: 홈의 `측정 중이에요. 이어서 하시겠어요?`에서 계속을 누르면 저장된 운전 세션의 ID, 시작 시각,
+  누적 거리, 코스 경로를 복원해 `START_NOT_STICKY` location FGS를 명시적으로 재시작한다. 재시작에 필요한
+  일반 알림·위치 권한 또는 채널이 없으면 다이얼로그를 복구하고 앱 알림 설정 액션을 제공한다. Live Updates만
+  꺼진 경우에는 일반 알림으로 성공 처리하고, 사용자가 원할 때 프로모션 설정을 열 수 있다. 재개 알림과
+  거리 누적기는 기존 시작 시각·누적 거리·코스 범위 상태에서 이어진다.
+- Changed files: `app/.../DrivingTrackingController.kt`, `app/.../DrivingTrackingService.kt`,
+  `core/data/.../DrivingSessionPreferences.kt`, `feature/home/.../HomeContract.kt`,
+  `feature/home/.../HomeViewModel.kt`, `feature/home/.../HomeScreen.kt`, `app/.../MainScreen.kt`,
+  `feature/home/.../HomeViewModelTest.kt`
+- Verification: `git diff --check`,
+  `./gradlew :core:domain:test :core:data:testDebugUnitTest :feature:home:testDebugUnitTest :app:testDebugUnitTest`,
+  `./gradlew :core:domain:test :app:compileDebugKotlin :app:testDebugUnitTest`,
+  `./gradlew lint assembleDebug` GREEN. 일반 알림 권한·채널을 다시 켜는 동작과 Live Updates 승격 자체는
+  시스템 설정과 OEM 정책에 따라 실기기에서 추가 확인한다.

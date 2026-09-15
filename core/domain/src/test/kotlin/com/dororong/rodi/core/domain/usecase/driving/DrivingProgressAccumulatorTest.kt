@@ -25,6 +25,16 @@ class DrivingProgressAccumulatorTest {
         assertEquals(moved, inaccurateIgnored)
     }
 
+    @Test
+    fun `continues from persisted distance when a session is resumed`() {
+        val accumulator = DrivingProgressAccumulator(initialDistanceMeters = 120.0)
+
+        accumulator.add(sample(37.5, 127.0, time = 1_000))
+        val continued = accumulator.add(sample(37.5001, 127.0, time = 2_000))
+
+        assertTrue(continued in 130.0..132.5)
+    }
+
     private fun sample(
         latitude: Double,
         longitude: Double,

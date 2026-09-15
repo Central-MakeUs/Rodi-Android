@@ -6,10 +6,15 @@ class DrivingProgressAccumulator(
     private val maxAccuracyMeters: Float = 50f,
     private val minMovementMeters: Double = 3.0,
     private val maxMovementMeters: Double = 200.0,
+    initialDistanceMeters: Double = 0.0,
 ) {
+    init {
+        require(initialDistanceMeters >= 0.0)
+    }
+
     private var previousSample: DrivingLocationSample? = null
 
-    var traveledDistanceMeters: Double = 0.0
+    var traveledDistanceMeters: Double = initialDistanceMeters
         private set
 
     fun add(sample: DrivingLocationSample): Double {

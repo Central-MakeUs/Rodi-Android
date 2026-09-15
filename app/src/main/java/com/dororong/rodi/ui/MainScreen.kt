@@ -206,6 +206,14 @@ fun MainScreen(
                                         ),
                                     )
                             },
+                            onResumeDriving = { session ->
+                                activity?.let { DrivingTrackingController.resume(it, session) }
+                                    ?: Result.failure(
+                                        IllegalStateException(
+                                            "운전 상태 추적을 재개할 수 없어요. 다시 시도해 주세요.",
+                                        ),
+                                    )
+                            },
                             onStopDriving = {
                                 activity?.let { DrivingTrackingController.stop(it) }
                             },

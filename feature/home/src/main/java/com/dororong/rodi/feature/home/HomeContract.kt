@@ -100,6 +100,8 @@ sealed interface HomeIntent {
     data object OnAppResumed : HomeIntent
     data class OnArrivalNoticeConfirmed(val sessionId: String) : HomeIntent
     data object OnPracticeContinueMeasurement : HomeIntent
+    data object OnPracticeContinueDialogDismissed : HomeIntent
+    data object OnPracticeResumeFailed : HomeIntent
     data object OnPracticeStopMeasurement : HomeIntent
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
@@ -157,6 +159,7 @@ sealed interface HomeEffect {
     data class OpenPracticeSkipReason(val practiceId: Long) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
+    data class ResumeDrivingTracking(val session: DrivingSession) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
     data object NavigateCourseRegistration : HomeEffect

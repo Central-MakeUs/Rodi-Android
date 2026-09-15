@@ -92,6 +92,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.driving.DrivingSession
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceType
@@ -142,7 +143,9 @@ import com.dororong.rodi.feature.home.location.currentLocationUpdates
 import androidx.core.app.ActivityCompat
 import com.dororong.rodi.core.ui.permission.findActivity
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
+import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.core.ui.permission.openAppSettings
+import com.dororong.rodi.core.ui.permission.openPromotedNotificationSettings
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.core.ui.network.isNetworkAvailable
@@ -243,6 +246,7 @@ typealias KakaoLoginRequest = (
     onFailure: (String) -> Unit,
 ) -> Unit
 typealias DrivingStartRequest = (PlaceDetail) -> Result<String>
+typealias DrivingResumeRequest = (DrivingSession) -> Result<Unit>
 
 private data class ReviewWriteTarget(
     val placeId: Long,
@@ -281,6 +285,9 @@ fun HomeScreen(
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     onStartDriving: DrivingStartRequest,
+    onResumeDriving: DrivingResumeRequest = {
+        Result.failure(IllegalStateException("운전 상태 추적을 재개할 수 없어요. 다시 시도해 주세요."))
+    },
     onStopDriving: () -> Unit = {},
     onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
@@ -719,6 +726,34 @@ fun HomeScreen(
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
             }
 
+            is HomeEffect.ResumeDrivingTracking -> {
+                val resumeResult = onResumeDriving(effect.session)
+                if (resumeResult.isSuccess) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA &&
+                        !context.canPostPromotedNotifications()
+                    ) {
+                        snackbarHostState.show(
+                            RodiSnackbarData(
+                                message = "일반 알림으로 측정을 이어가요. 실시간 업데이트는 설정에서 켤 수 있어요.",
+                                duration = RodiSnackbarDuration.Indefinite,
+                                actionLabel = "실시간 켜기",
+                                onAction = { context.openPromotedNotificationSettings() },
+                            ),
+                        )
+                    }
+                } else {
+                    vm.onIntent(HomeIntent.OnPracticeResumeFailed)
+                    snackbarHostState.show(
+                        RodiSnackbarData(
+                            message = resumeResult.exceptionOrNull()?.message
+                                ?: "운전 상태 알림을 다시 시작하지 못했어요.",
+                            duration = RodiSnackbarDuration.Indefinite,
+                            actionLabel = "알림 설정",
+                            onAction = { context.openAppSettings() },
+                        ),
+                    )
+                }
+            }
             is HomeEffect.ShowSnackbar -> snackbarHostState.show(RodiSnackbarData(message = effect.message))
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
@@ -1609,7 +1644,7 @@ fun HomeScreen(
                 placeName = session.placeName,
                 onContinue = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
                 onStop = { vm.onIntent(HomeIntent.OnPracticeStopMeasurement) },
-                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueDialogDismissed) },
             )
         }
     if (state.isNotificationPermissionRationaleVisible) {

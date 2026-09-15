@@ -153,7 +153,9 @@ class HomeViewModel @Inject constructor(
             }
             HomeIntent.OnAppResumed -> loadActivePracticeSession()
             is HomeIntent.OnArrivalNoticeConfirmed -> acknowledgeArrivalNotice(intent.sessionId)
-            HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
+            HomeIntent.OnPracticeContinueMeasurement -> resumePracticeMeasurement()
+            HomeIntent.OnPracticeContinueDialogDismissed -> hidePracticeContinueDialog()
+            HomeIntent.OnPracticeResumeFailed -> restorePracticeContinueDialog()
             HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()
             HomeIntent.OnPracticePromptVisited -> recordPracticeVisit()
             HomeIntent.OnPracticePromptNotVisited -> openPracticeSkipReason()
@@ -949,8 +951,58 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun resumePracticeMeasurement() {
+        if (_state.value.isPracticeActionInProgress) return
+        val localSession = _state.value.activePracticeSession ?: return
+        _state.update {
+            it.copy(
+                isPracticeContinueDialogVisible = false,
+                isPracticeActionInProgress = true,
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val drivingSession = observeDrivingSessionUseCase().first()
+                    ?.takeIf { session ->
+                        session.status == DrivingSessionStatus.ACTIVE &&
+                            session.placeId == localSession.placeId
+                    }
+                if (drivingSession == null) {
+                    restorePracticeContinueDialog()
+                    _effect.send(
+                        HomeEffect.ShowSnackbar(
+                            "진행 중인 운전 세션을 찾지 못했어요. 알림 설정을 확인한 후 다시 시도해 주세요.",
+                        ),
+                    )
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        isPracticeActionInProgress = false,
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+                _effect.send(HomeEffect.ResumeDrivingTracking(drivingSession))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                restorePracticeContinueDialog()
+                _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+            }
+        }
+    }
+
     private fun hidePracticeContinueDialog() {
         _state.update { it.copy(isPracticeContinueDialogVisible = false) }
+    }
+
+    private fun restorePracticeContinueDialog() {
+        _state.update { current ->
+            current.copy(
+                isPracticeActionInProgress = false,
+                isPracticeContinueDialogVisible = current.activePracticeSession != null,
+            )
+        }
     }
 
     private fun dismissPracticePrompt() {
