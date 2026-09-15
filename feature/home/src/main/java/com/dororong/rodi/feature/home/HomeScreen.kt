@@ -334,7 +334,7 @@ fun HomeScreen(
     var hasCenteredInitialLocation by rememberSaveable { mutableStateOf(false) }
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
-    var pendingDrivingEffect by remember { mutableStateOf<HomeEffect?>(null) }
+    var pendingDrivingEffect by remember { mutableStateOf<HomeEffect.LaunchNavi?>(null) }
     var courseDetailSheetHeightPx by remember { mutableIntStateOf(0) }
     var parkingSheetLayout by remember { mutableStateOf(ParkingSheetLayoutState()) }
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
@@ -392,19 +392,16 @@ fun HomeScreen(
     }
     val currentLocationMarkerColor = RodiTheme.colors.primary600.toArgb()
 
-    suspend fun launchDriving(effect: HomeEffect) {
-        val place = when (effect) {
-            is HomeEffect.LaunchKakaoMap -> effect.place
-            is HomeEffect.LaunchKakaoNavi -> effect.place
-            else -> return
+    fun launchNaviApp(effect: HomeEffect.LaunchNavi) {
+        when (effect.app) {
+            NaviApp.KAKAOMAP -> KakaoMapLauncher.launch(context, effect.place)
+            NaviApp.KAKAONAVI -> KakaoNaviLauncher.launch(context, effect.place)
         }
-        val shouldStartDriving = when (effect) {
-            is HomeEffect.LaunchKakaoMap -> effect.startDriving
-            is HomeEffect.LaunchKakaoNavi -> effect.startDriving
-            else -> false
-        }
-        if (shouldStartDriving) {
-            val startResult = onStartDriving(place)
+    }
+
+    suspend fun launchDriving(effect: HomeEffect.LaunchNavi) {
+        if (effect.startDriving) {
+            val startResult = onStartDriving(effect.place)
             val startError = startResult.exceptionOrNull()
             if (startError != null) {
                 snackbarHostState.show(
@@ -416,11 +413,7 @@ fun HomeScreen(
                 return
             }
         }
-        when (effect) {
-            is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, place)
-            is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, place)
-            else -> Unit
-        }
+        launchNaviApp(effect)
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -458,11 +451,7 @@ fun HomeScreen(
                 } else {
                     // 권한을 못 받으면 추적 없이 경로만 띄운다("경로만 보기"와 같은 결과).
                     // 필요성은 이미 팝업으로 안내했으니 토스트까지 겹쳐 띄우지 않는다.
-                    when (pending) {
-                        is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, pending.place)
-                        is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, pending.place)
-                        else -> Unit
-                    }
+                    launchNaviApp(pending)
                 }
             }
         }
@@ -706,15 +695,8 @@ fun HomeScreen(
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
-            is HomeEffect.LaunchKakaoMap,
-            is HomeEffect.LaunchKakaoNavi,
-            -> {
-                val shouldStartDriving = when (effect) {
-                    is HomeEffect.LaunchKakaoMap -> effect.startDriving
-                    is HomeEffect.LaunchKakaoNavi -> effect.startDriving
-                    else -> false
-                }
-                if (!shouldStartDriving) {
+            is HomeEffect.LaunchNavi -> {
+                if (!effect.startDriving) {
                     launchDriving(effect)
                 } else {
                     val missingPermissions = context.missingDrivingPermissions()
