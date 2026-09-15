@@ -221,12 +221,14 @@
   - 컴포넌트 네이밍은 프로젝트 프리픽스 통일(`Pickle*` → Rodi라면 `Rodi*`), `components/<종류>/model/`
     하위에 Type/Size 등 sealed 모델 분리
   - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
-- [ ] **`CourseRepository`/`SampleCourses`/`GetCoursesUseCase` 죽은 코드 정리 필요 (2026-08-14 발견)** —
-  `CourseRepositoryImpl.getCourses()`가 서버 대신 하드코딩된 `SampleCourses.RODI_COURSES`를
-  그대로 반환한다. 하지만 `GetCoursesUseCase`를 호출하는 화면이 하나도 없다 — 실제 코스 목록은
-  `PlaceApi` 기반 검색/상세 경로로 이미 대체됐고, 이쪽은 초기 PoC 잔재로 보인다. 릴리스 빌드에
-  섞여 나가진 않지만(호출부가 없어 도달 불가) 죽은 코드라 헷갈릴 수 있다 — 완전히 제거하거나,
-  아직 쓸 곳이 있다면 실제 API로 교체할 것.
+- [x] **`CourseRepository`/`SampleCourses`/`GetCoursesUseCase` 죽은 코드 정리 (2026-08-14 발견, 2026-09-15 제거)** —
+  `GetCoursesUseCase`/`ObserveSavedCourseIdsUseCase`/`ToggleSavedCourseUseCase`가 app·feature에서
+  참조 0건임을 재확인하고 제거했다. 함께 `CourseRepository`의 `getCourses`/`observeSavedCourseIds`/
+  `toggleSavedCourse`, `SampleCourses`(하드코딩 샘플 데이터 4,090줄), 그 두 메서드만 쓰던
+  `SavedCourseLocalDataSource`를 삭제했다. `CourseRepository`는 살아 있는 `getRoute` 두 개만 남는다.
+  기기에 남은 DataStore 파일 `saved_courses`는 더 이상 읽지 않는다(삭제 마이그레이션은 두지 않음).
+  재검증: `rg -n 'SampleCourses|SavedCourseLocalDataSource|GetCoursesUseCase|ObserveSavedCourseIdsUseCase|ToggleSavedCourseUseCase|observeSavedCourseIds|toggleSavedCourse|getCourses\(\)' --glob '*.kt' --glob '!**/build/**' .` → 0건
+  (`getCourses\(\)`는 인자 없는 호출만 잡는다. `feature:mypage`의 `getCourses(status, cursor, size)`는 등록 코스 조회용 다른 API라 대상이 아니다.)
 - [x] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — PR #113에서
   해결. `onStartCommand()`가 명령을 `Channel`로만 넘기고 `onCreate()`의 단일 소비자 코루틴이
   도착 순서대로 처리하도록 재구성해 START/STOP 저장 순서를 구조적으로 보장했다.
@@ -345,8 +347,8 @@
 - [ ] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용** — PR #16에서 공통 뼈대로 넣었지만
   정의 파일(`core/data/.../source/remote/network/`) 밖에서의 참조가 **0건**이다. 실제 Repository는
   `ApiEnvelope` + 도메인별 예외를 쓴다. 제거하거나 실제 도입 여부를 정한다 — 새 프로젝트의
-  표준으로 옮기지 말 것. (같은 성격의 `CourseRepository`/`SampleCourses` 죽은 코드 항목이
-  위 "열린 항목"에 따로 있다.)
+  표준으로 옮기지 말 것. (같은 성격의 `CourseRepository`/`SampleCourses` 죽은 코드는 2026-09-15에
+  제거했다. 위 항목 참고.)
   재검증: `rg -l 'safeApiCall|NetworkResult|DataError' --glob '**/*.kt' --glob '!**/build/**' | rg -v 'source/remote/network/'`
 
 ## 마이페이지 개편 후속

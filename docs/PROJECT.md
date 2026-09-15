@@ -30,7 +30,7 @@
 |---|---|
 | `build-logic` | Convention Plugin(`dororong.rodi.android.{application,library,library.compose,hilt,feature}`, `dororong.rodi.jvm.library`). 모듈 공통 빌드 설정과 의존성의 출처 |
 | `:core:domain` | 도메인 모델(`Course` 등) |
-| `:core:data` | `EntryPreferences`/온보딩 동기화 상태(DataStore), `SampleCourses`, `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`MemberApi`/`PlaceApi`/`AuthTokenStore`(인증·회원·장소 API와 세션 관리, Android Keystore AES-GCM + DataStore) |
+| `:core:data` | `EntryPreferences`/온보딩 동기화 상태(DataStore), `KakaoDirectionsClient`(REST), `NaviPreference`, `AuthApi`/`MemberApi`/`PlaceApi`/`AuthTokenStore`(인증·회원·장소 API와 세션 관리, Android Keystore AES-GCM + DataStore) |
 | `:core:ui` | `RodiTheme` 토큰(colors/typography/spacing/radius) · 공용 약관 WebView(`terms.TermsWebView`) |
 | `:core:common` | 확장함수/유틸(`runSuspendCatching` 등) |
 | `:feature:auth` | 카카오 로그인 화면 + SDK 로직, 서버 로그인·재발급·로그아웃·탈퇴 유예 계정 복구 연동 |
