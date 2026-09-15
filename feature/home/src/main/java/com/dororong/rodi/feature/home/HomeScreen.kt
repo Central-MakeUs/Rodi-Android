@@ -291,7 +291,11 @@ fun HomeScreen(
 
     fun launchNaviApp(effect: HomeEffect.LaunchNavi) {
         when (effect.app) {
-            NaviApp.KAKAOMAP -> KakaoMapLauncher.launch(context, effect.place)
+            NaviApp.KAKAOMAP -> KakaoMapLauncher.launch(
+                context = context,
+                place = effect.place,
+                origin = currentLocation?.let { GeoPoint(lat = it.latitude, lng = it.longitude) },
+            )
             NaviApp.KAKAONAVI -> KakaoNaviLauncher.launch(context, effect.place)
         }
     }
