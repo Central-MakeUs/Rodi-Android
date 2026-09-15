@@ -49,6 +49,32 @@ find app core feature -type d -name component -not -path '*/build/*'
 rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
 ```
 
+## 화면은 UseCase를 거쳐 domain에 접근한다
+
+`feature`·`app`의 ViewModel과 Coordinator는 `core.domain.repository.*`를 직접 주입하지 않는다.
+단순 위임이라도 UseCase를 둔다.
+
+```kotlin
+class CourseRegistrationViewModel @Inject constructor(
+    private val searchLocations: SearchCourseLocationsUseCase, // CourseLocationRepository 직접 주입 X
+)
+```
+
+**왜**: `error-handling.md` 계층표에서 UseCase는 실패를 `Result`로 감싸고 ViewModel은 그 실패를
+문구로 바꾼다. Repository를 직접 부르면 이 경계가 사라져 ViewModel이 try/catch로 취소 재던지기까지
+떠안는다. 또 같은 규칙이 두 벌이 된다 — 코스 등록은 UseCase 11개를 만들어 두고 ViewModel이
+Repository를 직접 불러, 초안 저장 분기와 제출 검증이 UseCase·ViewModel·RepositoryImpl에 흩어졌다.
+
+**예외**: `RodiAppViewModel`의 `AuthRepository.observeSessionExpiration()` — 화면 기능이 아니라
+앱 전역 세션 만료 신호를 구독하는 진입점이다. 예외를 늘리려면 이 목록에 이유와 함께 적는다.
+
+**정본**: `feature/course-registration/.../CourseRegistrationViewModel.kt` — 앵커 `@Inject constructor(`
+
+**재검증** (위 예외 1건만 나와야 한다):
+```bash
+rg -n 'import com\.dororong\.rodi\.core\.domain\.repository\.' feature/*/src/main app/src/main
+```
+
 ## Android namespace는 기본 패키지 + 모듈 경로
 
 하이픈이 있는 모듈명은 유효한 패키지 세그먼트로 나눈다.

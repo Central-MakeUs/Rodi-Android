@@ -379,6 +379,11 @@
 - [ ] **설정 `데이터 출처` 항목 존치 여부** — 최신 디자인에는 빠졌으나 공공데이터 출처 표기 의무 가능성이 있어 유지했다.
 
 ## 완료 (이력)
+- [x] **코스 등록 ViewModel의 Repository 직접 주입 제거** — `CourseRegistrationViewModel`이
+  Repository 5개 대신 코스 등록 UseCase 14개(선택 확정용 `ResolveCourseLocationSelectionUseCase` 신규)를
+  거치도록 연결. 한 번도 쓰이지 않던 UseCase 11개가 살아났고, VM의 초안 저장 분기 중복과
+  `CourseRegistrationRepositoryImpl`의 제출 검증 중복을 제거했다(검증은 `RegisterCourseUseCase`만).
+  규칙은 `conventions/structure.md` "화면은 UseCase를 거쳐 domain에 접근한다"로 명문화. 2026-09-15.
 - [x] **온보딩 서버 API 연동 + 점수 배점** — `OnboardingApi.submit()`이 `/members/me/onboarding`에
   실제 연동됐고(`OnboardingRepositoryImpl`), 요청 페이로드가 최신 서버 스펙(2026-08-08 확인,
   OpenAPI)과 필드·enum 값까지 정확히 일치함(`OnboardingMapper.toApiValue()` 전수 대조 완료).
