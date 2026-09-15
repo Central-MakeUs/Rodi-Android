@@ -2,14 +2,17 @@ package com.dororong.rodi.spike.driving
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.Service
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -26,6 +29,7 @@ import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
 import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
+import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -130,6 +134,7 @@ internal class DrivingTrackingService : Service() {
             stopSelf()
             return
         }
+        logPromotionEligibility(notification)
         commandChannel.trySend(Command.Start(session))
     }
 
@@ -357,6 +362,20 @@ internal class DrivingTrackingService : Service() {
         Manifest.permission.ACCESS_COARSE_LOCATION,
     ).any { permission ->
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * 실시간 업데이트 카드로 승격될지는 앱이 요청해도 시스템과 사용자 설정이 최종 결정한다.
+     * 실기기에서 승격되지 않을 때 요청·알림 형태·사용자 허용 중 어느 조건이 빠졌는지 구분하려고 남긴다.
+     */
+    private fun logPromotionEligibility(notification: Notification) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return
+        Timber.d(
+            "Driving Live Update request=%s, promotable=%s, allowed=%s",
+            NotificationCompat.isRequestPromotedOngoing(notification),
+            NotificationCompat.hasPromotableCharacteristics(notification),
+            canPostPromotedNotifications(),
+        )
     }
 
     private fun canKeepTrackingVisible(): Boolean {
