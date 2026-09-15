@@ -24,8 +24,6 @@ object KakaoMapLauncher {
 
     private const val MAX_VIA_COUNT = 5
     private const val KAKAO_MAP_PACKAGE = "net.daum.android.map"
-    private const val MARKET_URL = "market://details?id=$KAKAO_MAP_PACKAGE"
-    private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAO_MAP_PACKAGE"
 
     fun launch(context: Context, place: PlaceDetail) {
         val intent = Intent(Intent.ACTION_VIEW, buildRouteUri(place).toUri())
@@ -38,14 +36,9 @@ object KakaoMapLauncher {
         }
     }
 
-    fun openInstallPage(context: Context) {
-        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, MARKET_URL.toUri()).addFlags(flags))
-        } catch (e: ActivityNotFoundException) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_STORE_URL.toUri()).addFlags(flags))
-        }
-    }
+    fun isInstalled(context: Context): Boolean = context.isPackageInstalled(KAKAO_MAP_PACKAGE)
+
+    fun openInstallPage(context: Context) = context.openPlayStore(KAKAO_MAP_PACKAGE)
 
     /** 출발지(vp) → 경유지(vp2..) → 목적지(ep). 주차장은 목적지만 전달한다. */
     internal fun buildRouteUri(place: PlaceDetail): String {

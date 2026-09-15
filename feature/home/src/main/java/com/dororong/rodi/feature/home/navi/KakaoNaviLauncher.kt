@@ -1,9 +1,7 @@
 package com.dororong.rodi.feature.home.navi
 
-import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
-import androidx.core.net.toUri
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
@@ -24,8 +22,6 @@ import java.util.Locale
 object KakaoNaviLauncher {
 
     private const val KAKAONAVI_PACKAGE = "com.locnall.KimGiSa"
-    private const val MARKET_URL = "market://details?id=$KAKAONAVI_PACKAGE"
-    private const val PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=$KAKAONAVI_PACKAGE"
 
     fun launch(context: Context, place: PlaceDetail) {
         if (!NaviClient.instance.isKakaoNaviInstalled(context)) {
@@ -64,14 +60,12 @@ object KakaoNaviLauncher {
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
-    fun openInstallPage(context: Context) {
-        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, MARKET_URL.toUri()).addFlags(flags))
-        } catch (e: ActivityNotFoundException) {
-            context.startActivity(Intent(Intent.ACTION_VIEW, PLAY_STORE_URL.toUri()).addFlags(flags))
-        }
-    }
+    /**
+     * 내비 선택 시트의 설치 여부 표시용. 실제 실행 직전 판정은 [launch]가 [NaviClient]로 따로 한다.
+     */
+    fun isInstalled(context: Context): Boolean = context.isPackageInstalled(KAKAONAVI_PACKAGE)
+
+    fun openInstallPage(context: Context) = context.openPlayStore(KAKAONAVI_PACKAGE)
 }
 
 internal fun Double.toNaviCoordinate(): String = String.format(Locale.US, "%.6f", this)

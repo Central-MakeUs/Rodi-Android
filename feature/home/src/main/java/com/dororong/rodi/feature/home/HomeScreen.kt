@@ -668,6 +668,15 @@ fun HomeScreen(
         deselectSelectedParkingMarker()
         vm.onIntent(HomeIntent.OnDismissDetail)
     }
+    val requestNavigate: () -> Unit = {
+        vm.onIntent(
+            HomeIntent.OnNavigateClick(
+                kakaoMapInstalled = KakaoMapLauncher.isInstalled(context),
+                kakaoNaviInstalled = KakaoNaviLauncher.isInstalled(context),
+                notificationPermissionGranted = context.hasNotificationPermission(),
+            ),
+        )
+    }
     val dragDismissDetail: () -> Unit = {
         deselectSelectedParkingMarker()
         vm.onIntent(HomeIntent.OnDragDismissDetail)
@@ -1410,15 +1419,7 @@ fun HomeScreen(
                             isBookmarkUpdating = state.isBookmarkUpdating,
                             onDismiss = dismissDetail,
                             onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-                            onNavigate = {
-                                vm.onIntent(
-                                    HomeIntent.OnNavigateClick(
-                                        kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
-                                        kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
-                                        notificationPermissionGranted = context.hasNotificationPermission(),
-                                    ),
-                                )
-                            },
+                            onNavigate = requestNavigate,
                             onSheetHeightChanged = { height -> courseDetailSheetHeightPx = height },
                             reviewContent = { sheetScrollState ->
                                 LaunchedEffect(selectedPlace.id) { reviewVm.load(selectedPlace.id) }
@@ -1496,15 +1497,7 @@ fun HomeScreen(
                                     onDismiss = dismissDetail,
                                     dragHandleModifier = detailSheetDrag,
                                     onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-                                    onNavigate = {
-                                        vm.onIntent(
-                                            HomeIntent.OnNavigateClick(
-                                                kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
-                                                kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
-                                                notificationPermissionGranted = context.hasNotificationPermission(),
-                                            ),
-                                        )
-                                    },
+                                    onNavigate = requestNavigate,
                                 )
                             }
                         }
@@ -1559,15 +1552,7 @@ fun HomeScreen(
             onLoadInitial = reviewVm::loadInitialReviews,
             onLoadNext = reviewVm::loadNextPage,
             onBookmarkClick = { vm.onIntent(HomeIntent.OnBookmarkClick) },
-            onNavigate = {
-                vm.onIntent(
-                    HomeIntent.OnNavigateClick(
-                        kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
-                        kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
-                        notificationPermissionGranted = context.hasNotificationPermission(),
-                    ),
-                )
-            },
+            onNavigate = requestNavigate,
             onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
             onDeleteReviewClick = { reviewToDelete = it },
             onReportReviewClick = ::handleReportReviewClick,
@@ -1947,10 +1932,6 @@ private fun MapViewport.toQuery(currentLocation: LatLng?): PlaceViewportQuery {
         origin = currentLocation?.let { GeoPoint(it.latitude, it.longitude) } ?: center,
     )
 }
-
-private fun Context.isPackageInstalled(packageName: String): Boolean = runCatching {
-    packageManager.getPackageInfo(packageName, 0)
-}.isSuccess
 
 /**
  * "물어본 적 있는지"(DataStore 플래그)와 "지금 허용돼 있는지"는 다르다. 한 번 거부한 뒤에도
