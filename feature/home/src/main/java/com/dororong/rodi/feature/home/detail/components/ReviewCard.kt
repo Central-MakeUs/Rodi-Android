@@ -33,6 +33,7 @@ import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
+import com.dororong.rodi.core.ui.components.RodiLevelAvatar
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
@@ -64,14 +65,9 @@ fun ReviewCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    Modifier
-                        .size(30.dp)
-                        .background(RodiTheme.colors.white, CircleShape)
-                        .border(1.dp, RodiTheme.colors.primary600, CircleShape),
-                )
+                RodiLevelAvatar(level = review.memberLevel)
                 Text(
-                    text = review.nickname,
+                    text = review.nickname ?: "탈퇴한 사용자",
                     style = RodiTheme.typography.body1SemiBold,
                     color = RodiTheme.colors.black,
                 )
@@ -139,7 +135,7 @@ fun ReviewCard(
     }
 }
 
-private fun Review.menuItems(): List<String> = when {
+internal fun Review.menuItems(): List<String> = when {
     !isMine -> listOf("신고하기", "차단")
     isEditable -> listOf("수정하기", "삭제하기")
     else -> listOf("삭제하기")
@@ -175,6 +171,7 @@ private val previewReview = Review(
     isEditable = false,
     isHidden = false,
     createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    isVerifiedVisit = true,
 )
 
 @Composable

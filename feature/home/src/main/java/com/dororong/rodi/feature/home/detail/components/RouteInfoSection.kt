@@ -161,12 +161,16 @@ private fun buildRouteRows(
     val sortedWaypoints = waypoints
         .filter { !it.name.isNullOrBlank() }
         .sortedBy { it.sequence }
+    val lastIndex = sortedWaypoints.lastIndex
     return sortedWaypoints.mapIndexed { index, waypoint ->
-            val (label, color, dotColor) = when (waypoint.type) {
-                PlaceWaypointType.START -> Triple("출발지", startColor, startColor)
-                PlaceWaypointType.DESTINATION -> Triple("도착지", arrivalColor, arrivalColor)
-                PlaceWaypointType.VIA -> {
-                    val viaNumber = sortedWaypoints.take(index + 1).count { it.type == PlaceWaypointType.VIA }
+            // 서버 waypoint.type을 그대로 신뢰하지 않고 정렬된 순서로 출발/도착을 정한다.
+            // 순환 코스처럼 출발·도착이 같은 지점이면 서버가 두 지점의 type을 요청마다 다르게
+            // 줄 수 있어, sequence 순서만으로 결정해야 같은 코스를 다시 열어도 라벨이 안 바뀐다.
+            val (label, color, dotColor) = when {
+                index == 0 -> Triple("출발지", startColor, startColor)
+                index == lastIndex -> Triple("도착지", arrivalColor, arrivalColor)
+                else -> {
+                    val viaNumber = index
                     Triple("경유지 $viaNumber", viaColor, viaDotColor)
                 }
             }

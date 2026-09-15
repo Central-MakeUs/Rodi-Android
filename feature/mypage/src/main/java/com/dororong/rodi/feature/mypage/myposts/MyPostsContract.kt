@@ -2,6 +2,11 @@ package com.dororong.rodi.feature.mypage.myposts
 
 import com.dororong.rodi.core.domain.model.review.Review
 
+enum class MyActivityTab {
+    RegisteredCourses,
+    Reviews,
+}
+
 data class MyPost(
     val placeId: Long,
     val placeName: String,

@@ -49,7 +49,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     placeName = placeName,
     practiceTypes = practiceTypes.mapNotNull { value -> PracticeType.entries.firstOrNull { it.name == value } },
     visitCount = visitCount,
-    visitedAt = visitedAt?.let(::parseServerTimestamp),
+    visitedAt = lastActivityAt?.let(::parseServerTimestamp),
     isVerified = isVerified,
     hasReview = hasReview,
     status = status.toPracticeStatus(),

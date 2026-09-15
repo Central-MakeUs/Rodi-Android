@@ -7,24 +7,19 @@ import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.course.GeoPoint
-import com.dororong.rodi.core.domain.model.driving.DrivingNavigation
-import com.dororong.rodi.core.domain.model.driving.DrivingSession
 import com.dororong.rodi.core.domain.model.driving.DrivingSessionStatus
 import com.dororong.rodi.core.domain.model.navi.NaviApp
+import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
+import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
-import com.dororong.rodi.core.domain.model.practice.PracticeStatus
-import com.dororong.rodi.core.domain.usecase.member.GetPracticeRecordsUseCase
+import com.dororong.rodi.core.domain.model.practice.ActivePracticeSession
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
 import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
-import com.dororong.rodi.core.domain.usecase.driving.AcknowledgeDrivingArrivalUseCase
-import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
-import com.dororong.rodi.core.domain.usecase.driving.DrivingReentryPolicy
-import com.dororong.rodi.core.domain.repository.DrivingNavigationRepository
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
@@ -34,15 +29,24 @@ import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
+import com.dororong.rodi.core.domain.usecase.entry.GetNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.entry.MarkNotificationPermissionRequestedUseCase
+import com.dororong.rodi.core.domain.usecase.driving.AcknowledgeDrivingArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ClearActivePracticeSessionUseCase
+import com.dororong.rodi.core.domain.usecase.practice.GetActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.practice.RecordPracticeVisitUseCase
 import com.dororong.rodi.core.domain.usecase.practice.RegisterPracticeUseCase
-import com.dororong.rodi.core.domain.repository.PracticePromptDismissalRepository
+import com.dororong.rodi.core.domain.usecase.practice.SaveActivePracticeSessionUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.filter.practiceTypes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import java.time.Clock
+import java.time.Duration
+import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -50,11 +54,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 private const val PLACE_PAGE_SIZE = 20
 
@@ -74,12 +77,15 @@ class HomeViewModel @Inject constructor(
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
     private val updateFilterTagsUseCase: UpdateFilterTagsUseCase,
     private val registerPracticeUseCase: RegisterPracticeUseCase,
-    private val getPracticeRecordsUseCase: GetPracticeRecordsUseCase,
     private val recordPracticeVisitUseCase: RecordPracticeVisitUseCase,
-    private val practicePromptDismissalRepository: PracticePromptDismissalRepository,
-    private val drivingNavigationRepository: DrivingNavigationRepository,
+    private val getActivePracticeSessionUseCase: GetActivePracticeSessionUseCase,
+    private val saveActivePracticeSessionUseCase: SaveActivePracticeSessionUseCase,
+    private val clearActivePracticeSessionUseCase: ClearActivePracticeSessionUseCase,
+    private val getNotificationPermissionRequestedUseCase: GetNotificationPermissionRequestedUseCase,
+    private val markNotificationPermissionRequestedUseCase: MarkNotificationPermissionRequestedUseCase,
     private val observeDrivingSessionUseCase: ObserveDrivingSessionUseCase,
     private val acknowledgeDrivingArrivalUseCase: AcknowledgeDrivingArrivalUseCase,
+    private val clock: Clock,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -88,29 +94,21 @@ class HomeViewModel @Inject constructor(
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
 
+    private val _permissionEffect = Channel<HomePermissionEffect>(Channel.BUFFERED)
+    val permissionEffect: Flow<HomePermissionEffect> = _permissionEffect.receiveAsFlow()
+
     private var firstPageJob: Job? = null
     private var nextPageJob: Job? = null
     private var detailJob: Job? = null
     private var routeJob: Job? = null
     private var practicePromptJob: Job? = null
     private var practicePromptRequestGeneration = 0L
+    private var practiceLaunchJob: Job? = null
     private var requestGeneration = 0L
     private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
     private var pendingRestoreCredential: String? = null
-    private val dismissedPracticeIds = mutableSetOf<Long>()
-    private val dismissedPracticeIdsLoadJob: Job
-    private var completedDrivingSession: DrivingSession? = null
-    private var lastDrivingNavigation: DrivingNavigation? = null
-    private val drivingNavigationLoadJob: Job
-
     init {
-        dismissedPracticeIdsLoadJob = viewModelScope.launch {
-            dismissedPracticeIds += practicePromptDismissalRepository.readDismissedPracticeIds()
-        }
-        drivingNavigationLoadJob = viewModelScope.launch {
-            lastDrivingNavigation = drivingNavigationRepository.navigation.first()
-        }
         loadCoordinates()
         observeDrivingSession()
     }
@@ -127,11 +125,20 @@ class HomeViewModel @Inject constructor(
                 force = true,
                 clearMapMovementGeneration = mapMovementGeneration,
             )
-            is HomeIntent.OnResearch -> loadFirstPage(
-                query = intent.query,
-                force = true,
-                clearMapMovementGeneration = mapMovementGeneration,
-            )
+            is HomeIntent.OnResearch -> {
+                _state.update {
+                    if (it.surfaceState == HomeSurfaceState.Navigation) {
+                        it.copy(surfaceState = HomeSurfaceState.PartialList)
+                    } else {
+                        it
+                    }
+                }
+                loadFirstPage(
+                    query = intent.query,
+                    force = true,
+                    clearMapMovementGeneration = mapMovementGeneration,
+                )
+            }
             HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
             HomeIntent.OnListCollapse -> collapseList()
             is HomeIntent.OnListSheetSettled -> settleListSheet(intent.surface)
@@ -141,25 +148,23 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
             HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
-            HomeIntent.OnAppResumed -> handleAppResumed()
-            is HomeIntent.OnDrivingNavigationLaunched -> {
-                val navigation = DrivingNavigation(
-                    placeId = intent.placeId,
-                    measurementStarted = intent.measurementStarted,
-                    launchedAtEpochMillis = intent.launchedAtEpochMillis,
-                )
-                lastDrivingNavigation = navigation
-                viewModelScope.launch {
-                    runCatching { drivingNavigationRepository.save(navigation) }
-                }
+            HomeIntent.OnReviewUpdated -> _state.update {
+                it.copy(reviewRefreshGeneration = it.reviewRefreshGeneration + 1)
             }
+            HomeIntent.OnAppResumed -> loadActivePracticeSession()
+            is HomeIntent.OnArrivalNoticeConfirmed -> acknowledgeArrivalNotice(intent.sessionId)
+            HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
+            HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()
             HomeIntent.OnPracticePromptVisited -> recordPracticeVisit()
             HomeIntent.OnPracticePromptNotVisited -> openPracticeSkipReason()
-            HomeIntent.OnPracticePromptDismiss -> clearPracticePrompt()
-            HomeIntent.OnPracticeSkipReasonClosed -> closePracticeSkipReason()
+            HomeIntent.OnPracticePromptDismiss -> dismissPracticePrompt()
+            HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
+            HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
+            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult(intent.granted)
             HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
+            HomeIntent.OnRegisterClick -> openCourseRegistration()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
             is HomeIntent.OnRegionSearch -> prepareRegionSearch(intent.region, intent.initialPlaces)
             HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
@@ -190,7 +195,6 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
-            is HomeIntent.OnArrivalNoticeConfirmed -> acknowledgeArrivalNotice(intent.sessionId)
             is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
             is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
@@ -200,19 +204,11 @@ class HomeViewModel @Inject constructor(
     private fun observeDrivingSession() {
         viewModelScope.launch {
             observeDrivingSessionUseCase().collect { session ->
-                if (session?.status == DrivingSessionStatus.ARRIVED) {
-                    completedDrivingSession = session
-                } else if (session == null || session.status == DrivingSessionStatus.ACTIVE) {
-                    completedDrivingSession = null
-                }
-                _state.update {
-                    it.copy(
-                        activeDrivingSession = session?.takeIf { current ->
-                            current.status == DrivingSessionStatus.ACTIVE
-                        },
-                        arrivalNotice = session?.takeIf { current ->
-                            current.status == DrivingSessionStatus.ARRIVED &&
-                                current.isArrivalNoticePending
+                _state.update { current ->
+                    current.copy(
+                        arrivalNotice = session?.takeIf {
+                            it.status == DrivingSessionStatus.ARRIVED &&
+                                it.isArrivalNoticePending
                         },
                     )
                 }
@@ -220,29 +216,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun handleAppResumed() {
-        if (_state.value.arrivalNotice != null) return
-        viewModelScope.launch {
-            drivingNavigationLoadJob.join()
-            val navigation = lastDrivingNavigation
-            when {
-                navigation == null -> loadPlannedPractice()
-                navigation.measurementStarted && completedDrivingSession == null -> Unit
-                !navigation.measurementStarted && !DrivingReentryPolicy.shouldShowUnmeasuredNavigationPrompt(
-                    launchedAtEpochMillis = navigation.launchedAtEpochMillis,
-                    nowEpochMillis = System.currentTimeMillis(),
-                ) -> Unit
-                else -> loadPlannedPractice()
-            }
-        }
-    }
-
     private fun acknowledgeArrivalNotice(sessionId: String) {
         viewModelScope.launch {
-            runCatching {
-                acknowledgeDrivingArrivalUseCase(sessionId)
-                loadPlannedPractice()
-            }
+            runCatching { acknowledgeDrivingArrivalUseCase(sessionId) }
                 .onFailure { error -> _effect.send(HomeEffect.ShowSnackbar(error.userMessage())) }
         }
     }
@@ -422,13 +398,18 @@ class HomeViewModel @Inject constructor(
                     detailOrigin = origin,
                     isDetailLoading = true,
                     surfaceState = HomeSurfaceState.Detail,
+                    searchKeyword = if (origin == HomeDetailOrigin.Map) null else it.searchKeyword,
                 )
             }
             getPlaceDetailUseCase(placeId)
                 .onSuccess { detail ->
                     if (_state.value.selectedPlaceId == placeId) {
                         _state.update {
-                            it.copy(selectedPlace = detail, isDetailLoading = false, searchKeyword = detail.name)
+                            it.copy(
+                                selectedPlace = detail,
+                                isDetailLoading = false,
+                                searchKeyword = detail.name.takeIf { origin == HomeDetailOrigin.List },
+                            )
                         }
                         loadRoute(detail)
                     }
@@ -461,6 +442,9 @@ class HomeViewModel @Inject constructor(
             is PendingHomeAction.OpenDetail -> openPlace(action.placeId, action.origin)
             PendingHomeAction.ToggleBookmark -> toggleBookmark()
             PendingHomeAction.OpenMyPage -> viewModelScope.launch { _effect.send(HomeEffect.NavigateMyPage) }
+            PendingHomeAction.OpenCourseRegistration -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateCourseRegistration)
+            }
             is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
             is PendingHomeAction.SaveFilterTags -> saveFilterTags(action.filterTags)
         }
@@ -557,6 +541,16 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateMyPage)
             } else {
                 requireLogin(PendingHomeAction.OpenMyPage)
+            }
+        }
+    }
+
+    private fun openCourseRegistration() {
+        viewModelScope.launch {
+            if (isLoggedIn()) {
+                _effect.send(HomeEffect.NavigateCourseRegistration)
+            } else {
+                requireLogin(PendingHomeAction.OpenCourseRegistration)
             }
         }
     }
@@ -735,13 +729,16 @@ class HomeViewModel @Inject constructor(
 
     private fun collapseList() {
         _state.update {
-            it.copy(
-                surfaceState = when (it.surfaceState) {
-                    HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
-                    HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
-                    else -> it.surfaceState
-                },
-            )
+            val nextSurface = when (it.surfaceState) {
+                HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
+                HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
+                else -> it.surfaceState
+            }
+            if (nextSurface == HomeSurfaceState.Navigation && it.regionSearch != null) {
+                it.copy(surfaceState = nextSurface, searchKeyword = null, regionSearch = null)
+            } else {
+                it.copy(surfaceState = nextSurface)
+            }
         }
     }
 
@@ -762,12 +759,16 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val savedApp = getNaviAlwaysUseCase()
             when {
-                savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled -> launchPractice(place, navigationEffect(place, NaviApp.KAKAOMAP))
-                savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled -> launchPractice(place, navigationEffect(place, NaviApp.KAKAONAVI))
+                savedApp == NaviApp.KAKAOMAP && intent.kakaoMapInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAOMAP, intent.notificationPermissionGranted)
+                savedApp == NaviApp.KAKAONAVI && intent.kakaoNaviInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAONAVI, intent.notificationPermissionGranted)
                 intent.kakaoMapInstalled && intent.kakaoNaviInstalled ->
                     _effect.send(HomeEffect.ShowNaviPicker(place))
-                intent.kakaoMapInstalled -> launchPractice(place, navigationEffect(place, NaviApp.KAKAOMAP))
-                intent.kakaoNaviInstalled -> launchPractice(place, navigationEffect(place, NaviApp.KAKAONAVI))
+                intent.kakaoMapInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAOMAP, intent.notificationPermissionGranted)
+                intent.kakaoNaviInstalled ->
+                    requestPracticeNavigation(place, NaviApp.KAKAONAVI, intent.notificationPermissionGranted)
                 else -> _effect.send(HomeEffect.ShowInstallNaviPicker(place))
             }
         }
@@ -777,10 +778,7 @@ class HomeViewModel @Inject constructor(
         val place = _state.value.selectedPlace ?: return
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
-            when (intent.app) {
-                NaviApp.KAKAOMAP -> launchPractice(place, navigationEffect(place, NaviApp.KAKAOMAP))
-                NaviApp.KAKAONAVI -> launchPractice(place, navigationEffect(place, NaviApp.KAKAONAVI))
-            }
+            requestPracticeNavigation(place, intent.app, intent.notificationPermissionGranted)
         }
     }
 
@@ -788,105 +786,324 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 
-    private fun navigationEffect(place: PlaceDetail, app: NaviApp): HomeEffect = when (app) {
-        NaviApp.KAKAOMAP -> HomeEffect.LaunchKakaoMap(place, _state.value.selectedRoute)
-        NaviApp.KAKAONAVI -> HomeEffect.LaunchKakaoNavi(place, _state.value.selectedRoute)
-    }
-
-    private suspend fun launchPractice(place: PlaceDetail, effect: HomeEffect) {
-        registerPracticeUseCase(place.id)
-            // 다시 담았다는 건 또 물어봐 달라는 뜻이다. 이전에 닫은 기록을 지운다.
-            .onSuccess {
-                dismissedPracticeIds -= it.practiceId
-                persistPracticePromptRestore(it.practiceId)
+    /**
+     * "물어본 적 있는지" DataStore 플래그만으로 분기하면, 한 번 거부한 뒤에는 시스템 권한이
+     * 여전히 거부 상태여도 다음 요청부터 그냥 추적을 시작해버린다(플래그가 "다시 안내를
+     * 보여줄지"뿐 아니라 "허용 여부"까지 대신 판단해버렸던 게 원인). 그래서 매 요청마다
+     * 호출부(HomeScreen)가 실측한 현재 OS 권한 상태(notificationPermissionGranted)를 우선
+     * 신뢰하고, 플래그는 "처음 요청이라 안내 문구를 보여줄지"에만 쓴다.
+     */
+    private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
+        if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
+        practiceLaunchJob = viewModelScope.launch {
+            _state.update { it.copy(isPracticeLaunchInProgress = true) }
+            if (notificationPermissionGranted) {
+                startPracticeNavigation(PendingPracticeNavigation(place, app))
+                return@launch
             }
-            .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
-        _effect.send(effect)
+            if (!hasRequestedNotificationPermission()) {
+                _state.update {
+                    it.copy(
+                        isPracticeLaunchInProgress = false,
+                        isNotificationPermissionRationaleVisible = true,
+                        pendingPracticeNavigation = PendingPracticeNavigation(place, app),
+                    )
+                }
+                return@launch
+            }
+            // 이미 한 번 물어봤는데 여전히 거부 상태 — 다시 안내하지 않고 추적 없이 경로만 연다.
+            _state.update { it.copy(pendingPracticeNavigation = PendingPracticeNavigation(place, app)) }
+            routeWithoutPracticeMeasurement()
+        }
     }
 
-    private fun loadPlannedPractice() {
+    private fun allowNotificationPermission() {
+        if (_state.value.pendingPracticeNavigation == null || _state.value.isPracticeLaunchInProgress) return
+        viewModelScope.launch {
+            markNotificationPermissionRequestedSafely()
+            _state.update {
+                it.copy(
+                    isNotificationPermissionRationaleVisible = false,
+                    isPracticeLaunchInProgress = true,
+                )
+            }
+            _permissionEffect.send(HomePermissionEffect.RequestNotificationPermission)
+        }
+    }
+
+    private fun routeWithoutPracticeMeasurement() {
+        val pending = _state.value.pendingPracticeNavigation ?: return
+        viewModelScope.launch {
+            _state.update {
+                it.copy(
+                    isNotificationPermissionRationaleVisible = false,
+                    pendingPracticeNavigation = null,
+                    isPracticeLaunchInProgress = false,
+                )
+            }
+            _effect.send(pending.navigationEffect(startDriving = false))
+        }
+    }
+
+    private fun onNotificationPermissionResult(granted: Boolean) {
+        if (!granted) {
+            routeWithoutPracticeMeasurement()
+            return
+        }
+        val pending = _state.value.pendingPracticeNavigation ?: return
+        viewModelScope.launch { startPracticeNavigation(pending) }
+    }
+
+    private suspend fun startPracticeNavigation(pending: PendingPracticeNavigation) {
+        val session = ActivePracticeSession(
+            placeId = pending.place.id,
+            placeName = pending.place.name,
+            placeType = pending.place.type,
+            startedAt = Instant.now(clock),
+        )
+        try {
+            saveActivePracticeSessionWithRetry(session)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            _state.update {
+                it.copy(
+                    activePracticeSession = null,
+                    practicePrompt = null,
+                    isPracticeContinueDialogVisible = false,
+                    isNotificationPermissionRationaleVisible = false,
+                    pendingPracticeNavigation = null,
+                    isPracticeLaunchInProgress = false,
+                )
+            }
+            _effect.send(HomeEffect.ShowSnackbar("연습 측정을 시작하지 못해 경로만 안내합니다."))
+            _effect.send(pending.navigationEffect(startDriving = false))
+            return
+        }
+        _state.update {
+            it.copy(
+                activePracticeSession = session,
+                practicePrompt = null,
+                isPracticeContinueDialogVisible = false,
+                isNotificationPermissionRationaleVisible = false,
+                pendingPracticeNavigation = null,
+                isPracticeLaunchInProgress = false,
+            )
+        }
+        _effect.send(pending.navigationEffect())
+    }
+
+    private fun loadActivePracticeSession() {
         practicePromptJob?.cancel()
         val generation = ++practicePromptRequestGeneration
         practicePromptJob = viewModelScope.launch {
             if (!isLoggedIn()) return@launch
-            dismissedPracticeIdsLoadJob.join()
-            getPracticeRecordsUseCase(size = PRACTICE_PAGE_SIZE).onSuccess { page ->
-                if (generation != practicePromptRequestGeneration) return@onSuccess
-                val plannedPractice = page.items.firstOrNull {
-                    it.status == PracticeStatus.PLANNED && it.practiceId !in dismissedPracticeIds
+            if (_state.value.isPracticeActionInProgress) return@launch
+            val session = try {
+                getActivePracticeSessionUseCase()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                return@launch
+            }
+            if (generation != practicePromptRequestGeneration) return@launch
+            if (session == null) {
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                    )
                 }
-                _state.update { current ->
-                    if (current.practicePrompt == null) current.copy(practicePrompt = plannedPractice) else current
+                return@launch
+            }
+            if (session.isCompleted) {
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+                return@launch
+            }
+            val elapsed = Duration.between(session.startedAt, Instant.now(clock))
+            if (elapsed >= PRACTICE_MEASUREMENT_DURATION) {
+                _state.update {
+                    it.copy(
+                        activePracticeSession = session,
+                        practicePrompt = session.toPracticeRecordItem(),
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+            } else {
+                _state.update {
+                    it.copy(
+                        activePracticeSession = session,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = true,
+                    )
                 }
             }
         }
     }
 
-    /**
-     * 닫기·안 했어요는 서버 상태를 PLANNED로 남겨두므로, 기억해두지 않으면 앱에 재진입할 때마다
-     * 같은 팝업이 다시 뜬다. 서버가 "담은 시각"을 내려주지 않아 시간 기반으로는 거를 수 없다.
-     */
-    private fun clearPracticePrompt() {
-        _state.value.practicePrompt?.let { practice ->
-            dismissedPracticeIds += practice.practiceId
-            persistPracticePromptDismissal(practice.practiceId)
+    private fun hidePracticeContinueDialog() {
+        _state.update { it.copy(isPracticeContinueDialogVisible = false) }
+    }
+
+    private fun dismissPracticePrompt() {
+        if (_state.value.isPracticeActionInProgress) return
+        viewModelScope.launch {
+            try {
+                // 로컬 세션을 지우지 않으면 다음 앱 재진입 때 loadActivePracticeSession()이
+                // 같은 세션을 다시 읽어 방문 확인 프롬프트가 그대로 재등장한다.
+                clearActivePracticeSessionWithRetry()
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+            }
         }
-        _state.update { it.copy(practicePrompt = null) }
+    }
+
+    private fun stopPracticeMeasurement() {
+        if (_state.value.isPracticeActionInProgress) return
+        viewModelScope.launch {
+            try {
+                clearActivePracticeSessionWithRetry()
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                    )
+                }
+                _effect.send(HomeEffect.StopDrivingTracking)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+            }
+        }
     }
 
     private fun openPracticeSkipReason() {
-        val practiceId = _state.value.practicePrompt?.practiceId ?: return
-        clearPracticePrompt()
-        clearDrivingNavigation()
-        _state.update {
-            it.copy(
-                isPracticeSkipReasonVisible = true,
-                notVisitedPracticeId = practiceId,
-            )
-        }
-    }
-
-    private fun closePracticeSkipReason() {
-        _state.update {
-            it.copy(
-                isPracticeSkipReasonVisible = false,
-                notVisitedPracticeId = null,
-            )
+        val session = _state.value.activePracticeSession ?: return
+        if (_state.value.isPracticeActionInProgress) return
+        _state.update { it.copy(isPracticeActionInProgress = true) }
+        viewModelScope.launch {
+            try {
+                val practiceId = session.practiceId ?: run {
+                    registerPracticeUseCase(session.placeId).getOrElse { error ->
+                        _state.update { it.copy(isPracticeActionInProgress = false) }
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                        return@launch
+                    }.practiceId
+                }
+                try {
+                    clearActivePracticeSessionWithRetry()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    return@launch
+                }
+                _state.update {
+                    it.copy(
+                        activePracticeSession = null,
+                        practicePrompt = null,
+                        isPracticeContinueDialogVisible = false,
+                        isPracticeActionInProgress = false,
+                    )
+                }
+                _effect.send(HomeEffect.StopDrivingTracking)
+                _effect.send(HomeEffect.OpenPracticeSkipReason(practiceId))
+            } finally {
+                _state.update { current ->
+                    if (current.isPracticeActionInProgress) {
+                        current.copy(isPracticeActionInProgress = false)
+                    } else {
+                        current
+                    }
+                }
+            }
         }
     }
 
     private fun recordPracticeVisit() {
-        val practice = _state.value.practicePrompt ?: return
+        val session = _state.value.activePracticeSession ?: return
         if (_state.value.isPracticeActionInProgress) return
+        _state.update { it.copy(isPracticeActionInProgress = true) }
         viewModelScope.launch {
-            _state.update { it.copy(isPracticeActionInProgress = true) }
             try {
-                val certifiedDistanceMeters = completedDrivingSession
-                    ?.takeIf { it.placeId == practice.placeId }
-                    ?.traveledDistanceMeters
-                    ?.roundToInt()
-                    ?.takeIf { it > 0 }
-                if (certifiedDistanceMeters == null) {
-                    recordPracticeVisitUseCase(practice.practiceId)
-                } else {
-                    recordPracticeVisitUseCase(practice.practiceId, certifiedDistanceMeters)
-                }
-                    .onSuccess { result ->
-                        lastDrivingNavigation = null
-                        clearDrivingNavigation()
-                        _state.update {
-                            it.copy(
-                                practicePrompt = null,
-                                isPracticeActionInProgress = false,
-                                levelUp = result.newLevel.takeIf { level -> result.levelUp && level != null },
-                            )
-                        }
-                        _effect.send(HomeEffect.OpenPracticeReview(practice.placeId, practice.placeName))
-                    }
-                    .onFailure { error ->
+                var practiceId = session.practiceId
+                if (practiceId == null) {
+                    val registration = registerPracticeUseCase(session.placeId)
+                    val practice = registration.getOrElse { error ->
                         _state.update { it.copy(isPracticeActionInProgress = false) }
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                        return@launch
                     }
+                    practiceId = practice.practiceId
+                    val pendingSession = session.copy(practiceId = practiceId)
+                    _state.update { it.copy(activePracticeSession = pendingSession) }
+                    try {
+                        saveActivePracticeSessionWithRetry(pendingSession)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    }
+                }
+                val result = recordPracticeVisitUseCase(practiceId)
+                result.onSuccess { visitResult ->
+                    val completedSession = session.copy(
+                        practiceId = practiceId,
+                        isCompleted = true,
+                    )
+                    try {
+                        saveActivePracticeSessionWithRetry(completedSession)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    }
+                    try {
+                        clearActivePracticeSessionWithRetry()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    }
+                    _state.update {
+                        it.copy(
+                            activePracticeSession = null,
+                            practicePrompt = null,
+                            isPracticeContinueDialogVisible = false,
+                            isPracticeActionInProgress = false,
+                            levelUp = visitResult.newLevel.takeIf { level -> visitResult.levelUp && level != null },
+                        )
+                    }
+                    _effect.send(HomeEffect.StopDrivingTracking)
+                    if (session.placeType == PlaceType.COURSE) {
+                        _effect.send(HomeEffect.OpenPracticeReview(session.placeId, session.placeName))
+                    } else {
+                        _effect.send(HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"))
+                    }
+                }.onFailure { error ->
+                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                }
             } finally {
                 _state.update { current ->
                     if (current.isPracticeActionInProgress) current.copy(isPracticeActionInProgress = false) else current
@@ -895,33 +1112,52 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun persistPracticePromptDismissal(practiceId: Long) {
-        viewModelScope.launch {
-            try {
-                practicePromptDismissalRepository.dismiss(practiceId)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Throwable) {
-            }
+    private suspend fun hasRequestedNotificationPermission(): Boolean = try {
+        getNotificationPermissionRequestedUseCase().first()
+    } catch (error: CancellationException) {
+        throw error
+    } catch (_: Throwable) {
+        false
+    }
+
+    private suspend fun markNotificationPermissionRequestedSafely() {
+        try {
+            markNotificationPermissionRequestedUseCase()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
         }
     }
 
-    private fun persistPracticePromptRestore(practiceId: Long) {
-        viewModelScope.launch {
+    private suspend fun clearActivePracticeSessionWithRetry() {
+        var lastError: Throwable? = null
+        repeat(PRACTICE_SESSION_CLEAR_ATTEMPTS) {
             try {
-                practicePromptDismissalRepository.restore(practiceId)
+                clearActivePracticeSessionUseCase()
+                return
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Throwable) {
+            } catch (error: Throwable) {
+                lastError = error
             }
         }
+        throw lastError ?: IllegalStateException("연습 측정 세션을 정리하지 못했습니다.")
     }
 
-    private fun clearDrivingNavigation() {
-        lastDrivingNavigation = null
-        viewModelScope.launch {
-            runCatching { drivingNavigationRepository.clear() }
+    private suspend fun saveActivePracticeSessionWithRetry(session: ActivePracticeSession) {
+        var lastError: Throwable? = null
+        repeat(PRACTICE_SESSION_SAVE_ATTEMPTS) {
+            try {
+                saveActivePracticeSessionUseCase(session)
+                return
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                lastError = error
+            }
         }
+        throw lastError ?: IllegalStateException("연습 측정 세션 상태를 저장하지 못했습니다.")
     }
 
     private suspend fun isLoggedIn(): Boolean = try {
@@ -933,9 +1169,29 @@ class HomeViewModel @Inject constructor(
     }
 }
 
+private fun PendingPracticeNavigation.navigationEffect(
+    startDriving: Boolean = true,
+): HomeEffect = when (app) {
+    NaviApp.KAKAOMAP -> HomeEffect.LaunchKakaoMap(place, startDriving)
+    NaviApp.KAKAONAVI -> HomeEffect.LaunchKakaoNavi(place, startDriving)
+}
+
+private fun ActivePracticeSession.toPracticeRecordItem() = PracticeRecordItem(
+    practiceId = practiceId ?: LOCAL_PRACTICE_ID,
+    placeId = placeId,
+    placeName = placeName,
+    practiceTypes = if (placeType == PlaceType.PARKING) listOf(PracticeType.PARKING) else emptyList(),
+    visitCount = 0,
+    visitedAt = null,
+    isVerified = false,
+    hasReview = false,
+)
+
 internal data class PlaceRequestKey(
     val query: PlaceViewportQuery,
     val cursor: String?,
 )
-
-private const val PRACTICE_PAGE_SIZE = 20
+private const val LOCAL_PRACTICE_ID = 0L
+private const val PRACTICE_SESSION_CLEAR_ATTEMPTS = 3
+private const val PRACTICE_SESSION_SAVE_ATTEMPTS = 3
+private val PRACTICE_MEASUREMENT_DURATION: Duration = Duration.ofMinutes(10)

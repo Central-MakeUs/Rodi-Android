@@ -113,7 +113,7 @@ enum class PracticeTag(val label: String) {
     TURN("좌우회전"),
     ALLEY("골목길"),
     PARKING("주차"),
-    HIGHWAY_ENTRY("고속도로"),
+    HIGHWAY_ENTRY("고속진입"),
     NIGHT("야간운전"),
     SIDE_ROAD("보조도로"),
     HIGHWAY("고속도로"),

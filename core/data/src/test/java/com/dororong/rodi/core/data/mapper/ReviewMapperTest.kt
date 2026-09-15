@@ -1,6 +1,5 @@
 package com.dororong.rodi.core.data.mapper
 
-import com.dororong.rodi.core.data.source.remote.model.review.CursorPageReviewResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormOptionResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewResponse
@@ -9,17 +8,14 @@ import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class ReviewMapperTest {
-    @Test
-    fun `unknown difficulty maps to null without throwing`() {
-        val result = checkNotNull(reviewResponse(difficulty = "UNKNOWN_DIFFICULTY").toDomain())
-
-        assertNull(result.difficulty)
-    }
+    private val json = Json { ignoreUnknownKeys = true }
 
     @Test
     fun `unknown difficulty count key is excluded`() {
@@ -46,24 +42,33 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `unknown member level excludes only that review`() {
-        val response = CursorPageReviewResponse(
-            items = listOf(
-                reviewResponse(reviewId = 1, memberLevel = "ROOKIE"),
-                reviewResponse(reviewId = 2, memberLevel = "UNKNOWN_LEVEL"),
-                reviewResponse(reviewId = 3, memberLevel = "OWNER"),
-            ),
-            hasNext = true,
-            nextCursor = "next",
-            totalCount = 3,
+    fun `review item payload does not require detail-only fields`() {
+        val response = json.decodeFromString<ReviewResponse>(
+            """
+            {
+              "reviewId": 1,
+              "memberId": 10,
+              "nickname": "로디",
+              "practiceMethod": "SOLO",
+              "content": "좋아요",
+              "isMine": false,
+              "isEditable": false,
+              "isHidden": false,
+              "isVerifiedVisit": true,
+              "createdAt": "2026-08-08T00:00:00Z"
+            }
+            """.trimIndent(),
         )
 
         val result = response.toDomain()
 
-        assertEquals(listOf(1L, 3L), result.items.map { it.reviewId })
-        assertEquals(true, result.hasNext)
-        assertEquals("next", result.nextCursor)
-        assertEquals(3, result.totalCount)
+        assertEquals(1L, result.reviewId)
+        assertEquals(true, result.isVerifiedVisit)
+        assertNull(result.memberLevel)
+        assertNull(result.isRecommended)
+        assertNull(result.difficulty)
+        assertNull(result.congestion)
+        assertNull(result.caution)
     }
 
     @Test
@@ -122,22 +127,18 @@ class ReviewMapperTest {
 
     private fun reviewResponse(
         reviewId: Long = 1,
-        memberLevel: String = "ROOKIE",
-        difficulty: String? = "VERY_EASY",
         practiceMethod: String? = "SOLO",
         createdAt: String = "2026-08-08T00:00:00Z",
     ) = ReviewResponse(
         reviewId = reviewId,
         memberId = 10,
         nickname = "로디",
-        memberLevel = memberLevel,
-        isRecommended = true,
-        difficulty = difficulty,
-        congestion = "QUIET",
         practiceMethod = practiceMethod,
+        content = "좋아요",
         isMine = false,
         isEditable = false,
         isHidden = false,
+        isVerifiedVisit = true,
         createdAt = createdAt,
     )
 

@@ -2,7 +2,7 @@ package com.dororong.rodi.feature.mypage.drivinggoal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.dororong.rodi.core.common.takeGraphemes
+import com.dororong.rodi.core.ui.text.takeGraphemes
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateDrivingGoalUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -1,8 +1,8 @@
 package com.dororong.rodi.feature.mypage.myposts
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -33,6 +35,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -45,20 +48,24 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
+import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
-import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.R
+import com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCoursesContent
+import com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCourseFilter
+import com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCoursesViewModel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -72,8 +79,23 @@ fun MyPostsScreen(
     onEditReviewClick: (MyPost) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyPostsViewModel = hiltViewModel(),
+    onRegisterCourseClick: () -> Unit = {},
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val registeredCoursesViewModel: RegisteredCoursesViewModel = hiltViewModel()
+    val registeredCoursesState by registeredCoursesViewModel.uiState.collectAsStateWithLifecycle()
+    var selectedTab by rememberSaveable { mutableStateOf(MyActivityTab.RegisteredCourses) }
+    val registeredCoursesAllListState = rememberLazyListState()
+    val registeredCoursesApprovedListState = rememberLazyListState()
+    val registeredCoursesPendingListState = rememberLazyListState()
+    val registeredCoursesRejectedListState = rememberLazyListState()
+    val registeredCoursesListState = when (registeredCoursesState.selectedFilter) {
+        RegisteredCourseFilter.ALL -> registeredCoursesAllListState
+        RegisteredCourseFilter.APPROVED -> registeredCoursesApprovedListState
+        RegisteredCourseFilter.PENDING -> registeredCoursesPendingListState
+        RegisteredCourseFilter.REJECTED -> registeredCoursesRejectedListState
+    }
+    val reviewListState = rememberLazyListState()
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasResumed by remember { mutableStateOf(false) }
     DisposableEffect(lifecycleOwner) {
@@ -86,9 +108,16 @@ fun MyPostsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    MyPostsContent(
-        state = state,
+    MyActivityContent(
+        selectedTab = selectedTab,
+        onTabSelected = { selectedTab = it },
         onBack = onBack,
+        registeredCoursesState = registeredCoursesState,
+        registeredCoursesViewModel = registeredCoursesViewModel,
+        registeredCoursesListState = registeredCoursesListState,
+        onRegisterCourseClick = onRegisterCourseClick,
+        reviewState = state,
+        reviewListState = reviewListState,
         onPracticeRecordsClick = onPracticeRecordsClick,
         onEditReviewClick = onEditReviewClick,
         onLoadInitial = viewModel::loadInitial,
@@ -97,6 +126,119 @@ fun MyPostsScreen(
         onDelete = viewModel::delete,
         modifier = modifier,
     )
+}
+
+@Composable
+private fun MyActivityContent(
+    selectedTab: MyActivityTab,
+    onTabSelected: (MyActivityTab) -> Unit,
+    onBack: () -> Unit,
+    registeredCoursesState: com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCoursesUiState,
+    registeredCoursesViewModel: RegisteredCoursesViewModel,
+    registeredCoursesListState: LazyListState,
+    onRegisterCourseClick: () -> Unit,
+    reviewState: MyPostsUiState,
+    reviewListState: LazyListState,
+    onPracticeRecordsClick: () -> Unit,
+    onEditReviewClick: (MyPost) -> Unit,
+    onLoadInitial: () -> Unit,
+    onLoadNext: () -> Unit,
+    onClearError: () -> Unit,
+    onDelete: (MyPost) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+            PostsTopBar(onBack = onBack)
+            MyActivityTabs(selectedTab = selectedTab, onTabSelected = onTabSelected)
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (selectedTab == MyActivityTab.RegisteredCourses) {
+                    RegisteredCoursesContent(
+                        state = registeredCoursesState,
+                        onFilterSelected = registeredCoursesViewModel::selectFilter,
+                        onRegisterCourseClick = onRegisterCourseClick,
+                        onLoadInitial = registeredCoursesViewModel::loadInitial,
+                        onLoadNext = registeredCoursesViewModel::loadNextPage,
+                        onRetry = registeredCoursesViewModel::retry,
+                        onClearError = registeredCoursesViewModel::clearError,
+                        onDelete = registeredCoursesViewModel::delete,
+                        applyNavigationBarsPadding = false,
+                        listState = registeredCoursesListState,
+                    )
+                } else {
+                    MyPostsContent(
+                        state = reviewState,
+                        onBack = {},
+                        onPracticeRecordsClick = onPracticeRecordsClick,
+                        onEditReviewClick = onEditReviewClick,
+                        onLoadInitial = onLoadInitial,
+                        onLoadNext = onLoadNext,
+                        onClearError = onClearError,
+                        onDelete = onDelete,
+                        showTopBar = false,
+                        applyInsets = false,
+                        listState = reviewListState,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MyActivityTabs(
+    selectedTab: MyActivityTab,
+    onTabSelected: (MyActivityTab) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(45.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+    ) {
+        MyActivityTabItem(
+            text = "등록한 코스",
+            selected = selectedTab == MyActivityTab.RegisteredCourses,
+            onClick = { onTabSelected(MyActivityTab.RegisteredCourses) },
+            modifier = Modifier.weight(1f),
+        )
+        MyActivityTabItem(
+            text = "작성한 후기",
+            selected = selectedTab == MyActivityTab.Reviews,
+            onClick = { onTabSelected(MyActivityTab.Reviews) },
+            modifier = Modifier.weight(1f),
+        )
+    }
+    HorizontalDivider(color = RodiTheme.colors.gray200)
+}
+
+@Composable
+private fun MyActivityTabItem(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // 인디케이터는 탭 행 맨 아래에 붙는다(디자인 3800:68268). 텍스트는 행 중앙 정렬.
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clickable(onClick = onClick),
+    ) {
+        Text(
+            text = text,
+            style = if (selected) RodiTheme.typography.body1SemiBold else RodiTheme.typography.body1Medium,
+            color = if (selected) RodiTheme.colors.black else RodiTheme.colors.gray400,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        if (selected) {
+            Spacer(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .height(2.dp)
+                    .fillMaxWidth()
+                    .background(RodiTheme.colors.black),
+            )
+        }
+    }
 }
 
 @Composable
@@ -111,10 +253,13 @@ private fun MyPostsContent(
     onDelete: (MyPost) -> Unit,
     modifier: Modifier = Modifier,
     initialMenuPostId: Long? = null,
+    showTopBar: Boolean = true,
+    applyInsets: Boolean = true,
+    listState: LazyListState? = null,
 ) {
     var menuPostId by remember { mutableStateOf(initialMenuPostId) }
     var deleteTarget by remember { mutableStateOf<MyPost?>(null) }
-    val scrollState = rememberLazyListState()
+    val scrollState = listState ?: rememberLazyListState()
     LaunchedEffect(scrollState, state.posts.size, state.hasNext) {
         snapshotFlow { scrollState.layoutInfo.visibleItemsInfo.lastOrNull()?.index }
             .map { index -> index != null && index >= state.posts.lastIndex - 2 }
@@ -122,10 +267,14 @@ private fun MyPostsContent(
             .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
     }
     Surface(modifier = modifier.fillMaxSize(), color = RodiTheme.colors.white) {
-        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-            PostsTopBar(onBack = onBack)
+        Column(
+            modifier = Modifier.fillMaxSize().let {
+                if (applyInsets) it.statusBarsPadding().navigationBarsPadding() else it
+            },
+        ) {
+            if (showTopBar) PostsTopBar(onBack = onBack)
             when {
-                state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("불러오는 중…", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600) }
+                state.isLoading -> MyPostsLoading()
                 state.errorMessage != null && state.posts.isEmpty() -> MyPostsError(
                     message = state.errorMessage,
                     onRetry = { onClearError(); onLoadInitial() },
@@ -165,12 +314,68 @@ private fun MyPostsContent(
     deleteTarget?.let { target ->
         RodiAlertDialog(
             title = "정말 삭제하시겠습니까?",
-            description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.",
-            dismissText = "취소",
-            confirmText = "삭제하기",
-            onDismiss = { deleteTarget = null },
-            onConfirm = { deleteTarget = null; onDelete(target) },
+            description = "이 후기는 다른 초보운전자에게\n도움이 되고 있어요.",
+            descriptionMaxLines = 2,
+            dismissText = "삭제하기",
+            confirmText = "취소",
+            onDismiss = { deleteTarget = null; onDelete(target) },
+            onConfirm = { deleteTarget = null },
             onDismissRequest = { deleteTarget = null },
+        )
+    }
+}
+
+@Composable
+private fun MyPostsLoading() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 24.dp),
+    ) {
+        repeat(4) { MyPostSkeletonRow() }
+    }
+}
+
+@Composable
+private fun MyPostSkeletonRow() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            RodiSkeleton(modifier = Modifier.width(128.dp).height(20.dp))
+            Spacer(Modifier.weight(1f))
+            RodiSkeleton(
+                modifier = Modifier.size(28.dp),
+                shape = RoundedCornerShape(14.dp),
+            )
+        }
+        RodiSkeleton(
+            modifier = Modifier
+                .padding(top = 4.dp)
+                .width(48.dp)
+                .height(12.dp),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .height(37.dp)
+                .background(RodiTheme.colors.gray50, RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            RodiSkeleton(
+                modifier = Modifier
+                    .fillMaxWidth(0.82f)
+                    .height(14.dp),
+                shape = RoundedCornerShape(4.dp),
+            )
+        }
+        HorizontalDivider(
+            modifier = Modifier.padding(top = 14.dp),
+            color = RodiTheme.colors.gray100,
         )
     }
 }
@@ -244,24 +449,28 @@ private fun MyPostRow(
             }
         }
         Text(MyPostDateFormatter.format(post.review.createdAt), style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 4.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .height(37.dp)
-                .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
-                .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
-                .padding(horizontal = 10.dp),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                text = post.review.content.orEmpty().ifBlank { "작성한 후기 내용이 없어요." },
-                style = RodiTheme.typography.caption1Regular,
-                color = RodiTheme.colors.gray700,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        post.review.content
+            ?.takeIf { it.isNotBlank() }
+            ?.let { content ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .height(37.dp)
+                        .background(RodiTheme.colors.white, RoundedCornerShape(8.dp))
+                        .border(1.dp, RodiTheme.colors.gray200, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Text(
+                        text = content,
+                        style = RodiTheme.typography.caption1Regular,
+                        color = RodiTheme.colors.gray700,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
         HorizontalDivider(modifier = Modifier.padding(top = 14.dp), color = RodiTheme.colors.gray100)
     }
 }
@@ -271,31 +480,35 @@ private fun MyPostsEmpty(
     onPracticeRecordsClick: () -> Unit,
     showPracticeRecordsButton: Boolean,
 ) {
-    Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Image(
-                painter = painterResource(R.drawable.illust_my_activity_empty),
-                contentDescription = null,
-                modifier = Modifier.size(60.dp),
-            )
-            Text(
-                "아직 작성한 후기가 없어요!",
-                style = RodiTheme.typography.headline1,
-                color = RodiTheme.colors.gray600,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-            Text("다녀온 코스의 경험을 기록해보세요.", style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))
+    RodiIllustratedEmptyState(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        painter = painterResource(R.drawable.illust_my_activity_empty),
+        imageSize = 60.dp,
+        // "등록한 코스" 탭엔 필터 드롭다운 행이 있어 빈 상태 컨테이너가 그만큼 아래서 시작한다.
+        // 이 탭엔 그 행이 없으므로, 기본 topPadding(134dp)에 그 행 높이(48dp)를 더해 탭
+        // 전환 시 아이콘이 같은 화면 y좌표에 오도록 맞춘다.
+        topPadding = 182.dp,
+        title = "아직 작성한 후기가 없어요!",
+        description = "다녀온 코스의 경험을 기록해보세요.",
+        footer = {
             if (showPracticeRecordsButton) {
                 OutlinedButton(
                     onClick = onPracticeRecordsClick,
-                    modifier = Modifier.padding(top = 20.dp).height(40.dp),
+                    // 설명 줄 수가 "등록한 코스" 탭과 달라 텍스트 블록 높이가 다르므로,
+                    // 버튼 위치가 같은 화면 y좌표에 오도록 top padding을 실기기 캡처로
+                    // 보정했다(24.5dp). width/height는 그 탭의 버튼과 동일하게 맞춘다.
+                    modifier = Modifier
+                        .padding(top = 24.5.dp)
+                        .width(147.dp)
+                        .height(32.dp),
                     shape = RoundedCornerShape(8.dp),
                     border = BorderStroke(1.dp, RodiTheme.colors.primary600),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = RodiTheme.colors.primary600),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 0.dp),
                 ) { Text("연습기록 보러가기", style = RodiTheme.typography.body3Medium) }
             }
-        }
-    }
+        },
+    )
 }
 
 private val MyPostDateFormatter = DateTimeFormatter.ofPattern("yy.MM.dd").withZone(ZoneId.systemDefault())
@@ -304,12 +517,12 @@ private val PreviewPosts = listOf(
     MyPost(
         placeId = 1,
         placeName = "망원한강공원",
-        review = Review(1, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.EASY, ReviewCongestion.QUIET, PracticeMethod.SOLO, "차선 변경 연습에 좋아요.", null, true, true, false, Instant.parse("2026-05-10T00:00:00Z")),
+        review = Review(1, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.EASY, ReviewCongestion.QUIET, PracticeMethod.SOLO, "차선 변경 연습에 좋아요.", null, true, true, false, Instant.parse("2026-05-10T00:00:00Z"), true),
     ),
     MyPost(
         placeId = 2,
         placeName = "용산구 교차로",
-        review = Review(2, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.NORMAL, ReviewCongestion.NORMAL, PracticeMethod.WITH_COMPANION, "회전 구간은 천천히 진입하세요.", null, true, true, false, Instant.parse("2026-05-08T00:00:00Z")),
+        review = Review(2, 1, "로디", OnboardingLevel.ROOKIE, true, ReviewDifficulty.NORMAL, ReviewCongestion.NORMAL, PracticeMethod.WITH_COMPANION, "회전 구간은 천천히 진입하세요.", null, true, true, false, Instant.parse("2026-05-08T00:00:00Z"), true),
     ),
 )
 
@@ -318,6 +531,53 @@ private val PreviewPosts = listOf(
 private fun MyPostsListPreview() = RodiTheme {
     MyPostsContent(
         state = MyPostsUiState(posts = PreviewPosts),
+        onBack = {},
+        onPracticeRecordsClick = {},
+        onEditReviewClick = {},
+        onLoadInitial = {},
+        onLoadNext = {},
+        onClearError = {},
+        onDelete = {},
+    )
+}
+
+@Preview(name = "내 활동 등록 코스", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun MyActivityRegisteredCoursesPreview() = RodiTheme {
+    Column(Modifier.fillMaxSize().statusBarsPadding()) {
+        PostsTopBar(onBack = {})
+        MyActivityTabs(
+            selectedTab = MyActivityTab.RegisteredCourses,
+            onTabSelected = {},
+        )
+        RegisteredCoursesContent(
+            state = com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCoursesUiState(
+                courses = listOf(
+                    com.dororong.rodi.core.domain.model.course.RegisteredCourse(
+                        courseId = 1L,
+                        name = "서울 성북구 길음동 4938-3",
+                        approvalStatus = com.dororong.rodi.core.domain.model.course.CourseApprovalStatus.APPROVED,
+                        createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+                    ),
+                ),
+            ),
+            onFilterSelected = {},
+            onRegisterCourseClick = {},
+            onLoadInitial = {},
+            onLoadNext = {},
+            onRetry = {},
+            onClearError = {},
+            onDelete = {},
+            applyNavigationBarsPadding = false,
+        )
+    }
+}
+
+@Preview(name = "내 활동 로딩", showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun MyPostsLoadingPreview() = RodiTheme {
+    MyPostsContent(
+        state = MyPostsUiState(isLoading = true),
         onBack = {},
         onPracticeRecordsClick = {},
         onEditReviewClick = {},
@@ -347,7 +607,7 @@ private fun MyPostsMenuPreview() = RodiTheme {
 @Preview(name = "내 활동 삭제 확인", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
 private fun MyPostsDeletePreview() = RodiTheme {
-    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게도 도움이 되고\n있어요. 삭제하면 더 이상 공개되지 않아요.", dismissText = "취소", confirmText = "삭제하기", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
+    RodiAlertDialog(title = "정말 삭제하시겠습니까?", description = "이 후기는 다른 초보운전자에게\n도움이 되고 있어요.", descriptionMaxLines = 2, dismissText = "삭제하기", confirmText = "취소", onDismiss = {}, onConfirm = {}, onDismissRequest = {})
 }
 
 @Preview(name = "내 활동 빈 상태", showBackground = true, widthDp = 375, heightDp = 812)

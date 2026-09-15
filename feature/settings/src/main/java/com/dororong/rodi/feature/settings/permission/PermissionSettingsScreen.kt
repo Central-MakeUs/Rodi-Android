@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,8 +41,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R as CoreUiR
 import android.os.Build
 import com.dororong.rodi.core.ui.permission.PermissionAction
+import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.hasNotificationPermission
+import com.dororong.rodi.core.ui.permission.openPromotedNotificationSettings
 import com.dororong.rodi.core.ui.permission.resolvePermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
@@ -59,6 +62,9 @@ fun PermissionSettingsScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
     var isNotificationGranted by remember(context) { mutableStateOf(context.hasNotificationPermission()) }
+    var isLiveUpdateGranted by remember(context) {
+        mutableStateOf(context.canPostPromotedNotifications())
+    }
     val requestLocationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
@@ -71,6 +77,7 @@ fun PermissionSettingsScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isLocationGranted = context.hasLocationPermission()
         isNotificationGranted = context.hasNotificationPermission()
+        isLiveUpdateGranted = context.canPostPromotedNotifications()
     }
 
     PermissionSettingsContent(
@@ -134,6 +141,8 @@ fun PermissionSettingsScreen(
                 PermissionAction.OpenAppSettings -> context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
             }
         },
+        isLiveUpdateGranted = isLiveUpdateGranted,
+        onLiveUpdateClick = { context.openPromotedNotificationSettings() },
     )
 }
 
@@ -144,6 +153,8 @@ private fun PermissionSettingsContent(
     onBack: () -> Unit,
     onLocationClick: () -> Unit,
     onNotificationClick: () -> Unit,
+    isLiveUpdateGranted: Boolean = true,
+    onLiveUpdateClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -158,19 +169,42 @@ private fun PermissionSettingsContent(
             SettingsTopBar(title = "권한 설정 변경", onBack = onBack)
             PermissionRow("위치", isLocationGranted, "내 위치 확인과 주행 거리 측정에 사용해요.", onLocationClick)
             PermissionRow("주행 상태 알림", isNotificationGranted, "앱을 나가도 주행 상태와 진행률을 확인해요.", onNotificationClick)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
+                PermissionRow(
+                    title = "실시간 업데이트",
+                    granted = isLiveUpdateGranted,
+                    description = if (isLiveUpdateGranted) {
+                        "Android 16에서 주행 진행률을 더 눈에 띄게 표시해요."
+                    } else {
+                        "Android 설정에서 실시간 업데이트를 허용해 주세요."
+                    },
+                    onClick = onLiveUpdateClick,
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun PermissionRow(title: String, granted: Boolean, description: String, onClick: () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 24.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
-            Text(if (granted) "허용됨" else "허용 필요", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
-            Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.padding(start = 8.dp).size(20.dp))
+            Text(title, style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black, modifier = Modifier.weight(1f))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(if (granted) "허용됨" else "허용 안 됨", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.gray600)
+                Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.size(20.dp))
+            }
         }
-        Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600, modifier = Modifier.padding(top = 8.dp))
+        Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600)
     }
 }
 

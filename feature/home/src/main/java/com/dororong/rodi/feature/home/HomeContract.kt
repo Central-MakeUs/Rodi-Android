@@ -2,8 +2,8 @@ package com.dororong.rodi.feature.home
 
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.course.GeoPoint
-import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.driving.DrivingSession
+import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.ActivePracticeSession
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
@@ -65,14 +66,17 @@ data class HomeUiState(
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
     val regionSearchGeneration: Long = 0L,
+    val reviewRefreshGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
     val practicePrompt: PracticeRecordItem? = null,
-    val isPracticeSkipReasonVisible: Boolean = false,
-    val notVisitedPracticeId: Long? = null,
+    val activePracticeSession: ActivePracticeSession? = null,
+    val isPracticeContinueDialogVisible: Boolean = false,
     val isPracticeActionInProgress: Boolean = false,
-    val levelUp: OnboardingLevel? = null,
-    val activeDrivingSession: DrivingSession? = null,
+    val isPracticeLaunchInProgress: Boolean = false,
+    val isNotificationPermissionRationaleVisible: Boolean = false,
+    val pendingPracticeNavigation: PendingPracticeNavigation? = null,
     val arrivalNotice: DrivingSession? = null,
+    val levelUp: OnboardingLevel? = null,
 ) {
     val showInitialError: Boolean get() = listState == HomeListState.InitialError
     val showEmpty: Boolean get() = listState == HomeListState.Empty
@@ -92,19 +96,21 @@ sealed interface HomeIntent {
     data object OnDragDismissDetail : HomeIntent
     data object OnLevelReviewsOpen : HomeIntent
     data object OnLevelReviewsClose : HomeIntent
+    data object OnReviewUpdated : HomeIntent
     data object OnAppResumed : HomeIntent
-    data class OnDrivingNavigationLaunched(
-        val placeId: Long,
-        val measurementStarted: Boolean,
-        val launchedAtEpochMillis: Long,
-    ) : HomeIntent
+    data class OnArrivalNoticeConfirmed(val sessionId: String) : HomeIntent
+    data object OnPracticeContinueMeasurement : HomeIntent
+    data object OnPracticeStopMeasurement : HomeIntent
     data object OnPracticePromptVisited : HomeIntent
     data object OnPracticePromptNotVisited : HomeIntent
     data object OnPracticePromptDismiss : HomeIntent
-    data object OnPracticeSkipReasonClosed : HomeIntent
+    data object OnNotificationPermissionAllow : HomeIntent
+    data object OnNotificationPermissionRouteOnly : HomeIntent
+    data class OnNotificationPermissionResult(val granted: Boolean) : HomeIntent
     data object OnLevelUpDismiss : HomeIntent
     data object OnBookmarkClick : HomeIntent
     data object OnMyClick : HomeIntent
+    data object OnRegisterClick : HomeIntent
     data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
     data class OnRegionSearch(
         val region: RegionOfficeLocation,
@@ -121,42 +127,57 @@ sealed interface HomeIntent {
     data class OnKakaoLoginFailed(val message: String) : HomeIntent
     data object OnRestoreAccount : HomeIntent
     data object OnDismissRestore : HomeIntent
-    data class OnArrivalNoticeConfirmed(val sessionId: String) : HomeIntent
 
     data class OnNavigateClick(
         val kakaoMapInstalled: Boolean,
         val kakaoNaviInstalled: Boolean,
+        val notificationPermissionGranted: Boolean,
     ) : HomeIntent
 
-    data class OnNaviAppSelected(val app: NaviApp, val always: Boolean) : HomeIntent
+    data class OnNaviAppSelected(
+        val app: NaviApp,
+        val always: Boolean,
+        val notificationPermissionGranted: Boolean,
+    ) : HomeIntent
     data class OnInstallNaviAppSelected(val app: NaviApp) : HomeIntent
 }
 
 sealed interface HomeEffect {
     data class LaunchKakaoMap(
         val place: PlaceDetail,
-        val route: RouteResult? = null,
         val startDriving: Boolean = true,
     ) : HomeEffect
     data class LaunchKakaoNavi(
         val place: PlaceDetail,
-        val route: RouteResult? = null,
         val startDriving: Boolean = true,
     ) : HomeEffect
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
+    data class OpenPracticeSkipReason(val practiceId: Long) : HomeEffect
     data class OpenNaviInstallPage(val app: NaviApp) : HomeEffect
     data class ShowSnackbar(val message: String) : HomeEffect
     data class NavigateSearch(val origin: GeoPoint) : HomeEffect
     data object NavigateMyPage : HomeEffect
+    data object NavigateCourseRegistration : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
+    data object StopDrivingTracking : HomeEffect
 }
+
+sealed interface HomePermissionEffect {
+    data object RequestNotificationPermission : HomePermissionEffect
+}
+
+data class PendingPracticeNavigation(
+    val place: PlaceDetail,
+    val app: NaviApp,
+)
 
 sealed interface PendingHomeAction {
     data class OpenDetail(val placeId: Long, val origin: HomeDetailOrigin) : PendingHomeAction
     data object ToggleBookmark : PendingHomeAction
     data object OpenMyPage : PendingHomeAction
+    data object OpenCourseRegistration : PendingHomeAction
     data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
     data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }

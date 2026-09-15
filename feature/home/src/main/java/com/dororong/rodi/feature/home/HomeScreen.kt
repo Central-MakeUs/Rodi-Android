@@ -84,13 +84,13 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.content.res.ResourcesCompat
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
@@ -101,6 +101,7 @@ import com.dororong.rodi.core.ui.components.RodiBottomNavigation
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
+import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
@@ -108,15 +109,13 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
+import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.core.ui.permission.hasNotificationPermission
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.HomeSearchBar
-import com.dororong.rodi.feature.home.components.DrivingArrivalDialog
-import com.dororong.rodi.feature.home.components.DrivingContinueDialog
 import com.dororong.rodi.feature.home.components.MapListButton
-import com.dororong.rodi.feature.home.components.MapLoadingScreen
-import com.dororong.rodi.feature.home.components.MapNetworkErrorScreen
+import com.dororong.rodi.core.ui.components.map.MapLoadingScreen
+import com.dororong.rodi.core.ui.components.map.MapNetworkErrorScreen
 import com.dororong.rodi.feature.home.components.MapResearchButton
 import com.dororong.rodi.feature.home.components.MyLocationButton
 import com.dororong.rodi.feature.home.components.NaviPickerMode
@@ -126,8 +125,10 @@ import com.dororong.rodi.feature.home.detail.CourseReviewViewModel
 import com.dororong.rodi.feature.home.detail.components.LevelReviewSection
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.review.ReviewWriteScreen
+import com.dororong.rodi.feature.home.review.NotificationPermissionDialog
+import com.dororong.rodi.feature.home.review.PracticeContinueDialog
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
-import com.dororong.rodi.feature.home.review.notvisited.PracticeSkipReasonScreen
+import com.dororong.rodi.feature.home.components.DrivingArrivalDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -138,11 +139,14 @@ import com.dororong.rodi.feature.home.list.components.PlaceEmptyContent
 import com.dororong.rodi.feature.home.list.components.PlaceListContent
 import com.dororong.rodi.feature.home.location.awaitCurrentLocation
 import com.dororong.rodi.feature.home.location.currentLocationUpdates
+import androidx.core.app.ActivityCompat
+import com.dororong.rodi.core.ui.permission.findActivity
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
+import com.dororong.rodi.core.ui.permission.openAppSettings
 import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
-import com.dororong.rodi.feature.home.network.isNetworkAvailable
-import com.dororong.rodi.feature.home.network.networkAvailabilityFlow
+import com.dororong.rodi.core.ui.network.isNetworkAvailable
+import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
@@ -165,13 +169,16 @@ import com.dororong.rodi.feature.home.map.fitCourseToScreen
 import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapBefore
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
+import com.dororong.rodi.feature.home.map.initialMapCenter
 import com.dororong.rodi.feature.home.map.markMapLoaded
+import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
 import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
 import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
+import com.dororong.rodi.feature.home.map.RouteLineColors
 import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
@@ -189,7 +196,10 @@ import com.kakao.vectormap.MapGravity
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraAnimation
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.dororong.rodi.core.ui.R as CoreUiR
@@ -217,8 +227,12 @@ private val BOTTOM_CONTROL_SHEET_GAP = 12.dp
 private const val LIST_TITLE_CENTERING_START = 0.5f
 private const val MIN_ZOOM = 6
 private const val MAP_RETRY_DEBOUNCE_MILLIS = 1_500L
+
+/** 오프라인이 이만큼 이어지면 지도를 덮고 안내 화면을 띄운다. */
+internal const val MAP_NETWORK_ERROR_GRACE_MILLIS = 3_000L
 private const val MAP_NETWORK_SNACKBAR_ID = "map-network"
-private val PARKING_DETAIL_SHEET_MAX_HEIGHT = 400.dp
+// 주차장 상세는 내용 길이와 무관하게 코스 상세와 같은 높이로 고정한다.
+private val PARKING_DETAIL_SHEET_HEIGHT = 400.dp
 // HomeSearchBar가 지도 위에 statusBarsPadding() + vertical 5dp로 떠 있는 만큼. 경로 핏 계산에
 // 이 높이를 반영하지 않으면 세로로 긴 코스의 출발지·도착지 마커가 검색창 뒤에 가려진다.
 private val MAP_SEARCH_BAR_TOP_INSET = 5.dp + 46.dp
@@ -228,8 +242,7 @@ typealias KakaoLoginRequest = (
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit,
 ) -> Unit
-typealias DrivingStartRequest = (PlaceDetail, com.dororong.rodi.core.domain.model.course.RouteResult?) -> Result<String>
-typealias DrivingStartCancellation = (String) -> Unit
+typealias DrivingStartRequest = (PlaceDetail) -> Result<String>
 
 private data class ReviewWriteTarget(
     val placeId: Long,
@@ -263,12 +276,13 @@ private val mapViewportSaver: Saver<MapViewport?, Any> = mapSaver(
 @Composable
 fun HomeScreen(
     onMyPageClick: () -> Unit,
+    onCourseRegistrationClick: () -> Unit = {},
     onSearchClick: (GeoPoint) -> Unit,
     onGuestSignUp: () -> Unit,
     onRequestKakaoLogin: KakaoLoginRequest,
     onStartDriving: DrivingStartRequest,
-    onCancelDrivingStart: DrivingStartCancellation,
-    onArrivalNoticeConfirmed: () -> Unit = {},
+    onStopDriving: () -> Unit = {},
+    onPracticeSkipReasonClick: (Long) -> Unit = {},
     bottomNavigation: @Composable () -> Unit = {},
     vm: HomeViewModel = hiltViewModel(),
 ) {
@@ -301,10 +315,11 @@ fun HomeScreen(
     var hasMapLoadedThisEntry by remember { mutableStateOf(false) }
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
     var showMapNetworkSnackbar by remember { mutableStateOf(!isOnline) }
+    // 최초 진입이 오프라인이어도 여기서 곧장 NetworkError로 시작하지 않는다 — 그러면 아래
+    // LaunchedEffect(isOnline)의 3초 유예를 건너뛰게 된다. 유예는 그 이펙트가 책임진다.
     var mapScreenState by remember {
         mutableStateOf(
             when {
-                !isOnline -> MapScreenState.NetworkError
                 hasLoadedMapInSession || context.hasLoadedMapBefore() -> MapScreenState.Ready
                 else -> MapScreenState.Loading
             },
@@ -317,8 +332,6 @@ fun HomeScreen(
     var naviPlaceId by remember { mutableStateOf<Long?>(null) }
     var installNaviPlaceId by remember { mutableStateOf<Long?>(null) }
     var pendingDrivingEffect by remember { mutableStateOf<HomeEffect?>(null) }
-    var pendingNotificationEffect by remember { mutableStateOf<HomeEffect?>(null) }
-    var pendingContinueEffect by remember { mutableStateOf<HomeEffect?>(null) }
     var isLifecycleStarted by remember(lifecycleOwner) {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
@@ -329,7 +342,24 @@ fun HomeScreen(
     var reviewToBlock by remember { mutableStateOf<Review?>(null) }
     var reviewToDelete by remember { mutableStateOf<Review?>(null) }
     var reviewToWrite by remember { mutableStateOf<ReviewWriteTarget?>(null) }
+    var ownReviewActionToastMessage by remember { mutableStateOf<String?>(null) }
     var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
+    fun handleReportReviewClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 신고할 수 없습니다"
+        } else {
+            reviewToReport = review
+        }
+    }
+
+    fun handleBlockMemberClick(review: Review) {
+        if (review.isMine) {
+            ownReviewActionToastMessage = "내가 쓴 후기는 차단할 수 없습니다"
+        } else {
+            reviewToBlock = review
+        }
+    }
+
     fun updateCurrentViewport(viewport: MapViewport?) {
         currentViewport = viewport
     }
@@ -373,71 +403,47 @@ fun HomeScreen(
             is HomeEffect.LaunchKakaoNavi -> effect.startDriving
             else -> false
         }
-        val sessionId = if (shouldStartDriving) {
-            val route = when (effect) {
-                is HomeEffect.LaunchKakaoMap -> effect.route
-                is HomeEffect.LaunchKakaoNavi -> effect.route
-                else -> null
-            }
-            onStartDriving(place, route).getOrElse { error ->
+        if (shouldStartDriving) {
+            val startResult = onStartDriving(place)
+            val startError = startResult.exceptionOrNull()
+            if (startError != null) {
                 snackbarHostState.show(
                     RodiSnackbarData(
-                        message = error.message ?: "운전 상태 추적을 시작하지 못했어요. 다시 시도해 주세요.",
+                        message = startError.message
+                            ?: "운전 상태 추적을 시작하지 못했어요. 다시 시도해 주세요.",
                     ),
                 )
                 return
             }
-        } else {
-            null
         }
-        val launched = when (effect) {
+        when (effect) {
             is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, place)
             is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, place)
-            else -> false
-        }
-        if (!launched) {
-            sessionId?.let(onCancelDrivingStart)
-            snackbarHostState.show(
-                RodiSnackbarData(
-                    message = if (shouldStartDriving) {
-                        "내비게이션을 열지 못해 운전 상태 추적을 종료했어요."
-                    } else {
-                        "내비게이션을 열지 못했어요."
-                    },
-                ),
-            )
-        } else {
-            vm.onIntent(
-                HomeIntent.OnDrivingNavigationLaunched(
-                    placeId = place.id,
-                    measurementStarted = shouldStartDriving,
-                    launchedAtEpochMillis = System.currentTimeMillis(),
-                ),
-            )
+            else -> Unit
         }
     }
 
-    fun continueWithoutNotification(effect: HomeEffect) {
-        pendingNotificationEffect = null
-        scope.launch { launchDriving(effect.withDriving(false)) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        permissionGranted = result.values.any { it }
+        if (!permissionGranted) {
+            initialLocationState = InitialLocationState.Unavailable
+            // 영구 거부 상태면 launch가 창도 못 띄우고 바로 거부로 끝난다. 그때는 설정으로 보낸다.
+            val canAskAgain = context.findActivity()?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(
+                    it,
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                )
+            } ?: false
+            if (!canAskAgain) context.openAppSettings()
+        }
     }
-
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) {
-        val pending = pendingNotificationEffect
-        pendingNotificationEffect = null
-        if (pending != null) {
-            scope.launch {
-                if (context.hasNotificationPermission()) {
-                    launchDriving(pending.withDriving(true))
-                } else {
-                    launchDriving(pending.withDriving(false))
-                }
-            }
-        }
+    ) { granted ->
+        vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted))
     }
-
     val drivingPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) {
@@ -450,32 +456,42 @@ fun HomeScreen(
                 if (missingPermissions.isEmpty()) {
                     launchDriving(pending)
                 } else {
-                    snackbarHostState.show(
-                        RodiSnackbarData(message = missingPermissions.deniedDrivingPermissionMessage()),
-                    )
+                    // 권한을 못 받으면 추적 없이 경로만 띄운다("경로만 보기"와 같은 결과).
+                    // 필요성은 이미 팝업으로 안내했으니 토스트까지 겹쳐 띄우지 않는다.
+                    when (pending) {
+                        is HomeEffect.LaunchKakaoMap -> KakaoMapLauncher.launch(context, pending.place)
+                        is HomeEffect.LaunchKakaoNavi -> KakaoNaviLauncher.launch(context, pending.place)
+                        else -> Unit
+                    }
                 }
             }
         }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
-        permissionGranted = result.values.any { it }
-        if (!permissionGranted) initialLocationState = InitialLocationState.Unavailable
-    }
-
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
-            isLifecycleStarted =
-                lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            isLifecycleStarted = lifecycleOwner.lifecycle.currentState
+                .isAtLeast(Lifecycle.State.STARTED)
             if (event == Lifecycle.Event.ON_RESUME) {
                 permissionGranted = context.hasLocationPermission()
+                hasCenteredInitialLocation = false
+                hasUserMovedMap = false
+                hasUserChosenMapViewport = false
+                // 진행 중이던 연습 세션이 있으면 "이어서 측정할까요?" 다이얼로그를 다시 띄운다.
                 vm.onIntent(HomeIntent.OnAppResumed)
+                // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
+                // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
+                reviewVm.refresh()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(Unit) {
+        hasCenteredInitialLocation = false
+        hasUserMovedMap = false
+        hasUserChosenMapViewport = false
     }
 
     LaunchedEffect(Unit) {
@@ -513,15 +529,6 @@ fun HomeScreen(
         orientation = Orientation.Vertical,
         flingBehavior = AnchoredDraggableDefaults.flingBehavior(listSheetState),
     )
-
-    LaunchedEffect(state.activeDrivingSession?.id, pendingContinueEffect) {
-        if (state.activeDrivingSession == null) {
-            pendingContinueEffect?.let { effect ->
-                pendingContinueEffect = null
-                launchDriving(effect)
-            }
-        }
-    }
     val peekHeightPx = with(density) { LIST_SHEET_PEEK_HEIGHT.toPx() }
 
     LaunchedEffect(listSheetState) {
@@ -637,6 +644,7 @@ fun HomeScreen(
     }
 
     val shouldShowResearch = state.surfaceState != HomeSurfaceState.Detail && state.isMapSearchDirty
+    val showSearchBackButton = state.searchKeyword != null || state.detailOrigin == HomeDetailOrigin.List
 
     val deselectSelectedParkingMarker: () -> Unit = {
         val selectedParkingId = state.selectedPlace
@@ -664,7 +672,7 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnDismissLogin)
     }
 
-    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+    val handleSystemBack: () -> Unit = {
         if (state.isFilterSheetVisible) {
             if (!state.isFilterSaving) vm.onIntent(HomeIntent.OnFilterDismiss)
         } else {
@@ -674,41 +682,30 @@ fun HomeScreen(
             }
         }
     }
+    BackHandler(enabled = state.isFilterSheetVisible || state.surfaceState != HomeSurfaceState.Navigation) {
+        handleSystemBack()
+    }
 
     CollectEffect(vm.effect) { effect ->
         when (effect) {
             is HomeEffect.LaunchKakaoMap,
             is HomeEffect.LaunchKakaoNavi,
             -> {
-                val missingPermissions = context.missingDrivingPermissions()
-                val activeSession = state.activeDrivingSession
                 val shouldStartDriving = when (effect) {
                     is HomeEffect.LaunchKakaoMap -> effect.startDriving
                     is HomeEffect.LaunchKakaoNavi -> effect.startDriving
                     else -> false
                 }
-                val targetPlaceId = when (effect) {
-                    is HomeEffect.LaunchKakaoMap -> effect.place.id
-                    is HomeEffect.LaunchKakaoNavi -> effect.place.id
-                    else -> null
-                }
-                if (
-                    missingPermissions.isEmpty() &&
-                        shouldStartDriving &&
-                        activeSession != null &&
-                        activeSession.placeId != targetPlaceId
-                ) {
-                    pendingContinueEffect = effect
-                } else if (missingPermissions.isEmpty()) {
+                if (!shouldStartDriving) {
                     launchDriving(effect)
-                } else if (
-                    Manifest.permission.POST_NOTIFICATIONS in missingPermissions &&
-                        context.hasLocationPermission()
-                ) {
-                    pendingNotificationEffect = effect
                 } else {
-                    pendingDrivingEffect = effect
-                    drivingPermissionLauncher.launch(missingPermissions)
+                    val missingPermissions = context.missingDrivingPermissions()
+                    if (missingPermissions.isEmpty()) {
+                        launchDriving(effect)
+                    } else {
+                        pendingDrivingEffect = effect
+                        drivingPermissionLauncher.launch(missingPermissions)
+                    }
                 }
             }
             is HomeEffect.ShowNaviPicker -> naviPlaceId = effect.place.id
@@ -716,6 +713,7 @@ fun HomeScreen(
             is HomeEffect.OpenPracticeReview -> {
                 reviewToWrite = ReviewWriteTarget(effect.placeId, effect.placeName, null)
             }
+            is HomeEffect.OpenPracticeSkipReason -> onPracticeSkipReasonClick(effect.practiceId)
             is HomeEffect.OpenNaviInstallPage -> when (effect.app) {
                 NaviApp.KAKAOMAP -> KakaoMapLauncher.openInstallPage(context)
                 NaviApp.KAKAONAVI -> KakaoNaviLauncher.openInstallPage(context)
@@ -724,13 +722,26 @@ fun HomeScreen(
             is HomeEffect.ShowSnackbar -> snackbarHostState.show(RodiSnackbarData(message = effect.message))
             is HomeEffect.NavigateSearch -> onSearchClick(effect.origin)
             HomeEffect.NavigateMyPage -> onMyPageClick()
+            HomeEffect.NavigateCourseRegistration -> onCourseRegistrationClick()
             HomeEffect.NavigateGuestSignUp -> onGuestSignUp()
+            HomeEffect.StopDrivingTracking -> onStopDriving()
+        }
+    }
+    CollectEffect(vm.permissionEffect) { effect ->
+        when (effect) {
+            HomePermissionEffect.RequestNotificationPermission -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
+                }
+            }
         }
     }
 
     fun retryMap() {
         if (!isOnline) {
-            if (!hasMapLoadedThisEntry) mapScreenState = MapScreenState.NetworkError
+            mapScreenState = MapScreenState.NetworkError
             return
         }
 
@@ -777,15 +788,16 @@ fun HomeScreen(
         networkAvailabilityFlow(context).collect { isOnline = it }
     }
 
+    // 끊기자마자 지도를 덮으면 잠깐 끊겼다 붙는 구간에서 화면이 번쩍인다. 토스트는 바로,
+    // 안내 화면은 유예 시간을 넘겨 계속 끊겨 있을 때만 덮는다(iOS와 동일).
+    // isOnline이 다시 true가 되면 이 이펙트가 재시작되며 delay가 취소돼 원래 화면으로 돌아온다.
     LaunchedEffect(isOnline) {
-        when {
-            isOnline ->
-                if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
-            hasMapLoadedThisEntry -> showMapNetworkSnackbar = true
-            else -> {
-                showMapNetworkSnackbar = true
-                mapScreenState = MapScreenState.NetworkError
-            }
+        if (isOnline) {
+            if (mapScreenState == MapScreenState.NetworkError || showMapNetworkSnackbar) retryMap()
+        } else {
+            showMapNetworkSnackbar = true
+            delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
+            mapScreenState = MapScreenState.NetworkError
         }
     }
 
@@ -825,9 +837,13 @@ fun HomeScreen(
         vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
     }
 
-    LaunchedEffect(kakaoMap, currentLocation, hasUserMovedMap, hasUserChosenMapViewport) {
+    LaunchedEffect(kakaoMap, permissionGranted) {
         val map = kakaoMap ?: return@LaunchedEffect
-        val location = currentLocation ?: return@LaunchedEffect
+        if (!permissionGranted) return@LaunchedEffect
+        // 상세 화면(Detail)에서는 선택한 장소를 보여주는 별도 카메라 포커스 이펙트가 있다 —
+        // 여기서 현위치로 재센터링하면 그 포커스를 덮어써 버리므로 건너뛴다.
+        if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
+        val location = snapshotFlow { currentLocation }.filterNotNull().first()
         if (!hasCenteredInitialLocation && !hasUserMovedMap && !hasUserChosenMapViewport) {
             activeClusterMemberIds = null
             hasCenteredInitialLocation = true
@@ -890,21 +906,22 @@ fun HomeScreen(
         mapViewSize,
         mapContentBottomPaddingPx,
         mapBitmapStyle,
+        currentViewport,
         state.searchedQuery,
         activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        val searchedViewport = state.searchedQuery?.let { MapViewport(it.northEast, it.southWest) }
-        if (state.coordinates.isEmpty() || searchedViewport == null) {
+        val markerViewport = markerViewportOrNull(currentViewport, state.searchedQuery)
+        if (state.coordinates.isEmpty() || markerViewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
         val clusterScopedCoordinates = activeClusterMemberIds?.let { memberIds ->
             state.coordinates.filter { it.id in memberIds }
         } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { searchedViewport.contains(it.point) }
+        val visibleCoordinates = clusterScopedCoordinates.filter { markerViewport.contains(it.point) }
         when (val policy = ClusterPolicy.forZoom(mapZoomLevel)) {
             null -> {
                 map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
@@ -937,6 +954,7 @@ fun HomeScreen(
         selectedDetailPlaceId,
         state.selectedRoute,
         mapContentBottomPaddingPx,
+        colors,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState != HomeSurfaceState.Detail || mapContentBottomPaddingPx <= 0) {
@@ -970,6 +988,10 @@ fun HomeScreen(
                         place = place,
                         routePoints = routePoints,
                         snappedPoints = route.snappedPoints.map { LatLng.from(it.lat, it.lng) },
+                        routeLineColors = RouteLineColors(
+                            lineColor = colors.primary600.toArgb(),
+                            strokeColor = colors.primary800.toArgb(),
+                        ),
                     )
                     if (mapContentBottomPaddingPx > 0) {
                         map.fitCourseToScreen(routePoints, mapContentTopPaddingPx, mapContentBottomPaddingPx)
@@ -1029,9 +1051,16 @@ fun HomeScreen(
                                             override fun onMapDestroy() = Unit
                                             override fun onMapError(error: Exception?) {
                                                 kakaoMap = null
-                                                showMapNetworkSnackbar = true
-                                                if (!hasMapLoadedThisEntry) {
-                                                    mapScreenState = MapScreenState.NetworkError
+                                                // SDK 초기화·렌더링 실패도 이 콜백을 타므로, 온라인
+                                                // 상태에서까지 "네트워크 연결이 원활하지 않아요"로
+                                                // 안내하면 원인과 다른 메시지가 뜬다.
+                                                if (isOnline) {
+                                                    showMapNetworkSnackbar = false
+                                                    mapScreenState = MapScreenState.Error
+                                                } else {
+                                                    // 오프라인 안내 화면 전환은 3초 유예를 갖고 있는
+                                                    // LaunchedEffect(isOnline)에 맡긴다.
+                                                    showMapNetworkSnackbar = true
                                                 }
                                             }
                                         },
@@ -1155,8 +1184,20 @@ fun HomeScreen(
                                                 }
                                             }
 
-                                            override fun getPosition(): LatLng = currentLocation ?: SEOUL
-                                            override fun getZoomLevel(): Int = DEFAULT_ZOOM
+                                            // 복귀 직후에는 위치 스트림보다 MapView가 먼저 시작될 수 있으므로
+                                            // 저장된 화면을 첫 프레임 위치로 사용해 현재 위치로 튀는 이동을 막는다.
+                                            override fun getPosition(): LatLng {
+                                                val center = initialMapCenter(
+                                                    savedViewport = currentViewport,
+                                                    currentLocation = currentLocation?.let {
+                                                        GeoPoint(it.latitude, it.longitude)
+                                                    },
+                                                    fallback = GeoPoint(SEOUL.latitude, SEOUL.longitude),
+                                                )
+                                                return LatLng.from(center.lat, center.lng)
+                                            }
+
+                                            override fun getZoomLevel(): Int = mapZoomLevel
                                         },
                                     )
                                     mapView
@@ -1166,13 +1207,18 @@ fun HomeScreen(
 
                         HomeSearchBar(
                             onClick = {
-                                vm.onIntent(
-                                    HomeIntent.OnSearchClick(
-                                        currentViewport?.toQuery(currentLocation)?.origin,
-                                    ),
-                                )
+                                if (showSearchBackButton) {
+                                    handleSystemBack()
+                                } else {
+                                    vm.onIntent(
+                                        HomeIntent.OnSearchClick(
+                                            currentViewport?.toQuery(currentLocation)?.origin,
+                                        ),
+                                    )
+                                }
                             },
                             searchKeyword = state.searchKeyword,
+                            showBackButton = showSearchBackButton,
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .statusBarsPadding()
@@ -1304,7 +1350,8 @@ fun HomeScreen(
                                 )
                             }
                             when {
-                                state.listState == HomeListState.Loading -> PlaceListLoadingContent(
+                                state.listState == HomeListState.Loading ||
+                                    state.listState == HomeListState.Idle -> PlaceListLoadingContent(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .layoutHeightPx { listViewportHeightPx() },
@@ -1312,6 +1359,11 @@ fun HomeScreen(
 
                                 isEmptySheet -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
+                                    onRetry = {
+                                        val query = state.searchedQuery
+                                            ?: currentViewport?.toQuery(currentLocation)
+                                        query?.let { vm.onIntent(HomeIntent.OnProgrammaticSearch(it)) }
+                                    },
                                     dragHandleModifier = listSheetDrag,
                                 )
 
@@ -1348,6 +1400,7 @@ fun HomeScreen(
                                     HomeIntent.OnNavigateClick(
                                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                        notificationPermissionGranted = context.hasNotificationPermission(),
                                     ),
                                 )
                             },
@@ -1366,8 +1419,8 @@ fun HomeScreen(
                                         onWriteReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
                                         onEditReviewClick = { reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
                                         onDeleteReviewClick = { reviewToDelete = it },
-                                        onReportReviewClick = { reviewToReport = it },
-                                        onBlockMemberClick = { reviewToBlock = it },
+                                        onReportReviewClick = ::handleReportReviewClick,
+                                        onBlockMemberClick = ::handleBlockMemberClick,
                                         scrollState = sheetScrollState,
                                     )
                                 }
@@ -1401,7 +1454,7 @@ fun HomeScreen(
                                 .then(
                                     if (selectedPlace?.type == PlaceType.PARKING) {
                                         Modifier
-                                            .heightIn(max = PARKING_DETAIL_SHEET_MAX_HEIGHT)
+                                            .height(PARKING_DETAIL_SHEET_HEIGHT)
                                             .onSizeChanged { size ->
                                                 selectedDetailPlaceId?.let { placeId ->
                                                     parkingSheetLayout = parkingSheetLayout
@@ -1433,6 +1486,7 @@ fun HomeScreen(
                                             HomeIntent.OnNavigateClick(
                                                 kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                                                 kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                                                notificationPermissionGranted = context.hasNotificationPermission(),
                                             ),
                                         )
                                     },
@@ -1445,6 +1499,10 @@ fun HomeScreen(
                 when (mapScreenState) {
                     MapScreenState.Loading -> MapLoadingScreen()
                     MapScreenState.NetworkError -> MapNetworkErrorScreen()
+                    MapScreenState.Error -> HomeMapErrorOverlay(
+                        modifier = Modifier.align(Alignment.Center),
+                        onRetry = ::retryMap,
+                    )
                     MapScreenState.Ready -> Unit
                 }
 
@@ -1491,13 +1549,14 @@ fun HomeScreen(
                     HomeIntent.OnNavigateClick(
                         kakaoMapInstalled = context.isPackageInstalled("net.daum.android.map"),
                         kakaoNaviInstalled = context.isPackageInstalled("com.locnall.KimGiSa"),
+                        notificationPermissionGranted = context.hasNotificationPermission(),
                     ),
                 )
             },
             onEditReviewClick = { reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it) },
             onDeleteReviewClick = { reviewToDelete = it },
-            onReportReviewClick = { reviewToReport = it },
-            onBlockMemberClick = { reviewToBlock = it },
+            onReportReviewClick = ::handleReportReviewClick,
+            onBlockMemberClick = ::handleBlockMemberClick,
         )
     }
     reviewToReport?.let { review ->
@@ -1505,6 +1564,7 @@ fun HomeScreen(
             reviewId = review.reviewId,
             onClose = { reviewToReport = null },
             modifier = Modifier.fillMaxSize(),
+            onReported = reviewVm::excludeReportedReview,
         )
     }
     reviewToWrite?.let { target ->
@@ -1513,8 +1573,9 @@ fun HomeScreen(
             placeName = target.placeName,
             editingReviewId = target.review?.reviewId,
             onClose = { reviewToWrite = null },
-            onCompleted = {
+            onCompleted = { result ->
                 reviewToWrite = null
+                reviewVm.onReviewSubmitted(result)
                 reviewVm.refresh()
             },
             modifier = Modifier.fillMaxSize(),
@@ -1532,10 +1593,29 @@ fun HomeScreen(
             onDismiss = { vm.onIntent(HomeIntent.OnPracticePromptDismiss) },
         )
     }
-    if (state.isPracticeSkipReasonVisible && state.notVisitedPracticeId != null) {
-        PracticeSkipReasonScreen(
-            practiceId = requireNotNull(state.notVisitedPracticeId),
-            onClose = { vm.onIntent(HomeIntent.OnPracticeSkipReasonClosed) },
+    if (isLifecycleStarted) {
+        state.arrivalNotice?.let { session ->
+            DrivingArrivalDialog(
+                onConfirm = {
+                    vm.onIntent(HomeIntent.OnArrivalNoticeConfirmed(session.id))
+                },
+            )
+        }
+    }
+    state.activePracticeSession
+        ?.takeIf { state.isPracticeContinueDialogVisible }
+        ?.let { session ->
+            PracticeContinueDialog(
+                placeName = session.placeName,
+                onContinue = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+                onStop = { vm.onIntent(HomeIntent.OnPracticeStopMeasurement) },
+                onDismiss = { vm.onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+            )
+        }
+    if (state.isNotificationPermissionRationaleVisible) {
+        NotificationPermissionDialog(
+            onAllow = { vm.onIntent(HomeIntent.OnNotificationPermissionAllow) },
+            onRouteOnly = { vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly) },
         )
     }
     state.levelUp?.let { level ->
@@ -1599,57 +1679,26 @@ fun HomeScreen(
             }
         }
     }
+    LaunchedEffect(ownReviewActionToastMessage) {
+        ownReviewActionToastMessage?.let { message ->
+            snackbarHostState.show(RodiSnackbarData(message = message))
+            ownReviewActionToastMessage = null
+        }
+    }
     // 후기 조회가 실패하면 화면은 "후기 없음"과 구분되지 않는다. 실패를 삼키지 않고 드러낸다.
-    // errorMessage를 비우지는 않는다 — CourseReviewViewModel.load()의 가드가 이 값으로 재시도를 판단한다.
     LaunchedEffect(reviewState.errorMessage) {
         reviewState.errorMessage?.let { message ->
             snackbarHostState.show(RodiSnackbarData(message = message))
         }
+    }
+    LaunchedEffect(state.reviewRefreshGeneration) {
+        if (state.reviewRefreshGeneration > 0) reviewVm.refresh()
     }
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(
             isRestoring = state.isRestoreInProgress,
             onConfirm = { vm.onIntent(HomeIntent.OnRestoreAccount) },
             onDismiss = { vm.onIntent(HomeIntent.OnDismissRestore) },
-        )
-    }
-    if (isLifecycleStarted) {
-        state.arrivalNotice?.let { session ->
-            DrivingArrivalDialog(
-                onConfirm = {
-                    onArrivalNoticeConfirmed()
-                    vm.onIntent(HomeIntent.OnArrivalNoticeConfirmed(session.id))
-                },
-            )
-        }
-    }
-    pendingNotificationEffect?.let { effect ->
-        RodiAlertDialog(
-            title = "주행 상태 알림 권한 안내",
-            description = "앱을 나가도 코스 연습 진행률을 확인하려면\n주행 상태 알림을 허용해 주세요.",
-            confirmText = "알림 허용하기",
-            dismissText = "경로만 보기",
-            onConfirm = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else {
-                    continueWithoutNotification(effect)
-                }
-            },
-            onDismiss = { continueWithoutNotification(effect) },
-            onDismissRequest = { continueWithoutNotification(effect) },
-            showCloseButton = true,
-        )
-    }
-    val activeDrivingSession = state.activeDrivingSession
-    if (pendingContinueEffect != null && activeDrivingSession != null) {
-        DrivingContinueDialog(
-            onContinue = { pendingContinueEffect = null },
-            onStop = {
-                pendingContinueEffect = null
-                onCancelDrivingStart(activeDrivingSession.id)
-            },
-            onDismissRequest = { pendingContinueEffect = null },
         )
     }
 
@@ -1670,7 +1719,13 @@ fun HomeScreen(
         NaviPickerSheet(
             onDismiss = { naviPlaceId = null },
             onSelect = { app, always ->
-                vm.onIntent(HomeIntent.OnNaviAppSelected(app, always))
+                vm.onIntent(
+                    HomeIntent.OnNaviAppSelected(
+                        app = app,
+                        always = always,
+                        notificationPermissionGranted = context.hasNotificationPermission(),
+                    ),
+                )
                 naviPlaceId = null
             },
         )
@@ -1891,6 +1946,18 @@ private fun Context.isPackageInstalled(packageName: String): Boolean = runCatchi
     packageManager.getPackageInfo(packageName, 0)
 }.isSuccess
 
+/**
+ * "물어본 적 있는지"(DataStore 플래그)와 "지금 허용돼 있는지"는 다르다. 한 번 거부한 뒤에도
+ * 플래그만 보고 다음 요청을 그냥 통과시키면, 실제로는 여전히 거부 상태인데 추적이 시작된다.
+ * 매 요청마다 실제 OS 권한 상태를 다시 확인해야 한다.
+ */
+private fun Context.hasNotificationPermission(): Boolean =
+    Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+
 private fun Context.missingDrivingPermissions(): Array<String> = buildList {
     if (!hasLocationPermission()) {
         add(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -1913,12 +1980,6 @@ private fun Array<String>.deniedDrivingPermissionMessage(): String =
     } else {
         "위치 권한을 허용해야 운전 상태를 추적할 수 있어요."
     }
-
-private fun HomeEffect.withDriving(startDriving: Boolean): HomeEffect = when (this) {
-    is HomeEffect.LaunchKakaoMap -> copy(startDriving = startDriving)
-    is HomeEffect.LaunchKakaoNavi -> copy(startDriving = startDriving)
-    else -> this
-}
 
 @Preview(name = "Home chrome - 375x812", showBackground = true, widthDp = 375, heightDp = 812)
 @Composable
@@ -1991,5 +2052,25 @@ private fun FullListHeaderPreview() {
                 modifier = Modifier.height(FULL_LIST_HEADER_HEIGHT),
             )
         }
+    }
+}
+
+@Composable
+private fun HomeMapErrorOverlay(modifier: Modifier = Modifier, onRetry: () -> Unit) {
+    Column(
+        modifier = modifier
+            .background(RodiTheme.colors.white, RoundedCornerShape(RodiRadius.md))
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("지도를 불러오지 못했어요", style = RodiTheme.typography.body3SemiBold, color = RodiTheme.colors.black)
+        Spacer(Modifier.height(12.dp))
+        RodiButton(
+            text = "다시 시도",
+            onClick = onRetry,
+            fillMaxWidth = false,
+            modifier = Modifier.width(120.dp),
+            height = 42.dp,
+        )
     }
 }

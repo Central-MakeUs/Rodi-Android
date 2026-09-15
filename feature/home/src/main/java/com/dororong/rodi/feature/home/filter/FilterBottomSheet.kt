@@ -12,8 +12,12 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -91,7 +95,7 @@ enum class FilterPracticeOption(
     U_TURN("유턴", PracticeType.U_TURN),
     MULTILANE("다차로주행", PracticeType.MULTILANE),
     MERGING("합류", PracticeType.MERGING),
-    HIGHWAY_ENTRY("고속도로", PracticeType.HIGHWAY_ENTRY),
+    HIGHWAY_ENTRY("고속진입", PracticeType.HIGHWAY_ENTRY),
     ROUNDABOUT("회전교차로", PracticeType.ROUNDABOUT),
     UNPROTECTED_LEFT_TURN("비보호좌회전", PracticeType.UNPROTECTED_LEFT_TURN),
     NARROW_ROAD("좁은도로", PracticeType.NARROW_ROAD),
@@ -146,10 +150,15 @@ private fun FilterBottomSheetContent(
     onApply: () -> Unit,
     isSaving: Boolean,
 ) {
+    val navigationBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val bottomBarHeight = BottomActionAreaHeight + navigationBarBottom
+
+    // 연습유형 칩이 여러 줄로 늘어나면 시트가 같이 길어져야 한다. 높이를 고정하면
+    // 마지막 줄이 하단 버튼 바에 잘려 들어간다.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(401.dp),
+            .heightIn(min = 401.dp),
     ) {
         Box(
             modifier = Modifier
@@ -202,7 +211,7 @@ private fun FilterBottomSheetContent(
             FlowRow(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 16.dp, end = 16.dp, top = 219.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 219.dp, bottom = bottomBarHeight),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -219,7 +228,8 @@ private fun FilterBottomSheetContent(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .navigationBarsPadding(),
         ) {
             HorizontalDivider(color = RodiTheme.colors.gray200)
             Row(
@@ -248,7 +258,6 @@ private fun FilterBottomSheetContent(
                     modifier = Modifier.weight(1f),
                 )
             }
-            Spacer(Modifier.height(34.dp))
         }
     }
 }
@@ -389,3 +398,6 @@ private fun FilterPracticeOption.isSelected(
     FilterPracticeOption.ALL -> category.practiceTypes().all(selectedPracticeTypes::contains)
     else -> practiceType in selectedPracticeTypes
 }
+
+/** 시트 하단 고정 영역(구분선 + 버튼 행) 높이. */
+private val BottomActionAreaHeight = 70.dp

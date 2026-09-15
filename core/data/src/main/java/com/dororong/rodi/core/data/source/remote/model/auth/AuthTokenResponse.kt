@@ -7,4 +7,5 @@ data class AuthTokenResponse(
     val accessToken: String,
     val refreshToken: String,
     val isNewMember: Boolean,
+    val isCourseTutorialCompleted: Boolean,
 )

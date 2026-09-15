@@ -93,6 +93,31 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun `search failure shows error state and retry runs the same request`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery {
+            dependencies.placeRepository.relatedSearch("강남", null, 20)
+        } throws IllegalStateException("network")
+        val viewModel = dependencies.viewModel()
+
+        viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+        advanceTimeBy(300)
+        advanceUntilIdle()
+
+        assertEquals(SearchResultState.Error, viewModel.state.value.resultState)
+
+        coEvery {
+            dependencies.placeRepository.relatedSearch("강남", null, 20)
+        } returns related(places = listOf(suggestion(1)))
+        viewModel.onIntent(SearchIntent.OnRetry)
+        advanceUntilIdle()
+
+        assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
+        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
+        coVerify(exactly = 2) { dependencies.placeRepository.relatedSearch("강남", null, 20) }
+    }
+
+    @Test
     fun `ime search cancellation does not emit error snackbar`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } coAnswers {

@@ -73,13 +73,12 @@ object DrivingTrackingController {
 
     fun stop(
         context: Context,
-        sessionId: String,
+        sessionId: String? = null,
     ) {
-        context.startService(
-            Intent(context, DrivingTrackingService::class.java)
-                .setAction(DrivingTrackingService.ACTION_STOP)
-                .putExtra(DrivingTrackingService.EXTRA_SESSION_ID, sessionId),
-        )
+        val intent = Intent(context, DrivingTrackingService::class.java)
+            .setAction(DrivingTrackingService.ACTION_STOP)
+        if (sessionId != null) intent.putExtra(DrivingTrackingService.EXTRA_SESSION_ID, sessionId)
+        context.startService(intent)
     }
 
     fun clearArrival(context: Context) {
@@ -112,7 +111,9 @@ object DrivingTrackingController {
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         val channel = manager.getNotificationChannel(DrivingNotificationFactory.ONGOING_CHANNEL_ID)
-        check(channel == null || channel.importance != NotificationManager.IMPORTANCE_NONE) {
+        check(
+            channel == null || channel.importance > NotificationManager.IMPORTANCE_MIN,
+        ) {
             "운전 상태 알림 채널이 꺼져 있어요. 설정에서 알림을 켜 주세요."
         }
     }

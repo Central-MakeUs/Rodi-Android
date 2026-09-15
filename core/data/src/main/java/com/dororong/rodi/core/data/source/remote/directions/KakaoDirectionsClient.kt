@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.source.remote.directions
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.domain.model.course.Course
 import com.dororong.rodi.core.domain.model.course.CoursePoint
+import com.dororong.rodi.core.domain.model.course.CourseRegistrationException
 import com.kakao.vectormap.LatLng
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +32,7 @@ class KakaoDirectionsClient @Inject constructor() {
     private companion object {
         const val BASE_URL = "https://apis-navi.kakaomobility.com/v1/directions"
         const val MAX_API_WAYPOINTS = 4
+        const val MAX_SNAP_DISTANCE_METERS = 150.0
     }
 
     /**
@@ -76,6 +78,37 @@ class KakaoDirectionsClient @Inject constructor() {
                 Timber.w(error, "길찾기 실패, 직선으로 폴백합니다.")
                 straightFallback()
             }
+    }
+
+    /** 등록 플로우에서만 사용한다. 직선 폴백을 허용하지 않아 제출 가능한 경로만 반환한다. */
+    suspend fun getStrictRoute(
+        origin: CoursePoint,
+        waypoints: List<CoursePoint>,
+        destination: CoursePoint,
+    ): RouteResult = withContext(Dispatchers.IO) {
+        val restKey = BuildConfig.KAKAO_REST_API_KEY
+        if (restKey.isBlank()) throw CourseRegistrationException.RouteUnavailable()
+        if (waypoints.size > MAX_API_WAYPOINTS) throw CourseRegistrationException.RouteUnavailable()
+        try {
+            val result = requestDirections(origin, waypoints, destination, restKey)
+            if (!result.isRealRoute || result.points.isEmpty() ||
+                result.snappedPoints.size != waypoints.size + 2 || result.totalDistanceMeters <= 0
+            ) {
+                throw CourseRegistrationException.RouteUnavailable()
+            }
+            val inputPoints = (listOf(origin) + waypoints + destination).map { LatLng.from(it.lat, it.lng) }
+            val isSnappedWithinTolerance = inputPoints.zip(result.snappedPoints).all { (input, snapped) ->
+                haversineMeters(input, snapped) <= MAX_SNAP_DISTANCE_METERS
+            }
+            if (!isSnappedWithinTolerance) throw CourseRegistrationException.RouteUnavailable()
+            result
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: CourseRegistrationException) {
+            throw error
+        } catch (error: Throwable) {
+            throw CourseRegistrationException.RouteUnavailable(error)
+        }
     }
 
     private fun requestDirections(

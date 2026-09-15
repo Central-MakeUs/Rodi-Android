@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -50,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.microsoft.clarity.modifiers.clarityMask
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.components.profileImageRes
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.feature.mypage.MyPageProfile
@@ -211,17 +211,21 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                 ),
         ) {
             Column {
-                Row(modifier = Modifier.height(ProfileCardLayout.profileRowHeight)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(ProfileCardLayout.profileRowHeight),
+                ) {
                     Image(
-                        painter = painterResource(profile.level.characterImageRes),
+                        painter = painterResource(profile.level.profileImageRes),
                         contentDescription = null,
                         modifier = Modifier.size(90.dp),
                         contentScale = ContentScale.FillBounds,
                     )
                     Column(
                         modifier = Modifier
+                            .weight(1f)
                             .padding(start = 15.dp, top = 12.dp)
-                            .width(213.dp),
                     ) {
                         Text(
                             text = profile.nickname,
@@ -316,7 +320,7 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                         style = RodiTheme.typography.body3Medium,
                         color = drivingGoalColor,
                         maxLines = 1,
-                        overflow = TextOverflow.Clip,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
                     Icon(
@@ -333,15 +337,6 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
 
 private val OnboardingLevel.displayName: String
     get() = name.lowercase().replaceFirstChar { it.titlecase() }
-
-private val OnboardingLevel.characterImageRes: Int
-    get() = when (this) {
-        OnboardingLevel.SEED -> R.drawable.illust_profile_seed
-        OnboardingLevel.ROOKIE -> R.drawable.illust_profile_rookie
-        OnboardingLevel.OWNER -> R.drawable.illust_profile_owner
-        OnboardingLevel.EXPLORER -> R.drawable.illust_profile_explorer
-        OnboardingLevel.NAVIGATOR -> R.drawable.illust_profile_navigator
-    }
 
 @Preview(name = "프로필 진행률 0%", showBackground = true, widthDp = 375, heightDp = 248)
 @Composable

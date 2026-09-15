@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
@@ -12,10 +13,13 @@ import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
 import com.dororong.rodi.core.domain.model.member.MyReview
 import com.dororong.rodi.core.domain.model.member.BlockedMember
+import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
+import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
+import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -26,13 +30,72 @@ class MemberRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
     private val json: Json,
+    private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
+    private val practiceSessionRepository: PracticeSessionRepository,
 ) : MemberRepository {
+    override suspend fun completeCourseTutorial() {
+        authenticatedRequest { authorization ->
+            memberApi.completeCourseTutorial(authorization).requireData()
+        }
+        if (!tokenStore.markCourseTutorialCompleted()) {
+            throw AuthException.Unknown("튜토리얼 완료 상태를 저장하지 못했습니다.")
+        }
+    }
+
     override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
         memberApi.getMyPage(authorization).requireData().toDomain()
     }
 
     override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
-        memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+        if (cursor == null) {
+            practiceRecordPresenceCache.withRefresh {
+                memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+                    .also { page -> updatePracticeRecordPresence(page, canProveAbsence = true) }
+            }
+        } else {
+            memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+                .also { page -> updatePracticeRecordPresence(page, canProveAbsence = false) }
+        }
+    }
+
+    override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoadOrNull {
+        authenticatedRequest { authorization ->
+            var cursor: String? = null
+            var hasVisitedRecord = false
+            var reachedEnd = false
+            var pageCount = 0
+            while (pageCount < MAX_PRACTICE_PRESENCE_PAGES) {
+                pageCount++
+                val page = memberApi.getPracticeRecords(
+                    authorization = authorization,
+                    size = PRACTICE_PRESENCE_PAGE_SIZE,
+                    cursor = cursor,
+                ).requireData().toDomain()
+                updatePracticeRecordPresence(page, canProveAbsence = cursor == null)
+                if (page.items.any { it.status == PracticeStatus.VISITED }) {
+                    hasVisitedRecord = true
+                    break
+                }
+
+                val nextCursor = page.nextCursor
+                if (!page.hasNext || nextCursor == null || nextCursor == cursor) {
+                    reachedEnd = true
+                    break
+                }
+                cursor = nextCursor
+            }
+            if (hasVisitedRecord || reachedEnd) hasVisitedRecord else null
+        }
+    } ?: false
+
+    private fun updatePracticeRecordPresence(
+        page: CursorPage<PracticeRecordItem>,
+        canProveAbsence: Boolean,
+    ) {
+        when {
+            page.items.any { it.status == PracticeStatus.VISITED } -> practiceRecordPresenceCache.set(true)
+            canProveAbsence && !page.hasNext -> practiceRecordPresenceCache.set(false)
+        }
     }
 
     override suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview> = authenticatedRequest { authorization ->
@@ -44,7 +107,7 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateDrivingGoal(drivingGoal: String) {
-        require(drivingGoal.length <= 30) { "운전 목표는 30자 이하여야 합니다." }
+        require(drivingGoal.graphemeLength() <= 30) { "운전 목표는 30자 이하여야 합니다." }
         authenticatedRequest { authorization ->
             memberApi.updateMe(authorization, MemberUpdateRequest(drivingGoal)).requireSuccess()
         }
@@ -69,9 +132,43 @@ class MemberRepositoryImpl @Inject constructor(
 
     override suspend fun withdraw() {
         authenticatedRequest { authorization -> memberApi.withdraw(authorization).requireSuccess() }
+        practiceSessionRepository.clear()
+        tokenStore.clearCourseRegistrationData()
         if (!tokenStore.clear()) {
             throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
         }
+        practiceRecordPresenceCache.clear()
+    }
+
+    override suspend fun hardDelete(): HardDeleteResult {
+        authenticatedRequest { authorization -> memberApi.hardDelete(authorization).requireSuccess() }
+        var localCleanupSucceeded = true
+        try {
+            practiceSessionRepository.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            localCleanupSucceeded = false
+        }
+        val tokensCleared = try {
+            tokenStore.clear()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            false
+        }
+        if (!tokensCleared) {
+            localCleanupSucceeded = false
+        }
+        try {
+            tokenStore.clearCourseRegistrationData()
+        } catch (exception: CancellationException) {
+            throw exception
+        } catch (_: Throwable) {
+            localCleanupSucceeded = false
+        }
+        practiceRecordPresenceCache.clear()
+        return HardDeleteResult(localCleanupSucceeded = localCleanupSucceeded)
     }
 
     private suspend fun <T> authenticatedRequest(
@@ -107,4 +204,26 @@ class MemberRepositoryImpl @Inject constructor(
 
     private fun ApiEnvelope<*>.asException(): AuthException =
         if (code.contains("401")) AuthException.NotAuthenticated(message) else toAuthException()
+}
+
+private const val PRACTICE_PRESENCE_PAGE_SIZE = 20
+private const val MAX_PRACTICE_PRESENCE_PAGES = 5
+
+/**
+ * 서버와 같은 grapheme cluster 기준으로 길이를 센다 — 이모지 1개를 1자로 본다.
+ * core:ui의 동명 함수와 로직은 같지만, data 레이어가 ui 레이어를 참조하지 않도록 여기 따로 둔다.
+ * 로컬 JVM 테스트에서는 android.icu가 스텁이라 java.text.BreakIterator로 대체한다.
+ */
+private fun String.graphemeLength(): Int = runCatching {
+    val iterator = android.icu.text.BreakIterator.getCharacterInstance()
+    iterator.setText(this)
+    var count = 0
+    while (iterator.next() != android.icu.text.BreakIterator.DONE) count++
+    count
+}.getOrElse {
+    val iterator = java.text.BreakIterator.getCharacterInstance()
+    iterator.setText(this)
+    var count = 0
+    while (iterator.next() != java.text.BreakIterator.DONE) count++
+    count
 }

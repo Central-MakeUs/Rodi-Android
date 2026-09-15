@@ -1,7 +1,8 @@
 package com.dororong.rodi.feature.home.map
 
-import com.dororong.rodi.core.domain.model.course.GeoPoint
 import androidx.compose.ui.unit.IntSize
+import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.kakao.vectormap.KakaoMap
 
 data class MapViewport(
@@ -10,6 +11,24 @@ data class MapViewport(
 ) {
     fun contains(point: GeoPoint): Boolean =
         point.lat in southWest.lat..northEast.lat && point.lng in southWest.lng..northEast.lng
+}
+
+internal fun MapViewport.centerPoint(): GeoPoint = GeoPoint(
+    lat = (northEast.lat + southWest.lat) / 2.0,
+    lng = (northEast.lng + southWest.lng) / 2.0,
+)
+
+internal fun initialMapCenter(
+    savedViewport: MapViewport?,
+    currentLocation: GeoPoint?,
+    fallback: GeoPoint,
+): GeoPoint = savedViewport?.centerPoint() ?: currentLocation ?: fallback
+
+internal fun markerViewportOrNull(
+    currentViewport: MapViewport?,
+    searchedQuery: PlaceViewportQuery?,
+): MapViewport? = currentViewport ?: searchedQuery?.let {
+    MapViewport(northEast = it.northEast, southWest = it.southWest)
 }
 
 data class MapScreenRect(
@@ -43,10 +62,15 @@ object InitialViewportSearchPolicy {
         hasCurrentLocation: Boolean,
         hasCenteredInitialLocation: Boolean,
         isInitialLocationCameraMovePending: Boolean,
-    ): Boolean = locationState == InitialLocationState.Ready &&
-        hasCurrentLocation &&
-        !isInitialLocationCameraMovePending &&
-        hasCenteredInitialLocation
+    ): Boolean {
+        if (isInitialLocationCameraMovePending) return false
+        return when (locationState) {
+            InitialLocationState.Pending -> false
+            InitialLocationState.Ready ->
+                hasCurrentLocation && hasCenteredInitialLocation
+            InitialLocationState.Unavailable -> true
+        }
+    }
 }
 
 enum class InitialLocationState { Pending, Ready, Unavailable }

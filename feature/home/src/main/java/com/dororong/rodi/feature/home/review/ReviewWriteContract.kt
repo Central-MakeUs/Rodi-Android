@@ -3,6 +3,8 @@ package com.dororong.rodi.feature.home.review
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
+import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 
 enum class ReviewWriteStep { Basics, Detail }
 
@@ -31,10 +33,17 @@ data class ReviewWriteUiState(
     val initializationErrorMessage: String? = null,
     val isSubmitting: Boolean = false,
     val isSubmitted: Boolean = false,
+    val submittedResult: ReviewSubmissionResult? = null,
+    val isCompletionHandled: Boolean = false,
     val errorMessage: String? = null,
 ) {
     val canGoNext get() = isRecommended != null && difficulty != null && congestion != null
-    val canSubmit get() = initializationErrorMessage == null && canGoNext && practiceMethod != null && !isSubmitting
+    val canSubmit get() = initializationErrorMessage == null &&
+        canGoNext &&
+        practiceMethod != null &&
+        !isSubmitting &&
+        !isSubmitted &&
+        !isCompletionHandled
     val isDirty: Boolean
         get() {
             val initial = original
@@ -54,12 +63,12 @@ data class ReviewWriteUiState(
                 practiceMethod != initial.practiceMethod ||
                 content != initial.content.orEmpty()
         }
-    fun draftOrNull(): com.dororong.rodi.core.domain.model.review.ReviewDraft? {
+    fun draftOrNull(): ReviewDraft? {
         val recommended = isRecommended ?: return null
         val selectedDifficulty = difficulty ?: return null
         val selectedCongestion = congestion ?: return null
         val selectedMethod = practiceMethod ?: return null
-        return com.dororong.rodi.core.domain.model.review.ReviewDraft(
+        return ReviewDraft(
             isRecommended = recommended,
             difficulty = selectedDifficulty,
             congestion = selectedCongestion,

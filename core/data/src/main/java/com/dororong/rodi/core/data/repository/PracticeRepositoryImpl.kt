@@ -1,5 +1,6 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.PracticeApi
@@ -22,6 +23,7 @@ class PracticeRepositoryImpl @Inject constructor(
     private val api: PracticeApi,
     private val tokenStore: AuthTokenStore,
     private val authRepository: AuthRepository,
+    private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
 ) : PracticeRepository {
     override suspend fun register(placeId: Long): Practice = authenticatedRequest { authorization ->
         api.register(authorization, placeId).requireData().toDomain()
@@ -35,7 +37,9 @@ class PracticeRepositoryImpl @Inject constructor(
             authorization = authorization,
             practiceId = practiceId,
             request = PracticeVisitRequest(certifiedDistanceMeters),
-        ).requireData().toDomain()
+        ).requireData().toDomain().also {
+            practiceRecordPresenceCache.set(true)
+        }
     }
 
     override suspend fun submitSkipReason(practiceId: Long, reason: String, detail: String?) {

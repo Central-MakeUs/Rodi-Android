@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
+import androidx.core.graphics.drawable.IconCompat
 import com.dororong.rodi.MainActivity
 import com.dororong.rodi.R
 import com.dororong.rodi.core.domain.model.driving.DrivingSession
@@ -34,7 +35,7 @@ internal object DrivingNotificationStylePolicy {
 
 internal object DrivingNotificationFactory {
     const val NOTIFICATION_ID = 4_210
-    const val ONGOING_CHANNEL_ID = "driving_tracking"
+    const val ONGOING_CHANNEL_ID = "driving_tracking_live_updates"
     private const val ARRIVAL_CHANNEL_ID = "driving_arrival"
     private const val PROGRESS_MAX = 100
 
@@ -48,7 +49,7 @@ internal object DrivingNotificationFactory {
             NotificationChannel(
                 ONGOING_CHANNEL_ID,
                 "운전 상태",
-                NotificationManager.IMPORTANCE_LOW,
+                NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = "운전 연습 중 위치 추적 상태"
                 setSound(null, null)
@@ -119,6 +120,9 @@ internal object DrivingNotificationFactory {
 
         if (style == DrivingNotificationStyle.PROGRESS_STYLE) {
             val progressStyle = NotificationCompat.ProgressStyle()
+                .setProgressTrackerIcon(
+                    IconCompat.createWithResource(context, R.drawable.ic_notification_rodi),
+                )
             if (progress == null) {
                 progressStyle.setProgressIndeterminate(true)
             } else {
@@ -126,6 +130,12 @@ internal object DrivingNotificationFactory {
                     .setProgress(progress)
                     .setStyledByProgress(false)
                     .setProgressSegments(progressSegments(progress))
+                    .setProgressPoints(
+                        listOf(
+                            NotificationCompat.ProgressStyle.Point(PROGRESS_MAX)
+                                .setColor(progressColor),
+                        ),
+                    )
             }
             builder
                 .setShortCriticalText(
@@ -152,7 +162,7 @@ internal object DrivingNotificationFactory {
         session: DrivingSession,
     ): Notification = NotificationCompat.Builder(context, ARRIVAL_CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_notification_rodi)
-        .setContentTitle("운전연습 완료")
+        .setContentTitle("목적지에 도착한 것 같아요")
         .setContentText("안전한 장소에 정차한 후 운전 기록을 확인해 주세요.")
         .setSubText("RODI")
         .setLargeIcon(brandIcon(context))

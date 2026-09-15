@@ -15,7 +15,7 @@ enum class PracticeType(val label: String) {
     INTERSECTION("교차로"),
     ROUNDABOUT("회전교차로"),
     UNPROTECTED_LEFT_TURN("비보호좌회전"),
-    HIGHWAY_ENTRY("고속도로"),
+    HIGHWAY_ENTRY("고속진입"),
     CORNERING("코너링"),
     NARROW_ROAD("좁은도로"),
     MULTILANE("다차로주행"),

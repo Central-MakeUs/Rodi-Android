@@ -3,6 +3,7 @@ package com.dororong.rodi.core.ui.components.button
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -12,8 +13,10 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -66,6 +69,7 @@ fun RodiButton(
     enabled: Boolean = true,
     fillMaxWidth: Boolean = true,
     height: Dp = RodiButtonDefaults.Height,
+    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
     shape: Shape = RodiButtonDefaults.shape(),
 ) {
     Button(
@@ -77,10 +81,16 @@ fun RodiButton(
         shape = shape,
         colors = RodiButtonDefaults.colors(variant),
         border = RodiButtonDefaults.border(variant),
+        contentPadding = contentPadding,
     ) {
         Text(
             text = text,
+            modifier = Modifier.let { if (fillMaxWidth) it.fillMaxWidth() else it },
             style = RodiTheme.typography.button1,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
         )
     }
 }
@@ -113,6 +123,20 @@ private fun RodiButtonSecondaryPreview() {
                 onClick = {},
                 variant = RodiButtonVariant.Secondary,
                 enabled = false,
+            )
+        }
+    }
+}
+
+@Preview(name = "RodiButton - narrow single line", showBackground = true, widthDp = 240)
+@Composable
+private fun RodiButtonNarrowPreview() {
+    RodiTheme {
+        Column(modifier = Modifier.padding(16.dp)) {
+            RodiButton(
+                text = "다녀왔어요",
+                onClick = {},
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             )
         }
     }

@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -30,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
@@ -46,7 +45,7 @@ fun ReviewWriteScreen(
     placeName: String,
     editingReviewId: Long? = null,
     onClose: () -> Unit,
-    onCompleted: () -> Unit,
+    onCompleted: (ReviewSubmissionResult) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ReviewWriteViewModel = hiltViewModel(),
 ) {
@@ -109,10 +108,14 @@ fun ReviewWriteScreen(
         )
     }
     if (state.isSubmitted) {
+        val complete: () -> Unit = {
+            val result = viewModel.consumeSubmittedResult()
+            if (result != null) onCompleted(result)
+        }
         RodiAlertDialog(
             confirmText = "확인",
-            onConfirm = onCompleted,
-            onDismissRequest = onCompleted,
+            onConfirm = complete,
+            onDismissRequest = complete,
             title = if (state.editingReviewId == null) "후기 등록을 완료했어요!" else "후기 수정을 완료했어요!",
             description = "오늘 남긴 기록이 나의 운전 여정에도,\n" +
                 "다른 운전자에게도 도움이 돼요.",
@@ -150,8 +153,7 @@ private fun ReviewWriteContent(
         modifier = modifier
             .fillMaxSize()
             .background(RodiTheme.colors.white)
-            .statusBarsPadding()
-            .imePadding(),
+            .statusBarsPadding(),
     ) {
         ReviewWriteTopBar(
             isDetail = state.step == ReviewWriteStep.Detail,
@@ -174,7 +176,7 @@ private fun ReviewWriteContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
+                .reviewBottomBarInsets()
                 .drawBehind {
                     drawLine(
                         color = ctaDividerColor,

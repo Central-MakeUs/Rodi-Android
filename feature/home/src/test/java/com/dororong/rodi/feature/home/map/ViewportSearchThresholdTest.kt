@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.home.map
 
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -36,13 +37,21 @@ class ViewportSearchThresholdTest {
     }
 
     @Test
-    fun `initial search never uses fallback or an uncentered late location`() {
-        assertFalse(
+    fun `initial search uses the viewport only when location is unavailable`() {
+        assertTrue(
             InitialViewportSearchPolicy.canDispatch(
                 locationState = InitialLocationState.Unavailable,
                 hasCurrentLocation = false,
                 hasCenteredInitialLocation = false,
                 isInitialLocationCameraMovePending = false,
+            ),
+        )
+        assertFalse(
+            InitialViewportSearchPolicy.canDispatch(
+                locationState = InitialLocationState.Unavailable,
+                hasCurrentLocation = false,
+                hasCenteredInitialLocation = false,
+                isInitialLocationCameraMovePending = true,
             ),
         )
         assertFalse(
@@ -78,6 +87,53 @@ class ViewportSearchThresholdTest {
         assertEquals(GeoPoint(37.70, 127.10), bounds?.northEast)
         assertEquals(GeoPoint(37.40, 126.80), bounds?.southWest)
         assertTrue(points.all { bounds?.contains(it) == true })
+    }
+
+    @Test
+    fun `marker viewport follows the current camera before the last search viewport`() {
+        val currentViewport = MapViewport(
+            northEast = GeoPoint(38.0, 128.0),
+            southWest = GeoPoint(36.0, 126.0),
+        )
+        val searchedQuery = PlaceViewportQuery(
+            southWest = GeoPoint(37.4, 126.8),
+            northEast = GeoPoint(37.6, 127.1),
+            origin = GeoPoint(37.5, 126.95),
+        )
+
+        assertEquals(
+            currentViewport,
+            markerViewportOrNull(currentViewport, searchedQuery),
+        )
+        assertEquals(
+            MapViewport(searchedQuery.northEast, searchedQuery.southWest),
+            markerViewportOrNull(null, searchedQuery),
+        )
+    }
+
+    @Test
+    fun `restored viewport is preferred while the location stream is restarting`() {
+        val savedViewport = MapViewport(
+            northEast = GeoPoint(37.60, 127.02),
+            southWest = GeoPoint(37.50, 126.92),
+        )
+
+        assertEquals(
+            GeoPoint(37.55, 126.97),
+            initialMapCenter(
+                savedViewport = savedViewport,
+                currentLocation = GeoPoint(36.10, 128.30),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
+        assertEquals(
+            GeoPoint(36.10, 128.30),
+            initialMapCenter(
+                savedViewport = null,
+                currentLocation = GeoPoint(36.10, 128.30),
+                fallback = GeoPoint(37.5665, 126.9780),
+            ),
+        )
     }
 
     private fun viewport(centerLongitude: Double) = MapViewport(

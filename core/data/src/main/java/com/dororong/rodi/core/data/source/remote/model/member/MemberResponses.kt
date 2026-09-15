@@ -36,7 +36,7 @@ data class PracticeItemResponse(
     val practiceTypes: List<String> = emptyList(),
     val status: String = "PLANNED",
     val visitCount: Int = 0,
-    val visitedAt: String? = null,
+    val lastActivityAt: String? = null,
     val isVerified: Boolean = false,
     val hasReview: Boolean = false,
 )
@@ -84,4 +84,9 @@ data class MemberUpdateRequest(
 @Serializable
 data class FilterTagsRequest(
     val filterTags: List<String>,
+)
+
+@Serializable
+data class CourseTutorialCompletionResponse(
+    val courseTutorialCompletedAt: String,
 )

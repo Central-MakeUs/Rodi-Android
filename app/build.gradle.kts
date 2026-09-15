@@ -36,8 +36,8 @@ android {
         applicationId = "com.dororong.rodi"
         minSdk = 30
         targetSdk = 36
-        versionCode = 12
-        versionName = "1.3.0-alpha01"
+        versionCode = 23
+        versionName = "1.4.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -103,6 +103,7 @@ dependencies {
     implementation(project(":feature:entry"))
     implementation(project(":feature:home"))
     implementation(project(":feature:mypage"))
+    implementation(project(":feature:course-registration"))
     implementation(project(":feature:settings"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

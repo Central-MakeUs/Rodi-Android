@@ -8,8 +8,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import android.app.Notification
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -95,6 +98,7 @@ class DrivingTrackingService : Service() {
                 notification,
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
             )
+            logPromotionEligibility(notification)
         } catch (error: RuntimeException) {
             Timber.e(error, "Driving foreground service could not start.")
             activeSession = null
@@ -269,8 +273,18 @@ class DrivingTrackingService : Service() {
     private fun canKeepTrackingVisible(): Boolean {
         if (!notificationManager.areNotificationsEnabled()) return false
         val manager = getSystemService(NotificationManager::class.java)
-        return manager.getNotificationChannel(DrivingNotificationFactory.ONGOING_CHANNEL_ID)
-            ?.importance != NotificationManager.IMPORTANCE_NONE
+        val channel = manager.getNotificationChannel(DrivingNotificationFactory.ONGOING_CHANNEL_ID)
+        return channel?.importance?.let { it > NotificationManager.IMPORTANCE_MIN } == true
+    }
+
+    private fun logPromotionEligibility(notification: Notification) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return
+        Timber.d(
+            "Driving Live Update request=%s, promotable=%s, allowed=%s",
+            NotificationCompat.isRequestPromotedOngoing(notification),
+            NotificationCompat.hasPromotableCharacteristics(notification),
+            notificationManager.canPostPromotedNotifications(),
+        )
     }
 
     companion object {

@@ -3,6 +3,8 @@ package com.dororong.rodi.core.data.di
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.mock.MockResponseInterceptor
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
+import com.dororong.rodi.core.data.source.remote.api.CourseApi
+import com.dororong.rodi.core.data.source.remote.api.KakaoLocalApi
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
@@ -20,6 +22,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 // 로그인/토큰 API 서버. Notion "카카오 로그인 API 연동 가이드" 기준.
@@ -58,7 +61,9 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideJson(): Json = Json { ignoreUnknownKeys = true }
+    fun provideJson(): Json = Json {
+        ignoreUnknownKeys = true
+    }
 
     @Provides
     @Singleton
@@ -71,7 +76,26 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @Named("kakaoLocal")
+    fun provideKakaoLocalRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+        Retrofit.Builder()
+            .baseUrl("https://dapi.kakao.com/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+
+    @Provides
+    @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideCourseApi(retrofit: Retrofit): CourseApi = retrofit.create(CourseApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideKakaoLocalApi(@Named("kakaoLocal") retrofit: Retrofit): KakaoLocalApi =
+        retrofit.create(KakaoLocalApi::class.java)
 
     @Provides
     @Singleton

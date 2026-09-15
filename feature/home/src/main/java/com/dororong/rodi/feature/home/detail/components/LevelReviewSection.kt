@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
@@ -37,6 +39,7 @@ import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
+import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 import java.time.Instant
@@ -79,6 +82,10 @@ fun LevelReviewSection(
                     topDifficultyCount = topDifficulty?.let { difficultyCounts[it] } ?: 0L,
                     onSelectLevel = onSelectLevel,
                     scrollState = scrollState,
+                    // 왼쪽은 "추천해요"를 기존 위치에 두기 위해 xl만큼 더 들여쓰고, 오른쪽은
+                    // 부모 Column의 16dp만 남겨 레벨 드롭다운이 다른 우측 정렬 요소(전체보기 등)와
+                    // 같은 우측 여백으로 붙게 한다.
+                    modifier = Modifier.padding(start = RodiSpacing.xl),
                 )
             }
         }
@@ -165,20 +172,23 @@ private fun SummaryRow(
     topDifficultyCount: Long,
     onSelectLevel: (OnboardingLevel) -> Unit,
     scrollState: ScrollableState?,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(30.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
-            modifier = Modifier.width(51.dp),
+            modifier = Modifier.width(60.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
                 text = "추천해요",
                 style = RodiTheme.typography.body2SemiBold,
                 color = RodiTheme.colors.gray800,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -221,6 +231,7 @@ private fun SummaryRow(
                     style = RodiTheme.typography.body2SemiBold,
                     color = RodiTheme.colors.gray800,
                 )
+                Spacer(modifier = Modifier.weight(1f))
                 LevelDropdown(
                     selectedLevel = selectedLevel,
                     onSelectLevel = onSelectLevel,
@@ -292,12 +303,14 @@ private fun WriteReviewPrompt(onWriteReviewClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(124.dp),
+            // 글꼴 배율이 커지면 내용이 124dp를 넘는다. 고정 height로 자르면 넘친 부분이
+            // 이 컴포넌트 바깥(상세 시트의 스크롤 clip 영역)에서 잘려 버튼이 아예 안 보인다.
+            .heightIn(min = 124.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 32.dp),
+                .padding(top = 32.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -342,6 +355,7 @@ private val previewSectionReview = Review(
     isEditable = false,
     isHidden = false,
     createdAt = Instant.parse("2026-05-10T00:00:00Z"),
+    isVerifiedVisit = true,
 )
 
 @Composable

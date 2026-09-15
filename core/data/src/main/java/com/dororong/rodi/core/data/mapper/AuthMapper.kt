@@ -35,6 +35,7 @@ fun SocialLoginResponse.toAuthTokenResponse(): AuthTokenResponse = AuthTokenResp
     accessToken = requireField(accessToken?.takeIf { it.isNotBlank() }, "accessToken"),
     refreshToken = requireField(refreshToken?.takeIf { it.isNotBlank() }, "refreshToken"),
     isNewMember = requireField(isNewMember, "isNewMember"),
+    isCourseTutorialCompleted = requireField(isCourseTutorialCompleted, "isCourseTutorialCompleted"),
 )
 
 private fun parseDateTimeOrNull(value: String?): Instant? =

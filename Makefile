@@ -18,6 +18,13 @@
 
 PIPELINE_DIR ?= $(HOME)/StudioProjects/rodi-pipeline
 
+# 파이프라인 스크립트는 PROJECT_ROOT가 비어 있으면 ~/StudioProjects/ROUTI로 cd한다.
+# git worktree(예: rodi-v3-split)에서 make를 돌리면 Codex가 그 워크트리·브랜치를 전혀
+# 모른 채 메인 레포에서 작업하게 되는 사고가 났다(2026-08-20). Makefile 자신의 위치를
+# 항상 기본값으로 넘겨서, 어느 워크트리에서 실행하든 그 워크트리를 대상으로 삼는다.
+PROJECT_ROOT ?= $(CURDIR)
+export PROJECT_ROOT
+
 _INTENT := $(or $(INTENT),$(filter-out plan impl review review-auto relay queue queue-bg,$(MAKECMDGOALS)))
 
 .PHONY: plan impl review review-auto relay queue queue-bg

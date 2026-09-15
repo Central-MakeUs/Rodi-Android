@@ -38,6 +38,7 @@ suspend fun Context.awaitCurrentLocation(
     }
 }
 
+@SuppressLint("MissingPermission")
 fun Context.currentLocationUpdates(): Flow<LatLng> =
     rawCurrentLocationUpdates().map { LatLng.from(it.latitude, it.longitude) }
 

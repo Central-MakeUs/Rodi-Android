@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
 
@@ -26,13 +27,16 @@ import com.dororong.rodi.feature.home.R
 fun HomeSearchBar(
     onClick: () -> Unit,
     searchKeyword: String? = null,
+    showBackButton: Boolean = searchKeyword != null,
     modifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier
             .fillMaxWidth()
             .height(46.dp)
-            .semantics { contentDescription = "지역 또는 코스 검색" },
+            .semantics {
+                contentDescription = if (showBackButton) "뒤로가기" else "지역 또는 코스 검색"
+            },
         onClick = onClick,
         shape = RoundedCornerShape(8.dp),
         color = RodiTheme.colors.white,
@@ -44,9 +48,11 @@ fun HomeSearchBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_search),
+                painter = painterResource(
+                    if (showBackButton) CoreUiR.drawable.ic_chevron_left else R.drawable.ic_search,
+                ),
                 contentDescription = null,
-                tint = Color.Unspecified,
+                tint = if (showBackButton) RodiTheme.colors.black else Color.Unspecified,
                 modifier = Modifier.size(24.dp),
             )
             Text(

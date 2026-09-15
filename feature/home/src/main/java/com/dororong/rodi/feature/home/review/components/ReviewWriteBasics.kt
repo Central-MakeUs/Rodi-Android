@@ -89,7 +89,13 @@ private fun CautionBlock(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("주의사항", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
-        ReviewTextField(caution, onCaution, "예) 갑자기 나오는 자전거 주의!", multiline = false)
+        ReviewTextField(
+            value = caution,
+            onValueChange = onCaution,
+            placeholder = "예) 갑자기 나오는 자전거 주의!",
+            multiline = false,
+            maxGraphemes = 50,
+        )
     }
 }
 
