@@ -140,14 +140,23 @@ sealed interface HomeIntent {
 }
 
 sealed interface HomeEffect {
+    sealed interface LaunchNavi : HomeEffect {
+        val place: PlaceDetail
+        val startDriving: Boolean
+        val app: NaviApp
+    }
     data class LaunchKakaoMap(
-        val place: PlaceDetail,
-        val startDriving: Boolean = true,
-    ) : HomeEffect
+        override val place: PlaceDetail,
+        override val startDriving: Boolean = true,
+    ) : LaunchNavi {
+        override val app: NaviApp get() = NaviApp.KAKAOMAP
+    }
     data class LaunchKakaoNavi(
-        val place: PlaceDetail,
-        val startDriving: Boolean = true,
-    ) : HomeEffect
+        override val place: PlaceDetail,
+        override val startDriving: Boolean = true,
+    ) : LaunchNavi {
+        override val app: NaviApp get() = NaviApp.KAKAONAVI
+    }
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
