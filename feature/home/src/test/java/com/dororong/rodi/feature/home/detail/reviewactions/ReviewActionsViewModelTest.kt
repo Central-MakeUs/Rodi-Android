@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.detail.reviewactions
 
+import app.cash.turbine.test
 import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
@@ -20,7 +21,6 @@ import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -95,12 +95,15 @@ class ReviewActionsViewModelTest {
     @Test
     fun `block member reports a successful target`() = runTest(dispatcher) {
         coEvery { blockMember(MEMBER_ID) } returns Result.success(Unit)
-
         val viewModel = viewModel()
-        viewModel.blockMember(MEMBER_ID)
-        advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.blockedMemberId == MEMBER_ID)
+        viewModel.effect.test {
+            viewModel.blockMember(MEMBER_ID)
+            advanceUntilIdle()
+
+            assertEquals(ReviewActionsEffect.Blocked(MEMBER_ID), awaitItem())
+        }
+        assertFalse(viewModel.state.value.isBlocking)
         coVerify(exactly = 1) { blockMember(MEMBER_ID) }
     }
 
@@ -149,14 +152,43 @@ class ReviewActionsViewModelTest {
     @Test
     fun `block failure leaves no blocked member and exposes an error`() = runTest(dispatcher) {
         coEvery { blockMember(MEMBER_ID) } returns Result.failure(IllegalStateException("차단하지 못했어요."))
-
         val viewModel = viewModel()
-        viewModel.blockMember(MEMBER_ID)
-        advanceUntilIdle()
 
+        viewModel.effect.test {
+            viewModel.blockMember(MEMBER_ID)
+            advanceUntilIdle()
+
+            assertEquals(ReviewActionsEffect.BlockFailed("차단하지 못했어요."), awaitItem())
+        }
         assertFalse(viewModel.state.value.isBlocking)
-        assertNull(viewModel.state.value.blockedMemberId)
-        assertEquals("차단하지 못했어요.", viewModel.state.value.blockErrorMessage)
+    }
+
+    @Test
+    fun `delete review reports the deleted review`() = runTest(dispatcher) {
+        coEvery { deleteReview(REVIEW_ID) } returns Result.success(Unit)
+        val viewModel = viewModel()
+
+        viewModel.effect.test {
+            viewModel.deleteReview(REVIEW_ID)
+            advanceUntilIdle()
+
+            assertEquals(ReviewActionsEffect.Deleted(REVIEW_ID), awaitItem())
+        }
+        assertFalse(viewModel.state.value.isDeleting)
+    }
+
+    @Test
+    fun `delete failure exposes a user message and finishes deleting`() = runTest(dispatcher) {
+        coEvery { deleteReview(REVIEW_ID) } returns Result.failure(IllegalStateException("raw server detail"))
+        val viewModel = viewModel()
+
+        viewModel.effect.test {
+            viewModel.deleteReview(REVIEW_ID)
+            advanceUntilIdle()
+
+            assertEquals(ReviewActionsEffect.DeleteFailed("후기를 삭제하지 못했어요."), awaitItem())
+        }
+        assertFalse(viewModel.state.value.isDeleting)
     }
 
     @Test
