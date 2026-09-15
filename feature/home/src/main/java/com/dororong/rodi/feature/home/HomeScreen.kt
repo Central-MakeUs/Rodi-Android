@@ -129,6 +129,7 @@ import com.dororong.rodi.feature.home.review.NotificationPermissionDialog
 import com.dororong.rodi.feature.home.review.PracticeContinueDialog
 import com.dororong.rodi.feature.home.review.PracticePromptDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
+import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsEffect
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewActionsViewModel
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
 import com.dororong.rodi.feature.home.detail.components.ParkingDetailContent
@@ -1618,37 +1619,24 @@ fun HomeScreen(
             onDismissRequest = { if (!reviewActionsState.isDeleting) reviewToDelete = null },
         )
     }
-    LaunchedEffect(reviewActionsState.blockedMemberId, reviewActionsState.blockErrorMessage) {
-        when {
-            reviewActionsState.blockedMemberId != null -> {
-                reviewVm.excludeMemberReviews(reviewActionsState.blockedMemberId ?: return@LaunchedEffect)
+    CollectEffect(reviewActionsVm.effect) { effect ->
+        when (effect) {
+            is ReviewActionsEffect.Blocked -> {
+                reviewVm.excludeMemberReviews(effect.memberId)
                 reviewToBlock = null
                 snackbarHostState.show(RodiSnackbarData(message = "사용자를 차단했습니다."))
-                reviewActionsVm.consumeBlockResult()
             }
-
-            reviewActionsState.blockErrorMessage != null -> {
+            is ReviewActionsEffect.BlockFailed -> {
                 reviewToBlock = null
-                snackbarHostState.show(
-                    RodiSnackbarData(
-                        message = reviewActionsState.blockErrorMessage ?: "사용자를 차단할 수 없습니다.",
-                    ),
-                )
-                reviewActionsVm.consumeBlockResult()
+                snackbarHostState.show(RodiSnackbarData(message = effect.message))
             }
-        }
-    }
-    LaunchedEffect(reviewActionsState.deletedReviewId, reviewActionsState.deleteErrorMessage) {
-        when {
-            reviewActionsState.deletedReviewId != null -> {
-                reviewVm.removeReview(reviewActionsState.deletedReviewId ?: return@LaunchedEffect)
+            is ReviewActionsEffect.Deleted -> {
+                reviewVm.removeReview(effect.reviewId)
                 reviewToDelete = null
                 snackbarHostState.show(RodiSnackbarData(message = "후기를 삭제했습니다."))
-                reviewActionsVm.consumeDeleteResult()
             }
-            reviewActionsState.deleteErrorMessage != null -> {
-                snackbarHostState.show(RodiSnackbarData(message = reviewActionsState.deleteErrorMessage ?: "후기를 삭제할 수 없습니다."))
-                reviewActionsVm.consumeDeleteResult()
+            is ReviewActionsEffect.DeleteFailed -> {
+                snackbarHostState.show(RodiSnackbarData(message = effect.message))
             }
         }
     }
