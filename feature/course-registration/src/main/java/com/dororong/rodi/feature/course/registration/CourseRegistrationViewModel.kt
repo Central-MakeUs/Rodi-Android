@@ -12,12 +12,21 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypoint
 import com.dororong.rodi.core.domain.model.course.RegistrationWaypointType
 import com.dororong.rodi.core.domain.model.course.RouteResult
-import com.dororong.rodi.core.domain.repository.CourseDraftRepository
-import com.dororong.rodi.core.domain.repository.CourseLocationRepository
-import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
-import com.dororong.rodi.core.domain.repository.CourseRegistrationRouteRepository
-import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.course.ClearCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.ClearCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.DeleteCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.GetCourseRegistrationFormUseCase
+import com.dororong.rodi.core.domain.usecase.course.GetStrictCourseRouteUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.RegisterCourseUseCase
+import com.dororong.rodi.core.domain.usecase.course.ResolveCourseLocationSelectionUseCase
+import com.dororong.rodi.core.domain.usecase.course.ReverseGeocodeCourseLocationUseCase
+import com.dororong.rodi.core.domain.usecase.course.SaveCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.SaveCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.SearchCourseLocationsUseCase
+import com.dororong.rodi.core.domain.usecase.member.CompleteCourseTutorialUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -42,11 +51,20 @@ private const val SEARCH_PAGE_SIZE = 20
 @HiltViewModel
 class CourseRegistrationViewModel @Inject constructor(
     private val getAuthSession: GetAuthSessionUseCase,
-    private val memberRepository: MemberRepository,
-    private val draftRepository: CourseDraftRepository,
-    private val locationRepository: CourseLocationRepository,
-    private val registrationRepository: CourseRegistrationRepository,
-    private val routeRepository: CourseRegistrationRouteRepository,
+    private val completeCourseTutorial: CompleteCourseTutorialUseCase,
+    private val observeCourseDraft: ObserveCourseDraftUseCase,
+    private val saveCourseDraft: SaveCourseDraftUseCase,
+    private val clearCourseDraft: ClearCourseDraftUseCase,
+    private val observeSearchHistory: ObserveCourseSearchHistoryUseCase,
+    private val saveSearchHistory: SaveCourseSearchHistoryUseCase,
+    private val deleteSearchHistory: DeleteCourseSearchHistoryUseCase,
+    private val clearSearchHistory: ClearCourseSearchHistoryUseCase,
+    private val searchLocations: SearchCourseLocationsUseCase,
+    private val resolveLocationSelection: ResolveCourseLocationSelectionUseCase,
+    private val reverseGeocode: ReverseGeocodeCourseLocationUseCase,
+    private val getRegistrationForm: GetCourseRegistrationFormUseCase,
+    private val registerCourse: RegisterCourseUseCase,
+    private val getStrictCourseRoute: GetStrictCourseRouteUseCase,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CourseRegistrationUiState())
@@ -125,7 +143,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     _effect.emit(CourseRegistrationEffect.LoginRequired)
                     return@launch
                 }
-                val draft = draftRepository.observe().first()
+                val draft = observeCourseDraft().first()
                 val restoredWaypoints = normalizeWaypoints(draft?.waypoints.orEmpty())
                 val initialPage = if (session.isCourseTutorialCompleted) {
                     CourseRegistrationPage.Map
@@ -174,7 +192,7 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun observeRecentSearches() {
         viewModelScope.launch {
-            locationRepository.observeRecent()
+            observeSearchHistory()
                 .catch { emit(emptyList()) }
                 .collect { recent ->
                     _state.update { current ->
@@ -217,14 +235,9 @@ class CourseRegistrationViewModel @Inject constructor(
             // 튜토리얼 화면에 가둬두지 않는다 — 다음에 다시 들어오면 서버가 아직
             // 미완료로 보고 있을 테니 그때 다시 시도된다. 사용자는 일단 지도로 넘어가
             // 코스 등록을 계속할 수 있어야 한다.
-            try {
-                memberRepository.completeCourseTutorial()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                // 저장 실패는 무시한다 — 다음 진입 시 서버가 여전히 미완료로 보고 있을 테니
-                // 그때 다시 시도된다.
-            }
+            // 저장 실패는 무시한다 — 다음 진입 시 서버가 여전히 미완료로 보고 있을 테니
+            // 그때 다시 시도된다.
+            completeCourseTutorial()
             val (initialCenter, initialLocationState) = initialMapLocationState()
             _state.update {
                 it.copy(
@@ -303,7 +316,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(dialog = null) }
         viewModelScope.launch {
             try {
-                draftRepository.clear()
+                clearCourseDraft()
             } finally {
                 _effect.emit(CourseRegistrationEffect.Exit)
             }
@@ -449,12 +462,12 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isRouteLoading = true) }
         routeJob = viewModelScope.launch {
             try {
-                val result = routeRepository.getStrictRoute(
+                val result = getStrictCourseRoute(
                     origin = CoursePoint(start.name, start.lat, start.lng),
                     waypoints = candidateWaypoints.filter { it.type == RegistrationWaypointType.VIA }
                         .map { CoursePoint(it.name, it.lat, it.lng) },
                     destination = CoursePoint(destination.name, destination.lat, destination.lng),
-                )
+                ).getOrThrow()
                 if (generation != routeGeneration) return@launch
                 _state.update {
                     it.copy(
@@ -517,7 +530,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isPendingAddressLoading = true, pendingSuggestion = null) }
         pendingAddressJob = viewModelScope.launch {
             try {
-                val suggestion = locationRepository.reverseGeocode(point)
+                val suggestion = reverseGeocode(point).getOrThrow()
                 if (generation != pendingAddressGeneration) return@launch
                 val resolved = suggestion?.takeIf { it.address.isNotBlank() }
                 _state.update { it.copy(pendingSuggestion = resolved, isPendingAddressLoading = false) }
@@ -574,7 +587,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isMapPointLoading = true) }
         pinEditJob = viewModelScope.launch {
             try {
-                val suggestion = locationRepository.reverseGeocode(point)
+                val suggestion = reverseGeocode(point).getOrThrow()
                 val resolvedPoint = suggestion?.point
                 if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
                     _effect.emit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
@@ -717,27 +730,26 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private suspend fun search(keyword: String, generation: Long) {
-        try {
-            val result = locationRepository.search(keyword)
-            if (generation != searchGeneration) return
-            _state.update {
-                it.copy(
-                    isSearchLoading = false,
+        searchLocations(keyword)
+            .onSuccess { result ->
+                if (generation != searchGeneration) return
+                _state.update {
+                    it.copy(
+                        isSearchLoading = false,
                         searchResult = result.copy(
                             regions = result.regions.take(4),
                             places = result.places.take(SEARCH_PAGE_SIZE),
                         ),
-                )
+                    )
+                }
             }
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Throwable) {
-            if (generation != searchGeneration) return
-            _state.update {
-                it.copy(isSearchLoading = false, searchError = error.userMessage("검색에 실패했어요."))
+            .onFailure { error ->
+                if (generation != searchGeneration) return
+                _state.update {
+                    it.copy(isSearchLoading = false, searchError = error.userMessage("검색에 실패했어요."))
+                }
+                _effect.emit(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
             }
-            _effect.emit(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
-        }
     }
 
     private fun selectSearchSuggestion(id: String) {
@@ -751,14 +763,14 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isMapPointLoading = true, searchError = null) }
         searchSelectionJob = viewModelScope.launch {
             try {
-                val resolved = locationRepository.resolveSelection(suggestion)
+                val resolved = resolveLocationSelection(suggestion).getOrThrow()
                 if (generation != searchSelectionGeneration) return@launch
                 val point = resolved?.point
                 if (resolved == null || point == null || resolved.address.isBlank()) {
                     _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
                     return@launch
                 }
-                locationRepository.saveRecent(resolved)
+                saveSearchHistory(resolved)
                 if (generation != searchSelectionGeneration) return@launch
                 _state.update {
                     it.copy(
@@ -786,11 +798,11 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun deleteRecentSearch(id: String) {
-        viewModelScope.launch { locationRepository.deleteRecent(id) }
+        viewModelScope.launch { deleteSearchHistory(id) }
     }
 
     private fun deleteAllRecentSearches() {
-        viewModelScope.launch { locationRepository.clearRecent() }
+        viewModelScope.launch { clearSearchHistory() }
     }
 
     /**
@@ -855,7 +867,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(formLoadState = CourseRegistrationFormLoadState.Loading, submissionError = null) }
         formJob = viewModelScope.launch {
             try {
-                val form = registrationRepository.getRegistrationForm()
+                val form = getRegistrationForm().getOrThrow()
                 val availableCodes = form.categories.flatMap { it.practiceTypes }.map { it.code }.toSet()
                 val currentCodes = _state.value.selectedPracticeTypeCodes
                 val reconciledCodes = currentCodes
@@ -915,7 +927,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isSubmitting = true, submissionError = null) }
         viewModelScope.launch {
             try {
-                val result = registrationRepository.registerCourse(
+                val result = registerCourse(
                     CourseRegistrationRequest(
                         address = start.address,
                         distanceMeters = route.totalDistanceMeters,
@@ -925,7 +937,7 @@ class CourseRegistrationViewModel @Inject constructor(
                         // 공백만 입력한 주의사항은 미입력으로 처리한다.
                         caution = current.caution.trim(),
                     ),
-                )
+                ).getOrThrow()
                 clearDraftAfterSubmission()
                 _state.update {
                     it.copy(
@@ -952,7 +964,7 @@ class CourseRegistrationViewModel @Inject constructor(
             draftJob?.cancelAndJoin()
             draftJob = null
             try {
-                draftRepository.clear()
+                clearCourseDraft()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -981,12 +993,12 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(isRouteLoading = true) }
         routeJob = viewModelScope.launch {
             try {
-                val result = routeRepository.getStrictRoute(
+                val result = getStrictCourseRoute(
                     origin = CoursePoint(start.name, start.lat, start.lng),
                     waypoints = current.waypoints.filter { it.type == RegistrationWaypointType.VIA }
                         .map { CoursePoint(it.name, it.lat, it.lng) },
                     destination = CoursePoint(destination.name, destination.lat, destination.lng),
-                )
+                ).getOrThrow()
                 if (generation != routeGeneration) return@launch
                 if (!result.isRealRoute || result.totalDistanceMeters <= 0 ||
                     result.snappedPoints.size != current.waypoints.size
@@ -1027,7 +1039,7 @@ class CourseRegistrationViewModel @Inject constructor(
         if (route.snappedPoints.size != waypoints.size) return null
         return waypoints.mapIndexed { index, waypoint ->
             val snapped = route.snappedPoints[index]
-            val suggestion = locationRepository.reverseGeocode(snapped) ?: return null
+            val suggestion = reverseGeocode(snapped).getOrThrow() ?: return null
             if (suggestion.address.isBlank()) return null
             waypoint.copy(
                 name = suggestion.title.ifBlank { waypoint.name },
@@ -1050,13 +1062,13 @@ class CourseRegistrationViewModel @Inject constructor(
         _state.update { it.copy(draft = draft.takeIf(CourseDraft::isMeaningful)) }
         draftJob?.cancel()
         draftJob = viewModelScope.launch {
-            if (draft.isMeaningful) draftRepository.save(draft) else draftRepository.clear()
+            saveCourseDraft(draft)
         }
     }
 
     private fun clearPersistedDraft() {
         draftJob?.cancel()
-        draftJob = viewModelScope.launch { draftRepository.clear() }
+        draftJob = viewModelScope.launch { clearCourseDraft() }
     }
 
     private fun normalizeWaypoints(waypoints: List<RegistrationWaypoint>): List<RegistrationWaypoint> {

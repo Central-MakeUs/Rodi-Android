@@ -22,6 +22,20 @@ import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
 import com.dororong.rodi.core.domain.repository.CourseRegistrationRouteRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.usecase.auth.GetAuthSessionUseCase
+import com.dororong.rodi.core.domain.usecase.course.ClearCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.ClearCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.DeleteCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.GetCourseRegistrationFormUseCase
+import com.dororong.rodi.core.domain.usecase.course.GetStrictCourseRouteUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.ObserveCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.RegisterCourseUseCase
+import com.dororong.rodi.core.domain.usecase.course.ResolveCourseLocationSelectionUseCase
+import com.dororong.rodi.core.domain.usecase.course.ReverseGeocodeCourseLocationUseCase
+import com.dororong.rodi.core.domain.usecase.course.SaveCourseDraftUseCase
+import com.dororong.rodi.core.domain.usecase.course.SaveCourseSearchHistoryUseCase
+import com.dororong.rodi.core.domain.usecase.course.SearchCourseLocationsUseCase
+import com.dororong.rodi.core.domain.usecase.member.CompleteCourseTutorialUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -781,11 +795,20 @@ class CourseRegistrationViewModelTest {
 
     private fun viewModel(): CourseRegistrationViewModel = CourseRegistrationViewModel(
         getAuthSession = auth,
-        memberRepository = member,
-        draftRepository = draft,
-        locationRepository = location,
-        registrationRepository = registration,
-        routeRepository = route,
+        completeCourseTutorial = CompleteCourseTutorialUseCase(member),
+        observeCourseDraft = ObserveCourseDraftUseCase(draft),
+        saveCourseDraft = SaveCourseDraftUseCase(draft),
+        clearCourseDraft = ClearCourseDraftUseCase(draft),
+        observeSearchHistory = ObserveCourseSearchHistoryUseCase(location),
+        saveSearchHistory = SaveCourseSearchHistoryUseCase(location),
+        deleteSearchHistory = DeleteCourseSearchHistoryUseCase(location),
+        clearSearchHistory = ClearCourseSearchHistoryUseCase(location),
+        searchLocations = SearchCourseLocationsUseCase(location),
+        resolveLocationSelection = ResolveCourseLocationSelectionUseCase(location),
+        reverseGeocode = ReverseGeocodeCourseLocationUseCase(location),
+        getRegistrationForm = GetCourseRegistrationFormUseCase(registration),
+        registerCourse = RegisterCourseUseCase(registration),
+        getStrictCourseRoute = GetStrictCourseRouteUseCase(route),
     )
 
     private fun stubReverseGeocode(vararg points: GeoPoint) {
