@@ -21,7 +21,6 @@ import com.dororong.rodi.core.domain.repository.PlaceRepository
 import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import retrofit2.HttpException
 
@@ -127,8 +126,6 @@ class PlaceRepositoryImpl @Inject constructor(
         }
         savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
     }
-
-    override fun observeSavedPlaces(): Flow<List<PlaceSummary>> = savedPlaceLocalDataSource.observeSavedPlaces()
 
     private suspend fun <T> authenticatedRequest(
         canRefresh: Boolean = true,

@@ -7,7 +7,6 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
-import kotlinx.coroutines.flow.Flow
 
 interface PlaceRepository {
     suspend fun getCoordinates(): List<PlaceCoordinate>
@@ -23,5 +22,4 @@ interface PlaceRepository {
     suspend fun getPlaceDetail(placeId: Long): PlaceDetail
     suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary>
     suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean)
-    fun observeSavedPlaces(): Flow<List<PlaceSummary>>
 }
