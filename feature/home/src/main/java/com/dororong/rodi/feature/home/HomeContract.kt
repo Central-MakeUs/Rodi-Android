@@ -64,8 +64,6 @@ data class HomeUiState(
     val isFilterSaving: Boolean = false,
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
-    val regionSearchGeneration: Long = 0L,
-    val reviewRefreshGeneration: Long = 0L,
     val isLevelReviewsVisible: Boolean = false,
     val practicePrompt: PracticeRecordItem? = null,
     val activePracticeSession: ActivePracticeSession? = null,
@@ -158,6 +156,8 @@ sealed interface HomeEffect {
         override val app: NaviApp get() = NaviApp.KAKAONAVI
     }
     data class ShowNaviPicker(val place: PlaceDetail) : HomeEffect
+    data class MoveToRegion(val region: RegionOfficeLocation) : HomeEffect
+    data object RefreshReviews : HomeEffect
     data class ShowInstallNaviPicker(val place: PlaceDetail) : HomeEffect
     data class OpenPracticeReview(val placeId: Long, val placeName: String) : HomeEffect
     data class OpenPracticeSkipReason(val practiceId: Long) : HomeEffect

@@ -103,12 +103,15 @@ class HomeViewModelTest {
         val vm = Dependencies().viewModel()
         val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
 
-        vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+
+            assertEquals(HomeEffect.MoveToRegion(region), awaitItem())
+        }
 
         assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
         assertEquals("서울 중구", vm.state.value.searchKeyword)
         assertEquals(region, vm.state.value.regionSearch)
-        assertEquals(1L, vm.state.value.regionSearchGeneration)
         assertEquals(HomeListState.Content, vm.state.value.listState)
         assertEquals(listOf(1L), vm.state.value.places.map(PlaceSummary::id))
     }
@@ -350,13 +353,16 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `review update increments the refresh generation`() {
+    fun `review update sends a refresh effect each time`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnReviewUpdated)
-        vm.onIntent(HomeIntent.OnReviewUpdated)
+        vm.effect.test {
+            vm.onIntent(HomeIntent.OnReviewUpdated)
+            vm.onIntent(HomeIntent.OnReviewUpdated)
 
-        assertEquals(2L, vm.state.value.reviewRefreshGeneration)
+            assertEquals(HomeEffect.RefreshReviews, awaitItem())
+            assertEquals(HomeEffect.RefreshReviews, awaitItem())
+        }
     }
 
     @Test

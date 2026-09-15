@@ -144,9 +144,7 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
             HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
             HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
-            HomeIntent.OnReviewUpdated -> _state.update {
-                it.copy(reviewRefreshGeneration = it.reviewRefreshGeneration + 1)
-            }
+            HomeIntent.OnReviewUpdated -> viewModelScope.launch { _effect.send(HomeEffect.RefreshReviews) }
             HomeIntent.OnAppResumed -> loadActivePracticeSession()
             HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
             HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()
@@ -219,7 +217,6 @@ class HomeViewModel @Inject constructor(
                 surfaceState = HomeSurfaceState.PartialList,
                 searchKeyword = region.displayName,
                 regionSearch = region,
-                regionSearchGeneration = it.regionSearchGeneration + 1,
                 places = initialPlaces.distinctBy(PlaceSummary::id),
                 listState = HomeListState.Content,
                 hasNextPage = false,
@@ -234,6 +231,7 @@ class HomeViewModel @Inject constructor(
                 isMapSearchDirty = false,
             )
         }
+        viewModelScope.launch { _effect.send(HomeEffect.MoveToRegion(region)) }
     }
 
     private fun loadInitialViewport(query: PlaceViewportQuery) {
