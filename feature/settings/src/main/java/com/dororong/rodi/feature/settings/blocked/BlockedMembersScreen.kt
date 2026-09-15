@@ -39,7 +39,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.components.RodiTextEmptyState
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.error.RodiInlineRetryError
+import com.dororong.rodi.core.ui.components.error.RodiRetryError
 import com.dororong.rodi.feature.settings.SettingsTopBar
 
 @Composable
@@ -77,7 +78,7 @@ private fun BlockedMembersContent(
                         .collect { shouldLoad -> if (shouldLoad) onLoadNext() }
                 }
                 if (state.members.isEmpty() && state.initialError != null) {
-                    BlockedMembersError(state.initialError, onLoadInitial)
+                    RodiRetryError(state.initialError, onLoadInitial)
                 } else if (state.members.isEmpty()) {
                     BlockedMembersEmpty()
                 } else {
@@ -97,7 +98,7 @@ private fun BlockedMembersContent(
                         }
                         if (state.nextPageError != null) {
                             item(key = "next-page-error") {
-                                BlockedMembersNextPageError(state.nextPageError, onLoadNext)
+                                RodiInlineRetryError(state.nextPageError, onLoadNext)
                             }
                         }
                     }
@@ -138,37 +139,6 @@ private fun BlockedMembersEmpty() {
         modifier = Modifier.fillMaxSize(),
         title = "차단한 사용자가 없습니다.",
     )
-}
-
-@Composable
-private fun BlockedMembersError(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
-            RodiButton(
-                text = "다시 시도",
-                onClick = onRetry,
-                fillMaxWidth = false,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun BlockedMembersNextPageError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(message, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
-        RodiButton(
-            text = "다시 시도",
-            onClick = onRetry,
-            fillMaxWidth = false,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-    }
 }
 
 private val PreviewBlockedMembers = listOf(

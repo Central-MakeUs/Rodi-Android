@@ -75,6 +75,8 @@ import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.dialog.RodiDialog
+import com.dororong.rodi.core.ui.components.error.RodiInlineRetryError
+import com.dororong.rodi.core.ui.components.error.RodiRetryError
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
@@ -136,7 +138,7 @@ fun RegisteredCoursesContent(
         }
     }
 
-    // 목록이 비어있을 때의 실패는 RegisteredCoursesError 전체 화면으로만 보여준다 — 스낵바까지
+    // 목록이 비어있을 때의 실패는 RodiRetryError 전체 화면으로만 보여준다 — 스낵바까지
     // 띄우면 같은 메시지가 두 번 뜬다. appendErrorMessage는 인라인 재시도 항목이 이미 같은
     // 액션을 제공하므로 스낵바를 따로 띄우지 않는다.
     LaunchedEffect(state.errorMessage, state.courses.isEmpty()) {
@@ -169,9 +171,10 @@ fun RegisteredCoursesContent(
                 )
                 when {
                     state.isLoading && state.courses.isEmpty() -> RegisteredCoursesLoading()
-                    state.errorMessage != null && state.courses.isEmpty() -> RegisteredCoursesError(
+                    state.errorMessage != null && state.courses.isEmpty() -> RodiRetryError(
                         message = state.errorMessage,
                         onRetry = onRetry,
+                        modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     state.courses.isEmpty() -> RegisteredCoursesEmpty(
                         filter = state.selectedFilter,
@@ -211,7 +214,7 @@ fun RegisteredCoursesContent(
                         }
                         state.appendErrorMessage?.let { message ->
                             item(key = "append-error") {
-                                RegisteredCoursesAppendError(
+                                RodiInlineRetryError(
                                     message = message,
                                     onRetry = { onClearError(); onRetry() },
                                 )
@@ -458,37 +461,6 @@ private fun RegisteredCoursesLoading() {
                 HorizontalDivider(modifier = Modifier.padding(top = 14.dp), color = RodiTheme.colors.gray100)
             }
         }
-    }
-}
-
-@Composable
-private fun RegisteredCoursesError(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize().padding(horizontal = 16.dp), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
-            RodiButton(
-                text = "다시 시도",
-                onClick = onRetry,
-                fillMaxWidth = false,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun RegisteredCoursesAppendError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(message, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
-        RodiButton(
-            text = "다시 시도",
-            onClick = onRetry,
-            fillMaxWidth = false,
-            modifier = Modifier.padding(top = 8.dp),
-        )
     }
 }
 

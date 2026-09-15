@@ -59,8 +59,9 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.RodiIllustratedEmptyState
 import com.dororong.rodi.core.ui.components.RodiPopupMenu
 import com.dororong.rodi.core.ui.components.RodiSkeleton
-import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
+import com.dororong.rodi.core.ui.components.error.RodiInlineRetryError
+import com.dororong.rodi.core.ui.components.error.RodiRetryError
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.mypage.R
 import com.dororong.rodi.feature.mypage.registeredcourses.RegisteredCoursesContent
@@ -275,7 +276,7 @@ private fun MyPostsContent(
             if (showTopBar) PostsTopBar(onBack = onBack)
             when {
                 state.isLoading -> MyPostsLoading()
-                state.errorMessage != null && state.posts.isEmpty() -> MyPostsError(
+                state.errorMessage != null && state.posts.isEmpty() -> RodiRetryError(
                     message = state.errorMessage,
                     onRetry = { onClearError(); onLoadInitial() },
                 )
@@ -301,7 +302,7 @@ private fun MyPostsContent(
                     }
                     if (state.errorMessage != null) {
                         item(key = "error") {
-                            MyPostsNextPageError(
+                            RodiInlineRetryError(
                                 message = state.errorMessage,
                                 onRetry = { onClearError(); onLoadNext() },
                             )
@@ -376,37 +377,6 @@ private fun MyPostSkeletonRow() {
         HorizontalDivider(
             modifier = Modifier.padding(top = 14.dp),
             color = RodiTheme.colors.gray100,
-        )
-    }
-}
-
-@Composable
-private fun MyPostsError(message: String, onRetry: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(message, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray700)
-            RodiButton(
-                text = "다시 시도",
-                onClick = onRetry,
-                fillMaxWidth = false,
-                modifier = Modifier.padding(top = 16.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MyPostsNextPageError(message: String, onRetry: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(message, style = RodiTheme.typography.caption1Medium, color = RodiTheme.colors.gray600)
-        RodiButton(
-            text = "다시 시도",
-            onClick = onRetry,
-            fillMaxWidth = false,
-            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }
