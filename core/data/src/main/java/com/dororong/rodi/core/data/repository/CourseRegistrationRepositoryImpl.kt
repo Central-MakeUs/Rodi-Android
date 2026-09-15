@@ -15,7 +15,6 @@ import com.dororong.rodi.core.domain.model.course.CourseRegistrationForm
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationRequest
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationResult
 import com.dororong.rodi.core.domain.model.course.RegisteredCourse
-import com.dororong.rodi.core.domain.model.course.validateForSubmission
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
@@ -34,10 +33,8 @@ class CourseRegistrationRepositoryImpl @Inject constructor(
         api.getRegistrationForm(it).requireData().toDomain()
     }
 
-    override suspend fun registerCourse(request: CourseRegistrationRequest): CourseRegistrationResult {
-        request.validateForSubmission()
-        return authenticatedRequest { api.registerCourse(it, request.toData()).requireData().toDomain() }
-    }
+    override suspend fun registerCourse(request: CourseRegistrationRequest): CourseRegistrationResult =
+        authenticatedRequest { api.registerCourse(it, request.toData()).requireData().toDomain() }
 
     override suspend fun getMyCourses(
         status: CourseApprovalStatus?,
