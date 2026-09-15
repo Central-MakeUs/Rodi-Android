@@ -10,7 +10,6 @@ import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
-import kotlinx.coroutines.flow.Flow
 
 class CachedPlaceRepository @Inject constructor(
     private val delegate: PlaceRepositoryImpl,
@@ -78,6 +77,4 @@ class CachedPlaceRepository @Inject constructor(
 
     override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) =
         delegate.setBookmarked(place, bookmarked)
-
-    override fun observeSavedPlaces(): Flow<List<PlaceSummary>> = delegate.observeSavedPlaces()
 }
