@@ -14,15 +14,14 @@
 
 ```kotlin
 @Test
-fun `invoke returns courses from repository`() {
+fun `invoke returns success when repository returns route`() = runTest {
     val repository = mockk<CourseRepository>()
-    val expected = listOf(mockk<Course>())
-    every { repository.getCourses() } returns expected
-    val useCase = GetCoursesUseCase(repository)
+    coEvery { repository.getRoute(course) } returns routeResult
+    val useCase = GetRouteUseCase(repository)
 
-    val result = useCase()
+    val result = useCase(course)
 
-    assertEquals(expected, result)
+    assertEquals(routeResult, result.getOrThrow())
 }
 ```
 
@@ -58,18 +57,25 @@ fun `rethrows cancellation`() = runTest {
 - UI를 의도적으로 바꿨다면 `./gradlew recordRoborazziDebug`로 `src/test/snapshots/`의 기준 이미지를 갱신해 같은 PR에 커밋한다.
 - CI에서 실패하면 `roborazzi-diff` 아티팩트의 `*_compare.png`로 차이를 확인한다.
 
+## 커버리지
+- `./gradlew verifyRoborazziDebug koverHtmlReport`는 전체 모듈을 합친 리포트를 `build/reports/kover/html/`에 만든다. 모듈 하나만 볼 때는 `./gradlew :core:data:koverHtmlReport`를 쓴다.
+- `verifyRoborazziDebug`를 빼면 안 된다. Roborazzi 테스트는 verify 모드일 때만 컴포저블을 렌더링하므로, 빼면 `core:ui`와 `feature:home` 수치가 낮게 나오고 CI 수치와 달라진다.
+- 커버리지는 테스트가 무엇을 덮는지 보려고 쓰는 도구다. 임계값을 걸어 CI를 실패시키지 않는다. CI는 `kover-report` 아티팩트로 리포트를 올린다.
+- 생성 코드(Hilt·Dagger·Room·`BuildConfig`·`R`·`ComposableSingletons`)와 `@Preview` 함수는 `KoverConventionPlugin`이 제외한다.
+
 ## MockK
 - 동기 함수는 `every { } returns`와 `verify { }`를 사용한다.
 - `suspend` 함수는 `coEvery { } returns`와 `coVerify { }`를 사용한다.
 - 기본은 엄격 모크(`mockk<T>()`)다. 반환값이 테스트와 무관한 부수 의존성에만 `relaxed = true`를 예외적으로 쓴다.
 
 ```kotlin
-val repository = mockk<CourseRepository>()
-every { repository.getCourses() } returns courses
-coEvery { repository.getRoute(course) } returns route
+val draftRepository = mockk<CourseDraftRepository>()
+val courseRepository = mockk<CourseRepository>()
+every { draftRepository.observe() } returns flowOf(draft)
+coEvery { courseRepository.getRoute(course) } returns route
 
-verify(exactly = 1) { repository.getCourses() }
-coVerify(exactly = 1) { repository.getRoute(course) }
+verify(exactly = 1) { draftRepository.observe() }
+coVerify(exactly = 1) { courseRepository.getRoute(course) }
 ```
 
 ## 코루틴 테스트

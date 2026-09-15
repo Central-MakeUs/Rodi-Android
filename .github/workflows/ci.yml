@@ -66,6 +66,19 @@ jobs:
             **/build/reports/roborazzi/**
           retention-days: 7
 
+      # Roborazzi 테스트는 verify 모드일 때만 컴포저블을 렌더링한다. verifyRoborazziDebug를 함께 줘야
+      # 직전 스텝의 테스트 결과를 재사용하고, 커버리지도 렌더링이 반영된 값으로 나온다.
+      - name: Coverage Report
+        run: ./gradlew verifyRoborazziDebug koverXmlReport koverHtmlReport --stacktrace
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kover-report
+          path: build/reports/kover/**
+          retention-days: 7
+
       - name: Upload Test Report
         if: always()
         uses: actions/upload-artifact@v4
