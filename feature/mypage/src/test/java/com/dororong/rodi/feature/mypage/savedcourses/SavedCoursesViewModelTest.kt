@@ -9,10 +9,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -182,6 +184,33 @@ class SavedCoursesViewModelTest {
         coVerify(exactly = 2) { getSaved("next", 20) }
         assertEquals(listOf(1L, 2L), viewModel.uiState.value.places.map { it.id })
         assertNull(viewModel.uiState.value.nextPageError)
+    }
+
+    @Test
+    fun `reloading cancels the in-flight request so its late failure does not overwrite the new state`() = runTest(dispatcher) {
+        val getSaved = mockk<GetSavedPlacesUseCase>()
+        val staleResponse = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        var calls = 0
+        coEvery { getSaved(null, 20) } coAnswers {
+            calls += 1
+            if (calls == 1) {
+                staleResponse.await()
+            } else {
+                Result.success(CursorPage(listOf(place(2, PlaceType.PARKING)), false, null, 1))
+            }
+        }
+        val viewModel = SavedCoursesViewModel(getSaved)
+        runCurrent()
+
+        viewModel.loadInitial()
+        advanceUntilIdle()
+        staleResponse.complete(Result.failure(IllegalStateException("stale")))
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { getSaved(null, 20) }
+        assertEquals(listOf(2L), viewModel.uiState.value.places.map { it.id })
+        assertNull(viewModel.uiState.value.initialError)
+        assertFalse(viewModel.uiState.value.isLoading)
     }
 
     private fun place(id: Long, type: PlaceType) = PlaceSummary(
