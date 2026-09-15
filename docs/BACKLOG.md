@@ -344,12 +344,12 @@
   재검증: `docs/conventions/testing.md`의 JUnit4 재검증 명령 (check-conventions INFO에서도 같은 조건으로 잡힌다)
 
 ### 죽은 코드
-- [ ] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용** — PR #16에서 공통 뼈대로 넣었지만
-  정의 파일(`core/data/.../source/remote/network/`) 밖에서의 참조가 **0건**이다. 실제 Repository는
-  `ApiEnvelope` + 도메인별 예외를 쓴다. 제거하거나 실제 도입 여부를 정한다 — 새 프로젝트의
+- [x] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용 (2026-09-15 제거)** — PR #16에서 공통 뼈대로 넣었지만
+  정의 파일(`core/data/.../source/remote/network/`) 밖에서의 참조가 **0건**임을 재확인하고 세 파일을 삭제했다.
+  실제 Repository는 `ApiEnvelope` + 도메인별 예외를 쓰며 `ApiEnvelope`는 그대로 남는다 — 새 프로젝트의
   표준으로 옮기지 말 것. (같은 성격의 `CourseRepository`/`SampleCourses` 죽은 코드는 2026-09-15에
   제거했다. 위 항목 참고.)
-  재검증: `rg -l 'safeApiCall|NetworkResult|DataError' --glob '**/*.kt' --glob '!**/build/**' | rg -v 'source/remote/network/'`
+  재검증: `rg -l 'safeApiCall|NetworkResult|DataError' --glob '**/*.kt' --glob '!**/build/**'` → 0건
 
 ## 마이페이지 개편 후속
 - [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
