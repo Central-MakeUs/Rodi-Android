@@ -13,9 +13,12 @@ import com.dororong.rodi.core.domain.usecase.review.ReportReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.DeleteReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -29,12 +32,15 @@ data class ReviewActionsUiState(
     val isReportSubmitted: Boolean = false,
     val reportErrorMessage: String? = null,
     val isBlocking: Boolean = false,
-    val blockedMemberId: Long? = null,
-    val blockErrorMessage: String? = null,
     val isDeleting: Boolean = false,
-    val deletedReviewId: Long? = null,
-    val deleteErrorMessage: String? = null,
 )
+
+sealed interface ReviewActionsEffect {
+    data class Blocked(val memberId: Long) : ReviewActionsEffect
+    data class BlockFailed(val message: String) : ReviewActionsEffect
+    data class Deleted(val reviewId: Long) : ReviewActionsEffect
+    data class DeleteFailed(val message: String) : ReviewActionsEffect
+}
 
 @HiltViewModel
 class ReviewActionsViewModel @Inject constructor(
@@ -45,6 +51,8 @@ class ReviewActionsViewModel @Inject constructor(
 ) : ViewModel() {
     private val _state = MutableStateFlow(ReviewActionsUiState())
     val state: StateFlow<ReviewActionsUiState> = _state.asStateFlow()
+    private val _effect = Channel<ReviewActionsEffect>(Channel.BUFFERED)
+    val effect: Flow<ReviewActionsEffect> = _effect.receiveAsFlow()
 
     fun loadReportForm(reviewId: Long) {
         val current = _state.value
@@ -134,18 +142,15 @@ class ReviewActionsViewModel @Inject constructor(
         if (_state.value.isBlocking) return
 
         viewModelScope.launch {
-            _state.update { it.copy(isBlocking = true, blockErrorMessage = null) }
+            _state.update { it.copy(isBlocking = true) }
             blockMemberUseCase(memberId)
                 .onSuccess {
-                    _state.update { it.copy(isBlocking = false, blockedMemberId = memberId) }
+                    _state.update { it.copy(isBlocking = false) }
+                    _effect.send(ReviewActionsEffect.Blocked(memberId))
                 }
                 .onFailure { error ->
-                    _state.update {
-                        it.copy(
-                            isBlocking = false,
-                            blockErrorMessage = error.userMessage("차단하지 못했어요."),
-                        )
-                    }
+                    _state.update { it.copy(isBlocking = false) }
+                    _effect.send(ReviewActionsEffect.BlockFailed(error.userMessage("차단하지 못했어요.")))
                 }
         }
     }
@@ -165,10 +170,6 @@ class ReviewActionsViewModel @Inject constructor(
         }
     }
 
-    fun consumeBlockResult() {
-        _state.update { it.copy(blockedMemberId = null, blockErrorMessage = null) }
-    }
-
     fun consumeReportError() {
         _state.update { it.copy(reportErrorMessage = null) }
     }
@@ -176,17 +177,15 @@ class ReviewActionsViewModel @Inject constructor(
     fun deleteReview(reviewId: Long) {
         if (_state.value.isDeleting) return
         viewModelScope.launch {
-            _state.update { it.copy(isDeleting = true, deleteErrorMessage = null) }
+            _state.update { it.copy(isDeleting = true) }
             deleteReviewUseCase(reviewId).onSuccess {
-                _state.update { it.copy(isDeleting = false, deletedReviewId = reviewId) }
+                _state.update { it.copy(isDeleting = false) }
+                _effect.send(ReviewActionsEffect.Deleted(reviewId))
             }.onFailure { error ->
-                _state.update { it.copy(isDeleting = false, deleteErrorMessage = error.userMessage("후기를 삭제하지 못했어요.")) }
+                _state.update { it.copy(isDeleting = false) }
+                _effect.send(ReviewActionsEffect.DeleteFailed(error.userMessage("후기를 삭제하지 못했어요.")))
             }
         }
-    }
-
-    fun consumeDeleteResult() {
-        _state.update { it.copy(deletedReviewId = null, deleteErrorMessage = null) }
     }
 
     private fun ReviewActionsUiState.selectedOption(): ReportFormOption? =
