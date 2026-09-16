@@ -96,6 +96,10 @@ android {
     }
 }
 
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+}
+
 dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
@@ -124,9 +128,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.timber)
     ksp(libs.hilt.compiler)
-    testImplementation(libs.junit)
+    testImplementation(libs.bundles.unit.test)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.mockk)
+    testRuntimeOnly(libs.junit.platform.launcher)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.bundles.android.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)

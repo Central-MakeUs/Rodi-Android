@@ -17,23 +17,23 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.CancellationException
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
-import org.junit.After
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.fail
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class CourseRegistrationEntryCoordinatorTest {
     private val dispatcher = StandardTestDispatcher()
 
-    @Before
+    @BeforeEach
     fun setUp() {
         Dispatchers.setMain(dispatcher)
     }
 
-    @After
+    @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
     }
@@ -139,7 +139,7 @@ class CourseRegistrationEntryCoordinatorTest {
 
         try {
             viewModel.clearDraft()
-            fail("CancellationException must be rethrown, not converted to Result.failure")
+            fail<Nothing>("CancellationException must be rethrown, not converted to Result.failure")
         } catch (_: CancellationException) {
         }
     }
