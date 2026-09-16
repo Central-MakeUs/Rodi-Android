@@ -41,7 +41,7 @@ import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
 import com.dororong.rodi.feature.home.HomeViewModel
-import com.dororong.rodi.feature.home.SearchScreen
+import com.dororong.rodi.feature.home.search.SearchScreen
 import com.dororong.rodi.feature.auth.KakaoLoginManagerEntryPoint
 import com.dororong.rodi.feature.course.registration.CourseRegistrationFlow
 import com.dororong.rodi.feature.course.registration.CourseRegistrationLoadingIndicator
