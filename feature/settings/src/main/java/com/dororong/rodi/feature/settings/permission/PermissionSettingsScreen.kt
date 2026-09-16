@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -41,12 +43,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R as CoreUiR
 import android.os.Build
 import com.dororong.rodi.core.ui.permission.PermissionAction
-import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.hasNotificationPermission
-import com.dororong.rodi.core.ui.permission.openPromotedNotificationSettings
 import com.dororong.rodi.core.ui.permission.resolvePermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.domain.model.driving.LiveUpdateSettings
 import com.dororong.rodi.feature.settings.SettingsTopBar
 
 @Composable
@@ -62,7 +63,7 @@ fun PermissionSettingsScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
     var isNotificationGranted by remember(context) { mutableStateOf(context.hasNotificationPermission()) }
-    var isLiveUpdateGranted by remember(context) { mutableStateOf(context.canPostPromotedNotifications()) }
+    val liveUpdateSettings by viewModel.liveUpdateSettings.collectAsStateWithLifecycle(initialValue = LiveUpdateSettings())
     val requestLocationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
@@ -75,13 +76,12 @@ fun PermissionSettingsScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isLocationGranted = context.hasLocationPermission()
         isNotificationGranted = context.hasNotificationPermission()
-        isLiveUpdateGranted = context.canPostPromotedNotifications()
     }
 
     PermissionSettingsContent(
         isLocationGranted = isLocationGranted,
         isNotificationGranted = isNotificationGranted,
-        isLiveUpdateGranted = isLiveUpdateGranted,
+        isLiveUpdateEnabled = liveUpdateSettings.isEnabled,
         showLiveUpdateRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA,
         onBack = onBack,
         onLocationClick = {
@@ -141,7 +141,7 @@ fun PermissionSettingsScreen(
                 PermissionAction.OpenAppSettings -> context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
             }
         },
-        onLiveUpdateClick = { context.openPromotedNotificationSettings() },
+        onLiveUpdateChange = viewModel::setLiveUpdateEnabled,
     )
 }
 
@@ -149,12 +149,12 @@ fun PermissionSettingsScreen(
 private fun PermissionSettingsContent(
     isLocationGranted: Boolean,
     isNotificationGranted: Boolean,
-    isLiveUpdateGranted: Boolean,
+    isLiveUpdateEnabled: Boolean,
     showLiveUpdateRow: Boolean,
     onBack: () -> Unit,
     onLocationClick: () -> Unit,
     onNotificationClick: () -> Unit,
-    onLiveUpdateClick: () -> Unit,
+    onLiveUpdateChange: (Boolean) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -170,9 +170,40 @@ private fun PermissionSettingsContent(
             PermissionRow("위치", isLocationGranted, "내 위치 확인과 주행 거리 측정에 사용해요.", onLocationClick)
             PermissionRow("주행 상태 알림", isNotificationGranted, "앱을 나가도 주행 상태와 진행률을 확인해요.", onNotificationClick)
             if (showLiveUpdateRow) {
-                PermissionRow("실시간 업데이트", isLiveUpdateGranted, description = null, onClick = onLiveUpdateClick)
+                LiveUpdateRow(isEnabled = isLiveUpdateEnabled, onCheckedChange = onLiveUpdateChange)
             }
         }
+    }
+}
+
+/**
+ * 시스템 설정으로 보내지 않는다 — 거기서 끄면 다른 앱의 실시간 업데이트까지 함께 꺼진다.
+ * 이 스위치는 우리 알림에만 적용되고, 끄면 승격을 요청하지 않아 일반 진행 알림으로 뜬다.
+ */
+@Composable
+private fun LiveUpdateRow(isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("실시간 업데이트", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black)
+            Text(
+                "주행 진행률을 상태 표시줄과 잠금 화면에 크게 표시해요.",
+                style = RodiTheme.typography.caption2Medium,
+                color = RodiTheme.colors.gray600,
+            )
+        }
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedTrackColor = RodiTheme.colors.primary600,
+                checkedThumbColor = RodiTheme.colors.white,
+            ),
+        )
     }
 }
 
@@ -214,12 +245,12 @@ private fun PermissionSettingsGrantedPreview() {
         PermissionSettingsContent(
             isLocationGranted = true,
             isNotificationGranted = true,
-            isLiveUpdateGranted = true,
+            isLiveUpdateEnabled = true,
             showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
-            onLiveUpdateClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }
@@ -231,12 +262,12 @@ private fun PermissionSettingsDeniedPreview() {
         PermissionSettingsContent(
             isLocationGranted = false,
             isNotificationGranted = false,
-            isLiveUpdateGranted = false,
+            isLiveUpdateEnabled = true,
             showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
-            onLiveUpdateClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }
@@ -248,12 +279,12 @@ private fun PermissionSettingsMixedPreview() {
         PermissionSettingsContent(
             isLocationGranted = true,
             isNotificationGranted = false,
-            isLiveUpdateGranted = false,
+            isLiveUpdateEnabled = true,
             showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
-            onLiveUpdateClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }
