@@ -299,7 +299,7 @@
   `feature/home/.../review/notvisited/PracticeSkipReasonScreen.kt`에 있다. 나머지는 전부
   선언명과 파일명이 같다. 별도 파일로 추출하거나, 앞의 것처럼 "app 레벨 coordinator가
   ViewModel을 소유한다"는 예외를 유지하려면 그 이유를 `ARCHITECTURE_TARGET.md`에 명시한다.
-- [ ] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** — `SearchViewModel`/`SearchUiState`는
+- [x] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** (2026-09-17 `search/`로 이동) — `SearchViewModel`/`SearchUiState`는
   `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
   내린다.
 - [ ] **`component`(단수) 패키지 1개** — `feature/entry/.../entry/component`만 단수고 나머지

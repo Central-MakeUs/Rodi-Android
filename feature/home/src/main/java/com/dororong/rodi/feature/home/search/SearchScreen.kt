@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.home
+package com.dororong.rodi.feature.home.search
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -68,13 +68,7 @@ import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
-import com.dororong.rodi.feature.home.search.RegionOfficeLocation
-import com.dororong.rodi.feature.home.search.RegionOfficeLocationResolver
-import com.dororong.rodi.feature.home.search.SearchEffect
-import com.dororong.rodi.feature.home.search.SearchIntent
-import com.dororong.rodi.feature.home.search.SearchResultState
-import com.dororong.rodi.feature.home.search.SearchUiState
-import com.dororong.rodi.feature.home.search.SearchViewModel
+import com.dororong.rodi.feature.home.R
 
 @Composable
 fun SearchScreen(
