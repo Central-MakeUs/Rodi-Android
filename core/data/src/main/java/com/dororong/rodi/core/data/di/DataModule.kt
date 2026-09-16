@@ -9,6 +9,7 @@ import com.dororong.rodi.core.data.repository.CourseLocationRepositoryImpl
 import com.dororong.rodi.core.data.repository.EntryRepositoryImpl
 import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
 import com.dororong.rodi.core.data.repository.CachedPlaceRepository
+import com.dororong.rodi.core.data.repository.LiveUpdateRepositoryImpl
 import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
 import com.dororong.rodi.core.data.repository.MemberRepositoryImpl
 import com.dororong.rodi.core.data.repository.RecentSearchRepositoryImpl
@@ -22,6 +23,7 @@ import com.dororong.rodi.core.domain.repository.CourseRegistrationRouteRepositor
 import com.dororong.rodi.core.domain.repository.CourseDraftRepository
 import com.dororong.rodi.core.domain.repository.CourseLocationRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.LiveUpdateRepository
 import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
@@ -60,6 +62,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindNaviPreferenceRepository(impl: NaviPreferenceRepositoryImpl): NaviPreferenceRepository
+
+    @Binds
+    abstract fun bindLiveUpdateRepository(impl: LiveUpdateRepositoryImpl): LiveUpdateRepository
 
     @Binds
     abstract fun bindEntryRepository(impl: EntryRepositoryImpl): EntryRepository

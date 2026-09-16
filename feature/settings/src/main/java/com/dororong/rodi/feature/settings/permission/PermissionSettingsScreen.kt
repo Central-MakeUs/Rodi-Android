@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -45,6 +47,7 @@ import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.hasNotificationPermission
 import com.dororong.rodi.core.ui.permission.resolvePermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.domain.model.driving.LiveUpdateSettings
 import com.dororong.rodi.feature.settings.SettingsTopBar
 
 @Composable
@@ -60,6 +63,7 @@ fun PermissionSettingsScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
     var isNotificationGranted by remember(context) { mutableStateOf(context.hasNotificationPermission()) }
+    val liveUpdateSettings by viewModel.liveUpdateSettings.collectAsStateWithLifecycle(initialValue = LiveUpdateSettings())
     val requestLocationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
@@ -77,6 +81,8 @@ fun PermissionSettingsScreen(
     PermissionSettingsContent(
         isLocationGranted = isLocationGranted,
         isNotificationGranted = isNotificationGranted,
+        isLiveUpdateEnabled = liveUpdateSettings.isEnabled,
+        showLiveUpdateRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA,
         onBack = onBack,
         onLocationClick = {
             when (
@@ -135,6 +141,7 @@ fun PermissionSettingsScreen(
                 PermissionAction.OpenAppSettings -> context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)))
             }
         },
+        onLiveUpdateChange = viewModel::setLiveUpdateEnabled,
     )
 }
 
@@ -142,9 +149,12 @@ fun PermissionSettingsScreen(
 private fun PermissionSettingsContent(
     isLocationGranted: Boolean,
     isNotificationGranted: Boolean,
+    isLiveUpdateEnabled: Boolean,
+    showLiveUpdateRow: Boolean,
     onBack: () -> Unit,
     onLocationClick: () -> Unit,
     onNotificationClick: () -> Unit,
+    onLiveUpdateChange: (Boolean) -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -159,12 +169,57 @@ private fun PermissionSettingsContent(
             SettingsTopBar(title = "권한 설정 변경", onBack = onBack)
             PermissionRow("위치", isLocationGranted, "내 위치 확인과 주행 거리 측정에 사용해요.", onLocationClick)
             PermissionRow("주행 상태 알림", isNotificationGranted, "앱을 나가도 주행 상태와 진행률을 확인해요.", onNotificationClick)
+            if (showLiveUpdateRow) {
+                LiveUpdateRow(isEnabled = isLiveUpdateEnabled, onCheckedChange = onLiveUpdateChange)
+            }
         }
     }
 }
 
+/**
+ * 시스템 설정으로 보내지 않는다 — 거기서 끄면 다른 앱의 실시간 업데이트까지 함께 꺼진다.
+ * 이 스위치는 우리 알림에만 적용되고, 끄면 승격을 요청하지 않아 일반 진행 알림으로 뜬다.
+ */
 @Composable
-private fun PermissionRow(title: String, granted: Boolean, description: String, onClick: () -> Unit) {
+private fun LiveUpdateRow(isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("실시간 업데이트", style = RodiTheme.typography.body1Medium, color = RodiTheme.colors.black)
+            Text(
+                "주행 진행률을 상태 표시줄과 잠금 화면에 크게 표시해요.",
+                style = RodiTheme.typography.caption2Medium,
+                color = RodiTheme.colors.gray600,
+            )
+        }
+        Switch(
+            checked = isEnabled,
+            onCheckedChange = onCheckedChange,
+            // 생략한 상태는 Material3 기본 팔레트로 그려지므로 모든 상태를 테마 토큰으로 지정한다.
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = RodiTheme.colors.white,
+                checkedTrackColor = RodiTheme.colors.primary600,
+                checkedBorderColor = RodiTheme.colors.primary600,
+                uncheckedThumbColor = RodiTheme.colors.white,
+                uncheckedTrackColor = RodiTheme.colors.gray300,
+                uncheckedBorderColor = RodiTheme.colors.gray300,
+                disabledCheckedThumbColor = RodiTheme.colors.white,
+                disabledCheckedTrackColor = RodiTheme.colors.gray400,
+                disabledCheckedBorderColor = RodiTheme.colors.gray400,
+                disabledUncheckedThumbColor = RodiTheme.colors.white,
+                disabledUncheckedTrackColor = RodiTheme.colors.gray200,
+                disabledUncheckedBorderColor = RodiTheme.colors.gray200,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun PermissionRow(title: String, granted: Boolean, description: String?, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -182,7 +237,9 @@ private fun PermissionRow(title: String, granted: Boolean, description: String, 
                 Icon(painterResource(CoreUiR.drawable.ic_chevron_right), null, tint = RodiTheme.colors.gray600, modifier = Modifier.size(20.dp))
             }
         }
-        Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600)
+        if (description != null) {
+            Text(description, style = RodiTheme.typography.caption2Medium, color = RodiTheme.colors.gray600)
+        }
     }
 }
 
@@ -199,9 +256,12 @@ private fun PermissionSettingsGrantedPreview() {
         PermissionSettingsContent(
             isLocationGranted = true,
             isNotificationGranted = true,
+            isLiveUpdateEnabled = true,
+            showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }
@@ -213,9 +273,12 @@ private fun PermissionSettingsDeniedPreview() {
         PermissionSettingsContent(
             isLocationGranted = false,
             isNotificationGranted = false,
+            isLiveUpdateEnabled = true,
+            showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }
@@ -227,9 +290,12 @@ private fun PermissionSettingsMixedPreview() {
         PermissionSettingsContent(
             isLocationGranted = true,
             isNotificationGranted = false,
+            isLiveUpdateEnabled = true,
+            showLiveUpdateRow = true,
             onBack = {},
             onLocationClick = {},
             onNotificationClick = {},
+            onLiveUpdateChange = {},
         )
     }
 }

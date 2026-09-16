@@ -23,14 +23,16 @@ internal enum class DrivingNotificationStyle {
 }
 
 internal object DrivingNotificationStylePolicy {
-    fun forApi(apiLevel: Int): DrivingNotificationStyle =
-        if (apiLevel >= Build.VERSION_CODES.BAKLAVA) {
+    fun forApi(apiLevel: Int, liveUpdateEnabled: Boolean = true): DrivingNotificationStyle =
+        if (apiLevel >= Build.VERSION_CODES.BAKLAVA && liveUpdateEnabled) {
             DrivingNotificationStyle.PROGRESS_STYLE
         } else {
             DrivingNotificationStyle.STANDARD
         }
 
-    fun requestsPromotion(apiLevel: Int): Boolean = apiLevel >= Build.VERSION_CODES.BAKLAVA
+    /** 앱 설정에서 끄면 승격을 요청하지 않는다 — 시스템 설정은 건드리지 않는다. */
+    fun requestsPromotion(apiLevel: Int, liveUpdateEnabled: Boolean = true): Boolean =
+        apiLevel >= Build.VERSION_CODES.BAKLAVA && liveUpdateEnabled
 }
 
 internal object DrivingNotificationFactory {
@@ -73,6 +75,7 @@ internal object DrivingNotificationFactory {
         context: Context,
         session: DrivingSession,
         traveledDistanceMeters: Double,
+        liveUpdateEnabled: Boolean = true,
     ): Notification {
         val progress = session.plannedDistanceMeters
             ?.takeIf { it > 0 }
@@ -92,7 +95,7 @@ internal object DrivingNotificationFactory {
         } else {
             "Rodi가 코스 주행을 확인하고 있어요."
         }
-        val style = DrivingNotificationStylePolicy.forApi(Build.VERSION.SDK_INT)
+        val style = DrivingNotificationStylePolicy.forApi(Build.VERSION.SDK_INT, liveUpdateEnabled)
         val builder = NotificationCompat.Builder(context, ONGOING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -114,7 +117,7 @@ internal object DrivingNotificationFactory {
                 stopServiceIntent(context, session.id),
             )
 
-        if (DrivingNotificationStylePolicy.requestsPromotion(Build.VERSION.SDK_INT)) {
+        if (DrivingNotificationStylePolicy.requestsPromotion(Build.VERSION.SDK_INT, liveUpdateEnabled)) {
             builder.setRequestPromotedOngoing(true)
         }
 

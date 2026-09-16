@@ -2,14 +2,17 @@ package com.dororong.rodi.spike.driving
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Notification
 import android.app.Service
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.location.Location
+import android.os.Build
 import android.os.IBinder
 import android.os.SystemClock
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -26,6 +29,8 @@ import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
 import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveLiveUpdateSettingsUseCase
+import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -37,10 +42,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 
 private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
+/** startForeground는 약 5초 안에 끝나야 하므로 저장된 설정을 기다리는 시간을 짧게 잡는다. */
+private const val SETTINGS_READ_TIMEOUT_MILLIS = 500L
 private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
 
 // 목적지 반경 도달을 완료 조건으로 같이 쓰되, 출발-도착이 가까운 순환/왕복 코스에서
@@ -64,6 +74,10 @@ internal class DrivingTrackingService : Service() {
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
     @Inject lateinit var endDrivingSession: EndDrivingSessionUseCase
     @Inject lateinit var confirmPracticeArrivalUseCase: ConfirmPracticeArrivalUseCase
+    @Inject lateinit var observeLiveUpdateSettings: ObserveLiveUpdateSettingsUseCase
+
+    @Volatile private var isLiveUpdateEnabled = true
+    @Volatile private var lastTraveledDistanceMeters = 0.0
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
@@ -75,6 +89,20 @@ internal class DrivingTrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        // 첫 알림은 onStartCommand에서 동기적으로 만들어진다. 수집만 걸어 두면 첫 emission 전에
+        // 알림이 나가, 꺼 둔 사용자에게도 한 번은 승격을 요청하게 된다.
+        isLiveUpdateEnabled = runBlocking {
+            withTimeoutOrNull(SETTINGS_READ_TIMEOUT_MILLIS) { observeLiveUpdateSettings().first() }
+                ?.isEnabled ?: true
+        }
+        serviceScope.launch {
+            observeLiveUpdateSettings().collect { settings ->
+                val changed = isLiveUpdateEnabled != settings.isEnabled
+                isLiveUpdateEnabled = settings.isEnabled
+                // 주행 중에 바꾸면 다음 위치 갱신을 기다리지 않고 바로 다시 띄운다.
+                if (changed) activeSession?.let { publishOngoing(it, lastTraveledDistanceMeters) }
+            }
+        }
         serviceScope.launch {
             for (command in commandChannel) {
                 when (command) {
@@ -116,7 +144,7 @@ internal class DrivingTrackingService : Service() {
         }
         activeSession = session
         DrivingNotificationFactory.createChannels(this)
-        val notification = DrivingNotificationFactory.ongoing(this, session, 0.0)
+        val notification = DrivingNotificationFactory.ongoing(this, session, 0.0, isLiveUpdateEnabled)
         try {
             ServiceCompat.startForeground(
                 this,
@@ -130,6 +158,7 @@ internal class DrivingTrackingService : Service() {
             stopSelf()
             return
         }
+        logPromotionEligibility(notification)
         commandChannel.trySend(Command.Start(session))
     }
 
@@ -346,9 +375,10 @@ internal class DrivingTrackingService : Service() {
         session: DrivingSession,
         traveledDistanceMeters: Double,
     ) {
+        lastTraveledDistanceMeters = traveledDistanceMeters
         notificationManager.notify(
             DrivingNotificationFactory.NOTIFICATION_ID,
-            DrivingNotificationFactory.ongoing(this, session, traveledDistanceMeters),
+            DrivingNotificationFactory.ongoing(this, session, traveledDistanceMeters, isLiveUpdateEnabled),
         )
     }
 
@@ -357,6 +387,20 @@ internal class DrivingTrackingService : Service() {
         Manifest.permission.ACCESS_COARSE_LOCATION,
     ).any { permission ->
         ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+    }
+
+    /**
+     * 실시간 업데이트 카드로 승격될지는 앱이 요청해도 시스템과 사용자 설정이 최종 결정한다.
+     * 실기기에서 승격되지 않을 때 요청·알림 형태·사용자 허용 중 어느 조건이 빠졌는지 구분하려고 남긴다.
+     */
+    private fun logPromotionEligibility(notification: Notification) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.BAKLAVA) return
+        Timber.d(
+            "Driving Live Update request=%s, promotable=%s, allowed=%s",
+            NotificationCompat.isRequestPromotedOngoing(notification),
+            NotificationCompat.hasPromotableCharacteristics(notification),
+            canPostPromotedNotifications(),
+        )
     }
 
     private fun canKeepTrackingVisible(): Boolean {
