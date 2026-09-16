@@ -199,7 +199,7 @@ private fun LiveUpdateRow(isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit
         Switch(
             checked = isEnabled,
             onCheckedChange = onCheckedChange,
-            // Material3 기본값은 MaterialTheme.colorScheme을 쓰므로 모든 상태를 토큰으로 지정한다.
+            // 생략한 상태는 Material3 기본 팔레트로 그려지므로 모든 상태를 테마 토큰으로 지정한다.
             colors = SwitchDefaults.colors(
                 checkedThumbColor = RodiTheme.colors.white,
                 checkedTrackColor = RodiTheme.colors.primary600,
