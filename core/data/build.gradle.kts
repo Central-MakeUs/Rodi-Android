@@ -28,10 +28,6 @@ android {
     }
 }
 
-tasks.withType<Test>().configureEach {
-    useJUnitPlatform()
-}
-
 dependencies {
     implementation(project(":core:common"))
     api(project(":core:domain"))
