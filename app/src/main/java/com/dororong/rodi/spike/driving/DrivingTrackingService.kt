@@ -29,6 +29,7 @@ import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
 import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.driving.ObserveLiveUpdateSettingsUseCase
 import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
@@ -68,6 +69,9 @@ internal class DrivingTrackingService : Service() {
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
     @Inject lateinit var endDrivingSession: EndDrivingSessionUseCase
     @Inject lateinit var confirmPracticeArrivalUseCase: ConfirmPracticeArrivalUseCase
+    @Inject lateinit var observeLiveUpdateSettings: ObserveLiveUpdateSettingsUseCase
+
+    @Volatile private var isLiveUpdateEnabled = true
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
@@ -79,6 +83,9 @@ internal class DrivingTrackingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        serviceScope.launch {
+            observeLiveUpdateSettings().collect { settings -> isLiveUpdateEnabled = settings.isEnabled }
+        }
         serviceScope.launch {
             for (command in commandChannel) {
                 when (command) {
@@ -120,7 +127,7 @@ internal class DrivingTrackingService : Service() {
         }
         activeSession = session
         DrivingNotificationFactory.createChannels(this)
-        val notification = DrivingNotificationFactory.ongoing(this, session, 0.0)
+        val notification = DrivingNotificationFactory.ongoing(this, session, 0.0, isLiveUpdateEnabled)
         try {
             ServiceCompat.startForeground(
                 this,
@@ -353,7 +360,7 @@ internal class DrivingTrackingService : Service() {
     ) {
         notificationManager.notify(
             DrivingNotificationFactory.NOTIFICATION_ID,
-            DrivingNotificationFactory.ongoing(this, session, traveledDistanceMeters),
+            DrivingNotificationFactory.ongoing(this, session, traveledDistanceMeters, isLiveUpdateEnabled),
         )
     }
 
