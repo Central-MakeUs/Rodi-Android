@@ -2,7 +2,7 @@
 
 ## 파일 위치
 - `src/main/kotlin/...`에 있는 JVM 모듈 소스(`core:domain`, `core:common`)는 `src/test/kotlin/...`에 둔다.
-- `src/main/java/...`에 있는 Android 라이브러리 소스(`feature:home`, `feature:entry`, `core:data`)는 `src/test/java/...`에 둔다.
+- `src/main/java/...`에 있는 Android 모듈 소스(`app`, `core:data`, `core:ui`, `feature:*` 전부)는 `src/test/java/...`에 둔다.
 - 패키지 경로는 대상 클래스와 동일하게 미러링한다.
 - Compose UI 테스트(`createComposeRule`)도 `src/androidTest`가 아니라 `src/test`에 두고 Robolectric으로 실행한다.
   CI에는 에뮬레이터가 없어서 androidTest는 실행되지 않기 때문이다. 아래 "Robolectric 예외"를 따른다.

@@ -347,7 +347,7 @@
   재검증: `rg -ln 'useJUnitPlatform' --glob '**/build.gradle.kts' --glob '!**/build/**'`
 
 ### 문서와 코드가 어긋난 곳
-- [ ] **`docs/TESTING.md`의 JUnit4 예외 서술이 사실과 다르다** — 문서는 "JUnit4 예외는
+- [x] **`docs/TESTING.md`의 JUnit4 예외 서술이 사실과 다르다** (2026-09-17 `app` 테스트 JUnit5 이전·모듈 목록 보강으로 완료) — 문서는 "JUnit4 예외는
   `*RoborazziTest.kt`에만 적용하고 나머지는 JUnit5"라고 하는데, 실제로는 `app`의 JVM 테스트
   4개(`MainScreenNavigationTest`, `CourseRegistrationEntryCoordinatorTest`, `RodiAppViewModelTest`,
   `RodiAppRouteTest`)가 `org.junit.Test`를 쓴다. 문서를 실제에 맞게 고치고(계측·Roborazzi는
