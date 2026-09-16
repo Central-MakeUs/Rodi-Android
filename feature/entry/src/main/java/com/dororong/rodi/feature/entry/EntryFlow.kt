@@ -27,10 +27,10 @@ import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.terms.TermsWebView
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.entry.EntryMode
-import com.dororong.rodi.feature.entry.component.EntryResumeBanner
-import com.dororong.rodi.feature.entry.component.OnboardingAnalysisDialog
-import com.dororong.rodi.feature.entry.component.LocalStepProgressAnimationState
-import com.dororong.rodi.feature.entry.component.rememberStepProgressAnimationState
+import com.dororong.rodi.feature.entry.components.EntryResumeBanner
+import com.dororong.rodi.feature.entry.components.OnboardingAnalysisDialog
+import com.dororong.rodi.feature.entry.components.LocalStepProgressAnimationState
+import com.dororong.rodi.feature.entry.components.rememberStepProgressAnimationState
 import com.dororong.rodi.feature.entry.content.CareerContent
 import com.dororong.rodi.feature.entry.content.DrivingPrecautionsContent
 import com.dororong.rodi.feature.entry.content.LocationPermissionContent

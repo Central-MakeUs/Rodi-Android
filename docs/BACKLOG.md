@@ -302,7 +302,7 @@
 - [ ] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** — `SearchViewModel`/`SearchUiState`는
   `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
   내린다.
-- [ ] **`component`(단수) 패키지 1개** — `feature/entry/.../entry/component`만 단수고 나머지
+- [x] **`component`(단수) 패키지 1개** (2026-09-17 `components`로 변경) — `feature/entry/.../entry/component`만 단수고 나머지
   8개는 `components`. `components`로 통일.
 - [ ] **`HomeSheetAnchorsTest.kt` 한 파일에 클래스 2개** — `ListSheetAnchorPolicyTest`와
   `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.

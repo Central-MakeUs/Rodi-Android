@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.entry.content
 
-import com.dororong.rodi.feature.entry.component.EntryScaffold
+import com.dororong.rodi.feature.entry.components.EntryScaffold
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts

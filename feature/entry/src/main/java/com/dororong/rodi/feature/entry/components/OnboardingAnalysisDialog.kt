@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.entry.component
+package com.dororong.rodi.feature.entry.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

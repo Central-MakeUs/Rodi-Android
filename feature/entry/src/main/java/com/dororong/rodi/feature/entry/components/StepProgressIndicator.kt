@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.entry.component
+package com.dororong.rodi.feature.entry.components
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
