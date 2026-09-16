@@ -304,7 +304,7 @@
   내린다.
 - [ ] **`component`(단수) 패키지 1개** — `feature/entry/.../entry/component`만 단수고 나머지
   8개는 `components`. `components`로 통일.
-- [ ] **`HomeSheetAnchorsTest.kt` 한 파일에 클래스 2개** — `ListSheetAnchorPolicyTest`와
+- [x] **`HomeSheetAnchorsTest.kt` 한 파일에 클래스 2개** (2026-09-17 분리) — `ListSheetAnchorPolicyTest`와
   `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.
 
 ### 에러 처리 경계
