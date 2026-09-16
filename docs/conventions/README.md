@@ -56,6 +56,7 @@
 | `testing.md` | 테스트 이름, JUnit5+MockK, 코루틴 테스트, Roborazzi |
 | `preview.md` | Preview 함수 이름·가시성, Preview 데이터 만드는 법 |
 | `gradle.md` | namespace, Convention Plugin 배치와 의존성 출처 |
+| `release.md` | 태그 push 릴리스 흐름, 버전 위치 2곳, 범프 브랜치·커밋 형식, prerelease 판정, 릴리스 본문 |
 
 ## 코드와 다르면
 
