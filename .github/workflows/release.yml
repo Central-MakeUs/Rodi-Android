@@ -94,4 +94,6 @@ jobs:
           files: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/bundle/release/*.aab
-          generate_release_notes: true
+          # 릴리스 본문은 사람이 쓴다(→ docs/conventions/release.md). 자동 생성 목록을 켜두면
+          # 손으로 쓴 요약 아래에 PR 목록이 붙은 채로 남는다 — v1.4.2~v1.5.0-alpha02가 그렇게 어긋났다.
+          generate_release_notes: false

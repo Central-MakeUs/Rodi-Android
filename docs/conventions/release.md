@@ -31,9 +31,13 @@ bundleRelease` → `apksigner`/`jarsigner` 서명 검증 → GitHub Release 생�
 
 ```bash
 git switch develop && git pull
-grep -n 'versionName' app/build.gradle.kts    # 태그로 걸 버전과 같은지 눈으로 확인
+grep -n 'versionName\|versionCode' app/build.gradle.kts   # 워크플로가 검증하는 곳
+grep -n 'versionName' docs/PROJECT.md                     # 워크플로가 검증하지 않는 곳
 git tag v<version> && git push origin v<version>
 ```
+
+`docs/PROJECT.md`는 Validate 단계가 보지 않는다. 여기가 옛 버전인 채로 태그를 걸어도 릴리스는
+성공하고 문서만 조용히 어긋난다. 그래서 눈으로 확인하는 대상이 두 곳이다.
 
 **주의**: `sed`로 버전을 치환할 때 `versionName = ` 패턴으로 한정한다. 범위를 넓히면
 `gradle/libs.versions.toml`의 `baselineProfilePlugin`(같은 형태의 버전 문자열)까지 바뀐다.
@@ -69,35 +73,37 @@ prerelease: ${{ contains(github.ref_name, '-alpha') || contains(github.ref_name,
 
 **정본**: `.github/workflows/release.yml` — 앵커 `prerelease: `
 
-## 릴리스 본문은 직접 쓴 요약 + 자동 생성분
+## 릴리스 본문은 사람이 쓴다 — PR 목록을 붙이지 않는다
 
-워크플로는 `## What's Changed`(PR 목록)만 만든다. 그 위에 사람이 읽을 요약을 붙인다.
-**자동 생성분을 지우지 않는다** — 빈 줄 두 개로 구분해 아래에 그대로 둔다.
+`release.yml`은 `generate_release_notes: false`다. 본문은 사용자가 겪는 말로 직접 쓴다.
 
 ```
 ## v<version>
-<한 줄 요약>
+<한 줄 요약 — 이번 릴리스가 무엇인지>
 
 ### 새로운 기능      (없으면 생략)
-### 수정 사항
-### 내부 개선 (화면 동작 변화 없음)
-### 검증 인프라
+### 개선 사항        (없으면 생략. 내부 구조 정리도 여기에 한 줄로)
+### 수정 사항        <증상> 수정 — <원인/결과>
 ### 빌드 정보         Package / Version / Version code / minSdk / targetSdk / compileSdk
 ### 첨부 파일         app-release.aab, app-release.apk
-
-
-## What's Changed   (워크플로가 만든 것 그대로)
 ```
 
-붙이는 법 — 본문을 파일로 쓰고 넘긴다. 백틱이 많아 인라인 문자열로 넣으면 셸에서 깨진다.
+**왜 PR 목록을 붙이지 않나**: 릴리스 노트를 읽는 사람은 테스터와 기획자다. `[refactor] …`
+PR 제목 30줄은 그들에게 의미가 없고, 손으로 쓴 요약을 아래로 밀어낸다. 자세한 변경 이력은
+GitHub의 Commits·Compare 화면에 이미 있다.
+
+**어긋났던 구간**: `generate_release_notes: true`는 워크플로가 생긴 2026-07-01부터 켜져 있었고,
+v1.4.1까지는 릴리스 때마다 자동 생성분을 지우고 손으로 쓴 본문으로 덮었다. v1.4.2~v1.5.0-alpha02는
+지우지 않아 `## What's Changed`가 남았다. 2026-09-16에 옵션을 끄고 alpha02 본문을 되돌렸다.
+
+본문은 파일로 써서 넘긴다. 백틱이 많아 인라인 문자열로 넣으면 셸에서 깨진다.
 
 ```bash
-gh release view v<version> --json body --jq .body > /tmp/body.md   # 자동 생성분 확보
-# 요약을 /tmp/body.md 맨 위에 붙인 뒤
-gh release edit v<version> --notes-file /tmp/body.md
+gh release edit v<version> --notes-file <파일>
+gh release view v<version> --json body --jq '.body|split("\n")|map(select(test("^#{2,3} ")))|join(" / ")'
 ```
 
-**정본**: 최근 릴리스 본문 — `gh release view v1.5.0-alpha02`
+**정본**: 형식이 어긋나기 전 릴리스 — `gh release view v1.4.1`, `gh release view v1.4.0`
 
 ## 올라간 뒤 확인하는 것
 

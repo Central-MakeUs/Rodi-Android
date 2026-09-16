@@ -39,6 +39,7 @@
 - Android 모듈, Gradle, Clean Architecture, MVI, Compose lifecycle, 테스트 작업은 구현 전에 `maintainable-android-delivery`를 읽고 적용한다
 - Figma 또는 스크린샷 기반 UI 구현과 검증은 `figma-device-verify`를 함께 적용한다
 - 커밋, 푸시, PR, 병합, 릴리스 작업은 `git-release-publish`를 적용한다
+- 릴리스 노트 작성과 수정은 `release-notes`를 적용하고, 이 리포의 형식은 `docs/conventions/release.md`가 우선한다
 - 스킬에 구체 규칙이 없으면 `docs/PROJECT.md`와 `docs/ARCHITECTURE_TARGET.md`가 우선한다
 
 ## 구조 규칙
