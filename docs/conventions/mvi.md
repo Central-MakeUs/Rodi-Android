@@ -92,7 +92,10 @@ Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `Sha
 
 **재검증** (ViewModel의 SharedFlow — 각 선언 윗줄에 이유 주석이 있어야 한다, CI BLOCK):
 ```bash
-rg -n 'MutableSharedFlow' -g '*ViewModel.kt' .
+rg -n 'MutableSharedFlow' -g '*ViewModel.kt' . | grep -v -E '/src/test/|:import ' \
+| while IFS=: read -r f n _; do \
+    sed -n "$((n - 1))p" "$f" | grep -q 'SharedFlow 사용 이유:' || echo "$f:$n"; \
+  done
 ```
 > 앵커를 `Channel(Channel.BUFFERED)`로 적으면 0건이 나온다. 실제 코드는
 > `Channel<HomeEffect>(...)`라 제네릭이 사이에 낀다. 세는 쪽이 아니라 **어긋난 쪽을 세는**
