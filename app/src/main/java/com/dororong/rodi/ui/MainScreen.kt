@@ -37,6 +37,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.spike.driving.DrivingTrackingController
+import com.dororong.rodi.spike.driving.LiveUpdateTestTools
 import com.dororong.rodi.feature.home.HomeIntent
 import com.dororong.rodi.feature.home.HomeDetailOrigin
 import com.dororong.rodi.feature.home.HomeScreen
@@ -259,6 +260,12 @@ fun MainScreen(
                                 backStack.add(ReviewWriteRoute(placeId, placeName))
                             },
                             isDebugBuild = BuildConfig.DEBUG,
+                            testMenuSections = remember(activity) {
+                                activity
+                                    ?.takeIf { BuildConfig.SHOW_TEST_MENU }
+                                    ?.let { listOf(LiveUpdateTestTools.section(it)) }
+                                    .orEmpty()
+                            },
                             onSessionEnded = onSessionEnded,
                         )
                     }
