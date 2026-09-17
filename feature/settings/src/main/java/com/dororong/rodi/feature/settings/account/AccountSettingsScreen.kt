@@ -26,7 +26,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,6 +45,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.R as CoreUiR
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.settings.SettingsTopBar
@@ -62,12 +62,10 @@ fun AccountSettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var pendingAction by remember { mutableStateOf<AccountAction?>(null) }
 
-    LaunchedEffect(viewModel) {
-        viewModel.effects.collect { effect ->
-            when (effect) {
-                AccountSettingsEffect.SessionEnded -> onSessionEnded()
-                is AccountSettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-            }
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            AccountSettingsEffect.SessionEnded -> onSessionEnded()
+            is AccountSettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
         }
     }
 

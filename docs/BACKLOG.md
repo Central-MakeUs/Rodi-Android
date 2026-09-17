@@ -288,13 +288,13 @@
 - [ ] **상태 property가 `state`/`uiState`로 양분** — `_state` 8개, `_uiState` 9개. 상태 타입이
   전부 `*UiState`이므로 `_uiState`/`uiState`로 통일한다.
   재검증: `rg -l 'private val _state\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
-- [ ] **Effect 전달·소비 방식 불일치** — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
+- [x] **Effect 전달·소비 방식 불일치** (2026-09-17 Channel + `effect` + `CollectEffect`로 통일, check-conventions BLOCK 3종으로 고정) — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
   `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
   직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
   `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
   Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
   그 이유를 Contract에 주석으로 남길 것.
-  재검증: `rg -l 'MutableSharedFlow' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+  재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
 - [ ] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** — `HomeContract`/`SearchViewModel`은
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
   이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지

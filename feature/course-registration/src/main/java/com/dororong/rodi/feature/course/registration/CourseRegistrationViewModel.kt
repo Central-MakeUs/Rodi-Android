@@ -32,6 +32,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,8 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -70,8 +70,8 @@ class CourseRegistrationViewModel @Inject constructor(
     private val _state = MutableStateFlow(CourseRegistrationUiState())
     val state: StateFlow<CourseRegistrationUiState> = _state.asStateFlow()
 
-    private val _effect = MutableSharedFlow<CourseRegistrationEffect>(extraBufferCapacity = 8)
-    val effect: Flow<CourseRegistrationEffect> = _effect.asSharedFlow()
+    private val _effect = Channel<CourseRegistrationEffect>(Channel.BUFFERED)
+    val effect: Flow<CourseRegistrationEffect> = _effect.receiveAsFlow()
 
     private var searchJob: Job? = null
     private var searchSelectionJob: Job? = null
@@ -129,7 +129,7 @@ class CourseRegistrationViewModel @Inject constructor(
             CourseRegistrationIntent.Submit -> submit()
             CourseRegistrationIntent.SuccessConfirmed -> {
                 _state.update { it.copy(dialog = null) }
-                _effect.tryEmit(CourseRegistrationEffect.Completed)
+                _effect.trySend(CourseRegistrationEffect.Completed)
             }
         }
     }
@@ -140,7 +140,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 val session = getAuthSession()
                 if (!session.isLoggedIn) {
                     _state.update { it.copy(isAuthResolved = true, isLoggedIn = false) }
-                    _effect.emit(CourseRegistrationEffect.LoginRequired)
+                    _effect.send(CourseRegistrationEffect.LoginRequired)
                     return@launch
                 }
                 val draft = observeCourseDraft().first()
@@ -183,7 +183,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 _state.update { it.copy(isAuthResolved = true, tutorialLoadState = CourseTutorialLoadState.Error) }
-                _effect.tryEmit(
+                _effect.trySend(
                     CourseRegistrationEffect.ShowSnackbar(error.userMessage("등록 화면을 불러오지 못했어요.")),
                 )
             }
@@ -257,7 +257,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 if (current.tutorialPage > 0) {
                     setTutorialPage(current.tutorialPage - 1)
                 } else {
-                    _effect.tryEmit(CourseRegistrationEffect.Exit)
+                    _effect.trySend(CourseRegistrationEffect.Exit)
                 }
             }
             CourseRegistrationPage.Map -> {
@@ -277,7 +277,7 @@ class CourseRegistrationViewModel @Inject constructor(
         if (_state.value.isDraftMeaningful) {
             _state.update { it.copy(dialog = CourseRegistrationDialog.Exit) }
         } else {
-            _effect.tryEmit(CourseRegistrationEffect.Exit)
+            _effect.trySend(CourseRegistrationEffect.Exit)
         }
     }
 
@@ -316,14 +316,14 @@ class CourseRegistrationViewModel @Inject constructor(
             try {
                 clearCourseDraft()
             } finally {
-                _effect.emit(CourseRegistrationEffect.Exit)
+                _effect.send(CourseRegistrationEffect.Exit)
             }
         }
     }
 
     private fun selectWaypointRole(role: CourseWaypointRole) {
         if (role == CourseWaypointRole.Via && maxViasReached()) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
             return
         }
         _state.update { it.copy(selectedWaypointRole = role) }
@@ -350,7 +350,7 @@ class CourseRegistrationViewModel @Inject constructor(
             RegistrationWaypointType.DESTINATION -> {
                 val start = current.firstOrNull { it.type == RegistrationWaypointType.START }
                 if (start != null && start.lat == intent.point.lat && start.lng == intent.point.lng) {
-                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
+                    _effect.trySend(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
                     return
                 }
                 current.removeAll { it.type == RegistrationWaypointType.DESTINATION }
@@ -367,7 +367,7 @@ class CourseRegistrationViewModel @Inject constructor(
             }
             RegistrationWaypointType.VIA -> {
                 if (maxViasReached(current)) {
-                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
+                    _effect.trySend(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
                     return
                 }
                 val destinationIndex = current.indexOfFirst { it.type == RegistrationWaypointType.DESTINATION }
@@ -517,7 +517,7 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun locationUnavailable() {
         _state.update { it.copy(initialLocationState = InitialLocationState.Unavailable) }
-        _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
+        _effect.trySend(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
     /** 다른 지도 앱처럼 드래그하는 동안 미리 역지오코딩해서 확정 시 대기 없이 바로 다음 마커로 넘어가도록 한다. */
@@ -552,7 +552,7 @@ class CourseRegistrationViewModel @Inject constructor(
         val suggestion = current.pendingSuggestion
         val resolvedPoint = suggestion?.point
         if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
             return
         }
         setSearchVisibility(false)
@@ -588,14 +588,14 @@ class CourseRegistrationViewModel @Inject constructor(
                 val suggestion = reverseGeocode(point).getOrThrow()
                 val resolvedPoint = suggestion?.point
                 if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
                     return@launch
                 }
                 applyPinEdit(index, point, resolvedPoint, suggestion)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("위치 정보를 확인하지 못했어요.")))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar(error.userMessage("위치 정보를 확인하지 못했어요.")))
             } finally {
                 _state.update { it.copy(isMapPointLoading = false) }
             }
@@ -746,7 +746,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 _state.update {
                     it.copy(isSearchLoading = false, searchError = error.userMessage("검색에 실패했어요."))
                 }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
             }
     }
 
@@ -765,7 +765,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 if (generation != searchSelectionGeneration) return@launch
                 val point = resolved?.point
                 if (resolved == null || point == null || resolved.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
                     return@launch
                 }
                 saveSearchHistory(resolved)
@@ -785,7 +785,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 if (generation == searchSelectionGeneration) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
                 }
             } finally {
                 if (generation == searchSelectionGeneration) {
@@ -823,7 +823,7 @@ class CourseRegistrationViewModel @Inject constructor(
         if (code in selected) {
             _state.update { it.copy(selectedPracticeTypeCodes = selected - code) }
         } else if (selected.size >= form.practiceTypeMaxSelect) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar(form.practiceTypeMaxSelectExceededMessage))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar(form.practiceTypeMaxSelectExceededMessage))
             return
         } else {
             _state.update { it.copy(selectedPracticeTypeCodes = selected + code) }
@@ -845,7 +845,7 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun continueToForm() {
         if (!_state.value.canFinishMap) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("실제 주행 경로를 확인한 뒤 계속할 수 있어요."))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("실제 주행 경로를 확인한 뒤 계속할 수 있어요."))
             return
         }
         _state.update { it.copy(page = CourseRegistrationPage.Form) }
@@ -911,13 +911,13 @@ class CourseRegistrationViewModel @Inject constructor(
         val current = _state.value
         if (!current.canSubmit) {
             _state.update { it.copy(hasAttemptedSubmit = true) }
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
             return
         }
         // 10자 조건은 버튼을 막는 대신 눌린 뒤 안내한다 — 등록 요청 없이 화면·입력값을 그대로 유지한다.
         if (!current.descriptionMeetsRegisterLength) {
             _state.update { it.copy(hasAttemptedSubmit = true) }
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("한줄 설명은 10자 이상이어야 해요."))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("한줄 설명은 10자 이상이어야 해요."))
             return
         }
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START } ?: return
@@ -951,7 +951,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 _state.update {
                     it.copy(isSubmitting = false, submissionError = error.userMessage("코스 등록에 실패했어요."))
                 }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
             }
         }
     }
@@ -1002,13 +1002,13 @@ class CourseRegistrationViewModel @Inject constructor(
                     result.snappedPoints.size != current.waypoints.size
                 ) {
                     _state.update { it.copy(isRouteLoading = false) }
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
                 } else {
                     val adjustedWaypoints = resolveSnappedWaypoints(current.waypoints, result)
                     if (generation != routeGeneration) return@launch
                     if (adjustedWaypoints == null) {
                         _state.update { it.copy(isRouteLoading = false) }
-                        _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치의 주소를 다시 확인하지 못했어요."))
+                        _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치의 주소를 다시 확인하지 못했어요."))
                         return@launch
                     }
                     _state.update {
@@ -1025,7 +1025,7 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: Throwable) {
                 if (generation != routeGeneration) return@launch
                 _state.update { it.copy(isRouteLoading = false) }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.")))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar(error.userMessage("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.")))
             }
         }
     }

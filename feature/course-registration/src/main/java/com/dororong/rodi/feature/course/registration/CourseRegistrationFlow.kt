@@ -30,6 +30,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.network.isNetworkAvailable
 import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -86,16 +87,14 @@ fun CourseRegistrationFlow(
         }
     }
 
-    LaunchedEffect(viewModel) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                CourseRegistrationEffect.LoginRequired -> onLoginRequired()
-                CourseRegistrationEffect.Exit -> onExit()
-                CourseRegistrationEffect.Completed -> onComplete()
-                is CourseRegistrationEffect.ShowSnackbar -> snackbarHostState.show(
-                    RodiSnackbarData(message = effect.message),
-                )
-            }
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            CourseRegistrationEffect.LoginRequired -> onLoginRequired()
+            CourseRegistrationEffect.Exit -> onExit()
+            CourseRegistrationEffect.Completed -> onComplete()
+            is CourseRegistrationEffect.ShowSnackbar -> snackbarHostState.show(
+                RodiSnackbarData(message = effect.message),
+            )
         }
     }
     BackHandler(enabled = state.isAuthResolved && state.isLoggedIn && state.dialog == null && !state.isSubmitting) {
