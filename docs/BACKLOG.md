@@ -307,11 +307,10 @@
   재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
 
 ### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
-- [ ] **ViewModel이 다른 파일에 내장된 2건** (2026-09-17 `PracticeSkipReasonViewModel` 분리 완료, `CourseRegistrationEntryViewModel`만 남음) — `CourseRegistrationEntryViewModel`이
-  `app/.../ui/CourseRegistrationEntryCoordinator.kt`에, `PracticeSkipReasonViewModel`이
-  `feature/home/.../review/notvisited/PracticeSkipReasonScreen.kt`에 있다. 나머지는 전부
-  선언명과 파일명이 같다. 별도 파일로 추출하거나, 앞의 것처럼 "app 레벨 coordinator가
-  ViewModel을 소유한다"는 예외를 유지하려면 그 이유를 `ARCHITECTURE_TARGET.md`에 명시한다.
+- [x] **ViewModel이 다른 파일에 내장된 2건** — `PracticeSkipReasonViewModel`(2026-09-17)과
+  `CourseRegistrationEntryViewModel`(2026-09-18)을 각각 선언명과 같은 파일로 분리했다.
+  "app 레벨 coordinator가 ViewModel을 소유한다"는 예외는 두지 않기로 했다.
+  재검증: check-conventions WARN "ViewModel 선언명 ≠ 파일명" 0건
 - [x] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** (2026-09-17 `search/`로 이동) — `SearchViewModel`/`SearchUiState`는
   `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
   내린다.
