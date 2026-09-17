@@ -50,7 +50,7 @@
   아카이브 후 사라지므로, 커밋 메시지만 보고 무엇이 바뀌었는지 알 수 있게 실제 변경 내용으로 적는다.
 - **시크릿**: `local.properties` → `KAKAO_NATIVE_APP_KEY`, `KAKAO_REST_API_KEY`. **절대 커밋 금지.**
 - **패키지**: 같은 역할 파일이 2개 이상이면 역할 패키지를 만들고, 하나면 feature 루트에 둔다.
-  Contract는 feature 루트에 하나로 유지하고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
+  Contract는 화면마다 `XxxViewModel.kt` 옆 `XxxContract.kt` 하나로 두고 public 재사용 Composable은 파일당 하나를 기본으로 한다.
 - **의존성**: 같은 configuration에서 항상 함께 쓰는 2개 이상의 의존성은 version catalog bundle을 사용한다.
   BOM·compiler·debug/runtime 전용 의존성은 bundle에서 제외한다.
 - **의존성 출처는 하나**: 같은 의존성이 두 경로로 들어오지 않게 한다(→ ADR 0001).

@@ -37,10 +37,7 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 
 **정본**: `feature/home/.../home/HomeContract.kt`
 
-**재검증** (Contract가 아니라 ViewModel 파일에 UiState가 들어간 곳):
-```bash
-rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
-```
+**배치**: 화면마다 ViewModel 옆 `XxxContract.kt` → `structure.md`
 
 ## 상태는 private Mutable + public read-only 쌍으로 노출
 

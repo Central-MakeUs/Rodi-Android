@@ -31,20 +31,6 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class RodiAppUiState(
-    val isReady: Boolean = false,
-    val isEntryCompleted: Boolean = false,
-    val hasGuestAccess: Boolean = false,
-    val authSession: AuthSession = AuthSession(
-        isLoggedIn = false,
-        hasRecentKakaoLogin = false,
-    ),
-)
-
-sealed interface RodiAppEffect {
-    data object NavigateToLogin : RodiAppEffect
-}
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RodiAppViewModel @Inject constructor(

@@ -46,7 +46,7 @@
 ## 구조 규칙
 
 - 같은 역할의 파일이 2개 이상이면 역할 패키지를 만들고 하나뿐이면 Screen, ViewModel, Contract와 같은 depth에 둔다
-- feature의 Contract는 하나의 루트 파일로 유지한다
+- Contract는 화면마다 `XxxViewModel.kt` 옆 `XxxContract.kt` 하나로 두고 UiState·Intent·Effect를 ViewModel 파일에 선언하지 않는다
 - 재사용 public Composable은 파일 하나당 하나가 기본이며 소유 컴포넌트 전용 private helper만 같은 파일에 둔다
 - Domain과 Data 패키지 및 의존 방향은 `docs/ARCHITECTURE_TARGET.md`를 따른다
 - 동일 Gradle configuration에서 항상 함께 쓰는 의존성이 2개 이상이면 version catalog bundle을 사용한다

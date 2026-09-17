@@ -228,6 +228,9 @@ check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
 check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
   "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | message_violation_filter"
 
+check BLOCK "UiState·Intent·Effect를 ViewModel 파일에 선언 (XxxContract.kt로)" \
+  "rg -n -g '*ViewModel.kt' '^(data class|sealed interface) \w+(UiState|Intent|Effect)\b' . | grep -v '/src/test/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -250,10 +253,6 @@ check WARN "app이 Compose BOM 직접 선언" \
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="
-
-# 컨벤션을 어느 쪽으로 정할지 아직 미결이라 규칙으로 강제하지 않는다 → docs/conventions/structure.md
-check INFO "Contract를 ViewModel 파일에 내장한 화면" \
-  "rg -l -g '*ViewModel.kt' 'data class \w+UiState' ."
 
 check INFO "상태 프로퍼티를 _state로 쓰는 ViewModel (_uiState로 통일 예정)" \
   "rg -l -g '*ViewModel.kt' 'private val _state\b' ."
