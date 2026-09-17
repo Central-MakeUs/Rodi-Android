@@ -8,7 +8,6 @@ import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchRegist
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -18,17 +17,15 @@ import retrofit2.HttpException
 class RecentSearchRepositoryImpl @Inject constructor(
     private val recentSearchApi: RecentSearchApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
     private val json: Json,
 ) : RecentSearchRepository {
-    override suspend fun getRecentSearches() = authenticatedRequest { authorization ->
-        recentSearchApi.getRecentSearches(authorization).requireData().map { it.toDomain() }
+    override suspend fun getRecentSearches() = authenticatedRequest {
+        recentSearchApi.getRecentSearches().requireData().map { it.toDomain() }
     }
 
     override suspend fun registerRecentSearch(search: RecentSearchRegistration) {
-        authenticatedRequest { authorization ->
+        authenticatedRequest {
             recentSearchApi.registerRecentSearch(
-                authorization = authorization,
                 request = RecentSearchRegisterRequest(
                     type = search.type.name,
                     keyword = search.keyword,
@@ -39,36 +36,29 @@ class RecentSearchRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteAllRecentSearches() {
-        authenticatedRequest { authorization ->
-            recentSearchApi.deleteAllRecentSearches(authorization).requireSuccess()
+        authenticatedRequest {
+            recentSearchApi.deleteAllRecentSearches().requireSuccess()
         }
     }
 
     override suspend fun deleteRecentSearch(id: Long) {
-        authenticatedRequest { authorization ->
-            recentSearchApi.deleteRecentSearch(authorization, id).requireSuccess()
+        authenticatedRequest {
+            recentSearchApi.deleteRecentSearch(id).requireSuccess()
         }
     }
 
-    private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
-        block: suspend (String) -> T,
-    ): T {
-        val token = tokenStore.getTokens()?.accessToken
-            ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
+     */
+    private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
+        tokenStore.getTokens()?.accessToken ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
         return try {
-            block("Bearer $token")
+            block()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            val isUnauthorized = error is AuthException.NotAuthenticated ||
-                (error is HttpException && error.code() == 401)
-            if (isUnauthorized && canRefresh) {
-                authRepository.reissueToken()
-                authenticatedRequest(canRefresh = false, block = block)
-            } else {
-                throw if (error is AuthException) error else error.toAuthException(json)
-            }
+            throw if (error is AuthException) error else error.toAuthException(json)
         }
     }
 

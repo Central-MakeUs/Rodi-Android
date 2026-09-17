@@ -17,7 +17,6 @@ import com.dororong.rodi.core.domain.model.member.HardDeleteResult
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import javax.inject.Inject
@@ -28,38 +27,37 @@ import retrofit2.HttpException
 class MemberRepositoryImpl @Inject constructor(
     private val memberApi: MemberApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
     private val json: Json,
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
     private val practiceSessionRepository: PracticeSessionRepository,
 ) : MemberRepository {
     override suspend fun completeCourseTutorial() {
-        authenticatedRequest { authorization ->
-            memberApi.completeCourseTutorial(authorization).requireData()
+        authenticatedRequest {
+            memberApi.completeCourseTutorial().requireData()
         }
         if (!tokenStore.markCourseTutorialCompleted()) {
             throw AuthException.Unknown("튜토리얼 완료 상태를 저장하지 못했습니다.")
         }
     }
 
-    override suspend fun getMyPage(): MyPage = authenticatedRequest { authorization ->
-        memberApi.getMyPage(authorization).requireData().toDomain()
+    override suspend fun getMyPage(): MyPage = authenticatedRequest {
+        memberApi.getMyPage().requireData().toDomain()
     }
 
-    override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest { authorization ->
+    override suspend fun getPracticeRecords(cursor: String?, size: Int): CursorPage<PracticeRecordItem> = authenticatedRequest {
         if (cursor == null) {
             practiceRecordPresenceCache.withRefresh {
-                memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+                memberApi.getPracticeRecords(size, cursor).requireData().toDomain()
                     .also { page -> updatePracticeRecordPresence(page, canProveAbsence = true) }
             }
         } else {
-            memberApi.getPracticeRecords(authorization, size, cursor).requireData().toDomain()
+            memberApi.getPracticeRecords(size, cursor).requireData().toDomain()
                 .also { page -> updatePracticeRecordPresence(page, canProveAbsence = false) }
         }
     }
 
     override suspend fun hasPracticeRecords(): Boolean = practiceRecordPresenceCache.getOrLoadOrNull {
-        authenticatedRequest { authorization ->
+        authenticatedRequest {
             var cursor: String? = null
             var hasVisitedRecord = false
             var reachedEnd = false
@@ -67,7 +65,6 @@ class MemberRepositoryImpl @Inject constructor(
             while (pageCount < MAX_PRACTICE_PRESENCE_PAGES) {
                 pageCount++
                 val page = memberApi.getPracticeRecords(
-                    authorization = authorization,
                     size = PRACTICE_PRESENCE_PAGE_SIZE,
                     cursor = cursor,
                 ).requireData().toDomain()
@@ -98,40 +95,39 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview> = authenticatedRequest { authorization ->
-        memberApi.getMyReviews(authorization, size, cursor).requireData().toDomain()
+    override suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview> = authenticatedRequest {
+        memberApi.getMyReviews(size, cursor).requireData().toDomain()
     }
 
-    override suspend fun getBlockedMembers(cursor: String?, size: Int): CursorPage<BlockedMember> = authenticatedRequest { authorization ->
-        memberApi.getBlockedMembers(authorization, size, cursor).requireData().toDomain()
+    override suspend fun getBlockedMembers(cursor: String?, size: Int): CursorPage<BlockedMember> = authenticatedRequest {
+        memberApi.getBlockedMembers(size, cursor).requireData().toDomain()
     }
 
     override suspend fun updateDrivingGoal(drivingGoal: String) {
         require(drivingGoal.graphemeLength() <= 30) { "운전 목표는 30자 이하여야 합니다." }
-        authenticatedRequest { authorization ->
-            memberApi.updateMe(authorization, MemberUpdateRequest(drivingGoal)).requireSuccess()
+        authenticatedRequest {
+            memberApi.updateMe(MemberUpdateRequest(drivingGoal)).requireSuccess()
         }
     }
 
     override suspend fun updateFilterTags(filterTags: List<PracticeType>) {
-        authenticatedRequest { authorization ->
+        authenticatedRequest {
             memberApi.updateFilterTags(
-                authorization = authorization,
                 request = FilterTagsRequest(filterTags.map(PracticeType::name)),
             ).requireSuccess()
         }
     }
 
     override suspend fun blockMember(memberId: Long) {
-        authenticatedRequest { authorization -> memberApi.blockMember(authorization, memberId).requireSuccess() }
+        authenticatedRequest { memberApi.blockMember(memberId).requireSuccess() }
     }
 
     override suspend fun unblockMember(memberId: Long) {
-        authenticatedRequest { authorization -> memberApi.unblockMember(authorization, memberId).requireSuccess() }
+        authenticatedRequest { memberApi.unblockMember(memberId).requireSuccess() }
     }
 
     override suspend fun withdraw() {
-        authenticatedRequest { authorization -> memberApi.withdraw(authorization).requireSuccess() }
+        authenticatedRequest { memberApi.withdraw().requireSuccess() }
         practiceSessionRepository.clear()
         tokenStore.clearCourseRegistrationData()
         if (!tokenStore.clear()) {
@@ -141,7 +137,7 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
     override suspend fun hardDelete(): HardDeleteResult {
-        authenticatedRequest { authorization -> memberApi.hardDelete(authorization).requireSuccess() }
+        authenticatedRequest { memberApi.hardDelete().requireSuccess() }
         var localCleanupSucceeded = true
         try {
             practiceSessionRepository.clear()
@@ -171,25 +167,18 @@ class MemberRepositoryImpl @Inject constructor(
         return HardDeleteResult(localCleanupSucceeded = localCleanupSucceeded)
     }
 
-    private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
-        block: suspend (String) -> T,
-    ): T {
-        val token = tokenStore.getTokens()?.accessToken
-            ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
+     */
+    private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
+        tokenStore.getTokens()?.accessToken ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
         return try {
-            block("Bearer $token")
+            block()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            val isUnauthorized = error is AuthException.NotAuthenticated ||
-                (error is HttpException && error.code() == 401)
-            if (isUnauthorized && canRefresh) {
-                authRepository.reissueToken()
-                authenticatedRequest(canRefresh = false, block = block)
-            } else {
-                throw if (error is AuthException) error else error.toAuthException(json)
-            }
+            throw if (error is AuthException) error else error.toAuthException(json)
         }
     }
 
