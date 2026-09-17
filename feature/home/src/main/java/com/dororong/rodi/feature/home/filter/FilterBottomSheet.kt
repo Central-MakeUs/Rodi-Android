@@ -24,11 +24,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -115,9 +118,15 @@ fun FilterBottomSheet(
     onDismiss: () -> Unit,
     isSaving: Boolean,
 ) {
+    // ModalBottomSheet는 뒤로가기·드래그에서 시트를 먼저 내린 뒤 onDismissRequest를 부른다.
+    // onDismissRequest에서만 막으면 저장 중에 시트가 화면에서만 사라지고 보이지 않는 창이 터치를 가로챈다.
+    val currentIsSaving by rememberUpdatedState(isSaving)
     ModalBottomSheet(
         onDismissRequest = { if (!isSaving) onDismiss() },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberModalBottomSheetState(
+            skipPartiallyExpanded = true,
+            confirmValueChange = { it != SheetValue.Hidden || !currentIsSaving },
+        ),
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         containerColor = RodiTheme.colors.white,
