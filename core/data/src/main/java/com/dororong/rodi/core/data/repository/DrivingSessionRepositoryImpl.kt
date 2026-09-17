@@ -24,8 +24,6 @@ class DrivingSessionRepositoryImpl @Inject constructor(
         traveledDistanceMeters: Double,
     ): Boolean = preferences.markArrived(sessionId, arrivedAtEpochMillis, traveledDistanceMeters)
 
-    override suspend fun acknowledgeArrival(sessionId: String) =
-        preferences.acknowledgeArrival(sessionId)
 
     override suspend fun clear(sessionId: String) = preferences.clear(sessionId)
 }

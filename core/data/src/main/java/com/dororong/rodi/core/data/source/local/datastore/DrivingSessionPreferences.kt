@@ -67,26 +67,12 @@ class DrivingSessionPreferences @Inject constructor(
                         arrivedAtEpochMillis = arrivedAtEpochMillis,
                         traveledDistanceMeters = traveledDistanceMeters,
                         status = DrivingSessionStatus.ARRIVED,
-                        isArrivalNoticePending = true,
                     ),
                 )
                 transitioned = true
             }
         }
         return transitioned
-    }
-
-    suspend fun acknowledgeArrival(sessionId: String) {
-        editOrIgnoreIoFailure { preferences ->
-            val current = preferences.toDrivingSession()
-            if (
-                current?.id == sessionId &&
-                current.status == DrivingSessionStatus.ARRIVED &&
-                current.isArrivalNoticePending
-            ) {
-                preferences[KEY_ARRIVAL_NOTICE_PENDING] = false
-            }
-        }
     }
 
     suspend fun clear(sessionId: String) {
@@ -120,7 +106,6 @@ class DrivingSessionPreferences @Inject constructor(
         val KEY_ARRIVED_AT_EPOCH_MILLIS = longPreferencesKey("arrived_at_epoch_millis")
         val KEY_TRAVELED_DISTANCE_METERS = doublePreferencesKey("traveled_distance_meters")
         val KEY_STATUS = stringPreferencesKey("status")
-        val KEY_ARRIVAL_NOTICE_PENDING = booleanPreferencesKey("arrival_notice_pending")
         val KEY_COURSE_ROUTE = stringPreferencesKey("course_route")
         val KEY_REQUIRED_DISTANCE_METERS = intPreferencesKey("required_distance_meters")
     }
@@ -138,7 +123,6 @@ class DrivingSessionPreferences @Inject constructor(
             ?: remove(KEY_ARRIVED_AT_EPOCH_MILLIS)
         this[KEY_TRAVELED_DISTANCE_METERS] = session.traveledDistanceMeters
         this[KEY_STATUS] = session.status.name
-        this[KEY_ARRIVAL_NOTICE_PENDING] = session.isArrivalNoticePending
         this[KEY_COURSE_ROUTE] = session.courseRoute.encodeRoute()
         session.requiredDistanceMeters?.let { this[KEY_REQUIRED_DISTANCE_METERS] = it }
             ?: remove(KEY_REQUIRED_DISTANCE_METERS)
@@ -164,7 +148,6 @@ class DrivingSessionPreferences @Inject constructor(
             arrivedAtEpochMillis = this[KEY_ARRIVED_AT_EPOCH_MILLIS],
             traveledDistanceMeters = this[KEY_TRAVELED_DISTANCE_METERS] ?: 0.0,
             status = status,
-            isArrivalNoticePending = this[KEY_ARRIVAL_NOTICE_PENDING] ?: false,
             courseRoute = this[KEY_COURSE_ROUTE].decodeRoute(),
             requiredDistanceMeters = this[KEY_REQUIRED_DISTANCE_METERS],
         )
