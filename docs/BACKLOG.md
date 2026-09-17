@@ -305,7 +305,7 @@
   재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
 
 ### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
-- [ ] **ViewModel이 다른 파일에 내장된 2건** — `CourseRegistrationEntryViewModel`이
+- [ ] **ViewModel이 다른 파일에 내장된 2건** (2026-09-17 `PracticeSkipReasonViewModel` 분리 완료, `CourseRegistrationEntryViewModel`만 남음) — `CourseRegistrationEntryViewModel`이
   `app/.../ui/CourseRegistrationEntryCoordinator.kt`에, `PracticeSkipReasonViewModel`이
   `feature/home/.../review/notvisited/PracticeSkipReasonScreen.kt`에 있다. 나머지는 전부
   선언명과 파일명이 같다. 별도 파일로 추출하거나, 앞의 것처럼 "app 레벨 coordinator가
