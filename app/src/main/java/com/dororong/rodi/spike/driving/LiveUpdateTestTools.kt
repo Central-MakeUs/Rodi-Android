@@ -95,21 +95,25 @@ internal object LiveUpdateTestTools {
         val requested = isLiveUpdateEnabled(context)
         val osSupported = hasFullSdk && isAtLeastBaklava1()
         val userAllowed = context.canPostPromotedNotifications()
+        val isSamsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
+        val samsungNote = if (isSamsung) " (삼성은 참고용)" else ""
         appendLine("[승격 조건]")
         appendLine("요청: ${yesNo(requested)} (앱 설정 실시간 업데이트)")
         appendLine("알림 형태: ${yesNo(ongoingPromotable(context))}")
-        appendLine("OS 36.1 이상: ${yesNo(osSupported)}")
-        appendLine("사용자 허용: ${yesNo(userAllowed)}")
+        appendLine("OS 36.1 이상: ${yesNo(osSupported)}$samsungNote")
+        appendLine("사용자 허용: ${yesNo(userAllowed)}$samsungNote")
         appendLine("알림 권한: ${yesNo(NotificationManagerCompat.from(context).areNotificationsEnabled())}")
         if (!requested) appendLine("→ 설정 > 권한 설정 변경에서 실시간 업데이트를 켜 주세요.")
-        if (!osSupported) appendLine("→ 이 OS 버전은 실시간 업데이트 표시를 지원하지 않아요.")
-        if (!userAllowed) appendLine("→ 시스템 앱 설정에서 이 앱의 실시간 업데이트가 꺼져 있어요.")
+        if (!isSamsung && !osSupported) appendLine("→ 이 OS 버전은 실시간 업데이트 표시를 지원하지 않아요.")
+        if (!isSamsung && !userAllowed) appendLine("→ 시스템 앱 설정에서 이 앱의 실시간 업데이트가 꺼져 있어요.")
         appendLine()
         appendLine("[표시 중인 테스트 알림]")
         appendLine("시스템 승격: ${previewPromotionText(context)}")
-        if (Build.MANUFACTURER.equals("samsung", ignoreCase = true)) {
+        if (isSamsung) {
             appendLine()
-            appendLine("[참고] One UI 8은 개발자 옵션 '모든 앱의 실시간 알림'이 꺼져 있으면 삼성 허용 목록 앱만 표시해요. 위 조건이 모두 '예'인데 안 보이면 이 경우예요.")
+            // One UI 8.0은 API 36.0이어도 자체 구현으로 표시하고, 앱별 허용(allowOngoingActivity)으로 막는다.
+            // 그 허용값은 앱에서 읽을 수 없어 adb `dumpsys notification`의 AppSettings로만 확인된다.
+            appendLine("[참고] 삼성 One UI 8은 OS·사용자 허용 값과 무관하게 삼성이 허용한 앱만 표시해요. 개발자 옵션 '모든 앱의 실시간 알림'을 켜면 모든 앱이 표시돼요. 요청·알림 형태가 '예'인데 안 보이면 이 경우예요.")
         }
     }.trimEnd()
 

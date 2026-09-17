@@ -12,6 +12,11 @@
   표시한다.** 삼성 전용 확장(`com.samsung.android.support.ongoing_activity` 메타데이터 +
   `android.ongoingActivityNoti.*`)도 허용 목록에 들어야 동작하므로 코드만으로는 해결되지 않는다 — 제휴 신청 여부는
   기획 판단. 승격이 안 되는 기기에서도 일반 진행 알림으로 갱신되는지는 유지한다.
+  **2026-09-18 실기기 실측(SM-M446K, One UI 8.0, API 36.0)**: 36.0에서도 개발자 옵션을 켜면 표시되므로 "36.1 미만이라
+  안 뜬다"가 아니다. `adb shell dumpsys notification --noredact`의 `AppSettings: <패키지> ... allowOngoingActivity=1`이
+  삼성의 앱별 허용값이다 — 카카오T·카카오내비·네이버지도·당근·스타벅스는 1, Rodi는 값 자체가 없다. 정책 버전이
+  `Notification Policies SCPM Version`으로 찍혀 있어 서버에서 내려오는 목록으로 보인다. `canPostPromotedNotifications()`는
+  이 기기에서 false라 판단 근거가 못 된다.
   근거: developer.android.com/develop/ui/views/notifications/live-update, OneSignal Android Live Notifications 문서
 
 ### **권한 설정 화면 문구 재검토** (2026-09-16 실기기 확인에서 발견)
