@@ -11,11 +11,14 @@ import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import com.dororong.rodi.core.data.source.remote.api.PracticeApi
 import com.dororong.rodi.core.data.source.remote.api.RecentSearchApi
 import com.dororong.rodi.core.data.source.remote.api.ReviewApi
+import com.dororong.rodi.core.data.source.remote.network.AuthHeaderInterceptor
+import com.dororong.rodi.core.data.source.remote.network.TokenAuthenticator
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -32,6 +35,10 @@ private const val BASE_URL = "https://api.stillstar.store/api/v1/"
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
+    /**
+     * 인증이 붙지 않은 기본 클라이언트. 카카오 로컬 API와 로그인·재발급(AuthApi)이 쓴다.
+     * 여기에 인증을 붙이면 카카오 요청에도 Bearer가 실리고, 재발급 요청이 자기 자신을 다시 부른다.
+     */
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
@@ -59,12 +66,29 @@ object NetworkModule {
             .build()
     }
 
+    /** 보호 API 전용. 토큰 주입(Interceptor)과 401 재발급(Authenticator)이 여기에만 붙는다. */
+    @Provides
+    @Singleton
+    @Named("authenticated")
+    fun provideAuthenticatedOkHttpClient(
+        okHttpClient: OkHttpClient,
+        authHeaderInterceptor: AuthHeaderInterceptor,
+        tokenAuthenticator: TokenAuthenticator,
+    ): OkHttpClient = okHttpClient.newBuilder()
+        .addInterceptor(authHeaderInterceptor)
+        .authenticator(tokenAuthenticator)
+        // 재발급은 기본 클라이언트로 나간다. Dispatcher를 공유하면 같은 호스트의 요청이 동시에
+        // 401을 받았을 때 재발급 요청이 그 뒤에 줄을 서서 타임아웃까지 서로 기다린다.
+        .dispatcher(Dispatcher())
+        .build()
+
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
         ignoreUnknownKeys = true
     }
 
+    /** 로그인·재발급용. 토큰을 본문으로 주고받으므로 인증을 붙이지 않는다. */
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
@@ -73,6 +97,18 @@ object NetworkModule {
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
+
+    @Provides
+    @Singleton
+    @Named("authenticated")
+    fun provideAuthenticatedRetrofit(
+        @Named("authenticated") okHttpClient: OkHttpClient,
+        json: Json,
+    ): Retrofit = Retrofit.Builder()
+        .baseUrl(BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
 
     @Provides
     @Singleton
@@ -90,7 +126,7 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideCourseApi(retrofit: Retrofit): CourseApi = retrofit.create(CourseApi::class.java)
+    fun provideCourseApi(@Named("authenticated") retrofit: Retrofit): CourseApi = retrofit.create(CourseApi::class.java)
 
     @Provides
     @Singleton
@@ -99,25 +135,25 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideMemberApi(retrofit: Retrofit): MemberApi = retrofit.create(MemberApi::class.java)
+    fun provideMemberApi(@Named("authenticated") retrofit: Retrofit): MemberApi = retrofit.create(MemberApi::class.java)
 
     @Provides
     @Singleton
-    fun provideOnboardingApi(retrofit: Retrofit): OnboardingApi = retrofit.create(OnboardingApi::class.java)
+    fun provideOnboardingApi(@Named("authenticated") retrofit: Retrofit): OnboardingApi = retrofit.create(OnboardingApi::class.java)
 
     @Provides
     @Singleton
-    fun providePlaceApi(retrofit: Retrofit): PlaceApi = retrofit.create(PlaceApi::class.java)
+    fun providePlaceApi(@Named("authenticated") retrofit: Retrofit): PlaceApi = retrofit.create(PlaceApi::class.java)
 
     @Provides
     @Singleton
-    fun providePracticeApi(retrofit: Retrofit): PracticeApi = retrofit.create(PracticeApi::class.java)
+    fun providePracticeApi(@Named("authenticated") retrofit: Retrofit): PracticeApi = retrofit.create(PracticeApi::class.java)
 
     @Provides
     @Singleton
-    fun provideRecentSearchApi(retrofit: Retrofit): RecentSearchApi = retrofit.create(RecentSearchApi::class.java)
+    fun provideRecentSearchApi(@Named("authenticated") retrofit: Retrofit): RecentSearchApi = retrofit.create(RecentSearchApi::class.java)
 
     @Provides
     @Singleton
-    fun provideReviewApi(retrofit: Retrofit): ReviewApi = retrofit.create(ReviewApi::class.java)
+    fun provideReviewApi(@Named("authenticated") retrofit: Retrofit): ReviewApi = retrofit.create(ReviewApi::class.java)
 }

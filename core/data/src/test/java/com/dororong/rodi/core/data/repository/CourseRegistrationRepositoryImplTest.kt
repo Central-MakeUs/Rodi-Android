@@ -32,53 +32,24 @@ class CourseRegistrationRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `refreshes once when registration form receives unauthorized response`() = runTest {
-        val api = mockk<CourseApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(
-            AuthTokens("access-old", "refresh", "kakao"),
-            AuthTokens("access-new", "refresh-new", "kakao"),
-        )
-        coEvery { api.getRegistrationForm("Bearer access-old") } returns ApiEnvelope(
-            isSuccess = false,
-            code = "AUTH_401_1",
-            message = "만료된 토큰입니다.",
-        )
-        coEvery { authRepository.reissueToken() } returns Unit
-        coEvery { api.getRegistrationForm("Bearer access-new") } returns ApiEnvelope(
-            isSuccess = true,
-            code = "COMMON_200",
-            message = "성공",
-            data = formResponse(),
-        )
-        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
-
-        assertEquals(4, repository.getRegistrationForm().maxWaypoints)
-
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-        coVerify(exactly = 1) { api.getRegistrationForm("Bearer access-new") }
-    }
-
-    @Test
     fun `registers with bearer token and maps response`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.registerCourse("Bearer access", any()) } returns ApiEnvelope(
+        coEvery { api.registerCourse(any()) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
             data = CourseRegisterResponse(42, "PENDING"),
         )
-        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
+        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, json)
 
         val result = repository.registerCourse(request())
 
         assertEquals(42L, result.courseId)
         assertEquals(CourseApprovalStatus.PENDING, result.approvalStatus)
-        coVerify { api.registerCourse("Bearer access", match { it.waypoints.size == 2 }) }
+        coVerify { api.registerCourse(match { it.waypoints.size == 2 }) }
     }
 
     @Test
@@ -87,17 +58,17 @@ class CourseRegistrationRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.registerCourse("Bearer access", any()) } returns ApiEnvelope(
+        coEvery { api.registerCourse(any()) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
             data = CourseRegisterResponse(42, "PENDING"),
         )
-        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
+        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, json)
 
         repository.registerCourse(request())
 
-        coVerify { api.registerCourse("Bearer access", match { it.name == "출발" }) }
+        coVerify { api.registerCourse(match { it.name == "출발" }) }
     }
 
     @Test
@@ -106,7 +77,7 @@ class CourseRegistrationRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.getMyCourses("Bearer access", "REJECTED", 100, "next") } returns ApiEnvelope(
+        coEvery { api.getMyCourses("REJECTED", 100, "next") } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
@@ -117,13 +88,13 @@ class CourseRegistrationRepositoryImplTest {
                 totalCount = 1,
             ),
         )
-        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, authRepository, json)
+        val repository = CourseRegistrationRepositoryImpl(api, tokenStore, json)
 
         val page = repository.getMyCourses(CourseApprovalStatus.REJECTED, "next", 101)
 
         assertEquals(1, page.items.size)
         assertTrue(page.items.single().approvalStatus == CourseApprovalStatus.REJECTED)
-        coVerify { api.getMyCourses("Bearer access", "REJECTED", 100, "next") }
+        coVerify { api.getMyCourses("REJECTED", 100, "next") }
     }
 
     private fun request() = CourseRegistrationRequest(

@@ -16,7 +16,6 @@ import com.dororong.rodi.core.domain.model.course.CourseRegistrationRequest
 import com.dororong.rodi.core.domain.model.course.CourseRegistrationResult
 import com.dororong.rodi.core.domain.model.course.RegisteredCourse
 import com.dororong.rodi.core.domain.model.place.CursorPage
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -26,47 +25,39 @@ import retrofit2.HttpException
 class CourseRegistrationRepositoryImpl @Inject constructor(
     private val api: CourseApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
     private val json: Json,
 ) : CourseRegistrationRepository {
     override suspend fun getRegistrationForm(): CourseRegistrationForm = authenticatedRequest {
-        api.getRegistrationForm(it).requireData().toDomain()
+        api.getRegistrationForm().requireData().toDomain()
     }
 
     override suspend fun registerCourse(request: CourseRegistrationRequest): CourseRegistrationResult =
-        authenticatedRequest { api.registerCourse(it, request.toData()).requireData().toDomain() }
+        authenticatedRequest { api.registerCourse(request.toData()).requireData().toDomain() }
 
     override suspend fun getMyCourses(
         status: CourseApprovalStatus?,
         cursor: String?,
         size: Int,
     ): CursorPage<RegisteredCourse> = authenticatedRequest {
-        api.getMyCourses(it, status?.name, size.coerceIn(1, 100), cursor).requireData().toDomain()
+        api.getMyCourses(status?.name, size.coerceIn(1, 100), cursor).requireData().toDomain()
     }
 
     override suspend fun deleteCourse(courseId: Long) {
-        authenticatedRequest { api.deleteCourse(it, courseId).requireSuccess() }
+        authenticatedRequest { api.deleteCourse(courseId).requireSuccess() }
     }
 
-    private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
-        block: suspend (String) -> T,
-    ): T {
-        val accessToken = tokenStore.getTokens()?.accessToken
-            ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
+     */
+    private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
+        tokenStore.getTokens()?.accessToken ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
         return try {
-            block("Bearer $accessToken")
+            block()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            val unauthorized = error is HttpException && error.code() == 401 ||
-                error is AuthException.NotAuthenticated
-            if (unauthorized && canRefresh) {
-                authRepository.reissueToken()
-                authenticatedRequest(canRefresh = false, block = block)
-            } else {
-                throw if (error is AuthException) error else error.toAuthException(json)
-            }
+            throw if (error is AuthException) error else error.toAuthException(json)
         }
     }
 

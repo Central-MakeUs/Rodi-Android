@@ -12,7 +12,6 @@ import com.dororong.rodi.core.domain.model.practice.Practice
 import com.dororong.rodi.core.domain.model.practice.PracticeException
 import com.dororong.rodi.core.domain.model.practice.PracticeVisitResult
 import com.dororong.rodi.core.domain.model.practice.SkipReasonForm
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.PracticeRepository
 import java.io.IOException
 import javax.inject.Inject
@@ -22,19 +21,17 @@ import retrofit2.HttpException
 class PracticeRepositoryImpl @Inject constructor(
     private val api: PracticeApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
 ) : PracticeRepository {
-    override suspend fun register(placeId: Long): Practice = authenticatedRequest { authorization ->
-        api.register(authorization, placeId).requireData().toDomain()
+    override suspend fun register(placeId: Long): Practice = authenticatedRequest {
+        api.register(placeId).requireData().toDomain()
     }
 
     override suspend fun recordVisit(
         practiceId: Long,
         certifiedDistanceMeters: Int?,
-    ): PracticeVisitResult = authenticatedRequest { authorization ->
+    ): PracticeVisitResult = authenticatedRequest {
         api.recordVisit(
-            authorization = authorization,
             practiceId = practiceId,
             request = PracticeVisitRequest(certifiedDistanceMeters),
         ).requireData().toDomain().also {
@@ -43,43 +40,30 @@ class PracticeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun submitSkipReason(practiceId: Long, reason: String, detail: String?) {
-        authenticatedRequest { authorization ->
+        authenticatedRequest {
             api.submitSkipReason(
-                authorization = authorization,
                 practiceId = practiceId,
                 request = PracticeSkipReasonRequest(reason, detail),
             ).requireSuccess()
         }
     }
 
-    override suspend fun getSkipReasonForm(): SkipReasonForm = authenticatedRequest { authorization ->
-        api.getSkipReasonForm(authorization).requireData().toDomain()
+    override suspend fun getSkipReasonForm(): SkipReasonForm = authenticatedRequest {
+        api.getSkipReasonForm().requireData().toDomain()
     }
 
-    private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
-        block: suspend (String) -> T,
-    ): T {
-        val accessToken = tokenStore.getTokens()?.accessToken
-            ?: throw PracticeException.AuthenticationRequired("로그인이 필요합니다.")
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
+     */
+    private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
+        tokenStore.getTokens()?.accessToken ?: throw PracticeException.AuthenticationRequired("로그인이 필요합니다.")
         return try {
-            block("Bearer $accessToken")
+            block()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            val mapped = error.toPracticeException()
-            if (mapped is PracticeException.AuthenticationRequired && canRefresh) {
-                try {
-                    authRepository.reissueToken()
-                } catch (refreshError: CancellationException) {
-                    throw refreshError
-                } catch (refreshError: Throwable) {
-                    throw refreshError.toPracticeException()
-                }
-                authenticatedRequest(canRefresh = false, block = block)
-            } else {
-                throw mapped
-            }
+            throw error.toPracticeException()
         }
     }
 

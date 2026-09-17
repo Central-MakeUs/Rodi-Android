@@ -12,7 +12,6 @@ import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.Header
 import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -22,59 +21,51 @@ import retrofit2.http.Query
 interface MemberApi {
     @PATCH("members/me/course-tutorial")
     suspend fun completeCourseTutorial(
-        @Header("Authorization") authorization: String,
     ): ApiEnvelope<CourseTutorialCompletionResponse>
     @GET("members/me")
-    suspend fun getMyPage(@Header("Authorization") authorization: String): ApiEnvelope<MyPageResponse>
+    suspend fun getMyPage(): ApiEnvelope<MyPageResponse>
 
     @GET("members/me/practices")
     suspend fun getPracticeRecords(
-        @Header("Authorization") authorization: String,
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPagePracticeItemResponse>
 
     @GET("members/me/reviews")
     suspend fun getMyReviews(
-        @Header("Authorization") authorization: String,
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPageMyReviewItemResponse>
 
     @GET("members/me/blocks")
     suspend fun getBlockedMembers(
-        @Header("Authorization") authorization: String,
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPageBlockedMemberItemResponse>
 
     @PATCH("members/me")
     suspend fun updateMe(
-        @Header("Authorization") authorization: String,
         @Body request: MemberUpdateRequest,
     ): ApiEnvelope<JsonObject>
 
     @PUT("members/me/filter-tags")
     suspend fun updateFilterTags(
-        @Header("Authorization") authorization: String,
         @Body request: FilterTagsRequest,
     ): ApiEnvelope<JsonObject>
 
     @POST("members/{memberId}/block")
     suspend fun blockMember(
-        @Header("Authorization") authorization: String,
         @Path("memberId") memberId: Long,
     ): ApiEnvelope<JsonObject>
 
     @DELETE("members/{memberId}/block")
     suspend fun unblockMember(
-        @Header("Authorization") authorization: String,
         @Path("memberId") memberId: Long,
     ): ApiEnvelope<JsonObject>
 
     @DELETE("members/me")
-    suspend fun withdraw(@Header("Authorization") authorization: String): ApiEnvelope<JsonObject>
+    suspend fun withdraw(): ApiEnvelope<JsonObject>
 
     @DELETE("members/me/hard")
-    suspend fun hardDelete(@Header("Authorization") authorization: String): ApiEnvelope<JsonObject>
+    suspend fun hardDelete(): ApiEnvelope<JsonObject>
 }

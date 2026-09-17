@@ -29,47 +29,18 @@ class RecentSearchRepositoryImplTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.getRecentSearches("Bearer access") } returns ApiEnvelope(
+        coEvery { api.getRecentSearches() } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
             data = listOf(RecentSearchResponse(5, "서울 중구")),
         )
-        val repository = RecentSearchRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), json)
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, json)
 
         val searches = repository.getRecentSearches()
 
         assertEquals(listOf("서울 중구"), searches.map { it.keyword })
         assertEquals(listOf(5L), searches.map { it.id })
-    }
-
-    @Test
-    fun `recent search delete retries once after access token refresh`() = runTest {
-        val api = mockk<RecentSearchApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(
-            AuthTokens("old", "refresh", "kakao"),
-            AuthTokens("new", "refresh", "kakao"),
-        )
-        coEvery { api.deleteRecentSearch("Bearer old", 7) } returns ApiEnvelope(
-            isSuccess = false,
-            code = "COMMON_401",
-            message = "만료됨",
-        )
-        coEvery { authRepository.reissueToken() } returns Unit
-        coEvery { api.deleteRecentSearch("Bearer new", 7) } returns ApiEnvelope(
-            isSuccess = true,
-            code = "COMMON_200",
-            message = "성공",
-            data = buildJsonObject { },
-        )
-        val repository = RecentSearchRepositoryImpl(api, tokenStore, authRepository, json)
-
-        repository.deleteRecentSearch(7)
-
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-        coVerify(exactly = 1) { api.deleteRecentSearch("Bearer new", 7) }
     }
 
     @Test
@@ -79,7 +50,6 @@ class RecentSearchRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         coEvery {
             api.registerRecentSearch(
-                "Bearer access",
                 RecentSearchRegisterRequest("PLACE", "중구 연습 코스", 13),
             )
         } returns ApiEnvelope(
@@ -88,7 +58,7 @@ class RecentSearchRepositoryImplTest {
             message = "성공",
             data = buildJsonObject { },
         )
-        val repository = RecentSearchRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), json)
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, json)
 
         repository.registerRecentSearch(
             RecentSearchRegistration(SearchTargetType.PLACE, "중구 연습 코스", 13),
@@ -96,7 +66,6 @@ class RecentSearchRepositoryImplTest {
 
         coVerify(exactly = 1) {
             api.registerRecentSearch(
-                "Bearer access",
                 RecentSearchRegisterRequest("PLACE", "중구 연습 코스", 13),
             )
         }
@@ -108,8 +77,8 @@ class RecentSearchRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.getRecentSearches("Bearer access") } throws CancellationException("cancelled")
-        val repository = RecentSearchRepositoryImpl(api, tokenStore, authRepository, json)
+        coEvery { api.getRecentSearches() } throws CancellationException("cancelled")
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, json)
 
         assertThrowsSuspend<CancellationException> { repository.getRecentSearches() }
 
@@ -121,12 +90,12 @@ class RecentSearchRepositoryImplTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
-        coEvery { api.getRecentSearches("Bearer access") } returns ApiEnvelope(
+        coEvery { api.getRecentSearches() } returns ApiEnvelope(
             isSuccess = false,
             code = "COMMON_500",
             message = "서버 오류",
         )
-        val repository = RecentSearchRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), json)
+        val repository = RecentSearchRepositoryImpl(api, tokenStore, json)
 
         assertThrowsSuspend<AuthException.Unknown> { repository.getRecentSearches() }
     }

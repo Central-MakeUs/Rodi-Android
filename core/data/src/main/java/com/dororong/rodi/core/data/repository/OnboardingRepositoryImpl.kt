@@ -10,7 +10,6 @@ import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +22,6 @@ class OnboardingRepositoryImpl @Inject constructor(
     private val prefs: OnboardingPreferences,
     private val onboardingApi: OnboardingApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
 ) : OnboardingRepository {
     override val profile: Flow<OnboardingProfile> = prefs.profile
     override val isSyncPending: Flow<Boolean> = prefs.isSyncPending
@@ -56,19 +54,16 @@ class OnboardingRepositoryImpl @Inject constructor(
             request.carType,
             request.drivingGoal != null,
         )
-        val result = submitWithAccessToken(request, tokens.accessToken, canRefreshToken = true)
+        val result = submit(request)
         if (result == OnboardingSubmissionResult.Submitted || result == OnboardingSubmissionResult.AlreadyCompleted) {
             clearSyncPending()
         }
         return result
     }
 
-    private suspend fun submitWithAccessToken(
-        request: OnboardingRequest,
-        accessToken: String,
-        canRefreshToken: Boolean,
-    ): OnboardingSubmissionResult = try {
-        val response = onboardingApi.submit("Bearer $accessToken", request)
+    /** 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다. */
+    private suspend fun submit(request: OnboardingRequest): OnboardingSubmissionResult = try {
+        val response = onboardingApi.submit(request)
         Timber.d(
             "Onboarding submit response: isSuccess=%s, code=%s, message=%s",
             response.isSuccess,
@@ -79,11 +74,7 @@ class OnboardingRepositoryImpl @Inject constructor(
     } catch (error: CancellationException) {
         throw error
     } catch (error: HttpException) {
-        if (error.code() == HTTP_UNAUTHORIZED && canRefreshToken) {
-            retryAfterTokenRefresh(request)
-        } else {
-            error.toSubmissionResult()
-        }
+        error.toSubmissionResult()
     } catch (error: IOException) {
         Timber.w(error, "Onboarding submit failed due to network error.")
         OnboardingSubmissionResult.RetryableFailure
@@ -92,27 +83,6 @@ class OnboardingRepositoryImpl @Inject constructor(
         OnboardingSubmissionResult.UnexpectedFailure
     }
 
-    private suspend fun retryAfterTokenRefresh(
-        request: OnboardingRequest,
-    ): OnboardingSubmissionResult {
-        val refreshedTokens = try {
-            authRepository.reissueToken()
-            tokenStore.getTokens()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: AuthException.Network) {
-            Timber.w(error, "Onboarding submit token refresh failed due to network error.")
-            return OnboardingSubmissionResult.RetryableFailure
-        } catch (error: AuthException) {
-            Timber.w(error, "Onboarding submit token refresh requires sign-in.")
-            return OnboardingSubmissionResult.AuthenticationRequired
-        } catch (error: Throwable) {
-            Timber.w(error, "Onboarding submit token refresh failed unexpectedly.")
-            return OnboardingSubmissionResult.RetryableFailure
-        } ?: return OnboardingSubmissionResult.AuthenticationRequired
-
-        return submitWithAccessToken(request, refreshedTokens.accessToken, canRefreshToken = false)
-    }
 
     private fun ApiEnvelope<*>.toSubmissionResult(): OnboardingSubmissionResult {
         if (isSuccess) return OnboardingSubmissionResult.Submitted

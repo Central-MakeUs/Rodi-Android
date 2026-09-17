@@ -16,7 +16,6 @@ import com.dororong.rodi.core.domain.model.place.PlaceException
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import java.io.IOException
 import javax.inject.Inject
@@ -28,7 +27,6 @@ class PlaceRepositoryImpl @Inject constructor(
     private val api: PlaceApi,
     private val savedPlaceLocalDataSource: SavedPlaceLocalDataSource,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
 ) : PlaceRepository {
     override suspend fun getCoordinates(): List<PlaceCoordinate> {
         val coordinates = publicRequest {
@@ -42,9 +40,8 @@ class PlaceRepositoryImpl @Inject constructor(
         cursor: String?,
         size: Int,
     ): CursorPage<PlaceSummary> {
-        val page = optionalAuthenticatedRequest { accessToken ->
+        val page = optionalAuthenticatedRequest {
             api.getPlaces(
-                authorization = accessToken?.let { "Bearer $it" },
                 swLat = query.southWest.lat,
                 swLng = query.southWest.lng,
                 neLat = query.northEast.lat,
@@ -71,9 +68,8 @@ class PlaceRepositoryImpl @Inject constructor(
         origin: GeoPoint,
         cursor: String?,
         size: Int,
-    ): CursorPage<PlaceSummary> = authenticatedRequest { accessToken ->
+    ): CursorPage<PlaceSummary> = authenticatedRequest {
         api.searchPlaces(
-            authorization = "Bearer $accessToken",
             keyword = keyword,
             lat = origin.lat,
             lng = origin.lng,
@@ -86,9 +82,8 @@ class PlaceRepositoryImpl @Inject constructor(
         keyword: String,
         cursor: String?,
         size: Int,
-    ): RelatedSearch = authenticatedRequest { accessToken ->
+    ): RelatedSearch = authenticatedRequest {
         api.relatedSearch(
-            authorization = "Bearer $accessToken",
             keyword = keyword,
             size = size,
             cursor = cursor,
@@ -101,14 +96,14 @@ class PlaceRepositoryImpl @Inject constructor(
                 .any { it.id == LocalTestPlaces.ID }
             return LocalTestPlaces.detail().copy(isBookmarked = isBookmarked)
         }
-        return authenticatedRequest { accessToken ->
-            api.getPlaceDetail("Bearer $accessToken", placeId).requireData().toDomain()
+        return authenticatedRequest {
+            api.getPlaceDetail(placeId).requireData().toDomain()
         }
     }
 
     override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
-        authenticatedRequest { accessToken ->
-            api.getSavedPlaces("Bearer $accessToken", size, cursor).requireData().toDomain()
+        authenticatedRequest {
+            api.getSavedPlaces(size, cursor).requireData().toDomain()
         }
 
     override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
@@ -116,53 +111,37 @@ class PlaceRepositoryImpl @Inject constructor(
             savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
             return
         }
-        authenticatedRequest { accessToken ->
+        authenticatedRequest {
             val response = if (bookmarked) {
-                api.bookmark("Bearer $accessToken", place.id)
+                api.bookmark(place.id)
             } else {
-                api.unbookmark("Bearer $accessToken", place.id)
+                api.unbookmark(place.id)
             }
             response.requireSuccess()
         }
         savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
     }
 
-    private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
-        block: suspend (String) -> T,
-    ): T {
-        val accessToken = tokenStore.getTokens()?.accessToken
-            ?: throw PlaceException.AuthenticationRequired("로그인이 필요합니다.")
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
+     */
+    private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
+        tokenStore.getTokens()?.accessToken ?: throw PlaceException.AuthenticationRequired("로그인이 필요합니다.")
         return try {
-            block(accessToken)
+            block()
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            val mapped = error.toPlaceException()
-            if (mapped is PlaceException.AuthenticationRequired && canRefresh) {
-                refreshAndRetry(block)
-            } else {
-                throw mapped
-            }
+            throw error.toPlaceException()
         }
     }
 
-    private suspend fun <T> refreshAndRetry(block: suspend (String) -> T): T {
-        try {
-            authRepository.reissueToken()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: AuthException) {
-            throw PlaceException.AuthenticationRequired(error.message ?: "로그인이 필요합니다.", error)
-        }
-        return authenticatedRequest(canRefresh = false, block = block)
-    }
 
-    private suspend fun <T> optionalAuthenticatedRequest(block: suspend (String?) -> T): T {
-        if (tokenStore.getTokens()?.accessToken == null) {
-            return publicRequest { block(null) }
-        }
-        return authenticatedRequest { accessToken -> block(accessToken) }
+    /** 비로그인도 부를 수 있는 API. 토큰이 없으면 인터셉터가 헤더를 붙이지 않는다. */
+    private suspend fun <T> optionalAuthenticatedRequest(block: suspend () -> T): T {
+        if (tokenStore.getTokens()?.accessToken == null) return publicRequest { block() }
+        return authenticatedRequest { block() }
     }
 
     private suspend fun <T> publicRequest(block: suspend () -> T): T = try {

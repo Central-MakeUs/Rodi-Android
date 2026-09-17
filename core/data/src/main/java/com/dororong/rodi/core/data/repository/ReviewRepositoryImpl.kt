@@ -17,7 +17,6 @@ import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
-import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.ReviewRepository
 import java.io.IOException
 import javax.inject.Inject
@@ -28,7 +27,6 @@ import retrofit2.HttpException
 class ReviewRepositoryImpl @Inject constructor(
     private val api: ReviewApi,
     private val tokenStore: AuthTokenStore,
-    private val authRepository: AuthRepository,
     private val reportedReviewPreferences: ReportedReviewPreferences,
 ) : ReviewRepository {
     override suspend fun getReviews(
@@ -36,9 +34,8 @@ class ReviewRepositoryImpl @Inject constructor(
         level: ReviewLevelFilter,
         cursor: String?,
         size: Int,
-    ): CursorPage<Review> = authenticatedRequest { accessToken ->
+    ): CursorPage<Review> = authenticatedRequest {
         api.getReviews(
-            authorization = "Bearer $accessToken",
             placeId = placeId,
             level = level.toQueryValue(),
             size = size,
@@ -47,37 +44,37 @@ class ReviewRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getSummary(placeId: Long, level: ReviewLevelFilter): ReviewSummary =
-        authenticatedRequest { accessToken ->
-            api.getSummary("Bearer $accessToken", placeId, level.toQueryValue()).requireData().toDomain()
+        authenticatedRequest {
+            api.getSummary(placeId, level.toQueryValue()).requireData().toDomain()
         }
 
-    override suspend fun getReview(reviewId: Long): ReviewDetail = authenticatedRequest { accessToken ->
-        api.getReview("Bearer $accessToken", reviewId).requireData().toDomain()
+    override suspend fun getReview(reviewId: Long): ReviewDetail = authenticatedRequest {
+        api.getReview(reviewId).requireData().toDomain()
     }
 
     override suspend fun createReview(placeId: Long, draft: ReviewDraft): Long =
-        authenticatedRequest(operation = ReviewOperation.CREATE) { accessToken ->
-            api.createReview("Bearer $accessToken", placeId, draft.toRequest())
+        authenticatedRequest(operation = ReviewOperation.CREATE) {
+            api.createReview(placeId, draft.toRequest())
                 .requireData(ReviewOperation.CREATE)
                 .reviewId
         }
 
     override suspend fun updateReview(reviewId: Long, draft: ReviewDraft) {
-        authenticatedRequest(operation = ReviewOperation.UPDATE) { accessToken ->
-            api.updateReview("Bearer $accessToken", reviewId, draft.toRequest())
+        authenticatedRequest(operation = ReviewOperation.UPDATE) {
+            api.updateReview(reviewId, draft.toRequest())
                 .requireSuccess(ReviewOperation.UPDATE)
         }
     }
 
     override suspend fun deleteReview(reviewId: Long) {
-        authenticatedRequest { accessToken ->
-            api.deleteReview("Bearer $accessToken", reviewId).requireSuccess()
+        authenticatedRequest {
+            api.deleteReview(reviewId).requireSuccess()
         }
     }
 
     override suspend fun reportReview(reviewId: Long, submission: ReportSubmission) {
-        authenticatedRequest { accessToken ->
-            api.reportReview("Bearer $accessToken", reviewId, submission.toRequest()).requireSuccess()
+        authenticatedRequest {
+            api.reportReview(reviewId, submission.toRequest()).requireSuccess()
         }
         // 신고가 접수돼도 서버는 5명이 모일 때까지 후기를 내려준다. 신고자 화면에서만 감추려고
         // 기기에 기록해 둔다.
@@ -87,46 +84,29 @@ class ReviewRepositoryImpl @Inject constructor(
     override suspend fun getReportedReviewIds(): Set<Long> =
         reportedReviewPreferences.reportedReviewIds.first()
 
-    override suspend fun getReportForm(): ReportForm = authenticatedRequest { accessToken ->
-        api.getReportForm("Bearer $accessToken").requireData().toDomain()
+    override suspend fun getReportForm(): ReportForm = authenticatedRequest {
+        api.getReportForm().requireData().toDomain()
     }
 
+    /**
+     * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
+     * 여기서는 로그인 여부만 확인하고, 남은 실패를 작업별 도메인 예외로 바꾼다.
+     */
     private suspend fun <T> authenticatedRequest(
-        canRefresh: Boolean = true,
         operation: ReviewOperation = ReviewOperation.DEFAULT,
-        block: suspend (String) -> T,
+        block: suspend () -> T,
     ): T {
-        val accessToken = tokenStore.getTokens()?.accessToken
+        tokenStore.getTokens()?.accessToken
             ?: throw ReviewException.AuthenticationRequired("로그인이 필요합니다.")
         return try {
-            block(accessToken)
+            block()
         } catch (error: CancellationException) {
             throw error
-        } catch (error: Throwable) {
-            val mapped = error.toReviewException(operation)
-            if (mapped is ReviewException.AuthenticationRequired && canRefresh) {
-                refreshAndRetry(operation, block)
-            } else {
-                throw mapped
-            }
-        }
-    }
-
-    private suspend fun <T> refreshAndRetry(
-        operation: ReviewOperation,
-        block: suspend (String) -> T,
-    ): T {
-        try {
-            authRepository.reissueToken()
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: AuthException) {
-            throw ReviewException.AuthenticationRequired(error.message ?: "로그인이 필요합니다.", error)
         } catch (error: Throwable) {
             throw error.toReviewException(operation)
         }
-        return authenticatedRequest(canRefresh = false, operation = operation, block = block)
     }
+
 }
 
 private enum class ReviewOperation {
