@@ -18,6 +18,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -76,6 +77,9 @@ object NetworkModule {
     ): OkHttpClient = okHttpClient.newBuilder()
         .addInterceptor(authHeaderInterceptor)
         .authenticator(tokenAuthenticator)
+        // 재발급은 기본 클라이언트로 나간다. Dispatcher를 공유하면 같은 호스트의 요청이 동시에
+        // 401을 받았을 때 재발급 요청이 그 뒤에 줄을 서서 타임아웃까지 서로 기다린다.
+        .dispatcher(Dispatcher())
         .build()
 
     @Provides

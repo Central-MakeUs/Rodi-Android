@@ -34,6 +34,13 @@ class TokenAuthenticator @Inject constructor(
             ?.removePrefix(BEARER_PREFIX)
 
         return runBlocking {
+            // 다른 요청이 이미 재발급을 끝냈으면 그 토큰으로 바로 재시도한다. 이 비교를 재발급
+            // 뒤에 두면, 갱신된 refreshToken을 기준으로 삼아 한 번 더 재발급이 돌아간다.
+            val current = tokenStore.getTokens()?.accessToken
+            if (current != null && current != failedToken) {
+                return@runBlocking response.request.retryWith(current)
+            }
+
             try {
                 authRepository.get().reissueToken()
             } catch (error: CancellationException) {
@@ -45,11 +52,13 @@ class TokenAuthenticator @Inject constructor(
             val refreshed = tokenStore.getTokens()?.accessToken ?: return@runBlocking null
             if (refreshed == failedToken) return@runBlocking null
 
-            response.request.newBuilder()
-                .header(HEADER_AUTHORIZATION, bearer(refreshed))
-                .build()
+            response.request.retryWith(refreshed)
         }
     }
+
+    private fun Request.retryWith(accessToken: String): Request = newBuilder()
+        .header(HEADER_AUTHORIZATION, bearer(accessToken))
+        .build()
 
     private fun Response.retryCount(): Int {
         var count = 1
