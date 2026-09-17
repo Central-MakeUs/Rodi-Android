@@ -23,7 +23,7 @@ class PracticeRepositoryImplTest {
     @Test
     fun `visit request omits certified distance in phase a`() = runTest {
         val api = mockk<PracticeApi>()
-        coEvery { api.recordVisit("Bearer access", 7, PracticeVisitRequest(null)) } returns
+        coEvery { api.recordVisit(7, PracticeVisitRequest(null)) } returns
             ApiEnvelope(true, "COMMON_200", "성공", practiceVisitResponse())
         val cache = PracticeRecordPresenceCache()
         val repository = repository(api, cache)
@@ -37,7 +37,7 @@ class PracticeRepositoryImplTest {
     @Test
     fun `registering a planned practice does not mark record presence`() = runTest {
         val api = mockk<PracticeApi>()
-        coEvery { api.register("Bearer access", 7) } returns
+        coEvery { api.register(7) } returns
             ApiEnvelope(true, "COMMON_200", "성공", PracticeRegisterResponse(practiceId = 11))
         val cache = PracticeRecordPresenceCache()
         val repository = repository(api, cache)
@@ -50,7 +50,7 @@ class PracticeRepositoryImplTest {
     @Test
     fun `skip reason conflict maps to already submitted`() = runTest {
         val api = mockk<PracticeApi>()
-        coEvery { api.submitSkipReason("Bearer access", 7, PracticeSkipReasonRequest("OTHER", "이유")) } returns
+        coEvery { api.submitSkipReason(7, PracticeSkipReasonRequest("OTHER", "이유")) } returns
             failureEnvelope("PRACTICE_409")
         val repository = repository(api)
 
@@ -67,7 +67,6 @@ class PracticeRepositoryImplTest {
         tokenStore = mockk<AuthTokenStore>().also {
             coEvery { it.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         },
-        authRepository = mockk<AuthRepository>(),
         practiceRecordPresenceCache = cache,
     )
 

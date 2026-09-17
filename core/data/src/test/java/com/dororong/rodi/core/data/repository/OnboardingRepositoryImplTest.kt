@@ -45,7 +45,7 @@ class OnboardingRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val prefs = preferences()
         coEvery { tokenStore.getTokens() } returns tokens("access-token")
-        coEvery { onboardingApi.submit("Bearer access-token", any()) } returns successResponse()
+        coEvery { onboardingApi.submit(any()) } returns successResponse()
         val repository = repository(onboardingApi, tokenStore, prefs = prefs)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
@@ -53,7 +53,6 @@ class OnboardingRepositoryImplTest {
         assertEquals(OnboardingSubmissionResult.Submitted, result)
         coVerify {
             onboardingApi.submit(
-                "Bearer access-token",
                 match { it.drivingPeriod == "MONTHS_1_2" && it.level == "ROOKIE" },
             )
         }
@@ -72,7 +71,7 @@ class OnboardingRepositoryImplTest {
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
 
         assertEquals(OnboardingSubmissionResult.Submitted, result)
-        coVerify(exactly = 0) { onboardingApi.submit(any(), any()) }
+        coVerify(exactly = 0) { onboardingApi.submit(any()) }
         coVerify(exactly = 0) { prefs.authorizeSync() }
         coVerify(exactly = 0) { prefs.clearSyncPending() }
     }
@@ -82,7 +81,7 @@ class OnboardingRepositoryImplTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } throws httpException(409)
+        coEvery { onboardingApi.submit(any()) } throws httpException(409)
         val repository = repository(onboardingApi, tokenStore)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
@@ -95,7 +94,7 @@ class OnboardingRepositoryImplTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } returns ApiEnvelope<JsonObject>(
+        coEvery { onboardingApi.submit(any()) } returns ApiEnvelope<JsonObject>(
             isSuccess = false,
             code = "COMMON_400",
             message = "잘못된 요청입니다.",
@@ -120,7 +119,7 @@ class OnboardingRepositoryImplTest {
             val onboardingApi = mockk<OnboardingApi>()
             val tokenStore = mockk<AuthTokenStore>()
             coEvery { tokenStore.getTokens() } returns tokens()
-            coEvery { onboardingApi.submit(any(), any()) } returns ApiEnvelope<JsonObject>(
+            coEvery { onboardingApi.submit(any()) } returns ApiEnvelope<JsonObject>(
                 isSuccess = false,
                 code = code,
                 message = "실패",
@@ -132,52 +131,19 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit refreshes expired access token once and retries`() = runTest {
-        val onboardingApi = mockk<OnboardingApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(tokens("access-old"), tokens("access-new"))
-        coEvery { onboardingApi.submit("Bearer access-old", any()) } throws httpException(401)
-        coEvery { authRepository.reissueToken() } returns Unit
-        coEvery { onboardingApi.submit("Bearer access-new", any()) } returns successResponse()
-        val repository = repository(onboardingApi, tokenStore, authRepository)
-
-        val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
-
-        assertEquals(OnboardingSubmissionResult.Submitted, result)
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-        coVerify(exactly = 1) { onboardingApi.submit("Bearer access-new", any()) }
-    }
-
-    @Test
     fun `submit requires login when token refresh fails`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } throws httpException(401)
+        coEvery { onboardingApi.submit(any()) } throws httpException(401)
         coEvery { authRepository.reissueToken() } throws AuthException.SessionRevoked("refresh failed")
         val repository = repository(onboardingApi, tokenStore, authRepository)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
 
         assertEquals(OnboardingSubmissionResult.AuthenticationRequired, result)
-        coVerify(exactly = 1) { onboardingApi.submit(any(), any()) }
-    }
-
-    @Test
-    fun `submit returns retryable result when token refresh is offline`() = runTest {
-        val onboardingApi = mockk<OnboardingApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } throws httpException(401)
-        coEvery { authRepository.reissueToken() } throws AuthException.Network("offline")
-        val repository = repository(onboardingApi, tokenStore, authRepository)
-
-        val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
-
-        assertEquals(OnboardingSubmissionResult.RetryableFailure, result)
+        coVerify(exactly = 1) { onboardingApi.submit(any()) }
     }
 
     @Test
@@ -193,7 +159,7 @@ class OnboardingRepositoryImplTest {
             val onboardingApi = mockk<OnboardingApi>()
             val tokenStore = mockk<AuthTokenStore>()
             coEvery { tokenStore.getTokens() } returns tokens()
-            coEvery { onboardingApi.submit(any(), any()) } throws httpException(statusCode)
+            coEvery { onboardingApi.submit(any()) } throws httpException(statusCode)
             val repository = repository(onboardingApi, tokenStore)
 
             assertEquals(expected, repository.submit(profile(), OnboardingLevel.ROOKIE))
@@ -205,7 +171,7 @@ class OnboardingRepositoryImplTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } throws IOException("offline")
+        coEvery { onboardingApi.submit(any()) } throws IOException("offline")
         val repository = repository(onboardingApi, tokenStore)
 
         val result = repository.submit(profile(), OnboardingLevel.ROOKIE)
@@ -218,7 +184,7 @@ class OnboardingRepositoryImplTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
-        coEvery { onboardingApi.submit(any(), any()) } throws CancellationException("cancelled")
+        coEvery { onboardingApi.submit(any()) } throws CancellationException("cancelled")
         val repository = repository(onboardingApi, tokenStore)
 
         assertThrowsSuspend<CancellationException> {
@@ -232,7 +198,7 @@ class OnboardingRepositoryImplTest {
         authRepository: AuthRepository = mockk(),
         prefs: OnboardingPreferences = preferences(),
     ): OnboardingRepositoryImpl {
-        return OnboardingRepositoryImpl(prefs, onboardingApi, tokenStore, authRepository)
+        return OnboardingRepositoryImpl(prefs, onboardingApi, tokenStore)
     }
 
     private fun preferences(): OnboardingPreferences = mockk(relaxed = true) {

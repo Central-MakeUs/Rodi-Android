@@ -30,7 +30,7 @@ class ReviewRepositoryImplTest {
     fun `reviews map items and cursor metadata`() = runTest {
         val api = mockk<ReviewApi>()
         val tokenStore = tokenStore()
-        coEvery { api.getReviews("Bearer access", 7, null, 10, null) } returns ApiEnvelope(
+        coEvery { api.getReviews(7, null, 10, null) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
@@ -55,7 +55,7 @@ class ReviewRepositoryImplTest {
     fun `unexpected transport error uses generic review message`() = runTest {
         val api = mockk<ReviewApi>()
         val cause = IllegalStateException("Field 'totalCount' is required")
-        coEvery { api.getReviews("Bearer access", 7, null, 10, null) } throws cause
+        coEvery { api.getReviews(7, null, 10, null) } throws cause
         val repository = repository(api)
 
         val exception = assertThrowsSuspend<ReviewException.Unexpected> {
@@ -67,41 +67,9 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `unauthorized response refreshes once and retries with new token`() = runTest {
-        val api = mockk<ReviewApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(tokens("old"), tokens("new"))
-        coEvery { api.getReviews("Bearer old", 7, null, 10, null) } returns failureEnvelope("COMMON_401")
-        coEvery { authRepository.reissueToken() } returns Unit
-        coEvery { api.getReviews("Bearer new", 7, null, 10, null) } returns reviewPageEnvelope()
-        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository, mockk(relaxed = true))
-
-        repository.getReviews(7)
-
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-        coVerify(exactly = 1) { api.getReviews("Bearer new", 7, null, 10, null) }
-    }
-
-    @Test
-    fun `second unauthorized response throws authentication required without another refresh`() = runTest {
-        val api = mockk<ReviewApi>()
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(tokens("old"), tokens("new"))
-        coEvery { api.getReviews(any(), 7, null, 10, null) } returns failureEnvelope("COMMON_401")
-        coEvery { authRepository.reissueToken() } returns Unit
-        val repository = ReviewRepositoryImpl(api, tokenStore, authRepository, mockk(relaxed = true))
-
-        assertThrowsSuspend<ReviewException.AuthenticationRequired> { repository.getReviews(7) }
-
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-    }
-
-    @Test
     fun `create conflict maps to level required`() = runTest {
         val api = mockk<ReviewApi>()
-        coEvery { api.createReview("Bearer access", 7, reviewRequest()) } returns failureEnvelope("COMMON_409")
+        coEvery { api.createReview(7, reviewRequest()) } returns failureEnvelope("COMMON_409")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.LevelRequired> { repository.createReview(7, draft()) }
@@ -110,7 +78,7 @@ class ReviewRepositoryImplTest {
     @Test
     fun `update conflict maps to level changed`() = runTest {
         val api = mockk<ReviewApi>()
-        coEvery { api.updateReview("Bearer access", 1, reviewRequest()) } returns failureEnvelope("COMMON_409")
+        coEvery { api.updateReview(1, reviewRequest()) } returns failureEnvelope("COMMON_409")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.LevelChanged> { repository.updateReview(1, draft()) }
@@ -119,7 +87,7 @@ class ReviewRepositoryImplTest {
     @Test
     fun `update forbidden maps to forbidden`() = runTest {
         val api = mockk<ReviewApi>()
-        coEvery { api.updateReview("Bearer access", 1, reviewRequest()) } returns failureEnvelope("COMMON_403")
+        coEvery { api.updateReview(1, reviewRequest()) } returns failureEnvelope("COMMON_403")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.Forbidden> { repository.updateReview(1, draft()) }
@@ -128,7 +96,7 @@ class ReviewRepositoryImplTest {
     @Test
     fun `delete forbidden maps to forbidden`() = runTest {
         val api = mockk<ReviewApi>()
-        coEvery { api.deleteReview("Bearer access", 1) } returns failureEnvelope("COMMON_403")
+        coEvery { api.deleteReview(1) } returns failureEnvelope("COMMON_403")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.Forbidden> { repository.deleteReview(1) }
@@ -138,7 +106,7 @@ class ReviewRepositoryImplTest {
     fun `report bad request maps to invalid request`() = runTest {
         val api = mockk<ReviewApi>()
         val request = ReportRequest("SELF", null, true)
-        coEvery { api.reportReview("Bearer access", 1, request) } returns failureEnvelope("COMMON_400")
+        coEvery { api.reportReview(1, request) } returns failureEnvelope("COMMON_400")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.InvalidRequest> {
@@ -149,7 +117,7 @@ class ReviewRepositoryImplTest {
     private fun repository(
         api: ReviewApi,
         tokenStore: AuthTokenStore = tokenStore(),
-    ) = ReviewRepositoryImpl(api, tokenStore, mockk<AuthRepository>(), mockk(relaxed = true))
+    ) = ReviewRepositoryImpl(api, tokenStore, mockk(relaxed = true))
 
     private fun tokenStore() = mockk<AuthTokenStore>().also {
         coEvery { it.getTokens() } returns tokens("access")

@@ -31,7 +31,7 @@ class PlaceRepositoryImplTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
-        coEvery { api.relatedSearch("Bearer access", "중구", 20, null) } returns ApiEnvelope(
+        coEvery { api.relatedSearch("중구", 20, null) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
@@ -49,7 +49,7 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            mockk<AuthRepository>(),
+            
         )
 
         val result = repository.relatedSearch("중구", cursor = null, size = 20)
@@ -57,7 +57,7 @@ class PlaceRepositoryImplTest {
         assertEquals(listOf("부산 중구", "서울 중구"), result.regions)
         assertEquals(7L, result.places.items.single().placeId)
         assertEquals("next-7", result.places.nextCursor)
-        coVerify(exactly = 1) { api.relatedSearch("Bearer access", "중구", 20, null) }
+        coVerify(exactly = 1) { api.relatedSearch("중구", 20, null) }
     }
 
     @Test
@@ -68,7 +68,6 @@ class PlaceRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens("access")
         coEvery {
             api.getPlaces(
-                authorization = "Bearer access",
                 swLat = query.southWest.lat,
                 swLng = query.southWest.lng,
                 neLat = query.northEast.lat,
@@ -83,14 +82,13 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            mockk<AuthRepository>(),
+            
         )
 
         repository.getPlaces(query, cursor = null, size = 20)
 
         coVerify(exactly = 1) {
             api.getPlaces(
-                authorization = "Bearer access",
                 swLat = query.southWest.lat,
                 swLng = query.southWest.lng,
                 neLat = query.northEast.lat,
@@ -108,7 +106,7 @@ class PlaceRepositoryImplTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
-        coEvery { api.getSavedPlaces("Bearer access", 20, null) } returns ApiEnvelope(
+        coEvery { api.getSavedPlaces(20, null) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
@@ -134,7 +132,7 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            mockk<AuthRepository>(),
+            
         )
 
         val page = repository.getSavedPlaces(cursor = null, size = 20)
@@ -145,38 +143,19 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `detail retries once after access token refresh`() = runTest {
-        val api = mockk<PlaceApi>()
-        val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
-        val tokenStore = mockk<AuthTokenStore>()
-        val authRepository = mockk<AuthRepository>()
-        coEvery { tokenStore.getTokens() } returnsMany listOf(tokens("old"), tokens("new"))
-        coEvery { api.getPlaceDetail("Bearer old", 7) } returns failureEnvelope("COMMON_401")
-        coEvery { authRepository.reissueToken() } returns Unit
-        coEvery { api.getPlaceDetail("Bearer new", 7) } returns detailEnvelope(7)
-        val repository = PlaceRepositoryImpl(api, local, tokenStore, authRepository)
-
-        val detail = repository.getPlaceDetail(7)
-
-        assertEquals(7, detail.id)
-        coVerify(exactly = 1) { authRepository.reissueToken() }
-        coVerify(exactly = 1) { api.getPlaceDetail("Bearer new", 7) }
-    }
-
-    @Test
     fun `bookmark updates local cache only after server success`() = runTest {
         val api = mockk<PlaceApi>()
         val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
-        coEvery { api.bookmark("Bearer access", 9) } returns ApiEnvelope(
+        coEvery { api.bookmark(9) } returns ApiEnvelope(
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
             data = buildJsonObject { },
         )
-        val repository = PlaceRepositoryImpl(api, local, tokenStore, authRepository)
+        val repository = PlaceRepositoryImpl(api, local, tokenStore)
         val place = place(9)
 
         repository.setBookmarked(place, true)
@@ -191,8 +170,8 @@ class PlaceRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
-        coEvery { api.bookmark("Bearer access", 9) } returns failureEnvelope("COMMON_500")
-        val repository = PlaceRepositoryImpl(api, local, tokenStore, authRepository)
+        coEvery { api.bookmark(9) } returns failureEnvelope("COMMON_500")
+        val repository = PlaceRepositoryImpl(api, local, tokenStore)
         val place = place(9)
 
         assertThrowsSuspend<RuntimeException> { repository.setBookmarked(place, true) }
@@ -207,8 +186,8 @@ class PlaceRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>(relaxed = true)
         coEvery { tokenStore.getTokens() } returns tokens("access")
-        coEvery { api.bookmark("Bearer access", 9) } throws CancellationException()
-        val repository = PlaceRepositoryImpl(api, local, tokenStore, authRepository)
+        coEvery { api.bookmark(9) } throws CancellationException()
+        val repository = PlaceRepositoryImpl(api, local, tokenStore)
 
         assertThrowsSuspend<CancellationException> { repository.setBookmarked(place(9), true) }
 
