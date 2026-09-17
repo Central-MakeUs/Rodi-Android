@@ -352,7 +352,7 @@
   돼 있는데 `app/build.gradle.kts`는 `dororong.rodi.android.hilt`만 쓰고 compileSdk/minSdk/
   Java 21/Compose/Compose BOM·activity-compose를 직접 반복 선언한다. PR #117이 feature 6개를
   정리했지만 app은 그대로다.
-- [ ] **`core:data`만 `useJUnitPlatform()`을 직접 선언** — `AndroidLibraryComposeConventionPlugin`엔
+- [x] **`core:data`만 `useJUnitPlatform()`을 직접 선언** (2026-09-17 library convention으로 이동) — `AndroidLibraryComposeConventionPlugin`엔
   들어 있는데 `AndroidLibraryConventionPlugin`엔 없어서 Compose를 안 쓰는 모듈이 각자 선언해야
   한다. library convention이 JVM 단위 테스트 엔진을 책임지도록 옮긴다.
   재검증: `rg -ln 'useJUnitPlatform' --glob '**/build.gradle.kts' --glob '!**/build/**'`
