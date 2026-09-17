@@ -228,6 +228,15 @@ check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
 check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
   "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | message_violation_filter"
 
+check BLOCK "Effect를 SharedFlow로 전달 (Channel + receiveAsFlow)" \
+  "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
+
+check BLOCK "Effect를 CollectEffect 없이 직접 수집" \
+  "rg -n -g '*.kt' '\beffects?\.collect\b' . | grep -v -E '/src/(test|androidTest)/|/CollectEffect\.kt:'"
+
+check BLOCK "Effect 노출명은 단수 effect" \
+  "rg -n -g '*ViewModel.kt' 'val effects\b' . | grep -v '/src/test/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -238,9 +247,6 @@ check WARN "ViewModel 선언명 ≠ 파일명" \
   "rg -n -g '*.kt' -o -r '\$1' --no-heading 'class (\w+ViewModel)\b' . \
    | grep -v -E '/src/(test|androidTest)/' \
    | while IFS=: read -r f _ vm; do [ \"\$(basename \"\$f\" .kt)\" != \"\$vm\" ] && echo \"\$vm ← \$f\"; done"
-
-check WARN "Effect를 SharedFlow로 전달" \
-  "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
 
 check WARN "component(단수) 패키지" \
   "find app core feature -type d -name component -not -path '*/build/*'"

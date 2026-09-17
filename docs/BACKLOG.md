@@ -288,7 +288,7 @@
 - [ ] **상태 property가 `state`/`uiState`로 양분** — `_state` 8개, `_uiState` 9개. 상태 타입이
   전부 `*UiState`이므로 `_uiState`/`uiState`로 통일한다.
   재검증: `rg -l 'private val _state\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
-- [ ] **Effect 전달·소비 방식 불일치** — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
+- [x] **Effect 전달·소비 방식 불일치** (2026-09-17 Channel + `effect` + `CollectEffect`로 통일, check-conventions BLOCK 3종으로 고정) — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
   `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
   직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
   `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로

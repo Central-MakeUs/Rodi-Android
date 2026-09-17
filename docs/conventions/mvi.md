@@ -79,7 +79,7 @@ Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `Sha
 
 **정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `Channel<HomeEffect>(Channel.BUFFERED)`
 
-**재검증** (SharedFlow로 Effect를 내보내는 곳 — 이유가 적혀 있어야 한다):
+**재검증** (SharedFlow로 Effect를 내보내는 곳 — CI BLOCK. 정말 필요하면 이유와 함께 검사 예외를 PR에서 논의한다):
 ```bash
 rg -n 'MutableSharedFlow' -g '*ViewModel.kt' .
 ```
