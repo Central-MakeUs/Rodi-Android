@@ -26,23 +26,23 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Before
-import org.junit.Test
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RodiAppViewModelTest {
     private val dispatcher = StandardTestDispatcher()
 
-    @Before
+    @BeforeEach
     fun setUp() {
         Dispatchers.setMain(dispatcher)
     }
 
-    @After
+    @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
     }

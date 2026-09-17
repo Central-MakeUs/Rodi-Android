@@ -2,8 +2,8 @@ package com.dororong.rodi.ui
 
 import androidx.navigation3.runtime.NavKey
 import com.dororong.rodi.core.ui.components.RodiBottomNavigationDestination
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
 
 class MainScreenNavigationTest {
     @Test
