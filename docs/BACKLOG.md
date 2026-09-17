@@ -19,20 +19,18 @@
   "운전 추적 서비스가 백그라운드에서 종료되지 않고 계속 돌던 버그(#81)"가 실제 원인이었던
   것으로 보인다 — 그 수정 이후 버벅임이 재현되지 않음.
 
-### **홈 필터 저장 중 시스템 뒤로가기 UI Test 보강** (2026-09-07 추가)
-- [ ] `HomeScreen`의 `BackHandler`가 필터 태그 저장 중 dismiss를 막는 경로는 아직 자동 테스트로
-  덮이지 않는다. `HomeScreen`은 `hiltViewModel()` 3개와 카카오맵 SDK에 묶인 약 1,470줄 단일
-  컴포저블이라, 기존 androidTest가 사용하는 "말단 컴포저블만 렌더" 방식으로는 이 경로를
-  재현할 수 없다.
-- [ ] 후속 작업은 `HomeScreen`에서 상태와 콜백만 받는 `HomeContent`를 먼저 추출하는 것이다.
-  그 경계를 만든 뒤 Compose UI Test로 저장 중 시스템 뒤로가기가 필터 시트를 닫지 않는지 검증한다.
-- [ ] AVD에서도 현재 조건을 만들 수 없다는 실측 결과가 있다. `adb emu network delay 5000:5000`은
-  `OK`를 반환했지만 실제 저장 요청은 약 47ms에 완료되어 저장 중 상태가 만들어지지 않았다.
-  비행기 모드로 네트워크를 차단하면 앱이 "지도를 불러올 수 없어요" 오류 화면으로 전환되어
-  필터 시트가 사라지므로, 뒤로가기 차단과 화면 전환을 구분할 수 없다. 같은 조건을 재검증할 때
-  이 두 교란 변수를 피해야 한다.
-- 현재 방어 수준: `HomeViewModel`의 저장 중 dismiss 가드는 단위 테스트로 덮여 있지만,
-  `HomeScreen`의 `BackHandler` 쪽 검사는 미검증이다.
+### ~~홈 필터 저장 중 시스템 뒤로가기 UI Test 보강~~ (2026-09-07 추가, 2026-09-17 해결)
+- [x] **전제가 틀렸다.** 필터 시트는 Material3 `ModalBottomSheet`라 별도 창(ComponentDialog)으로 뜨고,
+  시스템 뒤로가기는 그 창이 먼저 소비한다. 시트가 떠 있는 동안 `HomeScreen`의 `BackHandler` 필터 분기는
+  실행되지 않는다(에뮬레이터 API 36.1 계측 확인). 저장 중 닫힘을 막는 실제 경로는 `FilterBottomSheet`다.
+- [x] 확인 과정에서 실제 버그를 찾아 고쳤다. `ModalBottomSheet`는 뒤로가기·드래그에서 시트를 먼저 내린 뒤
+  `onDismissRequest`를 부르므로, `onDismissRequest`에서만 막으면 저장 중에 시트가 화면에서만 사라졌다.
+  저장이 실패하면 상태는 "시트 열림"으로 남고 보이지 않는 시트 창이 홈 화면 터치를 가로챘다.
+  `rememberModalBottomSheetState(confirmValueChange)`로 저장 중 Hidden 전환을 거부한다.
+  회귀 테스트: `FilterBottomSheetDismissTest`(Robolectric, CI에서 실행).
+- 주의: `ModalBottomSheetProperties(shouldDismissOnBackPress = !isSaving)`로 막으면 안 된다. Material3 1.4.0은
+  창을 만들 때의 값으로만 뒤로가기 콜백을 등록해서, 저장이 끝난 뒤에도 뒤로가기로 시트가 닫히지 않는다.
+- AVD에서 저장 중 상태를 만들 수 없다는 기존 실측(네트워크 지연 무시, 비행기 모드는 오류 화면 전환)은 그대로 유효하다.
 
 ### ★ 최우선 — UI 회귀 안전망 (2026-08-14 추가, 2026-08-24 1차 도입 완료)
 > 배경: 이 리포는 단위 테스트 574개(2026-08-24 기준) 대비 계측(androidTest)이 사실상 없었고
