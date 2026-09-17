@@ -6,6 +6,7 @@ import com.dororong.rodi.core.data.source.remote.model.practice.PracticeRegister
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.practice.Practice
+import com.dororong.rodi.core.domain.model.practice.PracticeException
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.model.practice.PracticeVisitResult
 import com.dororong.rodi.core.domain.model.practice.SkipReasonForm
@@ -39,9 +40,14 @@ fun FormResponse.toDomain() = SkipReasonForm(
     options = options.sortedBy(FormOptionResponse::order).map(FormOptionResponse::toDomain),
 )
 
+/**
+ * 연습 상태는 화면 분기를 결정하는 제어 값이라 모르는 값을 임의의 상태로 대체하지 않는다.
+ * PLANNED로 덮으면 서버가 새 상태를 추가했을 때 앱이 "아직 방문 안 함"을 자신 있게 잘못 보여준다.
+ */
 fun String.toPracticeStatus(): PracticeStatus = PracticeStatus.entries.firstOrNull { it.name == this }
-    ?: PracticeStatus.PLANNED.also {
+    ?: run {
         Timber.w("Unknown practice status value: %s", this)
+        throw PracticeException.Unexpected("연습 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
     }
 
 private fun FormOptionResponse.toDomain() = SkipReasonOption(

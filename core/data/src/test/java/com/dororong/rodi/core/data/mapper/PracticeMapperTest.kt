@@ -5,9 +5,11 @@ import com.dororong.rodi.core.data.source.remote.model.practice.FormResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeRegisterResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.PracticeException
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import java.time.Instant
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
@@ -23,10 +25,10 @@ class PracticeMapperTest {
     }
 
     @Test
-    fun `unknown practice status falls back to planned`() {
-        val result = PracticeRegisterResponse(status = "NEW_STATUS").toDomain()
-
-        assertEquals(PracticeStatus.PLANNED, result.status)
+    fun `unknown practice status fails instead of pretending it is planned`() {
+        assertThrows(PracticeException.Unexpected::class.java) {
+            PracticeRegisterResponse(status = "NEW_STATUS").toDomain()
+        }
     }
 
     @Test

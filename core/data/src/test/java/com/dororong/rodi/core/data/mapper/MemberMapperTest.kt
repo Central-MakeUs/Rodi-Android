@@ -1,10 +1,15 @@
 package com.dororong.rodi.core.data.mapper
 
 import com.dororong.rodi.core.data.source.remote.model.member.BlockedMemberItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyReviewItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
+import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
+import com.dororong.rodi.core.domain.model.practice.PracticeException
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
@@ -76,11 +81,10 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `unknown practice status falls back to planned`() {
-        assertEquals(
-            com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED,
-            practiceItem(lastActivityAt = null, status = "UNKNOWN_STATUS").toDomain().status,
-        )
+    fun `unknown practice status fails instead of pretending it is planned`() {
+        assertThrows(PracticeException.Unexpected::class.java) {
+            practiceItem(lastActivityAt = null, status = "UNKNOWN_STATUS").toDomain()
+        }
     }
 
     private fun practiceItem(lastActivityAt: String?, status: String = "PLANNED") = PracticeItemResponse(
@@ -95,5 +99,19 @@ class MemberMapperTest {
 
     private companion object {
         const val OFFSET_LESS = "2026-08-10T10:47:33.996642"
+    }
+
+    @Test
+    fun `known member level maps to the domain level`() {
+        val result = MyPageResponse(nickname = "로디", level = "NAVIGATOR").toDomain()
+
+        assertEquals(OnboardingLevel.NAVIGATOR, result.level)
+    }
+
+    @Test
+    fun `unknown member level fails instead of showing the lowest level`() {
+        assertThrows(AuthException.Unknown::class.java) {
+            MyPageResponse(nickname = "로디", level = "NEW_LEVEL").toDomain()
+        }
     }
 }

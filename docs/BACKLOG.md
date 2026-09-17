@@ -275,6 +275,12 @@
 -  해결(2026-09-17): 세 워크플로의 외부 액션을 `@<sha> # vX.Y.Z`로 고정하고 `ci.yml`에 최상위 `permissions: contents: read`를 선언했다.
   자동 갱신(Renovate/Dependabot)은 아직 붙이지 않았다 — 액션을 올릴 때는 태그가 가리키는 커밋 SHA를 다시 확인해 교체한다.
 
+### **응답 DTO의 기본값이 누락 필드를 가린다** (2026-09-18 enum 수정 중 발견)
+- [ ] `MyPageResponse`처럼 응답 DTO가 `nickname: String = ""`, `level: String = ""` 같은 기본값을 갖고 있어
+  서버가 필드를 빼먹어도 파싱이 성공한다. PROJECT.md "기본값만 채워 덮지 말 것"과 어긋난다.
+  필수 필드는 기본값을 없애 역직렬화에서 실패시키거나 `requireField`로 명시적으로 실패시킨다.
+  재검증: `rg -n ': String = ""' -g '*Response.kt' core/data/src/main`
+
 ## 코드 관용구 정합성 (2026-09-06 전수 조사)
 
 > `app`/`core`/`feature` 전 소스에서 관용구를 추출하다 나온 **Rodi 내부 불일치**만 모은다.
@@ -342,7 +348,7 @@
   공통 `userMessage()`만 호출하도록 통일한다.
   재검증: `rg -l '\.message\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
 -  해결(2026-09-07): 승인된 도메인 예외와 맥락별 fallback을 공통 nullable `userMessage(fallback)`으로 변환하고 ViewModel의 예외 원문 노출을 차단했다.
-- [ ] **DTO enum의 알 수 없는 값 처리가 3방식으로 갈림** — 필수 값 명시적 실패(3개 파일),
+- [x] **DTO enum의 알 수 없는 값 처리가 3방식으로 갈림** (2026-09-18 임의값 대체 2건 제거 — 모르는 레벨·연습 상태는 도메인 예외로 실패) — 필수 값 명시적 실패(3개 파일),
   임의 정상값으로 대체(2개), 선택 값 null/drop(5개). `MemberMapper`가 알 수 없는 레벨을
   `OnboardingLevel.SEED`로, `PracticeMapper`가 `PLANNED`로 바꾸는 두 건이 특히 위험하다 —
   **파싱은 성공하는데 값이 조용히 틀린다.** PROJECT.md의 "기본값만 채워 덮지 말 것" 규칙과
