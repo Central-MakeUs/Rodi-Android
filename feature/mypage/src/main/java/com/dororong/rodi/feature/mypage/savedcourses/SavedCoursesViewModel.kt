@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.mypage.savedcourses
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.userMessage
-import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.usecase.place.GetSavedPlacesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -13,17 +12,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class SavedCoursesUiState(
-    val places: List<PlaceSummary> = emptyList(),
-    val totalCount: Long? = null,
-    val nextCursor: String? = null,
-    val hasNext: Boolean = false,
-    val isLoading: Boolean = true,
-    val isNextPageLoading: Boolean = false,
-    val initialError: String? = null,
-    val nextPageError: String? = null,
-)
 
 @HiltViewModel
 class SavedCoursesViewModel @Inject constructor(

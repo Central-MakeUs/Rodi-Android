@@ -35,18 +35,21 @@
 find app core feature -type d -name component -not -path '*/build/*'
 ```
 
-## Contract는 feature 루트에 하나
+## Contract는 화면(ViewModel)마다 하나, ViewModel 옆에
 
-**왜**: 화면 계약을 한 파일에서 훑을 수 있게 하려는 의도였다.
+`XxxViewModel.kt`와 같은 패키지에 `XxxContract.kt`를 두고, 그 화면의 보조 타입·`UiState`·
+`Intent`·`Effect`를 전부 여기에 선언한다. ViewModel 파일에는 ViewModel과 그 private 헬퍼만 둔다.
+ViewModel 없는 화면(상태를 Composable이 소유)은 Contract를 만들지 않는다.
 
-**주의 — 이 규칙은 현재 절반만 지켜진다.** 루트 `*Contract.kt`와 ViewModel 파일에 상태를
-내장한 것이 비슷한 수로 공존한다. **컨벤션대로 옮길지, 하위 화면별 Contract를 허용하도록
-이 규칙을 고칠지 먼저 정해야 한다.** 그 전까지 새 코드는 루트 Contract를 따른다.
-→ `../BACKLOG.md`, 수치는 `../audits/`
+**왜**: 2026-09-17에 "feature 루트에 하나"에서 바꿨다. mypage처럼 화면이 여러 개인 feature를
+한 파일로 모으면 서로 무관한 계약 수백 줄이 섞이고, 실제로도 하위 화면들은 이미 화면별 Contract를
+쓰고 있었다. 이름 규칙(`Xxx` 공유)만으로 ViewModel·Screen·Contract가 짝지어져 찾기 쉽다.
 
-**재검증**:
+**정본**: `feature/mypage/.../myposts/MyPostsContract.kt` — 앵커 `data class MyPostsUiState`
+
+**재검증** (CI BLOCK — ViewModel 파일에 계약 타입을 선언한 곳):
 ```bash
-rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
+rg -n -g '*ViewModel.kt' '^(data class|sealed interface) \w+(UiState|Intent|Effect)\b' .
 ```
 
 ## 화면은 UseCase를 거쳐 domain에 접근한다

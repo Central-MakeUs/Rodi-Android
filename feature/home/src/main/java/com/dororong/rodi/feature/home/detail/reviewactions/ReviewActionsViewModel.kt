@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.userMessage
 import com.dororong.rodi.core.ui.text.takeGraphemes
-import com.dororong.rodi.core.domain.model.review.ReportForm
 import com.dororong.rodi.core.domain.model.review.ReportFormOption
 import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.usecase.member.BlockMemberUseCase
@@ -21,26 +20,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class ReviewActionsUiState(
-    val reportReviewId: Long? = null,
-    val reportForm: ReportForm? = null,
-    val selectedOptionCode: String? = null,
-    val reportDetail: String = "",
-    val isReportFormLoading: Boolean = false,
-    val isReportSubmitting: Boolean = false,
-    val isReportSubmitted: Boolean = false,
-    val reportErrorMessage: String? = null,
-    val isBlocking: Boolean = false,
-    val isDeleting: Boolean = false,
-)
-
-sealed interface ReviewActionsEffect {
-    data class Blocked(val memberId: Long) : ReviewActionsEffect
-    data class BlockFailed(val message: String) : ReviewActionsEffect
-    data class Deleted(val reviewId: Long) : ReviewActionsEffect
-    data class DeleteFailed(val message: String) : ReviewActionsEffect
-}
 
 @HiltViewModel
 class ReviewActionsViewModel @Inject constructor(

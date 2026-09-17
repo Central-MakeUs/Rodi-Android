@@ -15,18 +15,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class DrivingGoalUiState(
-    val initialGoal: String = "",
-    val goal: String = "",
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-)
-
-sealed interface DrivingGoalEffect {
-    data object NavigateBack : DrivingGoalEffect
-    data object ShowSyncError : DrivingGoalEffect
-}
-
 @HiltViewModel
 class DrivingGoalViewModel @Inject constructor(
     private val getMyPage: GetMyPageUseCase,
