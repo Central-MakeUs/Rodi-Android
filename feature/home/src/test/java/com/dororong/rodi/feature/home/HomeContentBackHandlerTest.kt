@@ -52,6 +52,38 @@ class HomeContentBackHandlerTest {
     }
 
     @Test
+    fun `system back while the filter sheet is open dismisses the filter`() {
+        setContent(
+            HomeUiState(surfaceState = HomeSurfaceState.PartialList, isFilterSheetVisible = true),
+        )
+
+        Espresso.pressBackUnconditionally()
+        composeRule.waitForIdle()
+
+        assertEquals(listOf<HomeIntent>(HomeIntent.OnFilterDismiss), intents)
+        assertEquals(0, outerBackCount)
+    }
+
+    /** 저장 중에는 시트를 닫지도, 바깥 핸들러로 넘기지도 않는다 — 뒤로가기를 그대로 삼킨다. */
+    @Test
+    fun `system back while the filter is saving changes nothing`() {
+        setContent(
+            HomeUiState(
+                surfaceState = HomeSurfaceState.PartialList,
+                isFilterSheetVisible = true,
+                isFilterSaving = true,
+            ),
+        )
+
+        Espresso.pressBackUnconditionally()
+        composeRule.waitForIdle()
+
+        assertEquals(emptyList<HomeIntent>(), intents)
+        assertEquals(0, dismissDetailCount)
+        assertEquals(0, outerBackCount)
+    }
+
+    @Test
     fun `system back on the map surface is left to the enclosing screen`() {
         setContent(HomeUiState(surfaceState = HomeSurfaceState.Navigation))
 
