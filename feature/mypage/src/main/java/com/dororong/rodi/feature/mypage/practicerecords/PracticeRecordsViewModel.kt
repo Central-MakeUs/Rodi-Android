@@ -14,17 +14,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class PracticeRecordsUiState(
-    val records: List<PracticeRecord> = emptyList(),
-    val isLoading: Boolean = false,
-    val isLoadingMore: Boolean = false,
-    val initialError: String? = null,
-    val nextPageError: String? = null,
-    val hasNextPage: Boolean = false,
-    val nextCursor: String? = null,
-    val totalCount: Long? = null,
-)
-
 @HiltViewModel
 class PracticeRecordsViewModel @Inject constructor(
     private val getPracticeRecords: GetPracticeRecordsUseCase,

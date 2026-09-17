@@ -299,7 +299,7 @@
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
   이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
   않는 이점도 있다.
-- [ ] **Contract 선언 위치가 컨벤션과 절반만 맞다** — 루트 `*Contract.kt` 8개 대 UiState를
+- [x] **Contract 선언 위치가 컨벤션과 절반만 맞다** (2026-09-17 "화면마다 ViewModel 옆 Contract"로 규칙을 고치고 10개 화면 이동, CI BLOCK) — 루트 `*Contract.kt` 8개 대 UiState를
   ViewModel 파일에 내장한 것 9개(`SavedCourses`/`MyPage`/`PracticeRecords`/`DrivingGoal`/
   `AccountSettings`/`BlockedMembers`/`Search`/`RodiApp`/`ReviewActions`). PROJECT.md는 "Contract는
   feature 루트에 하나"인데 지켜지지 않는다. **컨벤션대로 옮기거나, 하위 화면별 Contract를

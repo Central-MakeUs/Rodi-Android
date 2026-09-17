@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.home.review.notvisited
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.practice.PracticeException
-import com.dororong.rodi.core.domain.model.practice.SkipReasonForm
 import com.dororong.rodi.core.domain.model.practice.SkipReasonOption
 import com.dororong.rodi.core.domain.usecase.practice.GetSkipReasonFormUseCase
 import com.dororong.rodi.core.domain.usecase.practice.SubmitSkipReasonUseCase
@@ -15,17 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-
-data class PracticeSkipReasonUiState(
-    val practiceId: Long? = null,
-    val form: SkipReasonForm? = null,
-    val selectedOptionCode: String? = null,
-    val detail: String = "",
-    val isLoading: Boolean = false,
-    val isSubmitting: Boolean = false,
-    val isSubmitted: Boolean = false,
-    val errorMessage: String? = null,
-)
 
 @HiltViewModel
 class PracticeSkipReasonViewModel @Inject constructor(

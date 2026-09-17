@@ -37,10 +37,7 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 
 **정본**: `feature/home/.../home/HomeContract.kt`
 
-**재검증** (Contract가 아니라 ViewModel 파일에 UiState가 들어간 곳):
-```bash
-rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
-```
+**배치**: 화면마다 ViewModel 옆 `XxxContract.kt` → `structure.md`
 
 ## 상태는 private Mutable + public read-only 쌍으로 노출
 
@@ -49,8 +46,8 @@ rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
 **왜**: 상태 변경 권한을 ViewModel 안으로 제한한다. `update`는 읽기-수정-쓰기가 원자적이라
 동시 갱신에서 값이 유실되지 않는다 — `.value = _state.value.copy(...)`로 쓰면 그 보장이 없다.
 
-**정본**: `feature/home/.../home/HomeViewModel.kt` —
-앵커 `private val _state = MutableStateFlow(HomeUiState())`
+**정본**: `feature/mypage/.../mypage/MyPageViewModel.kt` —
+앵커 `private val _uiState = MutableStateFlow(MyPageUiState())`
 
 **Rodi는 `_state`/`_uiState`로 이름이 갈려 있다** — 통일 대상이다 → `../BACKLOG.md`.
 새 코드에는 상태 타입과 맞춰 `_uiState`/`uiState`를 쓴다.
