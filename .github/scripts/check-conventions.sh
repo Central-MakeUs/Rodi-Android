@@ -228,8 +228,13 @@ check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
 check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
   "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | message_violation_filter"
 
-check BLOCK "Effect를 SharedFlow로 전달 (Channel + receiveAsFlow)" \
-  "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
+# 기본은 Channel. 다중 수신·유실 허용이 실제로 필요하면 SharedFlow를 쓰되
+# 선언 바로 윗줄에 "// SharedFlow 사용 이유: ..." 를 적어야 통과한다 → docs/conventions/mvi.md
+check BLOCK "이유 주석 없이 ViewModel에서 SharedFlow 사용 (기본은 Channel)" \
+  "rg -n -g '*ViewModel.kt' 'MutableSharedFlow' . | grep -v -E '/src/test/|:import ' \
+   | while IFS=: read -r f n _; do \
+       sed -n \"\$((n - 1))p\" \"\$f\" | grep -q 'SharedFlow 사용 이유:' || echo \"\$f:\$n\"; \
+     done"
 
 check BLOCK "Effect를 CollectEffect 없이 직접 수집" \
   "rg -n -g '*.kt' '\beffects?\.collect\b' . | grep -v -E '/src/(test|androidTest)/|/CollectEffect\.kt:'"

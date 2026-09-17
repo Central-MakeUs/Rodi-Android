@@ -69,7 +69,18 @@ Channel은 각 원소를 **한 소비자에게만** 전달하고, 소비자가 �
 처리 전에 취소되면 그 Effect는 **유실된다.** 반드시 실행돼야 하는 것(결제 완료 기록 같은)은
 Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `SharedFlow`(replay=0)를 쓰면 수집자가 없는 순간에
 보낸 이벤트가 조용히 사라진다 — 화면 전환 직후나 회전 중에 스낵바가 안 뜨는 형태로 터진다.
-재생·다중 소비가 실제로 필요하다면 그때만 SharedFlow를 쓰고 이유를 Contract에 남긴다.
+**SharedFlow를 쓰는 경우**: Channel과 기능이 다르므로 통일 대상이 아니라 선택 대상이다.
+
+| | Channel | SharedFlow(replay=0) |
+|---|---|---|
+| 수집자가 여럿 | 원소마다 **한 곳만** 받는다 | **모두** 받는다 |
+| 수집자가 없을 때 | 버퍼에 쌓았다가 나중에 전달 | **버린다** |
+| 늦게 구독 | 쌓인 것만 받는다 | `replay=N`이면 최근 N개를 **다시** 받는다 |
+
+화면 하나가 받는 일회성 명령이면 Channel이다. **여러 수집자가 같은 이벤트를 모두 받아야 하거나,
+아무도 안 볼 때 버리는 게 맞는 이벤트**면 SharedFlow를 쓰고, 선언 바로 윗줄에
+`// SharedFlow 사용 이유: ...`를 적는다. 이유 없는 SharedFlow는 CI가 막는다 — 기본값을 무심코
+고른 것과 의도해서 고른 것을 구분하려는 장치다. ViewModel 밖(앱 전역 세션 이벤트 등)은 검사하지 않는다.
 
 **generation 카운터를 명령 대신 쓰지 않는다**: "지도를 이 지역으로 옮겨라"를 상태의 증가 카운터로 보내고
 화면이 `remember`로 소비 여부를 기억하면, 화면이 다시 그려질 때(다른 route에서 복귀) 기억이 초기화돼
@@ -79,7 +90,7 @@ Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `Sha
 
 **정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `Channel<HomeEffect>(Channel.BUFFERED)`
 
-**재검증** (SharedFlow로 Effect를 내보내는 곳 — CI BLOCK. 정말 필요하면 이유와 함께 검사 예외를 PR에서 논의한다):
+**재검증** (ViewModel의 SharedFlow — 각 선언 윗줄에 이유 주석이 있어야 한다, CI BLOCK):
 ```bash
 rg -n 'MutableSharedFlow' -g '*ViewModel.kt' .
 ```
