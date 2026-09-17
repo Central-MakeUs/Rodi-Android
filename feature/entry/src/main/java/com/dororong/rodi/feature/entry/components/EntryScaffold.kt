@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.entry.component
+package com.dororong.rodi.feature.entry.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

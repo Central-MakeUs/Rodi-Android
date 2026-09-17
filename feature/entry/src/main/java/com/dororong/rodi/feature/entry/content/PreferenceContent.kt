@@ -1,6 +1,6 @@
 package com.dororong.rodi.feature.entry.content
 
-import com.dororong.rodi.feature.entry.component.EntryScaffold
+import com.dororong.rodi.feature.entry.components.EntryScaffold
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

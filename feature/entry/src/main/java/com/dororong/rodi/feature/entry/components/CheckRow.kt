@@ -1,4 +1,4 @@
-package com.dororong.rodi.feature.entry.component
+package com.dororong.rodi.feature.entry.components
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Row
