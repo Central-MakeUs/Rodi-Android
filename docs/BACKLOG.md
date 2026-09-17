@@ -196,9 +196,11 @@
   API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, Repository들이 각각 401을 잡아
   `authRepository.reissueToken()`을 호출하는 `authenticatedRequest` 헬퍼를 **거의 동일하게 복사**해
   들고 있다. 남은 문제는 **중복뿐**이다.
-  **2026-09-06 실측: 6개로 늘었다** — `Place`/`RecentSearch`/`Member`/`CourseRegistration`/
-  `Practice`/`Review` 의 각 `RepositoryImpl` (`Onboarding`은 빠짐). 인자 형태도 갈렸다 — 헬퍼가 완성된
-  `"Bearer $token"`을 넘기는 쪽 4개, raw token을 넘기고 호출부에서 Bearer를 조합하는 쪽 2개.
+  **2026-09-17 실측: 7곳이다** — `Place`/`RecentSearch`/`Member`/`CourseRegistration`/`Practice`/`Review`의
+  각 `RepositoryImpl`에 더해 `OnboardingRepositoryImpl`도 `submitWithAccessToken(canRefreshToken)`이라는
+  자체 재시도를 갖고 있다(09-06 기록의 "Onboarding은 빠짐"은 틀렸다). 인자 형태도 갈렸다 — 헬퍼가 완성된
+  `"Bearer $token"`을 넘기는 쪽 5개, raw token을 넘기고 호출부에서 Bearer를 조합하는 쪽 2개.
+  수치·차이 표·권고안은 `audits/2026-09-17-auth-header.md`.
   중앙화 전까지 **새 Repository에 이 헬퍼를 또 복사하지 말 것.**
   **중앙화 시 인자 형식을 먼저 하나로 정한다** — 다수인 "헬퍼가 완성된 `Bearer <token>`을
   넘긴다"로 통일하고, raw token을 넘기던 2곳의 호출부를 함께 고친다. 이걸 정하지 않고 합치면
@@ -211,6 +213,8 @@
   중앙화 시: `OkHttpClient`에 `Authenticator`를 추가하고 각 Repository의 중복 헬퍼를 제거한다.
   순환 의존(OkHttpClient → AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용
   Retrofit/OkHttpClient 인스턴스를 따로 구성해야 하고, 위 single-flight 가드는 그대로 유지해야 한다.
+  **지금 OkHttpClient는 하나이고 카카오 로컬 API(`KakaoAK` 헤더)와 공유한다** — 인증 Interceptor를
+  그대로 붙이면 카카오 요청에도 `Bearer`가 실리므로 Rodi 서버 전용 클라이언트를 먼저 분리한다.
 - [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
