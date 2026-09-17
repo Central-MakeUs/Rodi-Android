@@ -882,7 +882,6 @@ class HomeViewModelTest {
                 arrivedAtEpochMillis = 1_000L,
                 traveledDistanceMeters = 412.0,
                 status = DrivingSessionStatus.ARRIVED,
-                isArrivalNoticePending = true,
             ),
         )
         coEvery { deps.recordPracticeVisit(108L, 412) } returns Result.success(visitResult())

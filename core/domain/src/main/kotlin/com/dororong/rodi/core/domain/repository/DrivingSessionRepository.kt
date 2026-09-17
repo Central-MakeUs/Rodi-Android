@@ -19,7 +19,6 @@ interface DrivingSessionRepository {
         traveledDistanceMeters: Double,
     ): Boolean
 
-    suspend fun acknowledgeArrival(sessionId: String)
 
     suspend fun clear(sessionId: String)
 }

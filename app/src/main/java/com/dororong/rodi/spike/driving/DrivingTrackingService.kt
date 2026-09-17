@@ -320,7 +320,6 @@ internal class DrivingTrackingService : Service() {
             arrivedAtEpochMillis = arrivedAt,
             traveledDistanceMeters = traveledDistanceMeters,
             status = DrivingSessionStatus.ARRIVED,
-            isArrivalNoticePending = true,
         )
         activeSession = null
         stopForeground(STOP_FOREGROUND_DETACH)
@@ -455,7 +454,6 @@ private fun Intent.toDrivingSession(): DrivingSession? {
         arrivedAtEpochMillis = null,
         traveledDistanceMeters = 0.0,
         status = DrivingSessionStatus.ACTIVE,
-        isArrivalNoticePending = false,
         courseRoute = route,
         requiredDistanceMeters = requiredDistance,
     )
