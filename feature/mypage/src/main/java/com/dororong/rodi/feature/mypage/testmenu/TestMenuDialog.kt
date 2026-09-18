@@ -16,6 +16,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,12 +25,17 @@ import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.dialog.RodiDialog
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import kotlinx.coroutines.launch
 
-/** 실행 결과 문구를 돌려주면 메뉴가 그대로 보여 준다. 보여줄 게 없으면 null. */
+/**
+ * 실행 결과 문구를 돌려주면 메뉴가 그대로 보여 준다. 보여줄 게 없으면 null.
+ * [closesMenu]는 메뉴를 닫고 화면의 확인 다이얼로그로 넘길 때 쓴다.
+ */
 @Immutable
 data class TestMenuAction(
     val label: String,
-    val run: () -> String?,
+    val closesMenu: Boolean = false,
+    val run: suspend () -> String?,
 )
 
 @Immutable
@@ -45,6 +51,8 @@ internal fun TestMenuDialog(
 ) {
     var selectedSection by remember { mutableStateOf<TestMenuSection?>(null) }
     var result by remember { mutableStateOf<String?>(null) }
+    var runningLabel by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     RodiDialog(onDismissRequest = onDismissRequest, showCloseButton = true) {
         val section = selectedSection
         val message = result
@@ -72,7 +80,20 @@ internal fun TestMenuDialog(
             section != null -> {
                 TestMenuRows(
                     labels = section.actions.map { it.label },
-                    onClick = { index -> result = section.actions[index].run() },
+                    enabled = runningLabel == null,
+                    onClick = { index ->
+                        val action = section.actions[index]
+                        if (action.closesMenu) {
+                            onDismissRequest()
+                            scope.launch { action.run() }
+                        } else {
+                            runningLabel = action.label
+                            scope.launch {
+                                result = action.run()
+                                runningLabel = null
+                            }
+                        }
+                    },
                 )
                 Spacer(Modifier.height(16.dp))
                 RodiButton(
@@ -93,6 +114,7 @@ internal fun TestMenuDialog(
 private fun TestMenuRows(
     labels: List<String>,
     onClick: (Int) -> Unit,
+    enabled: Boolean = true,
 ) {
     Column(Modifier.fillMaxWidth()) {
         labels.forEachIndexed { index, label ->
@@ -103,7 +125,7 @@ private fun TestMenuRows(
                 color = RodiTheme.colors.black,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onClick(index) }
+                    .clickable(enabled = enabled) { onClick(index) }
                     .padding(vertical = 14.dp),
             )
         }

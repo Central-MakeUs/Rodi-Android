@@ -53,6 +53,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
+import com.dororong.rodi.feature.mypage.testmenu.TestMenuAction
 import com.dororong.rodi.feature.mypage.testmenu.TestMenuDialog
 import com.dororong.rodi.feature.mypage.testmenu.TestMenuSection
 import com.dororong.rodi.core.domain.model.place.PracticeType
@@ -77,7 +78,6 @@ fun MyPageScreen(
     onPracticeRecordsClick: () -> Unit,
     onMyPostsClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
-    isDebugBuild: Boolean = false,
     testMenuSections: List<TestMenuSection> = emptyList(),
     onSessionEnded: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -88,6 +88,18 @@ fun MyPageScreen(
     val snackbarHostState = remember { RodiSnackbarHostState() }
     var showHardDeleteConfirm by remember { mutableStateOf(false) }
     var showTestMenu by remember { mutableStateOf(false) }
+    // 계정 삭제는 되돌릴 수 없어 확인 다이얼로그를 거친다 — 메뉴를 닫고 화면 쪽 다이얼로그로 넘긴다.
+    val accountTestSection = remember {
+        TestMenuSection(
+            title = "계정",
+            actions = listOf(
+                TestMenuAction("계정 즉시 삭제", closesMenu = true) {
+                    showHardDeleteConfirm = true
+                    null
+                },
+            ),
+        )
+    }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh()
@@ -131,16 +143,16 @@ fun MyPageScreen(
                 practiceRecords = uiState.practiceRecords,
                 practiceRecordsErrorMessage = uiState.practiceRecordsErrorMessage,
                 onPracticeRecordsRetry = viewModel::refresh,
-                showDebugTools = isDebugBuild,
                 showTestMenu = testMenuSections.isNotEmpty(),
                 onTestMenuClick = { showTestMenu = true },
-                onHardDeleteClick = { showHardDeleteConfirm = true },
-                isHardDeleteSubmitting = uiState.isHardDeleteSubmitting,
             )
         }
         RodiSnackbarHost(snackbarHostState)
         if (showTestMenu) {
-            TestMenuDialog(sections = testMenuSections, onDismissRequest = { showTestMenu = false })
+            TestMenuDialog(
+                sections = testMenuSections + accountTestSection,
+                onDismissRequest = { showTestMenu = false },
+            )
         }
         if (showHardDeleteConfirm) {
             RodiAlertDialog(
@@ -325,11 +337,8 @@ private fun MyPageContent(
     practiceRecords: List<PracticeRecord> = emptyList(),
     practiceRecordsErrorMessage: String? = null,
     onPracticeRecordsRetry: () -> Unit,
-    showDebugTools: Boolean = false,
     showTestMenu: Boolean = false,
     onTestMenuClick: () -> Unit = {},
-    onHardDeleteClick: () -> Unit = {},
-    isHardDeleteSubmitting: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -358,14 +367,6 @@ private fun MyPageContent(
         MyPageNavigationRow(text = "내 활동", onClick = onMyPostsClick)
         if (showTestMenu) {
             MyPageNavigationRow(text = "테스트", onClick = onTestMenuClick)
-        }
-        if (showDebugTools) {
-            RodiButton(
-                text = if (isHardDeleteSubmitting) "DEBUG 계정 삭제 중..." else "DEBUG 계정 즉시 삭제",
-                onClick = onHardDeleteClick,
-                enabled = !isHardDeleteSubmitting,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            )
         }
         // 바텀 네비게이션이 sibling overlay로 얹히므로 그 높이만큼 자리를 비워둔다.
         // RodiBottomNavigation은 `navigationBarsPadding().height(56.dp)` 순서라 실제 높이가
