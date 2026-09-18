@@ -136,11 +136,11 @@ internal fun HomeContent(
 
     val handleSystemBack: () -> Unit = {
         if (state.isFilterSheetVisible) {
-            if (!state.isFilterSaving) onIntent(HomeIntent.OnFilterDismiss)
+            if (!state.isFilterSaving) onIntent(HomeIntent.FilterDismissed)
         } else {
             when (state.surfaceState) {
                 HomeSurfaceState.Detail -> actions.onDismissDetail()
-                else -> onIntent(HomeIntent.OnListCollapse)
+                else -> onIntent(HomeIntent.ListCollapseRequested)
             }
         }
     }
@@ -203,7 +203,7 @@ internal fun HomeContent(
                                 .offset { IntOffset(0, -bottomControlOffsetPx().roundToInt()) },
                         ) {
                             MapListButton(
-                                onClick = { onIntent(HomeIntent.OnListOpen) },
+                                onClick = { onIntent(HomeIntent.ListOpenClicked) },
                                 modifier = Modifier.offset(y = LIST_BUTTON_VISUAL_OFFSET),
                             )
                         }
@@ -252,8 +252,8 @@ internal fun HomeContent(
                                 ListSheetHeader(
                                     expansionProgress = listSheetProgress,
                                     isExpanded = state.surfaceState == HomeSurfaceState.FullList,
-                                    onBack = { onIntent(HomeIntent.OnListCollapse) },
-                                    onFilterClick = { onIntent(HomeIntent.OnFilterOpen) },
+                                    onBack = { onIntent(HomeIntent.ListCollapseRequested) },
+                                    onFilterClick = { onIntent(HomeIntent.FilterOpened) },
                                     modifier = Modifier
                                         .layoutHeightPx { listHeaderHeightPx() }
                                         .then(listSheetDrag),
@@ -277,9 +277,9 @@ internal fun HomeContent(
                                     PlaceListContent(
                                         places = state.places,
                                         onPlaceClick = {
-                                            onIntent(HomeIntent.OnPlaceClick(it, HomeDetailOrigin.List))
+                                            onIntent(HomeIntent.PlaceClicked(it, HomeDetailOrigin.List))
                                         },
-                                        onLoadNextPage = { onIntent(HomeIntent.OnLoadNextPage) },
+                                        onLoadNextPage = { onIntent(HomeIntent.ListEndReached) },
                                         isNextPageLoading = state.isNextPageLoading,
                                         topContentPadding = {
                                             lerp(0.dp, FULL_LIST_CONTENT_TOP_PADDING, listSheetProgress())
@@ -300,7 +300,7 @@ internal fun HomeContent(
                             place = selectedPlace,
                             isBookmarkUpdating = state.isBookmarkUpdating,
                             onDismiss = actions.onDismissDetail,
-                            onBookmarkClick = { onIntent(HomeIntent.OnBookmarkClick) },
+                            onBookmarkClick = { onIntent(HomeIntent.BookmarkClicked) },
                             onNavigate = actions.onNavigate,
                             onSheetHeightChanged = actions.onCourseDetailSheetHeightChanged,
                             reviewContent = { sheetScrollState ->
@@ -313,7 +313,7 @@ internal fun HomeContent(
                                         difficultyCounts = reviewState.difficultyCounts,
                                         review = reviewState.latestReviews.firstOrNull(),
                                         onSelectLevel = actions.onSelectReviewLevel,
-                                        onAllClick = { onIntent(HomeIntent.OnLevelReviewsOpen) },
+                                        onAllClick = { onIntent(HomeIntent.LevelReviewsOpened) },
                                         onWriteReviewClick = { overlay.reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, null) },
                                         onEditReviewClick = { overlay.reviewToWrite = ReviewWriteTarget(selectedPlace.id, selectedPlace.name, it) },
                                         onDeleteReviewClick = { overlay.reviewToDelete = it },
@@ -376,7 +376,7 @@ internal fun HomeContent(
                                     isBookmarkUpdating = state.isBookmarkUpdating,
                                     onDismiss = actions.onDismissDetail,
                                     dragHandleModifier = detailSheetDrag,
-                                    onBookmarkClick = { onIntent(HomeIntent.OnBookmarkClick) },
+                                    onBookmarkClick = { onIntent(HomeIntent.BookmarkClicked) },
                                     onNavigate = actions.onNavigate,
                                 )
                             }

@@ -93,40 +93,40 @@ class CourseRegistrationViewModel @Inject constructor(
 
     fun onIntent(intent: CourseRegistrationIntent) {
         when (intent) {
-            CourseRegistrationIntent.Retry -> retry()
+            CourseRegistrationIntent.RetryClicked -> retry()
             is CourseRegistrationIntent.TutorialPageChanged -> setTutorialPage(intent.page)
-            CourseRegistrationIntent.CompleteTutorial -> completeTutorial()
-            CourseRegistrationIntent.ContinueDraft -> continueDraft()
-            CourseRegistrationIntent.DiscardDraft -> discardDraft()
-            CourseRegistrationIntent.Back -> back()
-            CourseRegistrationIntent.RequestExit -> requestExit()
-            CourseRegistrationIntent.ConfirmExit -> exitAndClearDraft()
-            CourseRegistrationIntent.DismissDialog -> _uiState.update { it.copy(dialog = null) }
-            is CourseRegistrationIntent.SelectWaypointRole -> selectWaypointRole(intent.role)
-            is CourseRegistrationIntent.SelectWaypoint -> selectWaypoint(intent)
-            is CourseRegistrationIntent.RemoveWaypoint -> removeWaypoint(intent.index)
-            is CourseRegistrationIntent.BeginPinEdit -> beginPinEdit(intent.index)
-            is CourseRegistrationIntent.MoveTemporaryPin -> moveTemporaryPin(intent.point)
+            CourseRegistrationIntent.TutorialCompleted -> completeTutorial()
+            CourseRegistrationIntent.DraftContinueClicked -> continueDraft()
+            CourseRegistrationIntent.DraftDiscardClicked -> discardDraft()
+            CourseRegistrationIntent.BackPressed -> back()
+            CourseRegistrationIntent.ExitRequested -> requestExit()
+            CourseRegistrationIntent.ExitConfirmed -> exitAndClearDraft()
+            CourseRegistrationIntent.DialogDismissed -> _uiState.update { it.copy(dialog = null) }
+            is CourseRegistrationIntent.WaypointRoleSelected -> selectWaypointRole(intent.role)
+            is CourseRegistrationIntent.WaypointSelected -> selectWaypoint(intent)
+            is CourseRegistrationIntent.WaypointRemoved -> removeWaypoint(intent.index)
+            is CourseRegistrationIntent.PinEditStarted -> beginPinEdit(intent.index)
+            is CourseRegistrationIntent.TemporaryPinMoved -> moveTemporaryPin(intent.point)
             is CourseRegistrationIntent.MapCenterChanged -> mapCenterChanged(intent.point)
             is CourseRegistrationIntent.MapPointSelected -> mapPointSelected(intent.point)
             is CourseRegistrationIntent.CurrentLocationSelected -> currentLocationSelected(intent.point)
             CourseRegistrationIntent.LocationUnavailable -> locationUnavailable()
-            CourseRegistrationIntent.CommitPinEdit -> commitPinEdit()
-            CourseRegistrationIntent.DiscardPinEdit -> discardPinEdit()
-            CourseRegistrationIntent.ResetPinEdit -> resetPinEdit()
+            CourseRegistrationIntent.PinEditCommitted -> commitPinEdit()
+            CourseRegistrationIntent.PinEditDiscarded -> discardPinEdit()
+            CourseRegistrationIntent.PinEditReset -> resetPinEdit()
             is CourseRegistrationIntent.SearchVisibilityChanged -> setSearchVisibility(intent.visible)
             is CourseRegistrationIntent.SearchKeywordChanged -> searchKeywordChanged(intent.keyword)
             CourseRegistrationIntent.SearchSubmitted -> searchImmediately()
             is CourseRegistrationIntent.SearchSuggestionSelected -> selectSearchSuggestion(intent.id)
-            is CourseRegistrationIntent.DeleteRecentSearch -> deleteRecentSearch(intent.id)
-            CourseRegistrationIntent.DeleteAllRecentSearches -> deleteAllRecentSearches()
+            is CourseRegistrationIntent.RecentSearchDeleteClicked -> deleteRecentSearch(intent.id)
+            CourseRegistrationIntent.DeleteAllRecentSearchesClicked -> deleteAllRecentSearches()
             is CourseRegistrationIntent.MapReady -> mapReady(intent.ready)
-            is CourseRegistrationIntent.SelectCategory -> selectCategory(intent.code)
-            is CourseRegistrationIntent.TogglePracticeType -> togglePracticeType(intent.code)
+            is CourseRegistrationIntent.CategorySelected -> selectCategory(intent.code)
+            is CourseRegistrationIntent.PracticeTypeToggled -> togglePracticeType(intent.code)
             is CourseRegistrationIntent.CautionChanged -> updateCaution(intent.value)
             is CourseRegistrationIntent.DescriptionChanged -> updateDescription(intent.value)
-            CourseRegistrationIntent.ContinueToForm -> continueToForm()
-            CourseRegistrationIntent.Submit -> submit()
+            CourseRegistrationIntent.ContinueToFormClicked -> continueToForm()
+            CourseRegistrationIntent.SubmitClicked -> submit()
             CourseRegistrationIntent.SuccessConfirmed -> {
                 _uiState.update { it.copy(dialog = null) }
                 _effect.trySend(CourseRegistrationEffect.Completed)
@@ -329,7 +329,7 @@ class CourseRegistrationViewModel @Inject constructor(
         _uiState.update { it.copy(selectedWaypointRole = role) }
     }
 
-    private fun selectWaypoint(intent: CourseRegistrationIntent.SelectWaypoint) {
+    private fun selectWaypoint(intent: CourseRegistrationIntent.WaypointSelected) {
         val waypointType = intent.role()
         val current = _uiState.value.waypoints.toMutableList()
         when (waypointType) {
@@ -404,7 +404,7 @@ class CourseRegistrationViewModel @Inject constructor(
         calculateStrictRouteIfPossible()
     }
 
-    private fun CourseRegistrationIntent.SelectWaypoint.role(): RegistrationWaypointType = when {
+    private fun CourseRegistrationIntent.WaypointSelected.role(): RegistrationWaypointType = when {
         _uiState.value.selectedWaypointRole == CourseWaypointRole.Start -> RegistrationWaypointType.START
         _uiState.value.selectedWaypointRole == CourseWaypointRole.Destination -> RegistrationWaypointType.DESTINATION
         else -> RegistrationWaypointType.VIA
@@ -557,7 +557,7 @@ class CourseRegistrationViewModel @Inject constructor(
         }
         setSearchVisibility(false)
         selectWaypoint(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = resolvedPoint,
                 name = suggestion.title,
                 address = suggestion.address,

@@ -111,17 +111,17 @@ class HomeViewModel @Inject constructor(
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
-            HomeIntent.OnMapGesture -> {
+            HomeIntent.MapGestured -> {
                 mapMovementGeneration += 1
                 _uiState.update { it.copy(isMapSearchDirty = true) }
             }
-            is HomeIntent.OnViewportSettled -> loadInitialViewport(intent.query)
-            is HomeIntent.OnProgrammaticSearch -> loadFirstPage(
+            is HomeIntent.ViewportSettled -> loadInitialViewport(intent.query)
+            is HomeIntent.ProgrammaticSearchRequested -> loadFirstPage(
                 query = intent.query,
                 force = true,
                 clearMapMovementGeneration = mapMovementGeneration,
             )
-            is HomeIntent.OnResearch -> {
+            is HomeIntent.ResearchClicked -> {
                 _uiState.update {
                     if (it.surfaceState == HomeSurfaceState.Navigation) {
                         it.copy(surfaceState = HomeSurfaceState.PartialList)
@@ -135,35 +135,35 @@ class HomeViewModel @Inject constructor(
                     clearMapMovementGeneration = mapMovementGeneration,
                 )
             }
-            HomeIntent.OnListOpen -> _uiState.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
-            HomeIntent.OnListCollapse -> collapseList()
-            is HomeIntent.OnListSheetSettled -> settleListSheet(intent.surface)
-            HomeIntent.OnLoadNextPage -> loadNextPage()
-            is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
-            HomeIntent.OnDismissDetail -> dismissDetail()
-            HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
-            HomeIntent.OnLevelReviewsOpen -> _uiState.update { it.copy(isLevelReviewsVisible = true) }
-            HomeIntent.OnLevelReviewsClose -> _uiState.update { it.copy(isLevelReviewsVisible = false) }
-            HomeIntent.OnReviewUpdated -> viewModelScope.launch { _effect.send(HomeEffect.RefreshReviews) }
-            HomeIntent.OnAppResumed -> loadActivePracticeSession()
-            HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
-            HomeIntent.OnPracticeStopMeasurement -> stopPracticeMeasurement()
-            HomeIntent.OnPracticePromptVisited -> recordPracticeVisit()
-            HomeIntent.OnPracticePromptNotVisited -> openPracticeSkipReason()
-            HomeIntent.OnPracticePromptDismiss -> dismissPracticePrompt()
-            HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
-            HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
-            is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult(intent.granted)
-            HomeIntent.OnLevelUpDismiss -> _uiState.update { it.copy(levelUp = null) }
-            HomeIntent.OnBookmarkClick -> toggleBookmark()
-            HomeIntent.OnMyClick -> openMyPage()
-            HomeIntent.OnRegisterClick -> openCourseRegistration()
-            is HomeIntent.OnSearchClick -> openSearch(intent.origin)
-            is HomeIntent.OnRegionSearch -> prepareRegionSearch(intent.region, intent.initialPlaces)
-            HomeIntent.OnFilterOpen -> _uiState.update { it.copy(isFilterSheetVisible = true) }
-            is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
-            is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
-            HomeIntent.OnFilterReset -> if (!_uiState.value.isFilterSaving) {
+            HomeIntent.ListOpenClicked -> _uiState.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
+            HomeIntent.ListCollapseRequested -> collapseList()
+            is HomeIntent.ListSheetSettled -> settleListSheet(intent.surface)
+            HomeIntent.ListEndReached -> loadNextPage()
+            is HomeIntent.PlaceClicked -> openPlace(intent.id, intent.origin)
+            HomeIntent.DetailDismissed -> dismissDetail()
+            HomeIntent.DetailDragDismissed -> dismissDetail(HomeSurfaceState.Navigation)
+            HomeIntent.LevelReviewsOpened -> _uiState.update { it.copy(isLevelReviewsVisible = true) }
+            HomeIntent.LevelReviewsClosed -> _uiState.update { it.copy(isLevelReviewsVisible = false) }
+            HomeIntent.ReviewUpdated -> viewModelScope.launch { _effect.send(HomeEffect.RefreshReviews) }
+            HomeIntent.AppResumed -> loadActivePracticeSession()
+            HomeIntent.PracticeContinueClicked -> hidePracticeContinueDialog()
+            HomeIntent.PracticeStopClicked -> stopPracticeMeasurement()
+            HomeIntent.PracticeVisitedAnswered -> recordPracticeVisit()
+            HomeIntent.PracticeNotVisitedAnswered -> openPracticeSkipReason()
+            HomeIntent.PracticePromptDismissed -> dismissPracticePrompt()
+            HomeIntent.NotificationPermissionAllowClicked -> allowNotificationPermission()
+            HomeIntent.NotificationPermissionRouteOnlyClicked -> routeWithoutPracticeMeasurement()
+            is HomeIntent.NotificationPermissionResultReceived -> onNotificationPermissionResult(intent.granted)
+            HomeIntent.LevelUpDismissed -> _uiState.update { it.copy(levelUp = null) }
+            HomeIntent.BookmarkClicked -> toggleBookmark()
+            HomeIntent.MyPageClicked -> openMyPage()
+            HomeIntent.RegisterClicked -> openCourseRegistration()
+            is HomeIntent.SearchClicked -> openSearch(intent.origin)
+            is HomeIntent.RegionSearchRequested -> prepareRegionSearch(intent.region, intent.initialPlaces)
+            HomeIntent.FilterOpened -> _uiState.update { it.copy(isFilterSheetVisible = true) }
+            is HomeIntent.FilterCategorySelected -> selectFilterCategory(intent.category)
+            is HomeIntent.FilterPracticeOptionToggled -> toggleFilterPracticeOption(intent.option)
+            HomeIntent.FilterResetClicked -> if (!_uiState.value.isFilterSaving) {
                 _uiState.update {
                     it.copy(
                         activeFilterCategory = FilterCategory.BASIC_DRIVING,
@@ -171,13 +171,13 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
-            HomeIntent.OnFilterApply -> applyFilter()
-            HomeIntent.OnFilterDismiss -> dismissFilter()
-            HomeIntent.OnDismissLogin -> _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
-            is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
-            is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
-            HomeIntent.OnRestoreAccount -> restoreAccount()
-            HomeIntent.OnDismissRestore -> {
+            HomeIntent.FilterApplyClicked -> applyFilter()
+            HomeIntent.FilterDismissed -> dismissFilter()
+            HomeIntent.LoginDismissed -> _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+            is HomeIntent.KakaoLoginSucceeded -> loginWithKakao(intent.accessToken)
+            is HomeIntent.KakaoLoginFailed -> onKakaoLoginFailed(intent.message)
+            HomeIntent.AccountRestoreClicked -> restoreAccount()
+            HomeIntent.AccountRestoreDismissed -> {
                 pendingRestoreCredential = null
                 _uiState.update {
                     it.copy(
@@ -188,9 +188,9 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             }
-            is HomeIntent.OnNavigateClick -> onNavigateClick(intent)
-            is HomeIntent.OnNaviAppSelected -> onNaviAppSelected(intent)
-            is HomeIntent.OnInstallNaviAppSelected -> onInstallNaviAppSelected(intent)
+            is HomeIntent.NavigateClicked -> onNavigateClick(intent)
+            is HomeIntent.NaviAppSelected -> onNaviAppSelected(intent)
+            is HomeIntent.NaviAppInstallSelected -> onInstallNaviAppSelected(intent)
         }
     }
 
@@ -725,7 +725,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
+    private fun onNavigateClick(intent: HomeIntent.NavigateClicked) {
         val place = _uiState.value.selectedPlace ?: return
         viewModelScope.launch {
             val savedApp = getNaviAlwaysUseCase()
@@ -745,7 +745,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
+    private fun onNaviAppSelected(intent: HomeIntent.NaviAppSelected) {
         val place = _uiState.value.selectedPlace ?: return
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
@@ -753,7 +753,7 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    private fun onInstallNaviAppSelected(intent: HomeIntent.OnInstallNaviAppSelected) {
+    private fun onInstallNaviAppSelected(intent: HomeIntent.NaviAppInstallSelected) {
         viewModelScope.launch { _effect.send(HomeEffect.OpenNaviInstallPage(intent.app)) }
     }
 

@@ -28,15 +28,15 @@ data class SearchUiState(
 )
 
 sealed interface SearchIntent {
-    data class OnQueryChange(val query: String) : SearchIntent
-    data object OnImeSearch : SearchIntent
-    data object OnRetry : SearchIntent
-    data object OnLoadNextPage : SearchIntent
-    data class OnRecentSearchClick(val search: RecentSearch) : SearchIntent
-    data class OnRegionSuggestionClick(val region: RegionOfficeLocation) : SearchIntent
-    data class OnPlaceSuggestionClick(val place: PlaceSuggestion) : SearchIntent
-    data object OnDeleteAllRecentSearches : SearchIntent
-    data class OnDeleteRecentSearch(val id: Long) : SearchIntent
+    data class QueryChanged(val query: String) : SearchIntent
+    data object ImeSearchSubmitted : SearchIntent
+    data object RetryClicked : SearchIntent
+    data object ListEndReached : SearchIntent
+    data class RecentSearchClicked(val search: RecentSearch) : SearchIntent
+    data class RegionSuggestionClicked(val region: RegionOfficeLocation) : SearchIntent
+    data class PlaceSuggestionClicked(val place: PlaceSuggestion) : SearchIntent
+    data object DeleteAllRecentSearchesClicked : SearchIntent
+    data class DeleteRecentSearchClicked(val id: Long) : SearchIntent
 }
 
 sealed interface SearchEffect {

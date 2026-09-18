@@ -46,7 +46,7 @@ class HomeContentBackHandlerTest {
         Espresso.pressBackUnconditionally()
         composeRule.waitForIdle()
 
-        assertEquals(listOf<HomeIntent>(HomeIntent.OnListCollapse), intents)
+        assertEquals(listOf<HomeIntent>(HomeIntent.ListCollapseRequested), intents)
         assertEquals(0, dismissDetailCount)
         assertEquals(0, outerBackCount)
     }
@@ -60,7 +60,7 @@ class HomeContentBackHandlerTest {
         Espresso.pressBackUnconditionally()
         composeRule.waitForIdle()
 
-        assertEquals(listOf<HomeIntent>(HomeIntent.OnFilterDismiss), intents)
+        assertEquals(listOf<HomeIntent>(HomeIntent.FilterDismissed), intents)
         assertEquals(0, outerBackCount)
     }
 

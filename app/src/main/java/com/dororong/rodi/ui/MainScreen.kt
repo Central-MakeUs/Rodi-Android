@@ -147,7 +147,7 @@ fun MainScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                homeViewModel.onIntent(HomeIntent.OnAppResumed)
+                homeViewModel.onIntent(HomeIntent.AppResumed)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -160,7 +160,7 @@ fun MainScreen(
                 selectedDestination = route.toMainBottomNavigationDestination(showResumeDialog),
                 onHomeClick = {
                     if (route == HomeRoute) {
-                        homeViewModel.onIntent(HomeIntent.OnListOpen)
+                        homeViewModel.onIntent(HomeIntent.ListOpenClicked)
                     } else {
                         backStack.popMyPage()
                     }
@@ -168,14 +168,14 @@ fun MainScreen(
                 onRegisterClick = {
                     if (!showResumeDialog) {
                         when (route) {
-                            HomeRoute -> homeViewModel.onIntent(HomeIntent.OnRegisterClick)
+                            HomeRoute -> homeViewModel.onIntent(HomeIntent.RegisterClicked)
                             MyPageRoute -> requestCourseRegistration()
                             else -> Unit
                         }
                     }
                 },
                 onMyClick = {
-                    if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.OnMyClick)
+                    if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.MyPageClicked)
                 },
             )
         }
@@ -239,11 +239,11 @@ fun MainScreen(
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onPlaceClick = { placeId ->
-                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.List))
+                                homeViewModel.onIntent(HomeIntent.PlaceClicked(placeId, HomeDetailOrigin.List))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onRegionClick = { region, initialPlaces ->
-                                homeViewModel.onIntent(HomeIntent.OnRegionSearch(region, initialPlaces))
+                                homeViewModel.onIntent(HomeIntent.RegionSearchRequested(region, initialPlaces))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                         )
@@ -330,7 +330,7 @@ fun MainScreen(
                             editingReviewId = key.reviewId,
                             onClose = { backStack.removeAt(backStack.lastIndex) },
                             onCompleted = {
-                                homeViewModel.onIntent(HomeIntent.OnReviewUpdated)
+                                homeViewModel.onIntent(HomeIntent.ReviewUpdated)
                                 backStack.removeAt(backStack.lastIndex)
                             },
                         )
@@ -344,7 +344,7 @@ fun MainScreen(
                         SavedCoursesScreen(
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                             onPlaceClick = { placeId ->
-                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
+                                homeViewModel.onIntent(HomeIntent.PlaceClicked(placeId, HomeDetailOrigin.Map))
                                 backStack.clear()
                                 backStack.add(HomeRoute)
                             },
