@@ -122,7 +122,7 @@ fun SettingsScreen(
                 appVersion = appVersion,
                 onVersionClick = {
                     clipboard.setText(AnnotatedString(appSupportInfo(context, appVersion)))
-                    snackbarHostState.show(RodiSnackbarData(message = "앱 정보를 복사했어요. 문의할 때 붙여넣어 주세요."))
+                    snackbarHostState.show(RodiSnackbarData(message = "앱 정보를 복사했어요."))
                 },
                 onBack = onBack,
                 onPermissionClick = { destinationName = SettingsDestination.Permission.name },
