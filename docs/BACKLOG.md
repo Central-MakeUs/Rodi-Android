@@ -5,6 +5,20 @@
 
 ## 열린 항목
 
+### **실시간 업데이트가 Android 16 이상 일부 기기에서 안 뜬다** (2026-09-17 내부 테스트에서 발견)
+- [ ] 테스터 기기에서 마이페이지 > 테스트 > 라이브 업데이트 > 진단 정보 스크린샷을 모아 막힌 조건을 확정한다.
+  표시 조건은 셋이다 — ① 알림 형태(코드상 충족) ② OS 36.1(Android 16 QPR1) 이상 ③ 사용자·제조사 허용.
+  **Samsung One UI 8은 서드파티 앱을 기본 차단하고 개발자 옵션 "모든 앱의 실시간 알림"이나 삼성 허용 목록으로만
+  표시한다.** 삼성 전용 확장(`com.samsung.android.support.ongoing_activity` 메타데이터 +
+  `android.ongoingActivityNoti.*`)도 허용 목록에 들어야 동작하므로 코드만으로는 해결되지 않는다 — 제휴 신청 여부는
+  기획 판단. 승격이 안 되는 기기에서도 일반 진행 알림으로 갱신되는지는 유지한다.
+  **2026-09-18 실기기 실측(SM-M446K, One UI 8.0, API 36.0)**: 36.0에서도 개발자 옵션을 켜면 표시되므로 "36.1 미만이라
+  안 뜬다"가 아니다. `adb shell dumpsys notification --noredact`의 `AppSettings: <패키지> ... allowOngoingActivity=1`이
+  삼성의 앱별 허용값이다 — 카카오T·카카오내비·네이버지도·당근·스타벅스는 1, Rodi는 값 자체가 없다. 정책 버전이
+  `Notification Policies SCPM Version`으로 찍혀 있어 서버에서 내려오는 목록으로 보인다. `canPostPromotedNotifications()`는
+  이 기기에서 false라 판단 근거가 못 된다.
+  근거: developer.android.com/develop/ui/views/notifications/live-update, OneSignal Android Live Notifications 문서
+
 ### **권한 설정 화면 문구 재검토** (2026-09-16 실기기 확인에서 발견)
 - [ ] `PermissionSettingsScreen`의 행 문구가 사용자가 무엇을 얻는지 설명하지 못한다.
   "위치"와 "주행 상태 알림"은 허용/미허용만 보여 줄 뿐, 거부하면 무엇이 안 되는지 알려주지 않는다.
