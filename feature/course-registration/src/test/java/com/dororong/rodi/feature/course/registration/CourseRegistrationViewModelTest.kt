@@ -97,7 +97,7 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
         assertEquals(CourseRegistrationPage.Map, viewModel.uiState.value.page)
@@ -115,7 +115,7 @@ class CourseRegistrationViewModelTest {
 
         viewModel.onIntent(CourseRegistrationIntent.TutorialPageChanged(2))
         coEvery { member.completeCourseTutorial() } throws IllegalStateException("network")
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
         // 완료 상태를 서버에 남기는 호출이 실패해도 튜토리얼에 가둬두지 않고 지도로 넘어간다 —
@@ -138,15 +138,15 @@ class CourseRegistrationViewModelTest {
             snappedPoints = listOf(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0)),
         )
         stubReverseGeocode(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.ContinueToForm)
+        viewModel.onIntent(CourseRegistrationIntent.ContinueToFormClicked)
         assertEquals(CourseRegistrationPage.Form, viewModel.uiState.value.page)
-        viewModel.onIntent(CourseRegistrationIntent.Back)
+        viewModel.onIntent(CourseRegistrationIntent.BackPressed)
 
         assertEquals(CourseRegistrationPage.Map, viewModel.uiState.value.page)
         assertNull(viewModel.uiState.value.dialog)
@@ -161,14 +161,14 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "주소", null))
         repeat(5) { index ->
-            viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Via))
+            viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Via))
             viewModel.onIntent(
-                CourseRegistrationIntent.SelectWaypoint(
+                CourseRegistrationIntent.WaypointSelected(
                     point = GeoPoint(37.51 + index * 0.01, 126.91 + index * 0.01),
                     name = "경유$index",
                     address = "주소$index",
@@ -185,7 +185,7 @@ class CourseRegistrationViewModelTest {
     fun `selecting points keeps start via destination order and rejects straight fallback`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.MapReady(true))
 
@@ -196,10 +196,10 @@ class CourseRegistrationViewModelTest {
             snappedPoints = listOf(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0)),
         )
         stubReverseGeocode(GeoPoint(37.5, 126.9), GeoPoint(37.6, 127.0))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
         advanceUntilIdle()
 
         assertEquals(listOf(RegistrationWaypointType.START, RegistrationWaypointType.DESTINATION), viewModel.uiState.value.waypoints.map(RegistrationWaypoint::type))
@@ -221,10 +221,10 @@ class CourseRegistrationViewModelTest {
         )
         stubReverseGeocode(snappedStart, snappedDestination)
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "서울 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "서울 주소", null))
         advanceUntilIdle()
 
         assertEquals(snappedStart.lat, viewModel.uiState.value.waypoints.first().lat)
@@ -385,12 +385,12 @@ class CourseRegistrationViewModelTest {
     fun `pin edit reset and commit preserve original address`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "원래 주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.BeginPinEdit(0))
-        viewModel.onIntent(CourseRegistrationIntent.MoveTemporaryPin(GeoPoint(37.51, 126.91)))
-        viewModel.onIntent(CourseRegistrationIntent.ResetPinEdit)
-        viewModel.onIntent(CourseRegistrationIntent.CommitPinEdit)
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "원래 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.PinEditStarted(0))
+        viewModel.onIntent(CourseRegistrationIntent.TemporaryPinMoved(GeoPoint(37.51, 126.91)))
+        viewModel.onIntent(CourseRegistrationIntent.PinEditReset)
+        viewModel.onIntent(CourseRegistrationIntent.PinEditCommitted)
         advanceUntilIdle()
 
         assertEquals(37.5, viewModel.uiState.value.waypoints.single().lat)
@@ -404,9 +404,9 @@ class CourseRegistrationViewModelTest {
         advanceUntilIdle()
         val original = GeoPoint(37.5, 126.9)
         val moved = GeoPoint(37.51, 126.91)
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(original, "출발", "원래 주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.BeginPinEdit(0))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(original, "출발", "원래 주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.PinEditStarted(0))
         viewModel.onIntent(CourseRegistrationIntent.MapCenterChanged(moved))
 
         assertEquals(moved, viewModel.uiState.value.mapCenter)
@@ -431,11 +431,11 @@ class CourseRegistrationViewModelTest {
     fun `practice type selection is capped by server form`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("parking"))
-        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("turn"))
-        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("lane"))
+        viewModel.onIntent(CourseRegistrationIntent.PracticeTypeToggled("parking"))
+        viewModel.onIntent(CourseRegistrationIntent.PracticeTypeToggled("turn"))
+        viewModel.onIntent(CourseRegistrationIntent.PracticeTypeToggled("lane"))
         advanceUntilIdle()
 
         assertEquals(listOf("parking"), viewModel.uiState.value.selectedPracticeTypeCodes)
@@ -446,10 +446,10 @@ class CourseRegistrationViewModelTest {
     fun `explicit exit clears draft before reporting exit`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.RequestExit)
-        viewModel.onIntent(CourseRegistrationIntent.ConfirmExit)
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.ExitRequested)
+        viewModel.onIntent(CourseRegistrationIntent.ExitConfirmed)
         advanceUntilIdle()
 
         assertEquals(null, viewModel.uiState.value.dialog)
@@ -496,16 +496,16 @@ class CourseRegistrationViewModelTest {
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.MapReady(true))
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = startPoint,
                 name = "출발",
                 address = "주소",
                 jibunAddress = null,
             ),
         )
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = destinationPoint,
                 name = "도착",
                 address = "주소",
@@ -513,13 +513,13 @@ class CourseRegistrationViewModelTest {
             ),
         )
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("parking"))
-        viewModel.onIntent(CourseRegistrationIntent.ContinueToForm)
+        viewModel.onIntent(CourseRegistrationIntent.PracticeTypeToggled("parking"))
+        viewModel.onIntent(CourseRegistrationIntent.ContinueToFormClicked)
         viewModel.onIntent(CourseRegistrationIntent.DescriptionChanged("연습 코스"))
         runCurrent()
         assertTrue(saveStarted.isCompleted)
 
-        viewModel.onIntent(CourseRegistrationIntent.Submit)
+        viewModel.onIntent(CourseRegistrationIntent.SubmitClicked)
         runCurrent()
 
         assertTrue(saveCancelled.isCompleted)
@@ -569,7 +569,7 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
         assertEquals(CourseRegistrationPage.Map, viewModel.uiState.value.page)
@@ -593,7 +593,7 @@ class CourseRegistrationViewModelTest {
 
         // 1. 출발지 선택
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = startPoint,
                 name = "출발",
                 address = "주소",
@@ -601,9 +601,9 @@ class CourseRegistrationViewModelTest {
             ),
         )
         // 2. 같은 좌표로 도착지 선택 시도
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = startPoint,
                 name = "도착(동일)",
                 address = "주소",
@@ -633,7 +633,7 @@ class CourseRegistrationViewModelTest {
 
         // 1. 출발지 선택
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = startPoint,
                 name = "출발",
                 address = "주소",
@@ -641,9 +641,9 @@ class CourseRegistrationViewModelTest {
             ),
         )
         // 2. 다른 좌표로 도착지 선택
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
         viewModel.onIntent(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = destPoint,
                 name = "도착(다름)",
                 address = "주소",
@@ -662,8 +662,8 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "주소", null))
         advanceUntilIdle()
 
         assertEquals(RegistrationWaypointType.DESTINATION, viewModel.uiState.value.waypoints.single().type)
@@ -675,10 +675,10 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Destination))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.6, 127.0), "도착", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Destination))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.6, 127.0), "도착", "주소", null))
         advanceUntilIdle()
 
         assertEquals(CourseWaypointRole.Destination, viewModel.uiState.value.selectedWaypointRole)
@@ -691,8 +691,8 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "주소", null))
         assertTrue(viewModel.uiState.value.mapCenterKeepsZoom)
 
         viewModel.onIntent(CourseRegistrationIntent.SearchKeywordChanged("강남"))
@@ -711,8 +711,8 @@ class CourseRegistrationViewModelTest {
         val viewModel = viewModel()
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Start))
-        viewModel.onIntent(CourseRegistrationIntent.SelectWaypoint(GeoPoint(37.5, 126.9), "출발", "주소", null))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
+        viewModel.onIntent(CourseRegistrationIntent.WaypointSelected(GeoPoint(37.5, 126.9), "출발", "주소", null))
         // 검색 결과 선택으로 줌 유지 플래그를 false로 만들어둔 뒤, beginPinEdit가 같은 자리
         // 재중심으로 인식해 스스로 true로 되돌리는지 확인한다.
         viewModel.onIntent(CourseRegistrationIntent.SearchKeywordChanged("강남"))
@@ -722,7 +722,7 @@ class CourseRegistrationViewModelTest {
         advanceUntilIdle()
         assertFalse(viewModel.uiState.value.mapCenterKeepsZoom)
 
-        viewModel.onIntent(CourseRegistrationIntent.BeginPinEdit(0))
+        viewModel.onIntent(CourseRegistrationIntent.PinEditStarted(0))
 
         assertTrue(viewModel.uiState.value.mapCenterKeepsZoom)
     }
@@ -732,12 +732,12 @@ class CourseRegistrationViewModelTest {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectCategory("basic"))
-        viewModel.onIntent(CourseRegistrationIntent.TogglePracticeType("straight"))
-        viewModel.onIntent(CourseRegistrationIntent.SelectCategory("parking"))
+        viewModel.onIntent(CourseRegistrationIntent.CategorySelected("basic"))
+        viewModel.onIntent(CourseRegistrationIntent.PracticeTypeToggled("straight"))
+        viewModel.onIntent(CourseRegistrationIntent.CategorySelected("parking"))
         advanceUntilIdle()
 
         assertEquals("parking", viewModel.uiState.value.selectedCategoryCode)
@@ -749,11 +749,11 @@ class CourseRegistrationViewModelTest {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
-        viewModel.onIntent(CourseRegistrationIntent.SelectCategory("basic"))
-        viewModel.onIntent(CourseRegistrationIntent.SelectCategory("basic"))
+        viewModel.onIntent(CourseRegistrationIntent.CategorySelected("basic"))
+        viewModel.onIntent(CourseRegistrationIntent.CategorySelected("basic"))
         advanceUntilIdle()
 
         assertEquals("basic", viewModel.uiState.value.selectedCategoryCode)
@@ -764,7 +764,7 @@ class CourseRegistrationViewModelTest {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()
-        viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial)
+        viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
         advanceUntilIdle()
 
         assertEquals("basic", viewModel.uiState.value.selectedCategoryCode)

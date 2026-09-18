@@ -271,7 +271,7 @@ fun HomeScreen(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted))
+        vm.onIntent(HomeIntent.NotificationPermissionResultReceived(granted))
     }
     val drivingPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -300,7 +300,7 @@ fun HomeScreen(
                     permissionGranted = context.hasLocationPermission()
                     mapState.resetEntryFlags()
                     // 진행 중이던 연습 세션이 있으면 "이어서 측정할까요?" 다이얼로그를 다시 띄운다.
-                    vm.onIntent(HomeIntent.OnAppResumed)
+                    vm.onIntent(HomeIntent.AppResumed)
                     // 설정에서 차단을 풀거나 내 활동에서 후기를 고치고 돌아올 수 있다.
                     // 열려 있는 장소가 없으면 refresh는 아무 것도 하지 않는다.
                     reviewVm.refresh()
@@ -364,7 +364,7 @@ fun HomeScreen(
     LaunchedEffect(listSheetState) {
         snapshotFlow { listSheetState.settledValue }
             .drop(1)
-            .collect { vm.onIntent(HomeIntent.OnListSheetSettled(it.toSurfaceState())) }
+            .collect { vm.onIntent(HomeIntent.ListSheetSettled(it.toSurfaceState())) }
     }
     // 컨테이너 크기는 onSizeChanged가 잡지만 목록이 비는 건 크기 변화가 아니라서 여기서 앵커를 다시 만든다.
     // updateAnchors는 같은 앵커면 아무것도 하지 않아 onSizeChanged와 겹쳐 불려도 안전하다.
@@ -484,11 +484,11 @@ fun HomeScreen(
     }
     val dismissDetail: () -> Unit = {
         deselectSelectedParkingMarker()
-        vm.onIntent(HomeIntent.OnDismissDetail)
+        vm.onIntent(HomeIntent.DetailDismissed)
     }
     val requestNavigate: () -> Unit = {
         vm.onIntent(
-            HomeIntent.OnNavigateClick(
+            HomeIntent.NavigateClicked(
                 kakaoMapInstalled = KakaoMapLauncher.isInstalled(context),
                 kakaoNaviInstalled = KakaoNaviLauncher.isInstalled(context),
                 notificationPermissionGranted = context.hasNotificationPermission(),
@@ -497,7 +497,7 @@ fun HomeScreen(
     }
     val dragDismissDetail: () -> Unit = {
         deselectSelectedParkingMarker()
-        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        vm.onIntent(HomeIntent.DetailDragDismissed)
     }
     val dismissLogin: () -> Unit = {
         val pendingPlaceId = (state.pendingAction as? PendingHomeAction.OpenDetail)?.placeId
@@ -505,7 +505,7 @@ fun HomeScreen(
         if (pendingPlaceId != null && isPendingParking) {
             kakaoMap?.deselectParkingMarker(context, pendingPlaceId)
         }
-        vm.onIntent(HomeIntent.OnDismissLogin)
+        vm.onIntent(HomeIntent.LoginDismissed)
     }
 
     var pendingRegionMove by remember { mutableStateOf<RegionOfficeLocation?>(null) }
@@ -551,7 +551,7 @@ fun HomeScreen(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 } else {
-                    vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
+                    vm.onIntent(HomeIntent.NotificationPermissionResultReceived(granted = true))
                 }
             }
         }
@@ -586,7 +586,7 @@ fun HomeScreen(
         val isDetail = state.surfaceState == HomeSurfaceState.Detail
         if (wasDetailSurface && !isDetail) {
             mapState.currentViewport?.let { viewport ->
-                vm.onIntent(HomeIntent.OnProgrammaticSearch(viewport.toQuery(currentLocation)))
+                vm.onIntent(HomeIntent.ProgrammaticSearchRequested(viewport.toQuery(currentLocation)))
             }
         }
         wasDetailSurface = isDetail
@@ -638,7 +638,7 @@ fun HomeScreen(
         }
         val viewport = map.viewportOrNull(mapState.mapViewSize) ?: return@LaunchedEffect
         mapState.currentViewport = viewport
-        vm.onIntent(HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)))
+        vm.onIntent(HomeIntent.ViewportSettled(viewport.toQuery(currentLocation)))
     }
 
     LaunchedEffect(kakaoMap, permissionGranted) {
@@ -847,7 +847,7 @@ fun HomeScreen(
         actions = HomeContentActions(
             onSearchClick = {
                 vm.onIntent(
-                    HomeIntent.OnSearchClick(
+                    HomeIntent.SearchClicked(
                         mapState.currentViewport?.toQuery(currentLocation)?.origin,
                     ),
                 )
@@ -865,7 +865,7 @@ fun HomeScreen(
                 }
                 if (viewport != null) {
                     mapState.hasUserChosenMapViewport = true
-                    vm.onIntent(HomeIntent.OnResearch(viewport.toQuery(currentLocation)))
+                    vm.onIntent(HomeIntent.ResearchClicked(viewport.toQuery(currentLocation)))
                 }
             },
             onMyLocationClick = {
@@ -896,7 +896,7 @@ fun HomeScreen(
             onRetryPlaces = {
                 val query = state.searchedQuery
                     ?: mapState.currentViewport?.toQuery(currentLocation)
-                query?.let { vm.onIntent(HomeIntent.OnProgrammaticSearch(it)) }
+                query?.let { vm.onIntent(HomeIntent.ProgrammaticSearchRequested(it)) }
             },
             onRetryMap = ::retryMap,
             onDismissDetail = dismissDetail,
@@ -940,7 +940,7 @@ fun HomeScreen(
                                     map.setOnCameraMoveStartListener { _, gesture ->
                                         if (gesture != GestureType.Unknown) {
                                             mapState.onUserGesture()
-                                            vm.onIntent(HomeIntent.OnMapGesture)
+                                            vm.onIntent(HomeIntent.MapGestured)
                                         }
                                     }
                                     map.setOnCameraMoveEndListener { movedMap, _, _ ->
@@ -954,10 +954,10 @@ fun HomeScreen(
                                         if (viewport != null) {
                                             when (action) {
                                                 CameraSettleAction.ProgrammaticSearch -> vm.onIntent(
-                                                    HomeIntent.OnProgrammaticSearch(viewport.toQuery(currentLocation)),
+                                                    HomeIntent.ProgrammaticSearchRequested(viewport.toQuery(currentLocation)),
                                                 )
                                                 CameraSettleAction.ViewportSettled -> vm.onIntent(
-                                                    HomeIntent.OnViewportSettled(viewport.toQuery(currentLocation)),
+                                                    HomeIntent.ViewportSettled(viewport.toQuery(currentLocation)),
                                                 )
                                                 CameraSettleAction.None -> Unit
                                             }
@@ -1008,7 +1008,7 @@ fun HomeScreen(
                                                     map.selectParkingMarker(context, tag.id)
                                                 }
                                                 vm.onIntent(
-                                                    HomeIntent.OnPlaceClick(
+                                                    HomeIntent.PlaceClicked(
                                                         tag.id,
                                                         HomeDetailOrigin.Map,
                                                     ),
@@ -1072,10 +1072,10 @@ fun HomeScreen(
         onDismissLogin = dismissLogin,
         onKakaoLoginClick = {
             onRequestKakaoLogin(
-                { token -> vm.onIntent(HomeIntent.OnKakaoLoginCredential(token)) },
+                { token -> vm.onIntent(HomeIntent.KakaoLoginSucceeded(token)) },
                 { message ->
                     if (message.contains("취소")) dismissLogin()
-                    else vm.onIntent(HomeIntent.OnKakaoLoginFailed(message))
+                    else vm.onIntent(HomeIntent.KakaoLoginFailed(message))
                 },
             )
         },

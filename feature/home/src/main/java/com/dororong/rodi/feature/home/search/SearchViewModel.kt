@@ -57,20 +57,20 @@ class SearchViewModel @Inject constructor(
 
     fun onIntent(intent: SearchIntent) {
         when (intent) {
-            is SearchIntent.OnQueryChange -> onQueryChange(intent.query)
-            SearchIntent.OnImeSearch -> searchImmediately()
-            SearchIntent.OnRetry -> retrySearch()
-            SearchIntent.OnLoadNextPage -> loadNextPage()
-            is SearchIntent.OnRecentSearchClick -> onRecentSearchClick(intent.search)
-            is SearchIntent.OnRegionSuggestionClick -> {
+            is SearchIntent.QueryChanged -> onQueryChange(intent.query)
+            SearchIntent.ImeSearchSubmitted -> searchImmediately()
+            SearchIntent.RetryClicked -> retrySearch()
+            SearchIntent.ListEndReached -> loadNextPage()
+            is SearchIntent.RecentSearchClicked -> onRecentSearchClick(intent.search)
+            is SearchIntent.RegionSuggestionClicked -> {
                 registerRecentSearch(
                     RecentSearchRegistration(SearchTargetType.REGION, intent.region.displayName),
                 )
                 selectRegion(intent.region)
             }
-            is SearchIntent.OnPlaceSuggestionClick -> onPlaceSuggestionClick(intent.place)
-            SearchIntent.OnDeleteAllRecentSearches -> deleteAllRecentSearches()
-            is SearchIntent.OnDeleteRecentSearch -> deleteRecentSearch(intent.id)
+            is SearchIntent.PlaceSuggestionClicked -> onPlaceSuggestionClick(intent.place)
+            SearchIntent.DeleteAllRecentSearchesClicked -> deleteAllRecentSearches()
+            is SearchIntent.DeleteRecentSearchClicked -> deleteRecentSearch(intent.id)
         }
     }
 

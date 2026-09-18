@@ -129,8 +129,8 @@ private fun SearchScreenContent(
         SearchInput(
             query = state.query,
             focusRequester = focusRequester,
-            onQueryChange = { onIntent(SearchIntent.OnQueryChange(it)) },
-            onImeSearch = { onIntent(SearchIntent.OnImeSearch) },
+            onQueryChange = { onIntent(SearchIntent.QueryChanged(it)) },
+            onImeSearch = { onIntent(SearchIntent.ImeSearchSubmitted) },
             onBack = onBack,
         )
         when {
@@ -139,9 +139,9 @@ private fun SearchScreenContent(
                 isLoading = state.isRecentSearchesLoading,
                 isDeletingAll = state.isDeletingAllRecentSearches,
                 deletingIds = state.deletingRecentSearchIds,
-                onSearchClick = { onIntent(SearchIntent.OnRecentSearchClick(it)) },
-                onDeleteAll = { onIntent(SearchIntent.OnDeleteAllRecentSearches) },
-                onDelete = { onIntent(SearchIntent.OnDeleteRecentSearch(it)) },
+                onSearchClick = { onIntent(SearchIntent.RecentSearchClicked(it)) },
+                onDeleteAll = { onIntent(SearchIntent.DeleteAllRecentSearchesClicked) },
+                onDelete = { onIntent(SearchIntent.DeleteRecentSearchClicked(it)) },
                 modifier = Modifier.weight(1f),
             )
 
@@ -149,9 +149,9 @@ private fun SearchScreenContent(
             state.resultState == SearchResultState.Content -> SearchSuggestionList(
                 regions = state.regionSuggestions,
                 places = state.places,
-                onRegionClick = { onIntent(SearchIntent.OnRegionSuggestionClick(it)) },
-                onPlaceClick = { onIntent(SearchIntent.OnPlaceSuggestionClick(it)) },
-                onLoadNextPage = { onIntent(SearchIntent.OnLoadNextPage) },
+                onRegionClick = { onIntent(SearchIntent.RegionSuggestionClicked(it)) },
+                onPlaceClick = { onIntent(SearchIntent.PlaceSuggestionClicked(it)) },
+                onLoadNextPage = { onIntent(SearchIntent.ListEndReached) },
                 isNextPageLoading = state.isNextPageLoading,
                 modifier = Modifier.weight(1f),
             )
@@ -159,7 +159,7 @@ private fun SearchScreenContent(
             state.resultState == SearchResultState.Empty -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))
             state.resultState == SearchResultState.RegionEmpty -> RegionSearchEmptyContent(Modifier.weight(1f))
             state.resultState == SearchResultState.Error -> SearchErrorContent(
-                onRetry = { onIntent(SearchIntent.OnRetry) },
+                onRetry = { onIntent(SearchIntent.RetryClicked) },
                 modifier = Modifier.weight(1f),
             )
             state.resultState == SearchResultState.Idle -> SearchEmptyContent(state.query.trim(), Modifier.weight(1f))

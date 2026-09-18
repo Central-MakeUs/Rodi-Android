@@ -99,8 +99,8 @@ fun CourseRegistrationMapContent(
             onKeywordChanged = { onIntent(CourseRegistrationIntent.SearchKeywordChanged(it)) },
             onSubmit = { onIntent(CourseRegistrationIntent.SearchSubmitted) },
             onSelect = { onIntent(CourseRegistrationIntent.SearchSuggestionSelected(it)) },
-            onDeleteRecent = { onIntent(CourseRegistrationIntent.DeleteRecentSearch(it)) },
-            onDeleteAll = { onIntent(CourseRegistrationIntent.DeleteAllRecentSearches) },
+            onDeleteRecent = { onIntent(CourseRegistrationIntent.RecentSearchDeleteClicked(it)) },
+            onDeleteAll = { onIntent(CourseRegistrationIntent.DeleteAllRecentSearchesClicked) },
             onRetry = { onIntent(CourseRegistrationIntent.SearchSubmitted) },
             modifier = modifier,
         )
@@ -134,7 +134,7 @@ fun CourseRegistrationMapContent(
                 onReady = { onIntent(CourseRegistrationIntent.MapReady(it)) },
                 onCameraCenterChanged = { onIntent(CourseRegistrationIntent.MapCenterChanged(it)) },
                 onMapTapped = {},
-                onWaypointTapped = { onIntent(CourseRegistrationIntent.BeginPinEdit(it)) },
+                onWaypointTapped = { onIntent(CourseRegistrationIntent.PinEditStarted(it)) },
                 topPaddingPx = headerHeightPx,
                 bottomPaddingPx = bottomPanelHeightPx,
             )
@@ -173,8 +173,8 @@ fun CourseRegistrationMapContent(
             temporaryPin = temporaryPin,
             onBack = onBack,
             onSearch = { onIntent(CourseRegistrationIntent.SearchVisibilityChanged(true)) },
-            onRoleSelected = { onIntent(CourseRegistrationIntent.SelectWaypointRole(it)) },
-            onRemoveVia = { onIntent(CourseRegistrationIntent.RemoveWaypoint(it)) },
+            onRoleSelected = { onIntent(CourseRegistrationIntent.WaypointRoleSelected(it)) },
+            onRemoveVia = { onIntent(CourseRegistrationIntent.WaypointRemoved(it)) },
             modifier = Modifier.onSizeChanged { headerHeightPx = it.height },
         )
 
@@ -182,7 +182,7 @@ fun CourseRegistrationMapContent(
             CourseMapLoadState.Loading -> CourseRegistrationMapLoadingOverlay()
             CourseMapLoadState.Error -> CourseRegistrationMapError(
                 modifier = Modifier.align(Alignment.Center),
-                onRetry = { onIntent(CourseRegistrationIntent.Retry) },
+                onRetry = { onIntent(CourseRegistrationIntent.RetryClicked) },
             )
             CourseMapLoadState.Ready -> Unit
         }
@@ -209,8 +209,8 @@ fun CourseRegistrationMapContent(
                 pendingSuggestion = pendingSuggestion,
                 isPendingAddressLoading = isPendingAddressLoading,
                 onSelect = { mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) } },
-                onReset = { onIntent(CourseRegistrationIntent.ResetPinEdit) },
-                onCommit = { onIntent(CourseRegistrationIntent.CommitPinEdit) },
+                onReset = { onIntent(CourseRegistrationIntent.PinEditReset) },
+                onCommit = { onIntent(CourseRegistrationIntent.PinEditCommitted) },
             )
         } else {
             CourseRegistrationMapBottomPanel(
@@ -354,7 +354,7 @@ private fun CourseRegistrationMapBottomPanel(
                 text = if (isAddViaMode) "경유지 추가" else selectionLabel,
                 onClick = {
                     if (isAddViaMode) {
-                        onIntent(CourseRegistrationIntent.SelectWaypointRole(CourseWaypointRole.Via))
+                        onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Via))
                     } else {
                         mapCenter?.let { onIntent(CourseRegistrationIntent.MapPointSelected(it)) }
                     }
@@ -366,7 +366,7 @@ private fun CourseRegistrationMapBottomPanel(
             )
             RodiButton(
                 text = "완료",
-                onClick = { onIntent(CourseRegistrationIntent.ContinueToForm) },
+                onClick = { onIntent(CourseRegistrationIntent.ContinueToFormClicked) },
                 enabled = canFinish,
                 modifier = Modifier.weight(1f),
                 height = 48.dp,

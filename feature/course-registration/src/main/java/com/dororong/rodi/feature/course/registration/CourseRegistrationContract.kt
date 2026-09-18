@@ -154,41 +154,41 @@ data class CourseRegistrationUiState(
 }
 
 sealed interface CourseRegistrationIntent {
-    data object Retry : CourseRegistrationIntent
+    data object RetryClicked : CourseRegistrationIntent
     data class TutorialPageChanged(val page: Int) : CourseRegistrationIntent
-    data object CompleteTutorial : CourseRegistrationIntent
-    data object ContinueDraft : CourseRegistrationIntent
-    data object DiscardDraft : CourseRegistrationIntent
-    data object Back : CourseRegistrationIntent
-    data object RequestExit : CourseRegistrationIntent
-    data object ConfirmExit : CourseRegistrationIntent
-    data object DismissDialog : CourseRegistrationIntent
-    data class SelectWaypointRole(val role: CourseWaypointRole) : CourseRegistrationIntent
-    data class SelectWaypoint(val point: GeoPoint, val name: String, val address: String, val jibunAddress: String?) :
+    data object TutorialCompleted : CourseRegistrationIntent
+    data object DraftContinueClicked : CourseRegistrationIntent
+    data object DraftDiscardClicked : CourseRegistrationIntent
+    data object BackPressed : CourseRegistrationIntent
+    data object ExitRequested : CourseRegistrationIntent
+    data object ExitConfirmed : CourseRegistrationIntent
+    data object DialogDismissed : CourseRegistrationIntent
+    data class WaypointRoleSelected(val role: CourseWaypointRole) : CourseRegistrationIntent
+    data class WaypointSelected(val point: GeoPoint, val name: String, val address: String, val jibunAddress: String?) :
         CourseRegistrationIntent
-    data class RemoveWaypoint(val index: Int) : CourseRegistrationIntent
-    data class BeginPinEdit(val index: Int) : CourseRegistrationIntent
-    data class MoveTemporaryPin(val point: GeoPoint) : CourseRegistrationIntent
+    data class WaypointRemoved(val index: Int) : CourseRegistrationIntent
+    data class PinEditStarted(val index: Int) : CourseRegistrationIntent
+    data class TemporaryPinMoved(val point: GeoPoint) : CourseRegistrationIntent
     data class MapCenterChanged(val point: GeoPoint) : CourseRegistrationIntent
     data class MapPointSelected(val point: GeoPoint) : CourseRegistrationIntent
     data class CurrentLocationSelected(val point: GeoPoint) : CourseRegistrationIntent
     data object LocationUnavailable : CourseRegistrationIntent
-    data object CommitPinEdit : CourseRegistrationIntent
-    data object DiscardPinEdit : CourseRegistrationIntent
-    data object ResetPinEdit : CourseRegistrationIntent
+    data object PinEditCommitted : CourseRegistrationIntent
+    data object PinEditDiscarded : CourseRegistrationIntent
+    data object PinEditReset : CourseRegistrationIntent
     data class SearchVisibilityChanged(val visible: Boolean) : CourseRegistrationIntent
     data class SearchKeywordChanged(val keyword: String) : CourseRegistrationIntent
     data object SearchSubmitted : CourseRegistrationIntent
     data class SearchSuggestionSelected(val id: String) : CourseRegistrationIntent
-    data class DeleteRecentSearch(val id: String) : CourseRegistrationIntent
-    data object DeleteAllRecentSearches : CourseRegistrationIntent
+    data class RecentSearchDeleteClicked(val id: String) : CourseRegistrationIntent
+    data object DeleteAllRecentSearchesClicked : CourseRegistrationIntent
     data class MapReady(val ready: Boolean) : CourseRegistrationIntent
-    data class SelectCategory(val code: String) : CourseRegistrationIntent
-    data class TogglePracticeType(val code: String) : CourseRegistrationIntent
+    data class CategorySelected(val code: String) : CourseRegistrationIntent
+    data class PracticeTypeToggled(val code: String) : CourseRegistrationIntent
     data class CautionChanged(val value: String) : CourseRegistrationIntent
     data class DescriptionChanged(val value: String) : CourseRegistrationIntent
-    data object ContinueToForm : CourseRegistrationIntent
-    data object Submit : CourseRegistrationIntent
+    data object ContinueToFormClicked : CourseRegistrationIntent
+    data object SubmitClicked : CourseRegistrationIntent
     data object SuccessConfirmed : CourseRegistrationIntent
 }
 

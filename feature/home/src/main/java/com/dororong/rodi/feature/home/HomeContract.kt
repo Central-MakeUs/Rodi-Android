@@ -79,62 +79,62 @@ data class HomeUiState(
 }
 
 sealed interface HomeIntent {
-    data object OnMapGesture : HomeIntent
-    data class OnViewportSettled(val query: PlaceViewportQuery) : HomeIntent
-    data class OnProgrammaticSearch(val query: PlaceViewportQuery) : HomeIntent
-    data class OnResearch(val query: PlaceViewportQuery) : HomeIntent
-    data object OnListOpen : HomeIntent
-    data object OnListCollapse : HomeIntent
-    data class OnListSheetSettled(val surface: HomeSurfaceState) : HomeIntent
-    data object OnLoadNextPage : HomeIntent
-    data class OnPlaceClick(val id: Long, val origin: HomeDetailOrigin) : HomeIntent
-    data object OnDismissDetail : HomeIntent
-    data object OnDragDismissDetail : HomeIntent
-    data object OnLevelReviewsOpen : HomeIntent
-    data object OnLevelReviewsClose : HomeIntent
-    data object OnReviewUpdated : HomeIntent
-    data object OnAppResumed : HomeIntent
-    data object OnPracticeContinueMeasurement : HomeIntent
-    data object OnPracticeStopMeasurement : HomeIntent
-    data object OnPracticePromptVisited : HomeIntent
-    data object OnPracticePromptNotVisited : HomeIntent
-    data object OnPracticePromptDismiss : HomeIntent
-    data object OnNotificationPermissionAllow : HomeIntent
-    data object OnNotificationPermissionRouteOnly : HomeIntent
-    data class OnNotificationPermissionResult(val granted: Boolean) : HomeIntent
-    data object OnLevelUpDismiss : HomeIntent
-    data object OnBookmarkClick : HomeIntent
-    data object OnMyClick : HomeIntent
-    data object OnRegisterClick : HomeIntent
-    data class OnSearchClick(val origin: GeoPoint?) : HomeIntent
-    data class OnRegionSearch(
+    data object MapGestured : HomeIntent
+    data class ViewportSettled(val query: PlaceViewportQuery) : HomeIntent
+    data class ProgrammaticSearchRequested(val query: PlaceViewportQuery) : HomeIntent
+    data class ResearchClicked(val query: PlaceViewportQuery) : HomeIntent
+    data object ListOpenClicked : HomeIntent
+    data object ListCollapseRequested : HomeIntent
+    data class ListSheetSettled(val surface: HomeSurfaceState) : HomeIntent
+    data object ListEndReached : HomeIntent
+    data class PlaceClicked(val id: Long, val origin: HomeDetailOrigin) : HomeIntent
+    data object DetailDismissed : HomeIntent
+    data object DetailDragDismissed : HomeIntent
+    data object LevelReviewsOpened : HomeIntent
+    data object LevelReviewsClosed : HomeIntent
+    data object ReviewUpdated : HomeIntent
+    data object AppResumed : HomeIntent
+    data object PracticeContinueClicked : HomeIntent
+    data object PracticeStopClicked : HomeIntent
+    data object PracticeVisitedAnswered : HomeIntent
+    data object PracticeNotVisitedAnswered : HomeIntent
+    data object PracticePromptDismissed : HomeIntent
+    data object NotificationPermissionAllowClicked : HomeIntent
+    data object NotificationPermissionRouteOnlyClicked : HomeIntent
+    data class NotificationPermissionResultReceived(val granted: Boolean) : HomeIntent
+    data object LevelUpDismissed : HomeIntent
+    data object BookmarkClicked : HomeIntent
+    data object MyPageClicked : HomeIntent
+    data object RegisterClicked : HomeIntent
+    data class SearchClicked(val origin: GeoPoint?) : HomeIntent
+    data class RegionSearchRequested(
         val region: RegionOfficeLocation,
         val initialPlaces: List<PlaceSummary>,
     ) : HomeIntent
-    data object OnFilterOpen : HomeIntent
-    data class OnFilterCategorySelect(val category: FilterCategory) : HomeIntent
-    data class OnFilterPracticeOptionToggle(val option: FilterPracticeOption) : HomeIntent
-    data object OnFilterReset : HomeIntent
-    data object OnFilterApply : HomeIntent
-    data object OnFilterDismiss : HomeIntent
-    data object OnDismissLogin : HomeIntent
-    data class OnKakaoLoginCredential(val accessToken: String) : HomeIntent
-    data class OnKakaoLoginFailed(val message: String) : HomeIntent
-    data object OnRestoreAccount : HomeIntent
-    data object OnDismissRestore : HomeIntent
+    data object FilterOpened : HomeIntent
+    data class FilterCategorySelected(val category: FilterCategory) : HomeIntent
+    data class FilterPracticeOptionToggled(val option: FilterPracticeOption) : HomeIntent
+    data object FilterResetClicked : HomeIntent
+    data object FilterApplyClicked : HomeIntent
+    data object FilterDismissed : HomeIntent
+    data object LoginDismissed : HomeIntent
+    data class KakaoLoginSucceeded(val accessToken: String) : HomeIntent
+    data class KakaoLoginFailed(val message: String) : HomeIntent
+    data object AccountRestoreClicked : HomeIntent
+    data object AccountRestoreDismissed : HomeIntent
 
-    data class OnNavigateClick(
+    data class NavigateClicked(
         val kakaoMapInstalled: Boolean,
         val kakaoNaviInstalled: Boolean,
         val notificationPermissionGranted: Boolean,
     ) : HomeIntent
 
-    data class OnNaviAppSelected(
+    data class NaviAppSelected(
         val app: NaviApp,
         val always: Boolean,
         val notificationPermissionGranted: Boolean,
     ) : HomeIntent
-    data class OnInstallNaviAppSelected(val app: NaviApp) : HomeIntent
+    data class NaviAppInstallSelected(val app: NaviApp) : HomeIntent
 }
 
 sealed interface HomeEffect {
