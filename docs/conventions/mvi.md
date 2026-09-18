@@ -24,9 +24,23 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 
 **정본**: `feature/home/.../home/HomeContract.kt` — 앵커 `sealed interface HomeEffect`
 
-**Intent 자식 이름은 동작형**(`Retry`, `Submit`, `SelectWaypoint`)을 쓴다. Contract 타입 자체가
-이미 "사용자 입력"을 뜻하므로 `On` 접두사는 정보를 더하지 않고, UI 콜백 파라미터의 `onXxx`와
-이름이 겹쳐 헷갈린다. Rodi에 `OnXxx`형이 남아 있는 건 수정 대상이다 → `../BACKLOG.md`.
+**Intent 자식 이름은 이벤트형**이다 — 일어난 일을 과거형으로 적는다.
+
+- 사용자 조작: `대상 + 과거분사` (`PlaceClicked`, `FilterCategorySelected`, `QueryChanged`)
+- 시스템·외부 이벤트: `주체 + 일어난 일` (`AppResumed`, `KakaoLoginFailed`, `MapGestured`)
+- 금지: `On` 접두사(`OnPlaceClick`), 명령형(`SelectWaypoint`, `Retry`)
+
+**왜**: 화면은 일어난 일만 전하고 무엇을 할지는 ViewModel이 정한다. 명령형으로 적으면 화면이
+처리를 지시하는 모양이 되고, 제스처·복귀·실패처럼 "일어난 일"은 명령으로 부를 이름이 없어
+매번 고민하게 된다. 이벤트형은 규칙이 기계적이라 새 Intent를 지을 때 흔들리지 않는다.
+`On` 접두사는 UI 콜백 파라미터의 `onXxx`와 겹쳐 헷갈리기도 한다.
+
+**정본**: `feature/home/.../home/HomeContract.kt` — 앵커 `data object MapGestured`
+
+**재검증** (CI BLOCK — `On` 접두사):
+```bash
+rg -n -g '*Contract.kt' '^\s+data (object|class) On[A-Z]' .
+```
 
 ## Contract는 보조 타입 → UiState → Intent → Effect 순서
 

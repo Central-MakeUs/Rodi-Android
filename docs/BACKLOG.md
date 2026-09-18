@@ -295,7 +295,7 @@
   Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
   그 이유를 Contract에 주석으로 남길 것.
   재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
-- [ ] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** — `HomeContract`/`SearchViewModel`은
+- [x] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** (2026-09-18 전부 이벤트형으로 통일, check-conventions BLOCK) — `HomeContract`/`SearchViewModel`은
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
   이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
   않는 이점도 있다.

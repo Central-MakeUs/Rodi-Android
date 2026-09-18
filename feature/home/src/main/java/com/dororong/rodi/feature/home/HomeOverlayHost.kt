@@ -107,11 +107,11 @@ internal fun HomeOverlayHost(
             reviews = reviewState.reviews,
             isBookmarked = levelReviewsPlace.isBookmarked,
             isBookmarkUpdating = state.isBookmarkUpdating,
-            onClose = { onIntent(HomeIntent.OnLevelReviewsClose) },
+            onClose = { onIntent(HomeIntent.LevelReviewsClosed) },
             onSelectLevel = reviewActions.onSelectLevel,
             onLoadInitial = reviewActions.onLoadInitialReviews,
             onLoadNext = reviewActions.onLoadNextReviews,
-            onBookmarkClick = { onIntent(HomeIntent.OnBookmarkClick) },
+            onBookmarkClick = { onIntent(HomeIntent.BookmarkClicked) },
             onNavigate = onNavigate,
             onEditReviewClick = {
                 overlay.reviewToWrite = ReviewWriteTarget(levelReviewsPlace.id, levelReviewsPlace.name, it)
@@ -146,12 +146,12 @@ internal fun HomeOverlayHost(
         PracticePromptDialog(
             practice = session,
             onVisited = {
-                onIntent(HomeIntent.OnPracticePromptVisited)
+                onIntent(HomeIntent.PracticeVisitedAnswered)
             },
             onNotVisited = {
-                onIntent(HomeIntent.OnPracticePromptNotVisited)
+                onIntent(HomeIntent.PracticeNotVisitedAnswered)
             },
-            onDismiss = { onIntent(HomeIntent.OnPracticePromptDismiss) },
+            onDismiss = { onIntent(HomeIntent.PracticePromptDismissed) },
         )
     }
     state.activePracticeSession
@@ -159,22 +159,22 @@ internal fun HomeOverlayHost(
         ?.let { session ->
             PracticeContinueDialog(
                 placeName = session.placeName,
-                onContinue = { onIntent(HomeIntent.OnPracticeContinueMeasurement) },
-                onStop = { onIntent(HomeIntent.OnPracticeStopMeasurement) },
-                onDismiss = { onIntent(HomeIntent.OnPracticeContinueMeasurement) },
+                onContinue = { onIntent(HomeIntent.PracticeContinueClicked) },
+                onStop = { onIntent(HomeIntent.PracticeStopClicked) },
+                onDismiss = { onIntent(HomeIntent.PracticeContinueClicked) },
             )
         }
     if (state.isNotificationPermissionRationaleVisible) {
         NotificationPermissionDialog(
-            onAllow = { onIntent(HomeIntent.OnNotificationPermissionAllow) },
-            onRouteOnly = { onIntent(HomeIntent.OnNotificationPermissionRouteOnly) },
+            onAllow = { onIntent(HomeIntent.NotificationPermissionAllowClicked) },
+            onRouteOnly = { onIntent(HomeIntent.NotificationPermissionRouteOnlyClicked) },
         )
     }
     state.levelUp?.let { level ->
         LevelUpDialog(
             level = level,
-            onConfirm = { onIntent(HomeIntent.OnLevelUpDismiss) },
-            onDismissRequest = { onIntent(HomeIntent.OnLevelUpDismiss) },
+            onConfirm = { onIntent(HomeIntent.LevelUpDismissed) },
+            onDismissRequest = { onIntent(HomeIntent.LevelUpDismissed) },
         )
     }
     overlay.reviewToBlock?.let { review ->
@@ -200,8 +200,8 @@ internal fun HomeOverlayHost(
     if (state.hasPendingRestore) {
         AccountRecoveryDialog(
             isRestoring = state.isRestoreInProgress,
-            onConfirm = { onIntent(HomeIntent.OnRestoreAccount) },
-            onDismiss = { onIntent(HomeIntent.OnDismissRestore) },
+            onConfirm = { onIntent(HomeIntent.AccountRestoreClicked) },
+            onDismiss = { onIntent(HomeIntent.AccountRestoreDismissed) },
         )
     }
 
@@ -209,11 +209,11 @@ internal fun HomeOverlayHost(
         FilterBottomSheet(
             activeCategory = state.activeFilterCategory,
             selectedPracticeTypes = state.selectedFilterPracticeTypes,
-            onCategorySelect = { onIntent(HomeIntent.OnFilterCategorySelect(it)) },
-            onPracticeOptionToggle = { onIntent(HomeIntent.OnFilterPracticeOptionToggle(it)) },
-            onReset = { onIntent(HomeIntent.OnFilterReset) },
-            onApply = { onIntent(HomeIntent.OnFilterApply) },
-            onDismiss = { onIntent(HomeIntent.OnFilterDismiss) },
+            onCategorySelect = { onIntent(HomeIntent.FilterCategorySelected(it)) },
+            onPracticeOptionToggle = { onIntent(HomeIntent.FilterPracticeOptionToggled(it)) },
+            onReset = { onIntent(HomeIntent.FilterResetClicked) },
+            onApply = { onIntent(HomeIntent.FilterApplyClicked) },
+            onDismiss = { onIntent(HomeIntent.FilterDismissed) },
             isSaving = state.isFilterSaving,
         )
     }
@@ -223,7 +223,7 @@ internal fun HomeOverlayHost(
             onDismiss = { overlay.naviPlaceId = null },
             onSelect = { app, always ->
                 onIntent(
-                    HomeIntent.OnNaviAppSelected(
+                    HomeIntent.NaviAppSelected(
                         app = app,
                         always = always,
                         notificationPermissionGranted = notificationPermissionGranted(),
@@ -238,7 +238,7 @@ internal fun HomeOverlayHost(
             mode = NaviPickerMode.INSTALL,
             onDismiss = { overlay.installNaviPlaceId = null },
             onSelect = { app, _ ->
-                onIntent(HomeIntent.OnInstallNaviAppSelected(app))
+                onIntent(HomeIntent.NaviAppInstallSelected(app))
                 overlay.installNaviPlaceId = null
             },
         )

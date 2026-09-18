@@ -23,10 +23,10 @@ internal fun courseRegistrationIntentForEntry(
 ): CourseRegistrationIntent? {
     if (dialog != CourseRegistrationDialog.ResumeDraft) return null
     return when (entryMode) {
-        CourseRegistrationEntryMode.StartFresh -> CourseRegistrationIntent.DiscardDraft
+        CourseRegistrationEntryMode.StartFresh -> CourseRegistrationIntent.DraftDiscardClicked
         CourseRegistrationEntryMode.ContinueDraft,
         CourseRegistrationEntryMode.Normal,
-        -> CourseRegistrationIntent.ContinueDraft
+        -> CourseRegistrationIntent.DraftContinueClicked
     }
 }
 

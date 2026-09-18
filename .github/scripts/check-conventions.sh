@@ -248,6 +248,9 @@ check BLOCK "UiState·Intent·Effect를 ViewModel 파일에 선언 (XxxContract.
 check BLOCK "상태 프로퍼티는 _uiState/uiState (state 금지)" \
   "rg -n -g '*ViewModel.kt' '(private val _state\b|val state: (StateFlow|Flow))' . | grep -v '/src/test/'"
 
+check BLOCK "Intent·Effect 이름에 On 접두사 (이벤트형으로)" \
+  "rg -n -g '*Contract.kt' '^\\s+data (object|class) On[A-Z]' . | grep -v '/src/test/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
