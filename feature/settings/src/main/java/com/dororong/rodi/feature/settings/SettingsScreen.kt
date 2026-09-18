@@ -39,6 +39,13 @@ import com.dororong.rodi.feature.settings.blocked.BlockedMembersScreen
 import com.dororong.rodi.feature.settings.licenses.OpenSourceLicensesScreen
 import com.dororong.rodi.feature.settings.permission.PermissionSettingsScreen
 import com.dororong.rodi.feature.settings.terms.TermsReviewScreen
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import androidx.compose.runtime.remember
 
 private enum class SettingsDestination {
     Menu,
@@ -57,6 +64,9 @@ fun SettingsScreen(
     appVersion: String,
     onSessionEnded: () -> Unit,
 ) {
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
+    val snackbarHostState = remember { RodiSnackbarHostState() }
     var destinationName by rememberSaveable { mutableStateOf(SettingsDestination.Menu.name) }
     var selectedTermsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val destination = SettingsDestination.valueOf(destinationName)
@@ -107,16 +117,23 @@ fun SettingsScreen(
             onBack = { destinationName = SettingsDestination.Menu.name },
         )
 
-        else -> SettingsContent(
-            appVersion = appVersion,
-            onBack = onBack,
-            onPermissionClick = { destinationName = SettingsDestination.Permission.name },
-            onTermsClick = { destinationName = SettingsDestination.Terms.name },
-            onLicensesClick = { destinationName = SettingsDestination.Licenses.name },
-            onDataSourceClick = { destinationName = SettingsDestination.DataSource.name },
-            onAccountClick = { destinationName = SettingsDestination.Account.name },
-            onBlockedClick = { destinationName = SettingsDestination.Blocked.name },
-        )
+        else -> Box(modifier = Modifier.fillMaxSize()) {
+            SettingsContent(
+                appVersion = appVersion,
+                onVersionClick = {
+                    clipboard.setText(AnnotatedString(appSupportInfo(context, appVersion)))
+                    snackbarHostState.show(RodiSnackbarData(message = "앱 정보를 복사했어요. 문의할 때 붙여넣어 주세요."))
+                },
+                onBack = onBack,
+                onPermissionClick = { destinationName = SettingsDestination.Permission.name },
+                onTermsClick = { destinationName = SettingsDestination.Terms.name },
+                onLicensesClick = { destinationName = SettingsDestination.Licenses.name },
+                onDataSourceClick = { destinationName = SettingsDestination.DataSource.name },
+                onAccountClick = { destinationName = SettingsDestination.Account.name },
+                onBlockedClick = { destinationName = SettingsDestination.Blocked.name },
+            )
+            RodiSnackbarHost(snackbarHostState)
+        }
     }
 }
 
@@ -124,6 +141,7 @@ fun SettingsScreen(
 private fun SettingsContent(
     appVersion: String,
     onBack: () -> Unit,
+    onVersionClick: () -> Unit = {},
     onPermissionClick: () -> Unit,
     onTermsClick: () -> Unit,
     onLicensesClick: () -> Unit,
@@ -149,7 +167,7 @@ private fun SettingsContent(
             SettingsMenuItem(text = "데이터 출처", onClick = onDataSourceClick)
             SettingsMenuItem(text = "계정정보 관리", onClick = onAccountClick)
             SettingsMenuItem(text = "차단목록", onClick = onBlockedClick)
-            SettingsVersionItem(appVersion = appVersion)
+            SettingsVersionItem(appVersion = appVersion, onClick = onVersionClick)
         }
     }
 }
@@ -216,11 +234,12 @@ private fun SettingsMenuItem(
 }
 
 @Composable
-private fun SettingsVersionItem(appVersion: String) {
+private fun SettingsVersionItem(appVersion: String, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(45.dp)
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
