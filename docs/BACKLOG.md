@@ -312,6 +312,10 @@
   허용하도록 컨벤션을 고치거나 — 둘 중 하나로 먼저 정할 것.** 지금은 근거 없이 갈려 있다.
   재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
 
+- [x] **컴포넌트에 남아 있던 색 리터럴 4건** (2026-09-18 `semantic` 토큰으로 이관, check-conventions BLOCK) —
+  카카오 브랜드색 2건은 `brandKakao`/`onBrandKakao`, 지도 로딩 그라데이션 1건은 `mapLoadingHighlight`로
+  올리고, 나머지 1건은 값이 같은 `primary100`으로 교체했다.
+
 ### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
 - [x] **ViewModel이 다른 파일에 내장된 2건** — `PracticeSkipReasonViewModel`(2026-09-17)과
   `CourseRegistrationEntryViewModel`(2026-09-18)을 각각 선언명과 같은 파일로 분리했다.
