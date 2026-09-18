@@ -24,9 +24,23 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 
 **정본**: `feature/home/.../home/HomeContract.kt` — 앵커 `sealed interface HomeEffect`
 
-**Intent 자식 이름은 동작형**(`Retry`, `Submit`, `SelectWaypoint`)을 쓴다. Contract 타입 자체가
-이미 "사용자 입력"을 뜻하므로 `On` 접두사는 정보를 더하지 않고, UI 콜백 파라미터의 `onXxx`와
-이름이 겹쳐 헷갈린다. Rodi에 `OnXxx`형이 남아 있는 건 수정 대상이다 → `../BACKLOG.md`.
+**Intent 자식 이름은 이벤트형**이다 — 일어난 일을 과거형으로 적는다.
+
+- 사용자 조작: `대상 + 과거분사` (`PlaceClicked`, `FilterCategorySelected`, `QueryChanged`)
+- 시스템·외부 이벤트: `주체 + 일어난 일` (`AppResumed`, `KakaoLoginFailed`, `MapGestured`)
+- 금지: `On` 접두사(`OnPlaceClick`), 명령형(`SelectWaypoint`, `Retry`)
+
+**왜**: 화면은 일어난 일만 전하고 무엇을 할지는 ViewModel이 정한다. 명령형으로 적으면 화면이
+처리를 지시하는 모양이 되고, 제스처·복귀·실패처럼 "일어난 일"은 명령으로 부를 이름이 없어
+매번 고민하게 된다. 이벤트형은 규칙이 기계적이라 새 Intent를 지을 때 흔들리지 않는다.
+`On` 접두사는 UI 콜백 파라미터의 `onXxx`와 겹쳐 헷갈리기도 한다.
+
+**정본**: `feature/home/.../home/HomeContract.kt` — 앵커 `data object MapGestured`
+
+**재검증** (CI BLOCK — `On` 접두사):
+```bash
+rg -n -g '*Contract.kt' '^\s+data (object|class) On[A-Z]' .
+```
 
 ## Contract는 보조 타입 → UiState → Intent → Effect 순서
 
@@ -37,10 +51,7 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 
 **정본**: `feature/home/.../home/HomeContract.kt`
 
-**재검증** (Contract가 아니라 ViewModel 파일에 UiState가 들어간 곳):
-```bash
-rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
-```
+**배치**: 화면마다 ViewModel 옆 `XxxContract.kt` → `structure.md`
 
 ## 상태는 private Mutable + public read-only 쌍으로 노출
 
@@ -49,11 +60,11 @@ rg -l 'data class \w+UiState' -g '*ViewModel.kt' .
 **왜**: 상태 변경 권한을 ViewModel 안으로 제한한다. `update`는 읽기-수정-쓰기가 원자적이라
 동시 갱신에서 값이 유실되지 않는다 — `.value = _state.value.copy(...)`로 쓰면 그 보장이 없다.
 
-**정본**: `feature/home/.../home/HomeViewModel.kt` —
-앵커 `private val _state = MutableStateFlow(HomeUiState())`
+**정본**: `feature/mypage/.../mypage/MyPageViewModel.kt` —
+앵커 `private val _uiState = MutableStateFlow(MyPageUiState())`
 
-**Rodi는 `_state`/`_uiState`로 이름이 갈려 있다** — 통일 대상이다 → `../BACKLOG.md`.
-새 코드에는 상태 타입과 맞춰 `_uiState`/`uiState`를 쓴다.
+이름은 상태 타입과 맞춰 `_uiState`/`uiState`로 쓴다 — 타입이 `*UiState`이므로 property도 같은 말을 쓴다.
+CI가 `*ViewModel.kt`의 `_state`·`val state:`를 막는다.
 
 ## 일회성 Effect는 buffered Channel + `receiveAsFlow()`
 
@@ -69,7 +80,18 @@ Channel은 각 원소를 **한 소비자에게만** 전달하고, 소비자가 �
 처리 전에 취소되면 그 Effect는 **유실된다.** 반드시 실행돼야 하는 것(결제 완료 기록 같은)은
 Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `SharedFlow`(replay=0)를 쓰면 수집자가 없는 순간에
 보낸 이벤트가 조용히 사라진다 — 화면 전환 직후나 회전 중에 스낵바가 안 뜨는 형태로 터진다.
-재생·다중 소비가 실제로 필요하다면 그때만 SharedFlow를 쓰고 이유를 Contract에 남긴다.
+**SharedFlow를 쓰는 경우**: Channel과 기능이 다르므로 통일 대상이 아니라 선택 대상이다.
+
+| | Channel | SharedFlow(replay=0) |
+|---|---|---|
+| 수집자가 여럿 | 원소마다 **한 곳만** 받는다 | **모두** 받는다 |
+| 수집자가 없을 때 | 버퍼에 쌓았다가 나중에 전달 | **버린다** |
+| 늦게 구독 | 쌓인 것만 받는다 | `replay=N`이면 최근 N개를 **다시** 받는다 |
+
+화면 하나가 받는 일회성 명령이면 Channel이다. **여러 수집자가 같은 이벤트를 모두 받아야 하거나,
+아무도 안 볼 때 버리는 게 맞는 이벤트**면 SharedFlow를 쓰고, 선언 바로 윗줄에
+`// SharedFlow 사용 이유: ...`를 적는다. 이유 없는 SharedFlow는 CI가 막는다 — 기본값을 무심코
+고른 것과 의도해서 고른 것을 구분하려는 장치다. ViewModel 밖(앱 전역 세션 이벤트 등)은 검사하지 않는다.
 
 **generation 카운터를 명령 대신 쓰지 않는다**: "지도를 이 지역으로 옮겨라"를 상태의 증가 카운터로 보내고
 화면이 `remember`로 소비 여부를 기억하면, 화면이 다시 그려질 때(다른 route에서 복귀) 기억이 초기화돼
@@ -79,9 +101,12 @@ Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `Sha
 
 **정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `Channel<HomeEffect>(Channel.BUFFERED)`
 
-**재검증** (SharedFlow로 Effect를 내보내는 곳 — 이유가 적혀 있어야 한다):
+**재검증** (ViewModel의 SharedFlow — 각 선언 윗줄에 이유 주석이 있어야 한다, CI BLOCK):
 ```bash
-rg -n 'MutableSharedFlow' -g '*ViewModel.kt' .
+rg -n 'MutableSharedFlow' -g '*ViewModel.kt' . | grep -v -E '/src/test/|:import ' \
+| while IFS=: read -r f n _; do \
+    sed -n "$((n - 1))p" "$f" | grep -q 'SharedFlow 사용 이유:' || echo "$f:$n"; \
+  done
 ```
 > 앵커를 `Channel(Channel.BUFFERED)`로 적으면 0건이 나온다. 실제 코드는
 > `Channel<HomeEffect>(...)`라 제네릭이 사이에 낀다. 세는 쪽이 아니라 **어긋난 쪽을 세는**

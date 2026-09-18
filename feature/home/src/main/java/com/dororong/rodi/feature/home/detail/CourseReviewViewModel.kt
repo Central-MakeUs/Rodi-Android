@@ -33,8 +33,8 @@ class CourseReviewViewModel @Inject constructor(
     private val getReportedReviewIds: GetReportedReviewIdsUseCase,
     private val clock: Clock,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(CourseReviewUiState())
-    val state: StateFlow<CourseReviewUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(CourseReviewUiState())
+    val uiState: StateFlow<CourseReviewUiState> = _uiState.asStateFlow()
     private var summaryJob: Job? = null
     private var initialReviewsJob: Job? = null
     private var nextPageJob: Job? = null
@@ -51,7 +51,7 @@ class CourseReviewViewModel @Inject constructor(
             // load()가 이 조회보다 먼저 끝나 빈 reportedReviewIds로 병합했을 수 있다 —
             // 늦게 도착한 신고 목록을 현재 상태에도 다시 적용한다.
             if (ids.isNotEmpty()) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         latestReviews = it.latestReviews.filterNot { review -> review.reviewId in ids },
                         reviews = it.reviews.filterNot { review -> review.reviewId in ids },
@@ -64,7 +64,7 @@ class CourseReviewViewModel @Inject constructor(
     /** 신고 직후 신고자 화면에서만 후기를 감춘다 — 서버는 5명이 모일 때까지 계속 내려준다. */
     fun excludeReportedReview(reviewId: Long) {
         reportedReviewIds += reviewId
-        _state.update {
+        _uiState.update {
             it.copy(
                 latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
                 reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
@@ -73,16 +73,16 @@ class CourseReviewViewModel @Inject constructor(
     }
 
     fun load(placeId: Long) {
-        val current = _state.value
+        val current = _uiState.value
         if (current.placeId == placeId && current.isLoading) return
 
         summaryJob?.cancel()
         cancelReviewPageLoads()
         summaryJob = viewModelScope.launch {
-            _state.value = CourseReviewUiState(placeId = placeId, isLoading = true)
+            _uiState.value = CourseReviewUiState(placeId = placeId, isLoading = true)
             try {
                 if (!getAuthSession().isLoggedIn) {
-                    _state.value = CourseReviewUiState(placeId = placeId, isGuest = true)
+                    _uiState.value = CourseReviewUiState(placeId = placeId, isGuest = true)
                     return@launch
                 }
                 val all = async { getReviewSummary(placeId, ReviewLevelFilter.All) }
@@ -99,7 +99,7 @@ class CourseReviewViewModel @Inject constructor(
                 val recommendCount = allSummary.getOrNull()?.recommendCount ?: 0
                 acknowledgeOptimisticCounts(placeId, totalCount)
                 acknowledgeOptimisticRecommendCounts(placeId, recommendCount)
-                _state.value = CourseReviewUiState(
+                _uiState.value = CourseReviewUiState(
                     placeId = placeId,
                     selectedLevel = selectedLevel,
                     totalCount = maxOf(totalCount, optimisticCountTarget(placeId), mergedLatest.size.toLong()),
@@ -111,8 +111,8 @@ class CourseReviewViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                if (_state.value.placeId == placeId) {
-                    _state.update { it.copy(isLoading = false, errorMessage = error.userMessage()) }
+                if (_uiState.value.placeId == placeId) {
+                    _uiState.update { it.copy(isLoading = false, errorMessage = error.userMessage()) }
                 }
             }
         }
@@ -127,10 +127,10 @@ class CourseReviewViewModel @Inject constructor(
     }
 
     private fun selectLevel(level: OnboardingLevel, loadReviews: Boolean) {
-        val placeId = _state.value.placeId ?: return
+        val placeId = _uiState.value.placeId ?: return
         summaryJob?.cancel()
         cancelReviewPageLoads()
-        _state.update {
+        _uiState.update {
             it.copy(
                 isLoading = true,
                 selectedLevel = level,
@@ -146,11 +146,11 @@ class CourseReviewViewModel @Inject constructor(
         summaryJob = viewModelScope.launch {
             val summary = getReviewSummary(placeId, ReviewLevelFilter.Of(level))
             val latest = getPlaceReviews(placeId, ReviewLevelFilter.Of(level), size = 1)
-            if (_state.value.placeId != placeId || _state.value.selectedLevel != level) return@launch
+            if (_uiState.value.placeId != placeId || _uiState.value.selectedLevel != level) return@launch
             val latestItems = latest.getOrNull()?.items.orEmpty()
             acknowledgeOptimisticReviews(placeId, latestItems)
             val mergedLatest = mergeReviews(placeId, level, latestItems)
-            _state.update {
+            _uiState.update {
                 it.copy(
                     isLoading = false,
                     difficultyCounts = summary.getOrNull()?.difficultyCounts.orEmpty(),
@@ -164,21 +164,21 @@ class CourseReviewViewModel @Inject constructor(
     }
 
     fun loadInitialReviews() {
-        val placeId = _state.value.placeId ?: return
-        loadInitialReviews(placeId, _state.value.selectedLevel)
+        val placeId = _uiState.value.placeId ?: return
+        loadInitialReviews(placeId, _uiState.value.selectedLevel)
     }
 
     private fun loadInitialReviews(placeId: Long, level: OnboardingLevel) {
         initialReviewsJob?.cancel()
         nextPageJob?.cancel()
-        _state.update { it.copy(isNextPageLoading = false) }
+        _uiState.update { it.copy(isNextPageLoading = false) }
         initialReviewsJob = viewModelScope.launch {
             val result = getPlaceReviews(placeId, ReviewLevelFilter.Of(level), size = PAGE_SIZE)
-            if (_state.value.placeId != placeId || _state.value.selectedLevel != level) return@launch
+            if (_uiState.value.placeId != placeId || _uiState.value.selectedLevel != level) return@launch
             result
                 .onSuccess { page ->
                     acknowledgeOptimisticReviews(placeId, page.items)
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             reviews = mergeReviews(placeId, level, page.items),
                             nextCursor = page.nextCursor,
@@ -186,22 +186,22 @@ class CourseReviewViewModel @Inject constructor(
                         )
                     }
                 }
-                .onFailure { error -> _state.update { it.copy(errorMessage = error.userMessage()) } }
+                .onFailure { error -> _uiState.update { it.copy(errorMessage = error.userMessage()) } }
         }
     }
 
     fun loadNextPage() {
-        val current = _state.value
+        val current = _uiState.value
         val placeId = current.placeId ?: return
         val cursor = current.nextCursor ?: return
         if (!current.hasNext || current.isNextPageLoading || initialReviewsJob?.isActive == true || nextPageJob?.isActive == true) return
         nextPageJob = viewModelScope.launch {
-            _state.update { it.copy(isNextPageLoading = true) }
+            _uiState.update { it.copy(isNextPageLoading = true) }
             getPlaceReviews(placeId, ReviewLevelFilter.Of(current.selectedLevel), cursor, PAGE_SIZE)
                 .onSuccess { page ->
                     acknowledgeOptimisticReviews(placeId, page.items)
-                    if (_state.value.placeId == placeId && _state.value.selectedLevel == current.selectedLevel) {
-                        _state.update {
+                    if (_uiState.value.placeId == placeId && _uiState.value.selectedLevel == current.selectedLevel) {
+                        _uiState.update {
                             it.copy(
                                 reviews = mergeReviews(placeId, current.selectedLevel, it.reviews + page.items),
                                 nextCursor = page.nextCursor,
@@ -211,12 +211,12 @@ class CourseReviewViewModel @Inject constructor(
                         }
                     }
                 }
-                .onFailure { error -> _state.update { it.copy(isNextPageLoading = false, errorMessage = error.userMessage()) } }
+                .onFailure { error -> _uiState.update { it.copy(isNextPageLoading = false, errorMessage = error.userMessage()) } }
         }
     }
 
     fun excludeMemberReviews(memberId: Long) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 latestReviews = it.latestReviews.filterNot { review -> review.memberId == memberId },
                 reviews = it.reviews.filterNot { review -> review.memberId == memberId },
@@ -225,7 +225,7 @@ class CourseReviewViewModel @Inject constructor(
     }
 
     fun removeReview(reviewId: Long) {
-        val current = _state.value
+        val current = _uiState.value
         val removedReview = current.latestReviews.firstOrNull { it.reviewId == reviewId }
             ?: current.reviews.firstOrNull { it.reviewId == reviewId }
         val placeId = current.placeId
@@ -238,7 +238,7 @@ class CourseReviewViewModel @Inject constructor(
         optimisticRecommendTargets.keys
             .filter { it.reviewId == reviewId && (placeId == null || it.placeId == placeId) }
             .forEach(optimisticRecommendTargets::remove)
-        _state.update {
+        _uiState.update {
             it.copy(
                 latestReviews = it.latestReviews.filterNot { review -> review.reviewId == reviewId },
                 reviews = it.reviews.filterNot { review -> review.reviewId == reviewId },
@@ -259,7 +259,7 @@ class CourseReviewViewModel @Inject constructor(
     fun onReviewSubmitted(result: ReviewSubmissionResult) {
         val key = OptimisticReviewKey(result.placeId, result.reviewId)
         if (!result.isEditing && !handledCreatedReviews.add(key)) return
-        val current = _state.value
+        val current = _uiState.value
         val existing = current.latestReviews.firstOrNull { it.reviewId == result.reviewId }
             ?: current.reviews.firstOrNull { it.reviewId == result.reviewId }
             ?: optimisticReviews[key]
@@ -296,8 +296,8 @@ class CourseReviewViewModel @Inject constructor(
     }
 
     fun refresh() {
-        val placeId = _state.value.placeId ?: return
-        _state.update { it.copy(placeId = null) }
+        val placeId = _uiState.value.placeId ?: return
+        _uiState.update { it.copy(placeId = null) }
         load(placeId)
     }
 
@@ -305,8 +305,8 @@ class CourseReviewViewModel @Inject constructor(
         summaryJob?.cancel()
         summaryJob = viewModelScope.launch {
             getReviewSummary(placeId, ReviewLevelFilter.All).onSuccess { summary ->
-                if (_state.value.placeId == placeId) {
-                    _state.update { it.copy(recommendCount = summary.recommendCount) }
+                if (_uiState.value.placeId == placeId) {
+                    _uiState.update { it.copy(recommendCount = summary.recommendCount) }
                 }
             }
         }
@@ -319,8 +319,8 @@ class CourseReviewViewModel @Inject constructor(
 
     private fun upsertOptimistic(key: OptimisticReviewKey, review: Review) {
         optimisticReviews[key] = review
-        if (_state.value.placeId != key.placeId) return
-        _state.update { current ->
+        if (_uiState.value.placeId != key.placeId) return
+        _uiState.update { current ->
             val latest = mergeReviews(key.placeId, current.selectedLevel, current.latestReviews)
             val reviews = mergeReviews(key.placeId, current.selectedLevel, current.reviews)
             current.copy(

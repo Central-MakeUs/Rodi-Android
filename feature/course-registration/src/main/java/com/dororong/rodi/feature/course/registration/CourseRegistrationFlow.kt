@@ -30,6 +30,7 @@ import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
+import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.network.isNetworkAvailable
 import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -49,7 +50,7 @@ fun CourseRegistrationFlow(
     modifier: Modifier = Modifier,
     viewModel: CourseRegistrationViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val context = LocalContext.current
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }
@@ -68,7 +69,7 @@ fun CourseRegistrationFlow(
             snackbarHostState.dismiss(MAP_NETWORK_SNACKBAR_ID)
             if (showNetworkError) {
                 showNetworkError = false
-                viewModel.onIntent(CourseRegistrationIntent.Retry)
+                viewModel.onIntent(CourseRegistrationIntent.RetryClicked)
             }
         } else {
             snackbarHostState.showImmediately(
@@ -78,7 +79,7 @@ fun CourseRegistrationFlow(
                     icon = networkErrorIcon,
                     duration = RodiSnackbarDuration.Indefinite,
                     actionLabel = "새로고침",
-                    onAction = { viewModel.onIntent(CourseRegistrationIntent.Retry) },
+                    onAction = { viewModel.onIntent(CourseRegistrationIntent.RetryClicked) },
                 ),
             )
             delay(MAP_NETWORK_ERROR_GRACE_MILLIS)
@@ -86,20 +87,18 @@ fun CourseRegistrationFlow(
         }
     }
 
-    LaunchedEffect(viewModel) {
-        viewModel.effect.collect { effect ->
-            when (effect) {
-                CourseRegistrationEffect.LoginRequired -> onLoginRequired()
-                CourseRegistrationEffect.Exit -> onExit()
-                CourseRegistrationEffect.Completed -> onComplete()
-                is CourseRegistrationEffect.ShowSnackbar -> snackbarHostState.show(
-                    RodiSnackbarData(message = effect.message),
-                )
-            }
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            CourseRegistrationEffect.LoginRequired -> onLoginRequired()
+            CourseRegistrationEffect.Exit -> onExit()
+            CourseRegistrationEffect.Completed -> onComplete()
+            is CourseRegistrationEffect.ShowSnackbar -> snackbarHostState.show(
+                RodiSnackbarData(message = effect.message),
+            )
         }
     }
     BackHandler(enabled = state.isAuthResolved && state.isLoggedIn && state.dialog == null && !state.isSubmitting) {
-        viewModel.onIntent(CourseRegistrationIntent.Back)
+        viewModel.onIntent(CourseRegistrationIntent.BackPressed)
     }
 
     Box(
@@ -114,10 +113,10 @@ fun CourseRegistrationFlow(
                     page = state.tutorialPage,
                     isCompleting = state.tutorialLoadState == CourseTutorialLoadState.Completing,
                     onPageChanged = { viewModel.onIntent(CourseRegistrationIntent.TutorialPageChanged(it)) },
-                    onBack = { viewModel.onIntent(CourseRegistrationIntent.Back) },
-                    onComplete = { viewModel.onIntent(CourseRegistrationIntent.CompleteTutorial) },
+                    onBack = { viewModel.onIntent(CourseRegistrationIntent.BackPressed) },
+                    onComplete = { viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted) },
                     isError = state.tutorialLoadState == CourseTutorialLoadState.Error,
-                    onRetry = { viewModel.onIntent(CourseRegistrationIntent.Retry) },
+                    onRetry = { viewModel.onIntent(CourseRegistrationIntent.RetryClicked) },
                 )
                 state.page == CourseRegistrationPage.Map -> CourseRegistrationMapContent(
                     mapLoadState = state.mapLoadState,
@@ -140,7 +139,7 @@ fun CourseRegistrationFlow(
                     searchError = state.searchError,
                     canFinish = state.canFinishMap,
                     onIntent = viewModel::onIntent,
-                    onBack = { viewModel.onIntent(CourseRegistrationIntent.Back) },
+                    onBack = { viewModel.onIntent(CourseRegistrationIntent.BackPressed) },
                     maxVias = state.registrationForm?.maxWaypoints ?: 4,
                     isFormLoading = state.formLoadState == CourseRegistrationFormLoadState.Loading,
                     pendingSuggestion = state.pendingSuggestion,
@@ -162,7 +161,7 @@ fun CourseRegistrationFlow(
                     error = state.submissionError,
                     onIntent = viewModel::onIntent,
                     onBack = {
-                        if (!state.isSubmitting) viewModel.onIntent(CourseRegistrationIntent.Back)
+                        if (!state.isSubmitting) viewModel.onIntent(CourseRegistrationIntent.BackPressed)
                     },
                 )
             }
@@ -174,10 +173,10 @@ fun CourseRegistrationFlow(
             } else state.dialog?.let { dialog ->
                 CourseRegistrationDialogHost(
                     dialog = dialog,
-                    onContinueDraft = { viewModel.onIntent(CourseRegistrationIntent.ContinueDraft) },
-                    onDiscardDraft = { viewModel.onIntent(CourseRegistrationIntent.DiscardDraft) },
-                    onContinueWriting = { viewModel.onIntent(CourseRegistrationIntent.DismissDialog) },
-                    onExit = { viewModel.onIntent(CourseRegistrationIntent.ConfirmExit) },
+                    onContinueDraft = { viewModel.onIntent(CourseRegistrationIntent.DraftContinueClicked) },
+                    onDiscardDraft = { viewModel.onIntent(CourseRegistrationIntent.DraftDiscardClicked) },
+                    onContinueWriting = { viewModel.onIntent(CourseRegistrationIntent.DialogDismissed) },
+                    onExit = { viewModel.onIntent(CourseRegistrationIntent.ExitConfirmed) },
                     onSuccessConfirmed = { viewModel.onIntent(CourseRegistrationIntent.SuccessConfirmed) },
                 )
             }

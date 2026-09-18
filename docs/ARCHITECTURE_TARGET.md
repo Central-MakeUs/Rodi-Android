@@ -48,7 +48,7 @@ core/data/.../data/
 
 - feature 루트에는 `Screen` 또는 flow host, `ViewModel`, `Contract`와 단일 역할 파일을 둔다.
 - 같은 역할 파일이 2개 이상이면 `component`, `content`, `map`, `navi` 같은 패키지를 만든다.
-- Contract는 feature당 하나의 루트 파일로 유지한다.
+- Contract는 화면(ViewModel)마다 `XxxContract.kt` 하나를 ViewModel과 같은 패키지에 둔다(`docs/conventions/structure.md`).
 - public 재사용 Composable은 파일당 하나가 기본이다. 소유 컴포넌트의 private helper는 같은 파일에 둘 수 있다.
 - 여러 단계를 조정하는 host는 `Flow`, 한 화면은 `Screen`으로 명명한다.
 

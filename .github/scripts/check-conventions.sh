@@ -228,6 +228,29 @@ check BLOCK "취소 재전파가 catch 첫 문장이 아님" \
 check BLOCK "예외 원문(error.message)을 화면에 그대로 노출" \
   "rg -n -g '*ViewModel.kt' '\\.message\\b' . | grep -v '/src/test/' | message_violation_filter"
 
+# 기본은 Channel. 다중 수신·유실 허용이 실제로 필요하면 SharedFlow를 쓰되
+# 선언 바로 윗줄에 "// SharedFlow 사용 이유: ..." 를 적어야 통과한다 → docs/conventions/mvi.md
+check BLOCK "이유 주석 없이 ViewModel에서 SharedFlow 사용 (기본은 Channel)" \
+  "rg -n -g '*ViewModel.kt' 'MutableSharedFlow' . | grep -v -E '/src/test/|:import ' \
+   | while IFS=: read -r f n _; do \
+       sed -n \"\$((n - 1))p\" \"\$f\" | grep -q 'SharedFlow 사용 이유:' || echo \"\$f:\$n\"; \
+     done"
+
+check BLOCK "Effect를 CollectEffect 없이 직접 수집" \
+  "rg -n -g '*.kt' '\beffects?\.collect\b' . | grep -v -E '/src/(test|androidTest)/|/CollectEffect\.kt:'"
+
+check BLOCK "Effect 노출명은 단수 effect" \
+  "rg -n -g '*ViewModel.kt' 'val effects\b' . | grep -v '/src/test/'"
+
+check BLOCK "UiState·Intent·Effect를 ViewModel 파일에 선언 (XxxContract.kt로)" \
+  "rg -n -g '*ViewModel.kt' '^(data class|sealed interface) \w+(UiState|Intent|Effect)\b' . | grep -v '/src/test/'"
+
+check BLOCK "상태 프로퍼티는 _uiState/uiState (state 금지)" \
+  "rg -n -g '*ViewModel.kt' '(private val _state\b|val state: (StateFlow|Flow))' . | grep -v '/src/test/'"
+
+check BLOCK "Intent·Effect 이름에 On 접두사 (이벤트형으로)" \
+  "rg -n -g '*Contract.kt' '^\\s+data (object|class) On[A-Z]' . | grep -v '/src/test/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -239,9 +262,6 @@ check WARN "ViewModel 선언명 ≠ 파일명" \
    | grep -v -E '/src/(test|androidTest)/' \
    | while IFS=: read -r f _ vm; do [ \"\$(basename \"\$f\" .kt)\" != \"\$vm\" ] && echo \"\$vm ← \$f\"; done"
 
-check WARN "Effect를 SharedFlow로 전달" \
-  "rg -l -g '*.kt' 'MutableSharedFlow' . | grep 'ViewModel\.kt$' | grep -v '/src/test/'"
-
 check WARN "component(단수) 패키지" \
   "find app core feature -type d -name component -not -path '*/build/*'"
 
@@ -250,13 +270,6 @@ check WARN "app이 Compose BOM 직접 선언" \
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="
-
-# 컨벤션을 어느 쪽으로 정할지 아직 미결이라 규칙으로 강제하지 않는다 → docs/conventions/structure.md
-check INFO "Contract를 ViewModel 파일에 내장한 화면" \
-  "rg -l -g '*ViewModel.kt' 'data class \w+UiState' ."
-
-check INFO "상태 프로퍼티를 _state로 쓰는 ViewModel (_uiState로 통일 예정)" \
-  "rg -l -g '*ViewModel.kt' 'private val _state\b' ."
 
 check INFO "authenticatedRequest 헬퍼를 자체 보유한 Repository" \
   "rg -l -g '*.kt' 'authenticatedRequest' . | grep -v '/src/test/'"

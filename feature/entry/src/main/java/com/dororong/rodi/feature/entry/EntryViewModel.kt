@@ -52,8 +52,8 @@ class EntryViewModel @Inject constructor(
     private val applyInitialFilterTagsUseCase: ApplyInitialFilterTagsUseCase,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(EntryUiState())
-    val state: StateFlow<EntryUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(EntryUiState())
+    val uiState: StateFlow<EntryUiState> = _uiState.asStateFlow()
 
     private val _effect = Channel<EntryEffect>(Channel.BUFFERED)
     val effect: Flow<EntryEffect> = _effect.receiveAsFlow()
@@ -65,18 +65,18 @@ class EntryViewModel @Inject constructor(
                 restoreProgress(progress)
                 restoreOnboardingProfile(getOnboardingProfileUseCase().first())
                 applyMode(progress.mode)
-                if (state.value.step == EntryStep.NICKNAME) generateNicknameIfNeeded()
+                if (uiState.value.step == EntryStep.NICKNAME) generateNicknameIfNeeded()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
             } finally {
-                _state.update { it.copy(isRestored = true) }
+                _uiState.update { it.copy(isRestored = true) }
             }
         }
     }
 
     fun setAllTermsChecked(checked: Boolean) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 serviceTermsChecked = checked,
                 privacyTermsChecked = checked,
@@ -100,14 +100,14 @@ class EntryViewModel @Inject constructor(
         updateEntryProgress { it.copy(precautionAgreementChecked = !it.precautionAgreementChecked) }
 
     private fun generateNicknameIfNeeded() {
-        if (state.value.nickname.isBlank()) {
-            _state.update { it.copy(nickname = NicknameGenerator.generate()) }
+        if (uiState.value.nickname.isBlank()) {
+            _uiState.update { it.copy(nickname = NicknameGenerator.generate()) }
             persistOnboardingProfile()
         }
     }
 
     fun selectDrivingPeriod(value: DrivingPeriod) {
-        _state.update {
+        _uiState.update {
             if (value.isNavigatorLevel) {
                 it.copy(
                     drivingPeriod = value,
@@ -127,7 +127,7 @@ class EntryViewModel @Inject constructor(
         updateOnboardingProfile { it.copy(recentFrequency = value) }
 
     fun toggleRoadExperience(value: RoadExperience) {
-        _state.update {
+        _uiState.update {
             val roadExperiences = if (value in it.roadExperiences) {
                 it.roadExperiences - value
             } else {
@@ -149,7 +149,7 @@ class EntryViewModel @Inject constructor(
         updateOnboardingProfile { it.copy(soloParkingLevel = value) }
 
     fun togglePracticeSituation(value: PracticeSituation) {
-        _state.update {
+        _uiState.update {
             val practiceSituations = when {
                 value in it.practiceSituations -> it.practiceSituations - value
                 it.practiceSituations.size >= 3 -> it.practiceSituations
@@ -167,8 +167,8 @@ class EntryViewModel @Inject constructor(
         updateOnboardingProfile { it.copy(goal = value.take(MAX_GOAL_LENGTH)) }
 
     fun next() {
-        val previousNickname = state.value.nickname
-        _state.update {
+        val previousNickname = uiState.value.nickname
+        _uiState.update {
             val nextStep = when (it.step) {
                     EntryStep.TERMS -> if (it.mode == EntryMode.GUEST_BROWSE) {
                         EntryStep.PRECAUTIONS
@@ -192,13 +192,13 @@ class EntryViewModel @Inject constructor(
             )
         }
         persistEntryProgress()
-        if (previousNickname.isBlank() && state.value.step == EntryStep.NICKNAME) {
+        if (previousNickname.isBlank() && uiState.value.step == EntryStep.NICKNAME) {
             persistOnboardingProfile()
         }
     }
 
     fun continueAfterCareer() {
-        if (state.value.drivingPeriod?.isNavigatorLevel == true) {
+        if (uiState.value.drivingPeriod?.isNavigatorLevel == true) {
             startOnboardingAnalysis()
         } else {
             next()
@@ -206,13 +206,13 @@ class EntryViewModel @Inject constructor(
     }
 
     fun openWebView(url: String) {
-        _state.update { it.copy(webViewUrl = url, step = EntryStep.TERMS_WEBVIEW) }
+        _uiState.update { it.copy(webViewUrl = url, step = EntryStep.TERMS_WEBVIEW) }
         persistEntryProgress()
     }
 
     fun back(): Boolean {
-        val previousStep = when (state.value.step) {
-            EntryStep.NICKNAME -> if (state.value.mode == EntryMode.GUEST_SIGN_UP) {
+        val previousStep = when (uiState.value.step) {
+            EntryStep.NICKNAME -> if (uiState.value.mode == EntryMode.GUEST_SIGN_UP) {
                 return false
             } else {
                 EntryStep.TERMS
@@ -224,17 +224,17 @@ class EntryViewModel @Inject constructor(
             EntryStep.TERMS_WEBVIEW -> EntryStep.TERMS
             EntryStep.TERMS -> return false
         }
-        _state.update { it.copy(step = previousStep) }
+        _uiState.update { it.copy(step = previousStep) }
         persistEntryProgress()
         return true
     }
 
     fun startOnboardingAnalysis() {
-        if (state.value.onboardingAnalysisState != null) return
+        if (uiState.value.onboardingAnalysisState != null) return
 
         val profile = currentOnboardingProfile()
         val level = profile.calculateLevel()
-        _state.update {
+        _uiState.update {
             it.copy(
                 onboardingLevel = level,
                 onboardingAnalysisCopy = profile.analysisCopy(level),
@@ -255,7 +255,7 @@ class EntryViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 Timber.e(error, "Onboarding submission failed.")
-                _state.update { it.copy(onboardingAnalysisState = null) }
+                _uiState.update { it.copy(onboardingAnalysisState = null) }
                 _effect.send(EntryEffect.ShowSubmissionError(DEFAULT_SUBMISSION_ERROR_MESSAGE, canRetry = true))
                 return@launch
             }
@@ -265,17 +265,17 @@ class EntryViewModel @Inject constructor(
                 -> {
                     val filterResult = applyInitialFilterTagsUseCase(level)
                     if (filterResult.isFailure) {
-                        _state.update { it.copy(onboardingAnalysisState = null) }
+                        _uiState.update { it.copy(onboardingAnalysisState = null) }
                         _effect.send(EntryEffect.ShowSubmissionError(DEFAULT_SUBMISSION_ERROR_MESSAGE, canRetry = true))
                         return@launch
                     }
-                    _state.update { it.copy(step = EntryStep.PRECAUTIONS) }
+                    _uiState.update { it.copy(step = EntryStep.PRECAUTIONS) }
                     persistEntryProgressNow()
-                    _state.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
+                    _uiState.update { it.copy(onboardingAnalysisState = OnboardingAnalysisState.RESULT) }
                 }
 
                 else -> {
-                    _state.update { it.copy(onboardingAnalysisState = null) }
+                    _uiState.update { it.copy(onboardingAnalysisState = null) }
                     _effect.send(submissionResult.toSubmissionError())
                 }
             }
@@ -283,11 +283,11 @@ class EntryViewModel @Inject constructor(
     }
 
     fun continueAfterOnboardingAnalysis() {
-        if (state.value.mode == EntryMode.GUEST_SIGN_UP) {
+        if (uiState.value.mode == EntryMode.GUEST_SIGN_UP) {
             finish()
             return
         }
-        _state.update { it.copy(onboardingAnalysisState = null) }
+        _uiState.update { it.copy(onboardingAnalysisState = null) }
     }
 
     fun finish() {
@@ -304,17 +304,17 @@ class EntryViewModel @Inject constructor(
     }
 
     private fun updateEntryProgress(transform: (EntryUiState) -> EntryUiState) {
-        _state.update(transform)
+        _uiState.update(transform)
         persistEntryProgress()
     }
 
     private fun updateOnboardingProfile(transform: (EntryUiState) -> EntryUiState) {
-        _state.update(transform)
+        _uiState.update(transform)
         persistOnboardingProfile()
     }
 
     private fun restoreProgress(progress: EntryProgress) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 step = progress.step.toEntryStep(),
                 didResumeProgress = progress.step != EntryProgressStep.TERMS,
@@ -330,7 +330,7 @@ class EntryViewModel @Inject constructor(
     }
 
     private fun restoreOnboardingProfile(profile: OnboardingProfile) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 nickname = profile.nickname,
                 drivingPeriod = profile.drivingPeriod,
@@ -346,7 +346,7 @@ class EntryViewModel @Inject constructor(
     }
 
     private suspend fun applyMode(mode: EntryMode) {
-        val restoredStep = state.value.step
+        val restoredStep = uiState.value.step
         val targetStep = when (mode) {
             EntryMode.AUTHENTICATED -> restoredStep
             EntryMode.GUEST_BROWSE -> when (restoredStep) {
@@ -370,7 +370,7 @@ class EntryViewModel @Inject constructor(
                 else -> restoredStep
             }
         }
-        _state.update { it.copy(mode = mode, step = targetStep) }
+        _uiState.update { it.copy(mode = mode, step = targetStep) }
         if (targetStep != restoredStep) persistEntryProgressNow()
     }
 
@@ -409,7 +409,7 @@ class EntryViewModel @Inject constructor(
     }
 
     private fun currentEntryProgress(): EntryProgress =
-        state.value.let {
+        uiState.value.let {
             EntryProgress(
                 mode = it.mode,
                 step = it.step.toEntryProgressStep(),
@@ -424,7 +424,7 @@ class EntryViewModel @Inject constructor(
         }
 
     private fun currentOnboardingProfile(): OnboardingProfile =
-        state.value.let {
+        uiState.value.let {
             OnboardingProfile(
                 nickname = it.nickname,
                 drivingPeriod = it.drivingPeriod,

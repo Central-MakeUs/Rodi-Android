@@ -31,20 +31,6 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class RodiAppUiState(
-    val isReady: Boolean = false,
-    val isEntryCompleted: Boolean = false,
-    val hasGuestAccess: Boolean = false,
-    val authSession: AuthSession = AuthSession(
-        isLoggedIn = false,
-        hasRecentKakaoLogin = false,
-    ),
-)
-
-sealed interface RodiAppEffect {
-    data object NavigateToLogin : RodiAppEffect
-}
-
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class RodiAppViewModel @Inject constructor(
@@ -55,13 +41,13 @@ class RodiAppViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val reissueAuthTokenUseCase: ReissueAuthTokenUseCase = ReissueAuthTokenUseCase(authRepository),
 ) : ViewModel() {
-    private val _state = MutableStateFlow(RodiAppUiState())
+    private val _uiState = MutableStateFlow(RodiAppUiState())
     private val authSessionRefresh = MutableStateFlow(0)
     private val sessionEnded = MutableStateFlow(false)
     private var sessionVerificationJob: Job? = null
     private val _effect = Channel<RodiAppEffect>(Channel.BUFFERED)
     val effect: Flow<RodiAppEffect> = _effect.receiveAsFlow()
-    val state: StateFlow<RodiAppUiState> = _state.asStateFlow()
+    val uiState: StateFlow<RodiAppUiState> = _uiState.asStateFlow()
 
     init {
         retryPendingOnboardingSync()
@@ -99,10 +85,10 @@ class RodiAppViewModel @Inject constructor(
             }.retryWhen { error, attempt ->
                 if (error is CancellationException) throw error
                 if (attempt >= MAX_AUTH_SESSION_RETRY_ATTEMPTS) return@retryWhen false
-                _state.value = RodiAppUiState(isReady = true)
+                _uiState.value = RodiAppUiState(isReady = true)
                 delay(RETRY_DELAY_MILLIS * (attempt + 1))
                 true
-            }.collect(_state)
+            }.collect(_uiState)
         }
     }
 

@@ -49,7 +49,7 @@ fun ReviewWriteScreen(
     modifier: Modifier = Modifier,
     viewModel: ReviewWriteViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmExit by remember { mutableStateOf(false) }
     LaunchedEffect(placeId, editingReviewId) {
         if (editingReviewId == null) {

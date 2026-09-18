@@ -15,18 +15,6 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class DrivingGoalUiState(
-    val initialGoal: String = "",
-    val goal: String = "",
-    val isLoading: Boolean = true,
-    val isSaving: Boolean = false,
-)
-
-sealed interface DrivingGoalEffect {
-    data object NavigateBack : DrivingGoalEffect
-    data object ShowSyncError : DrivingGoalEffect
-}
-
 @HiltViewModel
 class DrivingGoalViewModel @Inject constructor(
     private val getMyPage: GetMyPageUseCase,
@@ -56,11 +44,11 @@ class DrivingGoalViewModel @Inject constructor(
     }
 
     fun save() {
-        val state = _uiState.value
-        if (state.goal == state.initialGoal || state.isSaving || state.isLoading) return
+        val uiState = _uiState.value
+        if (uiState.goal == uiState.initialGoal || uiState.isSaving || uiState.isLoading) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-            updateDrivingGoal(state.goal)
+            updateDrivingGoal(uiState.goal)
                 .onSuccess { _effect.send(DrivingGoalEffect.NavigateBack) }
                 .onFailure {
                     _uiState.update { it.copy(isSaving = false) }

@@ -89,12 +89,12 @@ class HomeViewModelTest {
         coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
 
-        assertEquals(page.items, vm.state.value.places)
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(page.items, vm.uiState.value.places)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
         coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -104,16 +104,16 @@ class HomeViewModelTest {
         val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+            vm.onIntent(HomeIntent.RegionSearchRequested(region, listOf(summary(1))))
 
             assertEquals(HomeEffect.MoveToRegion(region), awaitItem())
         }
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        assertEquals("서울 중구", vm.state.value.searchKeyword)
-        assertEquals(region, vm.state.value.regionSearch)
-        assertEquals(HomeListState.Content, vm.state.value.listState)
-        assertEquals(listOf(1L), vm.state.value.places.map(PlaceSummary::id))
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        assertEquals("서울 중구", vm.uiState.value.searchKeyword)
+        assertEquals(region, vm.uiState.value.regionSearch)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
+        assertEquals(listOf(1L), vm.uiState.value.places.map(PlaceSummary::id))
     }
 
     @Test
@@ -123,10 +123,10 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(41L) } returns Result.success(place)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnPlaceClick(41L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(41L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        assertNull(vm.state.value.searchKeyword)
+        assertNull(vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -136,12 +136,12 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(43L) } returns Result.success(place)
         val vm = deps.viewModel()
         val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
-        vm.onIntent(HomeIntent.OnRegionSearch(region, listOf(summary(1))))
+        vm.onIntent(HomeIntent.RegionSearchRequested(region, listOf(summary(1))))
 
-        vm.onIntent(HomeIntent.OnPlaceClick(43L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(43L, HomeDetailOrigin.Map))
         runCurrent()
 
-        assertNull(vm.state.value.searchKeyword)
+        assertNull(vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -151,10 +151,10 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(42L) } returns Result.success(place)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnPlaceClick(42L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(42L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        assertEquals(place.name, vm.state.value.searchKeyword)
+        assertEquals(place.name, vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -167,13 +167,13 @@ class HomeViewModelTest {
         coEvery { deps.refreshPlaces(query(), "next", 20) } returns Result.success(nextPage)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnLoadNextPage)
+        vm.onIntent(HomeIntent.ListEndReached)
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L, 3L), vm.state.value.places.map { it.id })
-        assertFalse(vm.state.value.hasNextPage)
+        assertEquals(listOf(1L, 2L, 3L), vm.uiState.value.places.map { it.id })
+        assertFalse(vm.uiState.value.hasNextPage)
     }
 
     @Test
@@ -192,32 +192,32 @@ class HomeViewModelTest {
         coEvery { deps.refreshPlaces(query(2.0), "next", 20) } returns Result.success(nextPage)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        val initialGeneration = vm.state.value.placeListGeneration
+        val initialGeneration = vm.uiState.value.placeListGeneration
 
-        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
         runCurrent()
 
-        assertEquals(initialGeneration, vm.state.value.placeListGeneration)
+        assertEquals(initialGeneration, vm.uiState.value.placeListGeneration)
 
         cachedResult.complete(Result.success(cachedPage))
         runCurrent()
 
-        assertEquals(initialGeneration + 1, vm.state.value.placeListGeneration)
-        assertEquals(cachedPage.items, vm.state.value.places)
+        assertEquals(initialGeneration + 1, vm.uiState.value.placeListGeneration)
+        assertEquals(cachedPage.items, vm.uiState.value.places)
 
         refreshedResult.complete(Result.success(refreshedPage))
         advanceUntilIdle()
 
-        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
-        assertEquals(refreshedPage.items, vm.state.value.places)
+        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
+        assertEquals(refreshedPage.items, vm.uiState.value.places)
 
-        vm.onIntent(HomeIntent.OnLoadNextPage)
+        vm.onIntent(HomeIntent.ListEndReached)
         advanceUntilIdle()
 
-        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
-        assertEquals(listOf(10L, 11L, 2L, 12L), vm.state.value.places.map(PlaceSummary::id))
+        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
+        assertEquals(listOf(10L, 11L, 2L, 12L), vm.uiState.value.places.map(PlaceSummary::id))
     }
 
     @Test
@@ -230,15 +230,15 @@ class HomeViewModelTest {
         )
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
-        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
         advanceUntilIdle()
         older.complete(Result.success(CursorPage(listOf(summary(1)), false, null, 1)))
         advanceUntilIdle()
 
-        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
-        assertEquals(query(2.0), vm.state.value.searchedQuery)
-        assertEquals(1, vm.state.value.placeListGeneration)
+        assertEquals(listOf(2L), vm.uiState.value.places.map { it.id })
+        assertEquals(query(2.0), vm.uiState.value.searchedQuery)
+        assertEquals(1, vm.uiState.value.placeListGeneration)
     }
 
     @Test
@@ -248,17 +248,17 @@ class HomeViewModelTest {
         coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(emptyPage)
         coEvery { emptyDeps.refreshPlaces(query(), null, 20) } returns Result.success(emptyPage)
         val emptyVm = emptyDeps.viewModel()
-        emptyVm.onIntent(HomeIntent.OnViewportSettled(query()))
+        emptyVm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.Empty, emptyVm.state.value.listState)
+        assertEquals(HomeListState.Empty, emptyVm.uiState.value.listState)
 
         val failedDeps = Dependencies()
         coEvery { failedDeps.getPlaces(query(), null, 20) } returns Result.failure(IllegalStateException("failure"))
         val failedVm = failedDeps.viewModel()
-        failedVm.onIntent(HomeIntent.OnViewportSettled(query()))
+        failedVm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.InitialError, failedVm.state.value.listState)
-        assertEquals(0, failedVm.state.value.placeListGeneration)
+        assertEquals(HomeListState.InitialError, failedVm.uiState.value.listState)
+        assertEquals(0, failedVm.uiState.value.placeListGeneration)
     }
 
     @Test
@@ -272,15 +272,15 @@ class HomeViewModelTest {
         coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.InitialError, vm.state.value.listState)
+        assertEquals(HomeListState.InitialError, vm.uiState.value.listState)
 
-        vm.onIntent(HomeIntent.OnProgrammaticSearch(query()))
+        vm.onIntent(HomeIntent.ProgrammaticSearchRequested(query()))
         advanceUntilIdle()
 
-        assertEquals(HomeListState.Content, vm.state.value.listState)
-        assertEquals(page.items, vm.state.value.places)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
+        assertEquals(page.items, vm.uiState.value.places)
         coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -292,14 +292,14 @@ class HomeViewModelTest {
         )
         coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.failure(IllegalStateException("failure"))
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnResearch(query(2.0)))
+        vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
         advanceUntilIdle()
 
-        assertEquals(listOf(1L), vm.state.value.places.map { it.id })
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(listOf(1L), vm.uiState.value.places.map { it.id })
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
     }
 
     @Test
@@ -313,14 +313,14 @@ class HomeViewModelTest {
         )
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnMapGesture)
-        vm.onIntent(HomeIntent.OnResearch(query()))
+        vm.onIntent(HomeIntent.MapGestured)
+        vm.onIntent(HomeIntent.ResearchClicked(query()))
         advanceUntilIdle()
-        assertTrue(vm.state.value.isMapSearchDirty)
+        assertTrue(vm.uiState.value.isMapSearchDirty)
 
-        vm.onIntent(HomeIntent.OnResearch(query()))
+        vm.onIntent(HomeIntent.ResearchClicked(query()))
         advanceUntilIdle()
-        assertFalse(vm.state.value.isMapSearchDirty)
+        assertFalse(vm.uiState.value.isMapSearchDirty)
     }
 
     @Test
@@ -331,25 +331,25 @@ class HomeViewModelTest {
         coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnResearch(query()))
+        vm.onIntent(HomeIntent.ResearchClicked(query()))
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
         advanceUntilIdle()
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
     }
 
     @Test
     fun `surface transitions navigation partial full partial navigation`() {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnListOpen)
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
-        assertEquals(HomeSurfaceState.FullList, vm.state.value.surfaceState)
-        vm.onIntent(HomeIntent.OnListCollapse)
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        vm.onIntent(HomeIntent.OnListCollapse)
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        vm.onIntent(HomeIntent.ListOpenClicked)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        vm.onIntent(HomeIntent.ListSheetSettled(HomeSurfaceState.FullList))
+        assertEquals(HomeSurfaceState.FullList, vm.uiState.value.surfaceState)
+        vm.onIntent(HomeIntent.ListCollapseRequested)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        vm.onIntent(HomeIntent.ListCollapseRequested)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
     }
 
     @Test
@@ -357,8 +357,8 @@ class HomeViewModelTest {
         val vm = Dependencies().viewModel()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnReviewUpdated)
-            vm.onIntent(HomeIntent.OnReviewUpdated)
+            vm.onIntent(HomeIntent.ReviewUpdated)
+            vm.onIntent(HomeIntent.ReviewUpdated)
 
             assertEquals(HomeEffect.RefreshReviews, awaitItem())
             assertEquals(HomeEffect.RefreshReviews, awaitItem())
@@ -369,10 +369,10 @@ class HomeViewModelTest {
     fun `sheet dragged from full straight to hidden lands on navigation`() {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
-        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+        vm.onIntent(HomeIntent.ListSheetSettled(HomeSurfaceState.FullList))
+        vm.onIntent(HomeIntent.ListSheetSettled(HomeSurfaceState.Navigation))
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
     }
 
     @Test
@@ -381,15 +381,15 @@ class HomeViewModelTest {
         val place = HomePreviewData.parkingDetail.copy(id = 40L)
         coEvery { deps.getDetail(40L) } returns Result.success(place)
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(40L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(40L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
+        vm.onIntent(HomeIntent.ListSheetSettled(HomeSurfaceState.Navigation))
 
-        assertEquals(HomeSurfaceState.Detail, vm.state.value.surfaceState)
-        assertEquals(40L, vm.state.value.selectedPlaceId)
-        assertEquals(place, vm.state.value.selectedPlace)
-        assertFalse(vm.state.value.isDetailLoading)
+        assertEquals(HomeSurfaceState.Detail, vm.uiState.value.surfaceState)
+        assertEquals(40L, vm.uiState.value.selectedPlaceId)
+        assertEquals(place, vm.uiState.value.selectedPlace)
+        assertFalse(vm.uiState.value.isDetailLoading)
     }
 
     @Test
@@ -405,15 +405,15 @@ class HomeViewModelTest {
             Result.failure(IllegalStateException("route unavailable"))
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnPlaceClick(10L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(10L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        assertEquals(PendingHomeAction.OpenDetail(10L, HomeDetailOrigin.Map), vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenDetail(10L, HomeDetailOrigin.Map), vm.uiState.value.pendingAction)
 
-        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
         advanceUntilIdle()
 
-        assertNull(vm.state.value.pendingAction)
-        assertEquals(10L, vm.state.value.selectedPlaceId)
+        assertNull(vm.uiState.value.pendingAction)
+        assertEquals(10L, vm.uiState.value.selectedPlaceId)
         coVerify(exactly = 1) { deps.getDetail(10L) }
     }
 
@@ -424,12 +424,12 @@ class HomeViewModelTest {
         val vm = deps.viewModel()
         val origin = GeoPoint(37.5, 126.9)
 
-        vm.onIntent(HomeIntent.OnSearchClick(origin))
+        vm.onIntent(HomeIntent.SearchClicked(origin))
         advanceUntilIdle()
-        assertEquals(PendingHomeAction.OpenSearch(origin), vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenSearch(origin), vm.uiState.value.pendingAction)
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
             advanceUntilIdle()
 
             assertEquals(HomeEffect.NavigateSearch(origin), awaitItem())
@@ -447,12 +447,12 @@ class HomeViewModelTest {
         )
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnRegisterClick)
+        vm.onIntent(HomeIntent.RegisterClicked)
         advanceUntilIdle()
 
-        assertEquals(PendingHomeAction.OpenCourseRegistration, vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenCourseRegistration, vm.uiState.value.pendingAction)
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
             advanceUntilIdle()
 
             assertEquals(HomeEffect.NavigateCourseRegistration, awaitItem())
@@ -467,15 +467,15 @@ class HomeViewModelTest {
             Result.success(LoginResult.Success(true, "로디"))
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnMyClick)
+        vm.onIntent(HomeIntent.MyPageClicked)
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+            vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
             advanceUntilIdle()
 
             assertEquals(HomeEffect.NavigateGuestSignUp, awaitItem())
-            assertNull(vm.state.value.pendingAction)
+            assertNull(vm.uiState.value.pendingAction)
             expectNoEvents()
         }
     }
@@ -494,17 +494,17 @@ class HomeViewModelTest {
         )
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnMyClick)
+        vm.onIntent(HomeIntent.MyPageClicked)
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
-        advanceUntilIdle()
-
-        assertTrue(vm.state.value.hasPendingRestore)
-        vm.onIntent(HomeIntent.OnRestoreAccount)
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.hasPendingRestore)
-        assertNull(vm.state.value.pendingAction)
+        assertTrue(vm.uiState.value.hasPendingRestore)
+        vm.onIntent(HomeIntent.AccountRestoreClicked)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.hasPendingRestore)
+        assertNull(vm.uiState.value.pendingAction)
         coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
     }
 
@@ -520,20 +520,20 @@ class HomeViewModelTest {
         coEvery { deps.getRoute(place) } returns Result.success(route)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnPlaceClick(30L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(30L, HomeDetailOrigin.List))
         advanceUntilIdle()
-        assertEquals(route, vm.state.value.selectedRoute)
+        assertEquals(route, vm.uiState.value.selectedRoute)
 
-        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        vm.onIntent(HomeIntent.DetailDragDismissed)
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.selectedRoute)
-        assertNull(vm.state.value.detailOrigin)
-        assertFalse(vm.state.value.isDetailLoading)
-        assertFalse(vm.state.value.isRouting)
-        assertFalse(vm.state.value.isBookmarkUpdating)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.selectedRoute)
+        assertNull(vm.uiState.value.detailOrigin)
+        assertFalse(vm.uiState.value.isDetailLoading)
+        assertFalse(vm.uiState.value.isRouting)
+        assertFalse(vm.uiState.value.isBookmarkUpdating)
     }
 
     @Test
@@ -551,18 +551,18 @@ class HomeViewModelTest {
         }
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnPlaceClick(31L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(31L, HomeDetailOrigin.List))
         runCurrent()
-        assertTrue(vm.state.value.isDetailLoading)
+        assertTrue(vm.uiState.value.isDetailLoading)
 
-        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        vm.onIntent(HomeIntent.DetailDragDismissed)
         runCurrent()
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.detailOrigin)
-        assertFalse(vm.state.value.isDetailLoading)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.detailOrigin)
+        assertFalse(vm.uiState.value.isDetailLoading)
         assertTrue(detailRequestCancelled)
     }
 
@@ -574,23 +574,23 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(32L) } returns Result.success(place)
         coEvery { deps.setBookmark(place, true) } coAnswers { bookmarkResult.await() }
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(32L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(32L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnBookmarkClick)
+        vm.onIntent(HomeIntent.BookmarkClicked)
         runCurrent()
-        assertTrue(vm.state.value.isBookmarkUpdating)
+        assertTrue(vm.uiState.value.isBookmarkUpdating)
 
-        vm.onIntent(HomeIntent.OnDragDismissDetail)
+        vm.onIntent(HomeIntent.DetailDragDismissed)
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertFalse(vm.state.value.isBookmarkUpdating)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertFalse(vm.uiState.value.isBookmarkUpdating)
 
         bookmarkResult.complete(Result.success(Unit))
         advanceUntilIdle()
-        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.uiState.value.selectedPlace)
     }
 
     @Test
@@ -599,15 +599,15 @@ class HomeViewModelTest {
         val place = HomePreviewData.parkingDetail.copy(id = 33L)
         coEvery { deps.getDetail(33L) } returns Result.success(place)
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(33L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(33L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnDismissDetail)
+        vm.onIntent(HomeIntent.DetailDismissed)
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.detailOrigin)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.detailOrigin)
     }
 
     @Test
@@ -617,14 +617,14 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(20L) } returns Result.success(place)
         coEvery { deps.setBookmark(place, true) } returns Result.success(Unit)
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(20L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnBookmarkClick)
+        vm.onIntent(HomeIntent.BookmarkClicked)
         advanceUntilIdle()
 
-        assertTrue(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
-        assertEquals(5, vm.state.value.selectedPlace?.bookmarkCount)
+        assertTrue(requireNotNull(vm.uiState.value.selectedPlace).isBookmarked)
+        assertEquals(5, vm.uiState.value.selectedPlace?.bookmarkCount)
     }
 
     @Test
@@ -634,14 +634,14 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(20L) } returns Result.success(place)
         coEvery { deps.setBookmark(place, true) } returns Result.failure(IllegalStateException("failure"))
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.List))
+        vm.onIntent(HomeIntent.PlaceClicked(20L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnBookmarkClick)
+        vm.onIntent(HomeIntent.BookmarkClicked)
         advanceUntilIdle()
 
-        assertFalse(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
-        assertEquals(4, vm.state.value.selectedPlace?.bookmarkCount)
+        assertFalse(requireNotNull(vm.uiState.value.selectedPlace).isBookmarked)
+        assertEquals(4, vm.uiState.value.selectedPlace?.bookmarkCount)
     }
 
     @Test
@@ -650,13 +650,13 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterOpen)
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.ALL))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.INTERSECTION))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.URBAN_BASICS))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.FilterOpened)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.ALL))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.INTERSECTION))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.URBAN_BASICS))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
         advanceUntilIdle()
 
         assertEquals(
@@ -667,9 +667,9 @@ class HomeViewModelTest {
                 PracticeType.INTERSECTION,
                 PracticeType.PARKING,
             ),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.uiState.value.selectedFilterPracticeTypes,
         )
-        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
         coVerify {
             deps.updateFilterTags(
                 setOf(
@@ -687,39 +687,39 @@ class HomeViewModelTest {
     fun `tapping an active category clears it without clearing selected practice types`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.BASIC_DRIVING))
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.BASIC_DRIVING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertNull(vm.uiState.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.selectedFilterPracticeTypes)
     }
 
     @Test
     fun `tapping parking twice removes its tag and clears the active category`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        assertEquals(FilterCategory.PARKING, vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.PARKING), vm.state.value.selectedFilterPracticeTypes)
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
+        assertEquals(FilterCategory.PARKING, vm.uiState.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.PARKING), vm.uiState.value.selectedFilterPracticeTypes)
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertNull(vm.uiState.value.activeFilterCategory)
+        assertTrue(vm.uiState.value.selectedFilterPracticeTypes.isEmpty())
     }
 
     @Test
     fun `moving from parking keeps its tag but activates only the new category`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.MERGING))
 
-        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.activeFilterCategory)
+        assertEquals(FilterCategory.ROAD_FLOW, vm.uiState.value.activeFilterCategory)
         assertEquals(
             setOf(PracticeType.PARKING, PracticeType.MERGING),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.uiState.value.selectedFilterPracticeTypes,
         )
     }
 
@@ -727,13 +727,13 @@ class HomeViewModelTest {
     fun `reset activates basic driving and clears all filter tags`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
-        vm.onIntent(HomeIntent.OnFilterReset)
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
+        vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.ROAD_FLOW))
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.MERGING))
+        vm.onIntent(HomeIntent.FilterResetClicked)
 
-        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertEquals(FilterCategory.BASIC_DRIVING, vm.uiState.value.activeFilterCategory)
+        assertTrue(vm.uiState.value.selectedFilterPracticeTypes.isEmpty())
     }
 
     @Test
@@ -743,13 +743,13 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
         runCurrent()
-        vm.onIntent(HomeIntent.OnFilterReset)
+        vm.onIntent(HomeIntent.FilterResetClicked)
 
-        assertTrue(vm.state.value.isFilterSaving)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertTrue(vm.uiState.value.isFilterSaving)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.selectedFilterPracticeTypes)
     }
 
     @Test
@@ -764,15 +764,15 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnViewportSettled(query()))
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnFilterOpen)
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.FilterOpened)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isFilterSheetVisible)
-        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(listOf(2L), vm.uiState.value.places.map { it.id })
         coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -783,15 +783,15 @@ class HomeViewModelTest {
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
-        vm.onIntent(HomeIntent.OnFilterApply)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
         advanceUntilIdle()
         assertEquals(
             PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
-            vm.state.value.pendingAction,
+            vm.uiState.value.pendingAction,
         )
 
-        vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
         advanceUntilIdle()
 
         coVerify { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) }
@@ -803,11 +803,11 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
-        assertNull(vm.state.value.practicePrompt)
+        assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.getActiveSession() }
     }
 
@@ -821,11 +821,11 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns session
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
     }
 
     @Test
@@ -837,12 +837,12 @@ class HomeViewModelTest {
         )
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
         // 알림 미허용으로 측정 자체가 없었던 세션은 "계속 측정할까요?"를 물을 이유가 없다.
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertNull(vm.state.value.practicePrompt)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
     }
 
     @Test
@@ -855,11 +855,11 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns session
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
     }
 
     @Test
@@ -886,10 +886,10 @@ class HomeViewModelTest {
         )
         coEvery { deps.recordPracticeVisit(108L, 412) } returns Result.success(visitResult())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.recordPracticeVisit(108L, 412) }
@@ -902,12 +902,12 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns session
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
-        assertEquals(session.placeName, vm.state.value.practicePrompt?.placeName)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
+        assertEquals(session.placeName, vm.uiState.value.practicePrompt?.placeName)
     }
 
     @Test
@@ -916,13 +916,13 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.PracticeContinueClicked)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
+        assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
         coVerify(exactly = 2) { deps.getActiveSession() }
         coVerify(exactly = 0) { deps.clearActiveSession() }
     }
@@ -932,18 +932,18 @@ class HomeViewModelTest {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
+            vm.onIntent(HomeIntent.PracticeStopClicked)
             advanceUntilIdle()
             assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.clearActiveSession() }
         coVerify(exactly = 0) { deps.registerPractice(any()) }
         coVerify(exactly = 0) { deps.recordPracticeVisit(any(), any()) }
@@ -957,17 +957,17 @@ class HomeViewModelTest {
             coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
             coEvery { deps.getDetail(20L) } returns Result.success(otherPlace)
             val vm = deps.viewModel()
-            vm.onIntent(HomeIntent.OnAppResumed)
+            vm.onIntent(HomeIntent.AppResumed)
             advanceUntilIdle()
-            vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
-            vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.Map))
-            advanceUntilIdle()
-
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+            vm.onIntent(HomeIntent.PracticeContinueClicked)
+            vm.onIntent(HomeIntent.PlaceClicked(20L, HomeDetailOrigin.Map))
             advanceUntilIdle()
 
-            assertTrue(vm.state.value.isPracticeContinueDialogVisible)
-            assertEquals(27L, vm.state.value.activePracticeSession?.placeId)
+            vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+            advanceUntilIdle()
+
+            assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
+            assertEquals(27L, vm.uiState.value.activePracticeSession?.placeId)
             coVerify(exactly = 0) { deps.saveActiveSession(any()) }
             coVerify(exactly = 0) { deps.clearActiveSession() }
         }
@@ -979,24 +979,24 @@ class HomeViewModelTest {
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getDetail(20L) } returns Result.success(otherPlace)
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnPracticeContinueMeasurement)
-        vm.onIntent(HomeIntent.OnPlaceClick(20L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PracticeContinueClicked)
+        vm.onIntent(HomeIntent.PlaceClicked(20L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+        vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnPracticeStopMeasurement)
+            vm.onIntent(HomeIntent.PracticeStopClicked)
             advanceUntilIdle()
             assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.LaunchKakaoMap(otherPlace), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(20L, vm.state.value.activePracticeSession?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(20L, vm.uiState.value.activePracticeSession?.placeId)
         coVerify(exactly = 1) { deps.clearActiveSession() }
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
     }
@@ -1006,22 +1006,22 @@ class HomeViewModelTest {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
-        assertEquals(27L, vm.state.value.practicePrompt?.placeId)
+        assertEquals(27L, vm.uiState.value.practicePrompt?.placeId)
 
-        vm.onIntent(HomeIntent.OnPracticePromptDismiss)
+        vm.onIntent(HomeIntent.PracticePromptDismissed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.clearActiveSession() }
 
         coEvery { deps.getActiveSession() } returns null
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.practicePrompt)
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
     }
 
     @Test
@@ -1030,11 +1030,11 @@ class HomeViewModelTest {
         every { deps.notificationRequested() } returns flowOf(false)
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
         vm.onIntent(
-            HomeIntent.OnNavigateClick(
+            HomeIntent.NavigateClicked(
                 kakaoMapInstalled = true,
                 kakaoNaviInstalled = false,
                 notificationPermissionGranted = false,
@@ -1042,8 +1042,8 @@ class HomeViewModelTest {
         )
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        assertTrue(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.uiState.value.pendingPracticeNavigation?.app)
         coVerify(exactly = 0) { deps.registerPractice(any()) }
         coVerify(exactly = 0) { deps.saveActiveSession(any()) }
     }
@@ -1055,13 +1055,13 @@ class HomeViewModelTest {
         every { deps.notificationRequested() } returns notificationRequested
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+            vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
             advanceUntilIdle()
-            vm.onIntent(HomeIntent.OnNotificationPermissionRouteOnly)
+            vm.onIntent(HomeIntent.NotificationPermissionRouteOnlyClicked)
             advanceUntilIdle()
             assertEquals(
                 HomeEffect.LaunchKakaoMap(navigationPlace(), startDriving = false),
@@ -1071,17 +1071,17 @@ class HomeViewModelTest {
         }
 
         // 측정은 안 하지만, 10분 뒤 재진입 시 RV-01을 띄우려면 isMeasured=false 세션은 남아있어야 한다.
-        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertFalse(vm.uiState.value.activePracticeSession?.isMeasured ?: true)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 0) { deps.markNotificationRequested() }
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+        vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        assertTrue(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.uiState.value.pendingPracticeNavigation?.app)
         coVerify(exactly = 0) { deps.markNotificationRequested() }
     }
 
@@ -1092,15 +1092,15 @@ class HomeViewModelTest {
         every { deps.notificationRequested() } returns notificationRequested
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+            vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
             advanceUntilIdle()
-            vm.onIntent(HomeIntent.OnNotificationPermissionAllow)
+            vm.onIntent(HomeIntent.NotificationPermissionAllowClicked)
             advanceUntilIdle()
-            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = false))
+            vm.onIntent(HomeIntent.NotificationPermissionResultReceived(granted = false))
             advanceUntilIdle()
 
             assertEquals(
@@ -1110,10 +1110,10 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertNull(vm.state.value.pendingPracticeNavigation)
-        assertFalse(vm.state.value.isPracticeLaunchInProgress)
+        assertFalse(vm.uiState.value.activePracticeSession?.isMeasured ?: true)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
+        assertFalse(vm.uiState.value.isPracticeLaunchInProgress)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
@@ -1129,30 +1129,30 @@ class HomeViewModelTest {
         }
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+        vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
         vm.permissionEffect.test {
-            vm.onIntent(HomeIntent.OnNotificationPermissionAllow)
+            vm.onIntent(HomeIntent.NotificationPermissionAllowClicked)
             advanceUntilIdle()
             assertEquals(HomePermissionEffect.RequestNotificationPermission, awaitItem())
             coVerify(exactly = 0) { deps.saveActiveSession(any()) }
-            vm.onIntent(HomeIntent.OnNotificationPermissionResult(granted = true))
+            vm.onIntent(HomeIntent.NotificationPermissionResultReceived(granted = true))
             advanceUntilIdle()
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertEquals(start, vm.state.value.activePracticeSession?.startedAt)
+        assertEquals(start, vm.uiState.value.activePracticeSession?.startedAt)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+        vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
         coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
 
@@ -1162,11 +1162,11 @@ class HomeViewModelTest {
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
+            vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
             advanceUntilIdle()
 
             assertEquals(
@@ -1180,8 +1180,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
         coVerify(exactly = 3) { deps.saveActiveSession(any()) }
     }
 
@@ -1195,18 +1195,18 @@ class HomeViewModelTest {
         )
         coEvery { deps.recordPracticeVisit(101L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnPracticePromptVisited)
+            vm.onIntent(HomeIntent.PracticeVisitedAnswered)
             advanceUntilIdle()
             assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.OpenPracticeReview(session.placeId, session.placeName), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coVerifyOrder {
             deps.registerPractice(session.placeId)
             deps.saveActiveSession(any())
@@ -1227,15 +1227,15 @@ class HomeViewModelTest {
         coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
         coEvery { deps.recordPracticeVisit(104L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 1) { deps.recordPracticeVisit(104L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1252,19 +1252,19 @@ class HomeViewModelTest {
             Result.success(visitResult()),
         )
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
-        assertEquals(106L, vm.state.value.activePracticeSession?.practiceId)
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        assertEquals(106L, vm.uiState.value.activePracticeSession?.practiceId)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 2) { deps.recordPracticeVisit(106L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1282,14 +1282,14 @@ class HomeViewModelTest {
             if (clearCalls == 1) throw IllegalStateException("일시적인 저장 실패")
         }
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         assertEquals(2, clearCalls)
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1304,21 +1304,21 @@ class HomeViewModelTest {
         coEvery { deps.recordPracticeVisit(107L, any()) } returns Result.success(visitResult())
         coEvery { deps.clearActiveSession() } throws IllegalStateException("정리 실패")
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         val completedSession = originalSession.copy(practiceId = 107L, isCompleted = true)
         coVerify(exactly = 1) { deps.saveActiveSession(completedSession) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coEvery { deps.getActiveSession() } returns completedSession
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.recordPracticeVisit(107L, any()) }
     }
 
@@ -1335,18 +1335,18 @@ class HomeViewModelTest {
             Result.success(visitResult()),
         )
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
-        assertEquals(101L, vm.state.value.activePracticeSession?.practiceId)
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        assertEquals(101L, vm.uiState.value.activePracticeSession?.practiceId)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 2) { deps.recordPracticeVisit(101L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1362,11 +1362,11 @@ class HomeViewModelTest {
         )
         coEvery { deps.recordPracticeVisit(102L, any()) } returns Result.success(visitResult())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnPracticePromptVisited)
+            vm.onIntent(HomeIntent.PracticeVisitedAnswered)
             advanceUntilIdle()
 
             assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
@@ -1378,7 +1378,7 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1390,12 +1390,12 @@ class HomeViewModelTest {
             Practice(108L, com.dororong.rodi.core.domain.model.practice.PracticeStatus.PLANNED, 0, 0),
         )
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
 
         vm.effect.test {
-            vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
+            vm.onIntent(HomeIntent.PracticeNotVisitedAnswered)
             advanceUntilIdle()
 
             assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
@@ -1403,8 +1403,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 1) { deps.clearActiveSession() }
     }
@@ -1420,11 +1420,11 @@ class HomeViewModelTest {
         )
         coEvery { deps.recordPracticeVisit(103L, any()) } coAnswers { pendingVisit.await() }
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
-        vm.onIntent(HomeIntent.OnPracticePromptVisited)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
+        vm.onIntent(HomeIntent.PracticeVisitedAnswered)
         runCurrent()
         coVerify(exactly = 1) { deps.recordPracticeVisit(103L, any()) }
         pendingVisit.complete(Result.success(visitResult()))
@@ -1436,10 +1436,10 @@ class HomeViewModelTest {
         val deps = Dependencies(loggedIn = false)
         val vm = deps.viewModel()
 
-        vm.onIntent(HomeIntent.OnAppResumed)
+        vm.onIntent(HomeIntent.AppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coVerify(exactly = 0) { deps.getActiveSession() }
     }
 
@@ -1448,10 +1448,10 @@ class HomeViewModelTest {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()
-        vm.onIntent(HomeIntent.OnPlaceClick(19L, HomeDetailOrigin.Map))
+        vm.onIntent(HomeIntent.PlaceClicked(19L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = false, kakaoNaviInstalled = false, notificationPermissionGranted = false))
+        vm.onIntent(HomeIntent.NavigateClicked(kakaoMapInstalled = false, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
         coVerify(exactly = 0) { deps.saveActiveSession(any()) }

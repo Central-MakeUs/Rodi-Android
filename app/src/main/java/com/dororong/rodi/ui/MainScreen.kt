@@ -74,7 +74,7 @@ fun MainScreen(
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
     val courseRegistrationEntryViewModel: CourseRegistrationEntryViewModel = hiltViewModel()
-    val entryState by courseRegistrationEntryViewModel.state.collectAsStateWithLifecycle()
+    val entryState by courseRegistrationEntryViewModel.uiState.collectAsStateWithLifecycle()
     var pendingCourseRegistrationPreflight by remember { mutableStateOf(false) }
     var showResumeDialog by rememberSaveable { mutableStateOf(false) }
     var courseRegistrationEntryMode by remember { mutableStateOf(CourseRegistrationEntryMode.Normal) }
@@ -119,7 +119,7 @@ fun MainScreen(
     }
     LaunchedEffect(pendingCourseRegistrationPreflight, entryState) {
         if (!pendingCourseRegistrationPreflight || openArrivalOnStart) return@LaunchedEffect
-        val readyState = entryState as? CourseRegistrationEntryState.Ready ?: return@LaunchedEffect
+        val readyState = entryState as? CourseRegistrationEntryUiState.Ready ?: return@LaunchedEffect
         pendingCourseRegistrationPreflight = false
         when (readyState.draft.courseRegistrationPreflightDecision()) {
             CourseRegistrationPreflightDecision.OpenImmediately -> {
@@ -148,7 +148,7 @@ fun MainScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                homeViewModel.onIntent(HomeIntent.OnAppResumed)
+                homeViewModel.onIntent(HomeIntent.AppResumed)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -161,7 +161,7 @@ fun MainScreen(
                 selectedDestination = route.toMainBottomNavigationDestination(showResumeDialog),
                 onHomeClick = {
                     if (route == HomeRoute) {
-                        homeViewModel.onIntent(HomeIntent.OnListOpen)
+                        homeViewModel.onIntent(HomeIntent.ListOpenClicked)
                     } else {
                         backStack.popMyPage()
                     }
@@ -169,14 +169,14 @@ fun MainScreen(
                 onRegisterClick = {
                     if (!showResumeDialog) {
                         when (route) {
-                            HomeRoute -> homeViewModel.onIntent(HomeIntent.OnRegisterClick)
+                            HomeRoute -> homeViewModel.onIntent(HomeIntent.RegisterClicked)
                             MyPageRoute -> requestCourseRegistration()
                             else -> Unit
                         }
                     }
                 },
                 onMyClick = {
-                    if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.OnMyClick)
+                    if (route == HomeRoute) homeViewModel.onIntent(HomeIntent.MyPageClicked)
                 },
             )
         }
@@ -240,11 +240,11 @@ fun MainScreen(
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onPlaceClick = { placeId ->
-                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.List))
+                                homeViewModel.onIntent(HomeIntent.PlaceClicked(placeId, HomeDetailOrigin.List))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             onRegionClick = { region, initialPlaces ->
-                                homeViewModel.onIntent(HomeIntent.OnRegionSearch(region, initialPlaces))
+                                homeViewModel.onIntent(HomeIntent.RegionSearchRequested(region, initialPlaces))
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                         )
@@ -273,7 +273,7 @@ fun MainScreen(
                         val registrationViewModel: CourseRegistrationViewModel = hiltViewModel()
                         var registrationEntryReady by remember { mutableStateOf(false) }
                         LaunchedEffect(registrationViewModel, courseRegistrationEntryMode) {
-                            val restoredState = registrationViewModel.state.first {
+                            val restoredState = registrationViewModel.uiState.first {
                                 it.isDraftRestored || it.isAuthResolved
                             }
                             if (restoredState.isAuthResolved && !restoredState.isLoggedIn) {
@@ -337,7 +337,7 @@ fun MainScreen(
                             editingReviewId = key.reviewId,
                             onClose = { backStack.removeAt(backStack.lastIndex) },
                             onCompleted = {
-                                homeViewModel.onIntent(HomeIntent.OnReviewUpdated)
+                                homeViewModel.onIntent(HomeIntent.ReviewUpdated)
                                 backStack.removeAt(backStack.lastIndex)
                             },
                         )
@@ -351,7 +351,7 @@ fun MainScreen(
                         SavedCoursesScreen(
                             onBack = { backStack.removeAt(backStack.lastIndex) },
                             onPlaceClick = { placeId ->
-                                homeViewModel.onIntent(HomeIntent.OnPlaceClick(placeId, HomeDetailOrigin.Map))
+                                homeViewModel.onIntent(HomeIntent.PlaceClicked(placeId, HomeDetailOrigin.Map))
                                 backStack.clear()
                                 backStack.add(HomeRoute)
                             },

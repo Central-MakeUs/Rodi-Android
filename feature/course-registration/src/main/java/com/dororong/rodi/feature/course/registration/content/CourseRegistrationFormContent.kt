@@ -105,7 +105,7 @@ fun CourseRegistrationFormContent(
         when (loadState) {
             CourseRegistrationFormLoadState.Loading -> CourseRegistrationFormSkeleton(Modifier.weight(1f))
             CourseRegistrationFormLoadState.Error -> CourseRegistrationFormError(
-                onRetry = { onIntent(CourseRegistrationIntent.Retry) },
+                onRetry = { onIntent(CourseRegistrationIntent.RetryClicked) },
                 modifier = Modifier.weight(1f),
             )
             CourseRegistrationFormLoadState.Ready -> form?.let {
@@ -122,7 +122,7 @@ fun CourseRegistrationFormContent(
                 }
                 CourseRegistrationFormSubmitBar(
                     enabled = canSubmit && !isSubmitting,
-                    onSubmit = { onIntent(CourseRegistrationIntent.Submit) },
+                    onSubmit = { onIntent(CourseRegistrationIntent.SubmitClicked) },
                 )
             }
         }
@@ -199,7 +199,7 @@ private fun CourseRegistrationFormFields(
                         RodiSelectableChip(
                             text = category.label,
                             selected = category.code == selectedCategoryCode,
-                            onClick = { onIntent(CourseRegistrationIntent.SelectCategory(category.code)) },
+                            onClick = { onIntent(CourseRegistrationIntent.CategorySelected(category.code)) },
                         )
                     }
                 }
@@ -216,7 +216,7 @@ private fun CourseRegistrationFormFields(
                             PracticeTypeChip(
                                 type = type,
                                 selected = type.code in selectedPracticeTypeCodes,
-                                onClick = { onIntent(CourseRegistrationIntent.TogglePracticeType(type.code)) },
+                                onClick = { onIntent(CourseRegistrationIntent.PracticeTypeToggled(type.code)) },
                             )
                         }
                     }

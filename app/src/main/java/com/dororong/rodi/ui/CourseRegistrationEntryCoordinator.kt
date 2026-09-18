@@ -1,65 +1,10 @@
 package com.dororong.rodi.ui
 
 import androidx.compose.runtime.Composable
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.course.CourseDraft
-import com.dororong.rodi.core.domain.usecase.course.ClearCourseDraftUseCase
-import com.dororong.rodi.core.domain.usecase.course.ObserveCourseDraftUseCase
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.feature.course.registration.CourseRegistrationDialog
 import com.dororong.rodi.feature.course.registration.CourseRegistrationIntent
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
-enum class CourseRegistrationEntryMode {
-    Normal,
-    ContinueDraft,
-    StartFresh,
-}
-
-sealed interface CourseRegistrationEntryState {
-    data object Loading : CourseRegistrationEntryState
-
-    data class Ready(val draft: CourseDraft?) : CourseRegistrationEntryState
-}
-
-internal enum class CourseRegistrationPreflightDecision {
-    OpenImmediately,
-    ShowResumeDialog,
-}
-
-@HiltViewModel
-class CourseRegistrationEntryViewModel @Inject constructor(
-    private val observeCourseDraft: ObserveCourseDraftUseCase,
-    private val clearCourseDraft: ClearCourseDraftUseCase,
-) : ViewModel() {
-    private val _state = MutableStateFlow<CourseRegistrationEntryState>(CourseRegistrationEntryState.Loading)
-    val state: StateFlow<CourseRegistrationEntryState> = _state.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            observeCourseDraft()
-                .catch { emit(null) }
-                .collect { draft -> _state.value = CourseRegistrationEntryState.Ready(draft) }
-        }
-    }
-
-    suspend fun clearDraft(): Result<Unit> = try {
-        clearCourseDraft()
-        Result.success(Unit)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Throwable) {
-        Result.failure(error)
-    }
-}
 
 internal fun CourseDraft?.courseRegistrationPreflightDecision(): CourseRegistrationPreflightDecision =
     if (this?.isMeaningful == true) {
@@ -78,10 +23,10 @@ internal fun courseRegistrationIntentForEntry(
 ): CourseRegistrationIntent? {
     if (dialog != CourseRegistrationDialog.ResumeDraft) return null
     return when (entryMode) {
-        CourseRegistrationEntryMode.StartFresh -> CourseRegistrationIntent.DiscardDraft
+        CourseRegistrationEntryMode.StartFresh -> CourseRegistrationIntent.DraftDiscardClicked
         CourseRegistrationEntryMode.ContinueDraft,
         CourseRegistrationEntryMode.Normal,
-        -> CourseRegistrationIntent.ContinueDraft
+        -> CourseRegistrationIntent.DraftContinueClicked
     }
 }
 

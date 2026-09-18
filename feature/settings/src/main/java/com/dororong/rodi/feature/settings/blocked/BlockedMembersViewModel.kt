@@ -3,7 +3,6 @@ package com.dororong.rodi.feature.settings.blocked
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.common.userMessage
-import com.dororong.rodi.core.domain.model.member.BlockedMember as DomainBlockedMember
 import com.dororong.rodi.core.domain.usecase.member.GetBlockedMembersUseCase
 import com.dororong.rodi.core.domain.usecase.member.UnblockMemberUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,19 +13,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
-
-typealias BlockedMember = DomainBlockedMember
-
-data class BlockedMembersUiState(
-    val members: List<BlockedMember> = emptyList(),
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val initialError: String? = null,
-    val nextPageError: String? = null,
-    val nextCursor: String? = null,
-    val hasNext: Boolean = false,
-    val isLoadingMore: Boolean = false,
-)
 
 @HiltViewModel
 class BlockedMembersViewModel @Inject constructor(
@@ -99,7 +85,7 @@ class BlockedMembersViewModel @Inject constructor(
                 unblockMember(member.memberId)
                     .onSuccess {
                         succeeded = true
-                        _uiState.update { state -> state.copy(members = state.members.filterNot { it.memberId == member.memberId }) }
+                        _uiState.update { uiState -> uiState.copy(members = uiState.members.filterNot { it.memberId == member.memberId }) }
                     }
                     .onFailure { error ->
                         excludedMemberIds -= member.memberId

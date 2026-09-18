@@ -56,7 +56,7 @@ class ReviewActionsViewModelTest {
         viewModel.submitReport()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isReportSubmitted)
+        assertTrue(viewModel.uiState.value.isReportSubmitted)
         coVerify(exactly = 1) {
             reportReview(
                 REVIEW_ID,
@@ -82,14 +82,14 @@ class ReviewActionsViewModelTest {
         viewModel.submitReport()
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isReportSubmitted)
+        assertFalse(viewModel.uiState.value.isReportSubmitted)
         coVerify(exactly = 0) { reportReview(any(), any()) }
 
         viewModel.updateReportDetail("추가 설명")
         viewModel.submitReport()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isReportSubmitted)
+        assertTrue(viewModel.uiState.value.isReportSubmitted)
     }
 
     @Test
@@ -103,7 +103,7 @@ class ReviewActionsViewModelTest {
 
             assertEquals(ReviewActionsEffect.Blocked(MEMBER_ID), awaitItem())
         }
-        assertFalse(viewModel.state.value.isBlocking)
+        assertFalse(viewModel.uiState.value.isBlocking)
         coVerify(exactly = 1) { blockMember(MEMBER_ID) }
     }
 
@@ -115,8 +115,8 @@ class ReviewActionsViewModelTest {
         viewModel.loadReportForm(REVIEW_ID)
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isReportFormLoading)
-        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.state.value.reportErrorMessage)
+        assertFalse(viewModel.uiState.value.isReportFormLoading)
+        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.uiState.value.reportErrorMessage)
     }
 
     @Test
@@ -128,8 +128,8 @@ class ReviewActionsViewModelTest {
         viewModel.loadReportForm(REVIEW_ID)
         advanceUntilIdle()
 
-        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.state.value.reportErrorMessage)
-        assertFalse(viewModel.state.value.reportErrorMessage.orEmpty().contains(detail))
+        assertEquals("신고 사유를 불러오지 못했어요.", viewModel.uiState.value.reportErrorMessage)
+        assertFalse(viewModel.uiState.value.reportErrorMessage.orEmpty().contains(detail))
     }
 
     @Test
@@ -144,9 +144,9 @@ class ReviewActionsViewModelTest {
         viewModel.submitReport()
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isReportSubmitting)
-        assertFalse(viewModel.state.value.isReportSubmitted)
-        assertEquals("신고하지 못했어요.", viewModel.state.value.reportErrorMessage)
+        assertFalse(viewModel.uiState.value.isReportSubmitting)
+        assertFalse(viewModel.uiState.value.isReportSubmitted)
+        assertEquals("신고하지 못했어요.", viewModel.uiState.value.reportErrorMessage)
     }
 
     @Test
@@ -160,7 +160,7 @@ class ReviewActionsViewModelTest {
 
             assertEquals(ReviewActionsEffect.BlockFailed("차단하지 못했어요."), awaitItem())
         }
-        assertFalse(viewModel.state.value.isBlocking)
+        assertFalse(viewModel.uiState.value.isBlocking)
     }
 
     @Test
@@ -174,7 +174,7 @@ class ReviewActionsViewModelTest {
 
             assertEquals(ReviewActionsEffect.Deleted(REVIEW_ID), awaitItem())
         }
-        assertFalse(viewModel.state.value.isDeleting)
+        assertFalse(viewModel.uiState.value.isDeleting)
     }
 
     @Test
@@ -188,7 +188,7 @@ class ReviewActionsViewModelTest {
 
             assertEquals(ReviewActionsEffect.DeleteFailed("후기를 삭제하지 못했어요."), awaitItem())
         }
-        assertFalse(viewModel.state.value.isDeleting)
+        assertFalse(viewModel.uiState.value.isDeleting)
     }
 
     @Test
@@ -203,7 +203,7 @@ class ReviewActionsViewModelTest {
         viewModel.updateReportDetail("긴사유")
         viewModel.selectReportOption(form.options[3])
 
-        assertEquals("긴사", viewModel.state.value.reportDetail)
+        assertEquals("긴사", viewModel.uiState.value.reportDetail)
     }
 
     private fun viewModel() = ReviewActionsViewModel(getReportForm, reportReview, blockMember, deleteReview)

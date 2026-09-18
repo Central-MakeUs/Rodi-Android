@@ -65,14 +65,14 @@ class CourseRegistrationEntryCoordinatorTest {
     @Test
     fun `continue and fresh entry modes consume the flow resume dialog`() {
         assertEquals(
-            CourseRegistrationIntent.ContinueDraft,
+            CourseRegistrationIntent.DraftContinueClicked,
             courseRegistrationIntentForEntry(
                 entryMode = CourseRegistrationEntryMode.ContinueDraft,
                 dialog = CourseRegistrationDialog.ResumeDraft,
             ),
         )
         assertEquals(
-            CourseRegistrationIntent.DiscardDraft,
+            CourseRegistrationIntent.DraftDiscardClicked,
             courseRegistrationIntentForEntry(
                 entryMode = CourseRegistrationEntryMode.StartFresh,
                 dialog = CourseRegistrationDialog.ResumeDraft,
@@ -83,7 +83,7 @@ class CourseRegistrationEntryCoordinatorTest {
     @Test
     fun `normal entry safely continues a stale flow draft without a second dialog`() {
         assertEquals(
-            CourseRegistrationIntent.ContinueDraft,
+            CourseRegistrationIntent.DraftContinueClicked,
             courseRegistrationIntentForEntry(
                 entryMode = CourseRegistrationEntryMode.Normal,
                 dialog = CourseRegistrationDialog.ResumeDraft,

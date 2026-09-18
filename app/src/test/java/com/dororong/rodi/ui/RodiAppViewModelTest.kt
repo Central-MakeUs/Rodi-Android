@@ -62,10 +62,10 @@ class RodiAppViewModelTest {
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isReady)
-        assertEquals(false, viewModel.state.value.isEntryCompleted)
-        assertEquals(true, viewModel.state.value.hasGuestAccess)
-        assertEquals(true, viewModel.state.value.authSession.hasRecentKakaoLogin)
+        assertTrue(viewModel.uiState.value.isReady)
+        assertEquals(false, viewModel.uiState.value.isEntryCompleted)
+        assertEquals(true, viewModel.uiState.value.hasGuestAccess)
+        assertEquals(true, viewModel.uiState.value.authSession.hasRecentKakaoLogin)
     }
 
     @Test
@@ -80,10 +80,10 @@ class RodiAppViewModelTest {
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isReady)
-        assertFalse(viewModel.state.value.isEntryCompleted)
-        assertTrue(viewModel.state.value.hasGuestAccess)
-        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertTrue(viewModel.uiState.value.isReady)
+        assertFalse(viewModel.uiState.value.isEntryCompleted)
+        assertTrue(viewModel.uiState.value.hasGuestAccess)
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
     }
 
     @Test
@@ -102,8 +102,8 @@ class RodiAppViewModelTest {
         viewModel.onLoginSucceeded()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.authSession.isLoggedIn)
-        assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
+        assertTrue(viewModel.uiState.value.authSession.isLoggedIn)
+        assertTrue(viewModel.uiState.value.authSession.hasRecentKakaoLogin)
         coVerify(atLeast = 2) { getAuthSession() }
     }
 
@@ -118,13 +118,13 @@ class RodiAppViewModelTest {
 
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
         advanceUntilIdle()
-        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
 
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
         viewModel.onLoginSucceeded()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.authSession.isLoggedIn)
+        assertTrue(viewModel.uiState.value.authSession.isLoggedIn)
         coVerify(atLeast = 2) { getAuthSession() }
     }
 
@@ -147,7 +147,7 @@ class RodiAppViewModelTest {
         runCurrent()
 
         assertEquals(1, attempts)
-        assertTrue(viewModel.state.value.isReady)
+        assertTrue(viewModel.uiState.value.isReady)
 
         advanceTimeBy(999L)
         runCurrent()
@@ -159,7 +159,7 @@ class RodiAppViewModelTest {
         advanceUntilIdle()
 
         assertEquals(2, attempts)
-        assertTrue(viewModel.state.value.isEntryCompleted)
+        assertTrue(viewModel.uiState.value.isEntryCompleted)
     }
 
     @Test
@@ -182,8 +182,8 @@ class RodiAppViewModelTest {
         guestAccess.value = true
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.authSession.isLoggedIn)
-        assertTrue(viewModel.state.value.authSession.hasRecentKakaoLogin)
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
+        assertTrue(viewModel.uiState.value.authSession.hasRecentKakaoLogin)
     }
 
     @Test
@@ -209,7 +209,7 @@ class RodiAppViewModelTest {
         expirations.value = true
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
         assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
         effectCollection.cancel()
     }
@@ -233,7 +233,7 @@ class RodiAppViewModelTest {
         val effectCollection = launch { viewModel.effect.collect(effects::add) }
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.authSession.isLoggedIn)
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
         assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
         effectCollection.cancel()
     }
@@ -418,7 +418,7 @@ class RodiAppViewModelTest {
         val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, sync, sessionExpirationUseCase())
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isReady)
+        assertTrue(viewModel.uiState.value.isReady)
         coVerify(exactly = 1) { sync() }
     }
 

@@ -32,6 +32,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,8 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -67,11 +67,11 @@ class CourseRegistrationViewModel @Inject constructor(
     private val getStrictCourseRoute: GetStrictCourseRouteUseCase,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CourseRegistrationUiState())
-    val state: StateFlow<CourseRegistrationUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(CourseRegistrationUiState())
+    val uiState: StateFlow<CourseRegistrationUiState> = _uiState.asStateFlow()
 
-    private val _effect = MutableSharedFlow<CourseRegistrationEffect>(extraBufferCapacity = 8)
-    val effect: Flow<CourseRegistrationEffect> = _effect.asSharedFlow()
+    private val _effect = Channel<CourseRegistrationEffect>(Channel.BUFFERED)
+    val effect: Flow<CourseRegistrationEffect> = _effect.receiveAsFlow()
 
     private var searchJob: Job? = null
     private var searchSelectionJob: Job? = null
@@ -93,43 +93,43 @@ class CourseRegistrationViewModel @Inject constructor(
 
     fun onIntent(intent: CourseRegistrationIntent) {
         when (intent) {
-            CourseRegistrationIntent.Retry -> retry()
+            CourseRegistrationIntent.RetryClicked -> retry()
             is CourseRegistrationIntent.TutorialPageChanged -> setTutorialPage(intent.page)
-            CourseRegistrationIntent.CompleteTutorial -> completeTutorial()
-            CourseRegistrationIntent.ContinueDraft -> continueDraft()
-            CourseRegistrationIntent.DiscardDraft -> discardDraft()
-            CourseRegistrationIntent.Back -> back()
-            CourseRegistrationIntent.RequestExit -> requestExit()
-            CourseRegistrationIntent.ConfirmExit -> exitAndClearDraft()
-            CourseRegistrationIntent.DismissDialog -> _state.update { it.copy(dialog = null) }
-            is CourseRegistrationIntent.SelectWaypointRole -> selectWaypointRole(intent.role)
-            is CourseRegistrationIntent.SelectWaypoint -> selectWaypoint(intent)
-            is CourseRegistrationIntent.RemoveWaypoint -> removeWaypoint(intent.index)
-            is CourseRegistrationIntent.BeginPinEdit -> beginPinEdit(intent.index)
-            is CourseRegistrationIntent.MoveTemporaryPin -> moveTemporaryPin(intent.point)
+            CourseRegistrationIntent.TutorialCompleted -> completeTutorial()
+            CourseRegistrationIntent.DraftContinueClicked -> continueDraft()
+            CourseRegistrationIntent.DraftDiscardClicked -> discardDraft()
+            CourseRegistrationIntent.BackPressed -> back()
+            CourseRegistrationIntent.ExitRequested -> requestExit()
+            CourseRegistrationIntent.ExitConfirmed -> exitAndClearDraft()
+            CourseRegistrationIntent.DialogDismissed -> _uiState.update { it.copy(dialog = null) }
+            is CourseRegistrationIntent.WaypointRoleSelected -> selectWaypointRole(intent.role)
+            is CourseRegistrationIntent.WaypointSelected -> selectWaypoint(intent)
+            is CourseRegistrationIntent.WaypointRemoved -> removeWaypoint(intent.index)
+            is CourseRegistrationIntent.PinEditStarted -> beginPinEdit(intent.index)
+            is CourseRegistrationIntent.TemporaryPinMoved -> moveTemporaryPin(intent.point)
             is CourseRegistrationIntent.MapCenterChanged -> mapCenterChanged(intent.point)
             is CourseRegistrationIntent.MapPointSelected -> mapPointSelected(intent.point)
             is CourseRegistrationIntent.CurrentLocationSelected -> currentLocationSelected(intent.point)
             CourseRegistrationIntent.LocationUnavailable -> locationUnavailable()
-            CourseRegistrationIntent.CommitPinEdit -> commitPinEdit()
-            CourseRegistrationIntent.DiscardPinEdit -> discardPinEdit()
-            CourseRegistrationIntent.ResetPinEdit -> resetPinEdit()
+            CourseRegistrationIntent.PinEditCommitted -> commitPinEdit()
+            CourseRegistrationIntent.PinEditDiscarded -> discardPinEdit()
+            CourseRegistrationIntent.PinEditReset -> resetPinEdit()
             is CourseRegistrationIntent.SearchVisibilityChanged -> setSearchVisibility(intent.visible)
             is CourseRegistrationIntent.SearchKeywordChanged -> searchKeywordChanged(intent.keyword)
             CourseRegistrationIntent.SearchSubmitted -> searchImmediately()
             is CourseRegistrationIntent.SearchSuggestionSelected -> selectSearchSuggestion(intent.id)
-            is CourseRegistrationIntent.DeleteRecentSearch -> deleteRecentSearch(intent.id)
-            CourseRegistrationIntent.DeleteAllRecentSearches -> deleteAllRecentSearches()
+            is CourseRegistrationIntent.RecentSearchDeleteClicked -> deleteRecentSearch(intent.id)
+            CourseRegistrationIntent.DeleteAllRecentSearchesClicked -> deleteAllRecentSearches()
             is CourseRegistrationIntent.MapReady -> mapReady(intent.ready)
-            is CourseRegistrationIntent.SelectCategory -> selectCategory(intent.code)
-            is CourseRegistrationIntent.TogglePracticeType -> togglePracticeType(intent.code)
+            is CourseRegistrationIntent.CategorySelected -> selectCategory(intent.code)
+            is CourseRegistrationIntent.PracticeTypeToggled -> togglePracticeType(intent.code)
             is CourseRegistrationIntent.CautionChanged -> updateCaution(intent.value)
             is CourseRegistrationIntent.DescriptionChanged -> updateDescription(intent.value)
-            CourseRegistrationIntent.ContinueToForm -> continueToForm()
-            CourseRegistrationIntent.Submit -> submit()
+            CourseRegistrationIntent.ContinueToFormClicked -> continueToForm()
+            CourseRegistrationIntent.SubmitClicked -> submit()
             CourseRegistrationIntent.SuccessConfirmed -> {
-                _state.update { it.copy(dialog = null) }
-                _effect.tryEmit(CourseRegistrationEffect.Completed)
+                _uiState.update { it.copy(dialog = null) }
+                _effect.trySend(CourseRegistrationEffect.Completed)
             }
         }
     }
@@ -139,8 +139,8 @@ class CourseRegistrationViewModel @Inject constructor(
             try {
                 val session = getAuthSession()
                 if (!session.isLoggedIn) {
-                    _state.update { it.copy(isAuthResolved = true, isLoggedIn = false) }
-                    _effect.emit(CourseRegistrationEffect.LoginRequired)
+                    _uiState.update { it.copy(isAuthResolved = true, isLoggedIn = false) }
+                    _effect.send(CourseRegistrationEffect.LoginRequired)
                     return@launch
                 }
                 val draft = observeCourseDraft().first()
@@ -155,7 +155,7 @@ class CourseRegistrationViewModel @Inject constructor(
                 } else {
                     null to InitialLocationState.NotRequested
                 }
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isAuthResolved = true,
                         isLoggedIn = true,
@@ -182,8 +182,8 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update { it.copy(isAuthResolved = true, tutorialLoadState = CourseTutorialLoadState.Error) }
-                _effect.tryEmit(
+                _uiState.update { it.copy(isAuthResolved = true, tutorialLoadState = CourseTutorialLoadState.Error) }
+                _effect.trySend(
                     CourseRegistrationEffect.ShowSnackbar(error.userMessage("등록 화면을 불러오지 못했어요.")),
                 )
             }
@@ -195,7 +195,7 @@ class CourseRegistrationViewModel @Inject constructor(
             observeSearchHistory()
                 .catch { emit(emptyList()) }
                 .collect { recent ->
-                    _state.update { current ->
+                    _uiState.update { current ->
                         current.copy(
                             isRecentSearchLoading = false,
                             searchResult = current.searchResult.copy(recent = recent.take(15)),
@@ -207,12 +207,12 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun retry() {
         when {
-            _state.value.mapLoadState == CourseMapLoadState.Error -> {
-                _state.update { it.copy(mapLoadState = CourseMapLoadState.Loading, mapRetryToken = it.mapRetryToken + 1) }
+            _uiState.value.mapLoadState == CourseMapLoadState.Error -> {
+                _uiState.update { it.copy(mapLoadState = CourseMapLoadState.Loading, mapRetryToken = it.mapRetryToken + 1) }
             }
-            _state.value.formLoadState == CourseRegistrationFormLoadState.Error -> loadRegistrationForm()
-            _state.value.tutorialLoadState == CourseTutorialLoadState.Error -> {
-                _state.update {
+            _uiState.value.formLoadState == CourseRegistrationFormLoadState.Error -> loadRegistrationForm()
+            _uiState.value.tutorialLoadState == CourseTutorialLoadState.Error -> {
+                _uiState.update {
                     it.copy(
                         isAuthResolved = false,
                         tutorialLoadState = CourseTutorialLoadState.Loading,
@@ -224,12 +224,12 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun setTutorialPage(page: Int) {
-        _state.update { it.copy(tutorialPage = page.coerceIn(0, 2)) }
+        _uiState.update { it.copy(tutorialPage = page.coerceIn(0, 2)) }
     }
 
     private fun completeTutorial() {
-        if (_state.value.tutorialLoadState == CourseTutorialLoadState.Completing) return
-        _state.update { it.copy(tutorialLoadState = CourseTutorialLoadState.Completing) }
+        if (_uiState.value.tutorialLoadState == CourseTutorialLoadState.Completing) return
+        _uiState.update { it.copy(tutorialLoadState = CourseTutorialLoadState.Completing) }
         viewModelScope.launch {
             // 완료 여부를 서버에 남기는 호출이 실패해도(네트워크·일시적 서버 오류 등)
             // 튜토리얼 화면에 가둬두지 않는다 — 다음에 다시 들어오면 서버가 아직
@@ -237,7 +237,7 @@ class CourseRegistrationViewModel @Inject constructor(
             // 코스 등록을 계속할 수 있어야 한다.
             completeCourseTutorial()
             val (initialCenter, initialLocationState) = initialMapLocationState()
-            _state.update {
+            _uiState.update {
                 it.copy(
                     tutorialCompleted = true,
                     tutorialLoadState = CourseTutorialLoadState.Ready,
@@ -251,13 +251,13 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun back() {
-        val current = _state.value
+        val current = _uiState.value
         when (current.page) {
             CourseRegistrationPage.Tutorial -> {
                 if (current.tutorialPage > 0) {
                     setTutorialPage(current.tutorialPage - 1)
                 } else {
-                    _effect.tryEmit(CourseRegistrationEffect.Exit)
+                    _effect.trySend(CourseRegistrationEffect.Exit)
                 }
             }
             CourseRegistrationPage.Map -> {
@@ -268,22 +268,22 @@ class CourseRegistrationViewModel @Inject constructor(
                 }
             }
             CourseRegistrationPage.Form -> {
-                _state.update { it.copy(page = CourseRegistrationPage.Map, dialog = null) }
+                _uiState.update { it.copy(page = CourseRegistrationPage.Map, dialog = null) }
             }
         }
     }
 
     private fun requestExit() {
-        if (_state.value.isDraftMeaningful) {
-            _state.update { it.copy(dialog = CourseRegistrationDialog.Exit) }
+        if (_uiState.value.isDraftMeaningful) {
+            _uiState.update { it.copy(dialog = CourseRegistrationDialog.Exit) }
         } else {
-            _effect.tryEmit(CourseRegistrationEffect.Exit)
+            _effect.trySend(CourseRegistrationEffect.Exit)
         }
     }
 
     private fun discardDraft() {
         clearPersistedDraft()
-        _state.update {
+        _uiState.update {
             it.copy(
                 draft = null,
                 dialog = null,
@@ -303,7 +303,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun continueDraft() {
-        _state.update { it.copy(dialog = null, page = CourseRegistrationPage.Map) }
+        _uiState.update { it.copy(dialog = null, page = CourseRegistrationPage.Map) }
         loadRegistrationFormIfNeeded()
         calculateStrictRouteIfPossible()
     }
@@ -311,27 +311,27 @@ class CourseRegistrationViewModel @Inject constructor(
     private fun exitAndClearDraft() {
         draftJob?.cancel()
         pinEditJob?.cancel()
-        _state.update { it.copy(dialog = null) }
+        _uiState.update { it.copy(dialog = null) }
         viewModelScope.launch {
             try {
                 clearCourseDraft()
             } finally {
-                _effect.emit(CourseRegistrationEffect.Exit)
+                _effect.send(CourseRegistrationEffect.Exit)
             }
         }
     }
 
     private fun selectWaypointRole(role: CourseWaypointRole) {
         if (role == CourseWaypointRole.Via && maxViasReached()) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
             return
         }
-        _state.update { it.copy(selectedWaypointRole = role) }
+        _uiState.update { it.copy(selectedWaypointRole = role) }
     }
 
-    private fun selectWaypoint(intent: CourseRegistrationIntent.SelectWaypoint) {
+    private fun selectWaypoint(intent: CourseRegistrationIntent.WaypointSelected) {
         val waypointType = intent.role()
-        val current = _state.value.waypoints.toMutableList()
+        val current = _uiState.value.waypoints.toMutableList()
         when (waypointType) {
             RegistrationWaypointType.START -> {
                 current.removeAll { it.type == RegistrationWaypointType.START }
@@ -350,7 +350,7 @@ class CourseRegistrationViewModel @Inject constructor(
             RegistrationWaypointType.DESTINATION -> {
                 val start = current.firstOrNull { it.type == RegistrationWaypointType.START }
                 if (start != null && start.lat == intent.point.lat && start.lng == intent.point.lng) {
-                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
+                    _effect.trySend(CourseRegistrationEffect.ShowSnackbar("출발지와 다른 위치를 선택해주세요."))
                     return
                 }
                 current.removeAll { it.type == RegistrationWaypointType.DESTINATION }
@@ -367,7 +367,7 @@ class CourseRegistrationViewModel @Inject constructor(
             }
             RegistrationWaypointType.VIA -> {
                 if (maxViasReached(current)) {
-                    _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
+                    _effect.trySend(CourseRegistrationEffect.ShowSnackbar("경유지는 더 추가할 수 없어요."))
                     return
                 }
                 val destinationIndex = current.indexOfFirst { it.type == RegistrationWaypointType.DESTINATION }
@@ -383,7 +383,7 @@ class CourseRegistrationViewModel @Inject constructor(
             }
         }
         val normalized = normalizeWaypoints(current)
-        _state.update {
+        _uiState.update {
             it.copy(
                 waypoints = normalized,
                 route = null,
@@ -404,25 +404,25 @@ class CourseRegistrationViewModel @Inject constructor(
         calculateStrictRouteIfPossible()
     }
 
-    private fun CourseRegistrationIntent.SelectWaypoint.role(): RegistrationWaypointType = when {
-        _state.value.selectedWaypointRole == CourseWaypointRole.Start -> RegistrationWaypointType.START
-        _state.value.selectedWaypointRole == CourseWaypointRole.Destination -> RegistrationWaypointType.DESTINATION
+    private fun CourseRegistrationIntent.WaypointSelected.role(): RegistrationWaypointType = when {
+        _uiState.value.selectedWaypointRole == CourseWaypointRole.Start -> RegistrationWaypointType.START
+        _uiState.value.selectedWaypointRole == CourseWaypointRole.Destination -> RegistrationWaypointType.DESTINATION
         else -> RegistrationWaypointType.VIA
     }
 
     private fun removeWaypoint(index: Int) {
-        val remaining = _state.value.waypoints.toMutableList().also {
+        val remaining = _uiState.value.waypoints.toMutableList().also {
             if (index in it.indices && it[index].type == RegistrationWaypointType.VIA) it.removeAt(index)
         }
-        _state.update { it.copy(waypoints = normalizeWaypoints(remaining), route = null) }
+        _uiState.update { it.copy(waypoints = normalizeWaypoints(remaining), route = null) }
         persistDraft()
         calculateStrictRouteIfPossible()
     }
 
     private fun beginPinEdit(index: Int) {
-        val waypoint = _state.value.waypoints.getOrNull(index) ?: return
+        val waypoint = _uiState.value.waypoints.getOrNull(index) ?: return
         val point = GeoPoint(waypoint.lat, waypoint.lng)
-        _state.update {
+        _uiState.update {
             it.copy(
                 editingWaypointIndex = index,
                 temporaryPin = null,
@@ -439,16 +439,16 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun moveTemporaryPin(point: GeoPoint) {
-        val current = _state.value
+        val current = _uiState.value
         val index = current.editingWaypointIndex ?: return
         if (current.isPendingAddressLoading || current.pendingSuggestion == null) return
-        _state.update { it.copy(temporaryPin = point, mapCenter = point) }
+        _uiState.update { it.copy(temporaryPin = point, mapCenter = point) }
         previewPinEditRoute(index, point)
     }
 
     /** 핀 수정 중 후보 위치를 고르면 완료를 누르기 전에도 실제 도로 경로를 미리 그려준다. */
     private fun previewPinEditRoute(index: Int, point: GeoPoint) {
-        val current = _state.value
+        val current = _uiState.value
         val candidateWaypoints = current.waypoints.toMutableList()
         val original = candidateWaypoints.getOrNull(index) ?: return
         candidateWaypoints[index] = original.copy(lat = point.lat, lng = point.lng)
@@ -457,7 +457,7 @@ class CourseRegistrationViewModel @Inject constructor(
         routeJob?.cancel()
         routeGeneration += 1
         val generation = routeGeneration
-        _state.update { it.copy(isRouteLoading = true) }
+        _uiState.update { it.copy(isRouteLoading = true) }
         routeJob = viewModelScope.launch {
             try {
                 val result = getStrictCourseRoute(
@@ -467,7 +467,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     destination = CoursePoint(destination.name, destination.lat, destination.lng),
                 ).getOrThrow()
                 if (generation != routeGeneration) return@launch
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isRouteLoading = false,
                         route = if (result.isRealRoute && result.totalDistanceMeters > 0) result else it.route,
@@ -477,14 +477,14 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 if (generation == routeGeneration) {
-                    _state.update { it.copy(isRouteLoading = false) }
+                    _uiState.update { it.copy(isRouteLoading = false) }
                 }
             }
         }
     }
 
     private fun mapCenterChanged(point: GeoPoint) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 mapCenter = point,
                 initialLocationState = if (it.initialLocationState == InitialLocationState.Unavailable ||
@@ -496,13 +496,13 @@ class CourseRegistrationViewModel @Inject constructor(
                 },
             )
         }
-        if (!_state.value.isSearchVisible) {
+        if (!_uiState.value.isSearchVisible) {
             loadPendingAddress(point)
         }
     }
 
     private fun currentLocationSelected(point: GeoPoint) {
-        _state.update {
+        _uiState.update {
             it.copy(
                 mapCenter = point,
                 mapCenterGeneration = it.mapCenterGeneration + 1,
@@ -510,14 +510,14 @@ class CourseRegistrationViewModel @Inject constructor(
                 initialLocationState = InitialLocationState.Resolved,
             )
         }
-        if (_state.value.editingWaypointIndex == null) {
+        if (_uiState.value.editingWaypointIndex == null) {
             loadPendingAddress(point)
         }
     }
 
     private fun locationUnavailable() {
-        _state.update { it.copy(initialLocationState = InitialLocationState.Unavailable) }
-        _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
+        _uiState.update { it.copy(initialLocationState = InitialLocationState.Unavailable) }
+        _effect.trySend(CourseRegistrationEffect.ShowSnackbar("현재 위치를 확인하지 못했어요."))
     }
 
     /** 다른 지도 앱처럼 드래그하는 동안 미리 역지오코딩해서 확정 시 대기 없이 바로 다음 마커로 넘어가도록 한다. */
@@ -525,39 +525,39 @@ class CourseRegistrationViewModel @Inject constructor(
         pendingAddressJob?.cancel()
         pendingAddressGeneration += 1
         val generation = pendingAddressGeneration
-        _state.update { it.copy(isPendingAddressLoading = true, pendingSuggestion = null) }
+        _uiState.update { it.copy(isPendingAddressLoading = true, pendingSuggestion = null) }
         pendingAddressJob = viewModelScope.launch {
             try {
                 val suggestion = reverseGeocode(point).getOrThrow()
                 if (generation != pendingAddressGeneration) return@launch
                 val resolved = suggestion?.takeIf { it.address.isNotBlank() }
-                _state.update { it.copy(pendingSuggestion = resolved, isPendingAddressLoading = false) }
+                _uiState.update { it.copy(pendingSuggestion = resolved, isPendingAddressLoading = false) }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
                 if (generation == pendingAddressGeneration) {
-                    _state.update { it.copy(pendingSuggestion = null, isPendingAddressLoading = false) }
+                    _uiState.update { it.copy(pendingSuggestion = null, isPendingAddressLoading = false) }
                 }
             }
         }
     }
 
     private fun mapPointSelected(point: GeoPoint) {
-        if (_state.value.editingWaypointIndex != null) {
+        if (_uiState.value.editingWaypointIndex != null) {
             moveTemporaryPin(point)
             return
         }
-        val current = _state.value
+        val current = _uiState.value
         if (current.isPendingAddressLoading) return
         val suggestion = current.pendingSuggestion
         val resolvedPoint = suggestion?.point
         if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
             return
         }
         setSearchVisibility(false)
         selectWaypoint(
-            CourseRegistrationIntent.SelectWaypoint(
+            CourseRegistrationIntent.WaypointSelected(
                 point = resolvedPoint,
                 name = suggestion.title,
                 address = suggestion.address,
@@ -567,7 +567,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun commitPinEdit() {
-        val current = _state.value
+        val current = _uiState.value
         val index = current.editingWaypointIndex ?: return
         val point = current.temporaryPin
         if (point == null) {
@@ -582,28 +582,28 @@ class CourseRegistrationViewModel @Inject constructor(
             return
         }
         pinEditJob?.cancel()
-        _state.update { it.copy(isMapPointLoading = true) }
+        _uiState.update { it.copy(isMapPointLoading = true) }
         pinEditJob = viewModelScope.launch {
             try {
                 val suggestion = reverseGeocode(point).getOrThrow()
                 val resolvedPoint = suggestion?.point
                 if (suggestion == null || resolvedPoint == null || suggestion.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("주소를 확인할 수 없습니다"))
                     return@launch
                 }
                 applyPinEdit(index, point, resolvedPoint, suggestion)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("위치 정보를 확인하지 못했어요.")))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar(error.userMessage("위치 정보를 확인하지 못했어요.")))
             } finally {
-                _state.update { it.copy(isMapPointLoading = false) }
+                _uiState.update { it.copy(isMapPointLoading = false) }
             }
         }
     }
 
     private fun applyPinEdit(index: Int, point: GeoPoint, resolvedPoint: GeoPoint, suggestion: CourseLocationSuggestion) {
-        val latest = _state.value
+        val latest = _uiState.value
         if (latest.editingWaypointIndex != index || latest.temporaryPin != point) return
         val refreshed = latest.waypoints.toMutableList()
         val updatedWaypoint = refreshed.getOrNull(index) ?: return
@@ -613,7 +613,7 @@ class CourseRegistrationViewModel @Inject constructor(
             lat = resolvedPoint.lat,
             lng = resolvedPoint.lng,
         )
-        _state.update {
+        _uiState.update {
             it.copy(
                 waypoints = normalizeWaypoints(refreshed),
                 editingWaypointIndex = null,
@@ -631,11 +631,11 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun discardPinEdit() {
-        val current = _state.value
+        val current = _uiState.value
         val index = current.editingWaypointIndex ?: return
         val original = current.waypoints.getOrNull(index) ?: return
         val point = GeoPoint(original.lat, original.lng)
-        _state.update {
+        _uiState.update {
             it.copy(
                 editingWaypointIndex = null,
                 temporaryPin = null,
@@ -648,11 +648,11 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun resetPinEdit() {
-        val current = _state.value
+        val current = _uiState.value
         val index = current.editingWaypointIndex ?: return
         val original = current.waypoints.getOrNull(index) ?: return
         val point = GeoPoint(original.lat, original.lng)
-        _state.update {
+        _uiState.update {
             it.copy(
                 temporaryPin = null,
                 mapCenter = point,
@@ -664,7 +664,7 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun mapReady(ready: Boolean) {
-        _state.update {
+        _uiState.update {
             it.copy(mapLoadState = if (ready) CourseMapLoadState.Ready else CourseMapLoadState.Error)
         }
     }
@@ -676,7 +676,7 @@ class CourseRegistrationViewModel @Inject constructor(
         searchGeneration += 1
         val limited = keyword.take(SEARCH_MAX_LENGTH)
         val normalized = limited.trim()
-        _state.update {
+        _uiState.update {
             it.copy(
                 searchKeyword = limited,
                 isSearchVisible = true,
@@ -704,7 +704,7 @@ class CourseRegistrationViewModel @Inject constructor(
             searchSelectionJob?.cancel()
             searchSelectionGeneration += 1
             searchGeneration += 1
-            _state.update {
+            _uiState.update {
                 it.copy(
                     isSearchVisible = false,
                     isSearchLoading = false,
@@ -713,17 +713,17 @@ class CourseRegistrationViewModel @Inject constructor(
                 )
             }
         } else {
-            _state.update { it.copy(isSearchVisible = true) }
+            _uiState.update { it.copy(isSearchVisible = true) }
         }
     }
 
     private fun searchImmediately() {
-        val keyword = _state.value.searchKeyword.trim()
+        val keyword = _uiState.value.searchKeyword.trim()
         if (keyword.isBlank()) return
         searchJob?.cancel()
         searchGeneration += 1
         val generation = searchGeneration
-        _state.update { it.copy(isSearchLoading = true, searchError = null) }
+        _uiState.update { it.copy(isSearchLoading = true, searchError = null) }
         searchJob = viewModelScope.launch { search(keyword, generation) }
     }
 
@@ -731,7 +731,7 @@ class CourseRegistrationViewModel @Inject constructor(
         searchLocations(keyword)
             .onSuccess { result ->
                 if (generation != searchGeneration) return
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isSearchLoading = false,
                         searchResult = result.copy(
@@ -743,34 +743,34 @@ class CourseRegistrationViewModel @Inject constructor(
             }
             .onFailure { error ->
                 if (generation != searchGeneration) return
-                _state.update {
+                _uiState.update {
                     it.copy(isSearchLoading = false, searchError = error.userMessage("검색에 실패했어요."))
                 }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar("검색에 실패했어요. 다시 시도해 주세요."))
             }
     }
 
     private fun selectSearchSuggestion(id: String) {
-        val result = _state.value.searchResult
+        val result = _uiState.value.searchResult
         val suggestion = (result.recent + result.regions + result.places).firstOrNull { it.id == id } ?: return
         searchJob?.cancel()
         searchSelectionJob?.cancel()
         searchGeneration += 1
         searchSelectionGeneration += 1
         val generation = searchSelectionGeneration
-        _state.update { it.copy(isMapPointLoading = true, searchError = null) }
+        _uiState.update { it.copy(isMapPointLoading = true, searchError = null) }
         searchSelectionJob = viewModelScope.launch {
             try {
                 val resolved = resolveLocationSelection(suggestion).getOrThrow()
                 if (generation != searchSelectionGeneration) return@launch
                 val point = resolved?.point
                 if (resolved == null || point == null || resolved.address.isBlank()) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
                     return@launch
                 }
                 saveSearchHistory(resolved)
                 if (generation != searchSelectionGeneration) return@launch
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isSearchVisible = false,
                         searchKeyword = resolved.title,
@@ -785,11 +785,11 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 if (generation == searchSelectionGeneration) {
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치를 확인하지 못했어요. 다시 시도해 주세요."))
                 }
             } finally {
                 if (generation == searchSelectionGeneration) {
-                    _state.update { it.copy(isMapPointLoading = false) }
+                    _uiState.update { it.copy(isMapPointLoading = false) }
                 }
             }
         }
@@ -809,52 +809,52 @@ class CourseRegistrationViewModel @Inject constructor(
      * 풀리지 않는다 — 카테고리를 넘나들며 함께 선택·노출할 수 있어야 한다는 기획 의도.
      */
     private fun selectCategory(code: String) {
-        val form = _state.value.registrationForm ?: return
+        val form = _uiState.value.registrationForm ?: return
         if (form.categories.none { it.code == code }) return
-        if (_state.value.selectedCategoryCode == code) return
-        _state.update { it.copy(selectedCategoryCode = code) }
+        if (_uiState.value.selectedCategoryCode == code) return
+        _uiState.update { it.copy(selectedCategoryCode = code) }
     }
 
     private fun togglePracticeType(code: String) {
-        val form = _state.value.registrationForm ?: return
+        val form = _uiState.value.registrationForm ?: return
         val availableCodes = form.categories.flatMap { it.practiceTypes }.map { it.code }.toSet()
         if (code !in availableCodes) return
-        val selected = _state.value.selectedPracticeTypeCodes
+        val selected = _uiState.value.selectedPracticeTypeCodes
         if (code in selected) {
-            _state.update { it.copy(selectedPracticeTypeCodes = selected - code) }
+            _uiState.update { it.copy(selectedPracticeTypeCodes = selected - code) }
         } else if (selected.size >= form.practiceTypeMaxSelect) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar(form.practiceTypeMaxSelectExceededMessage))
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar(form.practiceTypeMaxSelectExceededMessage))
             return
         } else {
-            _state.update { it.copy(selectedPracticeTypeCodes = selected + code) }
+            _uiState.update { it.copy(selectedPracticeTypeCodes = selected + code) }
         }
         persistDraft()
     }
 
     private fun updateCaution(value: String) {
-        val max = _state.value.registrationForm?.cautionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(caution = value.limitForServer(max)) }
+        val max = _uiState.value.registrationForm?.cautionInput?.maxLength ?: Int.MAX_VALUE
+        _uiState.update { it.copy(caution = value.limitForServer(max)) }
         persistDraft()
     }
 
     private fun updateDescription(value: String) {
-        val max = _state.value.registrationForm?.descriptionInput?.maxLength ?: Int.MAX_VALUE
-        _state.update { it.copy(description = value.limitForServer(max)) }
+        val max = _uiState.value.registrationForm?.descriptionInput?.maxLength ?: Int.MAX_VALUE
+        _uiState.update { it.copy(description = value.limitForServer(max)) }
         persistDraft()
     }
 
     private fun continueToForm() {
-        if (!_state.value.canFinishMap) {
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("실제 주행 경로를 확인한 뒤 계속할 수 있어요."))
+        if (!_uiState.value.canFinishMap) {
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("실제 주행 경로를 확인한 뒤 계속할 수 있어요."))
             return
         }
-        _state.update { it.copy(page = CourseRegistrationPage.Form) }
+        _uiState.update { it.copy(page = CourseRegistrationPage.Form) }
         loadRegistrationFormIfNeeded()
     }
 
     private fun loadRegistrationFormIfNeeded() {
-        if (_state.value.registrationForm != null || _state.value.formLoadState == CourseRegistrationFormLoadState.Loading) {
-            if (_state.value.registrationForm == null) loadRegistrationForm()
+        if (_uiState.value.registrationForm != null || _uiState.value.formLoadState == CourseRegistrationFormLoadState.Loading) {
+            if (_uiState.value.registrationForm == null) loadRegistrationForm()
             return
         }
         loadRegistrationForm()
@@ -862,17 +862,17 @@ class CourseRegistrationViewModel @Inject constructor(
 
     private fun loadRegistrationForm() {
         if (formJob?.isActive == true) return
-        _state.update { it.copy(formLoadState = CourseRegistrationFormLoadState.Loading, submissionError = null) }
+        _uiState.update { it.copy(formLoadState = CourseRegistrationFormLoadState.Loading, submissionError = null) }
         formJob = viewModelScope.launch {
             try {
                 val form = getRegistrationForm().getOrThrow()
                 val availableCodes = form.categories.flatMap { it.practiceTypes }.map { it.code }.toSet()
-                val currentCodes = _state.value.selectedPracticeTypeCodes
+                val currentCodes = _uiState.value.selectedPracticeTypeCodes
                 val reconciledCodes = currentCodes
                     .filter(availableCodes::contains)
                     .distinct()
                     .take(form.practiceTypeMaxSelect.coerceAtLeast(0))
-                val currentWaypoints = _state.value.waypoints
+                val currentWaypoints = _uiState.value.waypoints
                 val reconciledWaypoints = trimWaypointsToFormLimit(currentWaypoints, form.maxWaypoints)
                 // 임시저장을 복원하면 연습유형만 남아 있으므로, 그중 하나를 가진 카테고리를
                 // 펼쳐 보여준다. 카테고리는 하나만 켜지므로 복원된 연습유형의 첫 번째를 기준으로
@@ -882,7 +882,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     .firstOrNull { category -> category.practiceTypes.any { it.code in reconciledCodes } }
                     ?.code
                     ?: form.categories.minByOrNull { it.order }?.code
-                _state.update {
+                _uiState.update {
                     it.copy(
                         formLoadState = CourseRegistrationFormLoadState.Ready,
                         registrationForm = form,
@@ -897,7 +897,7 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         formLoadState = CourseRegistrationFormLoadState.Error,
                         submissionError = error.userMessage("등록 양식을 불러오지 못했어요."),
@@ -908,21 +908,21 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun submit() {
-        val current = _state.value
+        val current = _uiState.value
         if (!current.canSubmit) {
-            _state.update { it.copy(hasAttemptedSubmit = true) }
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
+            _uiState.update { it.copy(hasAttemptedSubmit = true) }
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("필수정보를 입력해주세요."))
             return
         }
         // 10자 조건은 버튼을 막는 대신 눌린 뒤 안내한다 — 등록 요청 없이 화면·입력값을 그대로 유지한다.
         if (!current.descriptionMeetsRegisterLength) {
-            _state.update { it.copy(hasAttemptedSubmit = true) }
-            _effect.tryEmit(CourseRegistrationEffect.ShowSnackbar("한줄 설명은 10자 이상이어야 해요."))
+            _uiState.update { it.copy(hasAttemptedSubmit = true) }
+            _effect.trySend(CourseRegistrationEffect.ShowSnackbar("한줄 설명은 10자 이상이어야 해요."))
             return
         }
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START } ?: return
         val route = current.route ?: return
-        _state.update { it.copy(isSubmitting = true, submissionError = null) }
+        _uiState.update { it.copy(isSubmitting = true, submissionError = null) }
         viewModelScope.launch {
             try {
                 val result = registerCourse(
@@ -937,7 +937,7 @@ class CourseRegistrationViewModel @Inject constructor(
                     ),
                 ).getOrThrow()
                 clearDraftAfterSubmission()
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isSubmitting = false,
                         registrationResult = result,
@@ -948,10 +948,10 @@ class CourseRegistrationViewModel @Inject constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                _state.update {
+                _uiState.update {
                     it.copy(isSubmitting = false, submissionError = error.userMessage("코스 등록에 실패했어요."))
                 }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
+                _effect.send(CourseRegistrationEffect.ShowSnackbar("등록에 실패했어요. 입력 내용을 확인하고 다시 시도해 주세요."))
             }
         }
     }
@@ -976,19 +976,19 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun calculateStrictRouteIfPossible() {
-        val current = _state.value
+        val current = _uiState.value
         routeJob?.cancel()
         routeGeneration += 1
         val start = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.START }
         val destination = current.waypoints.firstOrNull { it.type == RegistrationWaypointType.DESTINATION }
         if (start == null || destination == null) {
-            _state.update { it.copy(isRouteLoading = false, route = null) }
+            _uiState.update { it.copy(isRouteLoading = false, route = null) }
             return
         }
         val generation = routeGeneration
         // 실패해도 기존 입력값과 지도 위치를 유지해야 하므로(CR-01 예외처리), 계산이 끝나기 전까지는
         // 이전에 성공한 route를 지우지 않는다. 실패 시엔 3초 토스트만 띄운다.
-        _state.update { it.copy(isRouteLoading = true) }
+        _uiState.update { it.copy(isRouteLoading = true) }
         routeJob = viewModelScope.launch {
             try {
                 val result = getStrictCourseRoute(
@@ -1001,17 +1001,17 @@ class CourseRegistrationViewModel @Inject constructor(
                 if (!result.isRealRoute || result.totalDistanceMeters <= 0 ||
                     result.snappedPoints.size != current.waypoints.size
                 ) {
-                    _state.update { it.copy(isRouteLoading = false) }
-                    _effect.emit(CourseRegistrationEffect.ShowSnackbar("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
+                    _uiState.update { it.copy(isRouteLoading = false) }
+                    _effect.send(CourseRegistrationEffect.ShowSnackbar("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요."))
                 } else {
                     val adjustedWaypoints = resolveSnappedWaypoints(current.waypoints, result)
                     if (generation != routeGeneration) return@launch
                     if (adjustedWaypoints == null) {
-                        _state.update { it.copy(isRouteLoading = false) }
-                        _effect.emit(CourseRegistrationEffect.ShowSnackbar("선택한 위치의 주소를 다시 확인하지 못했어요."))
+                        _uiState.update { it.copy(isRouteLoading = false) }
+                        _effect.send(CourseRegistrationEffect.ShowSnackbar("선택한 위치의 주소를 다시 확인하지 못했어요."))
                         return@launch
                     }
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             isRouteLoading = false,
                             waypoints = adjustedWaypoints,
@@ -1024,8 +1024,8 @@ class CourseRegistrationViewModel @Inject constructor(
                 throw error
             } catch (error: Throwable) {
                 if (generation != routeGeneration) return@launch
-                _state.update { it.copy(isRouteLoading = false) }
-                _effect.emit(CourseRegistrationEffect.ShowSnackbar(error.userMessage("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.")))
+                _uiState.update { it.copy(isRouteLoading = false) }
+                _effect.send(CourseRegistrationEffect.ShowSnackbar(error.userMessage("일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요.")))
             }
         }
     }
@@ -1049,15 +1049,15 @@ class CourseRegistrationViewModel @Inject constructor(
     }
 
     private fun persistDraft() {
-        if (isDraftClearing || _state.value.isSubmitting) return
-        val current = _state.value
+        if (isDraftClearing || _uiState.value.isSubmitting) return
+        val current = _uiState.value
         val draft = CourseDraft(
             waypoints = current.waypoints,
             selectedPracticeTypeCodes = current.selectedPracticeTypeCodes,
             caution = current.caution,
             description = current.description,
         )
-        _state.update { it.copy(draft = draft.takeIf(CourseDraft::isMeaningful)) }
+        _uiState.update { it.copy(draft = draft.takeIf(CourseDraft::isMeaningful)) }
         draftJob?.cancel()
         draftJob = viewModelScope.launch {
             saveCourseDraft(draft)
@@ -1096,8 +1096,8 @@ class CourseRegistrationViewModel @Inject constructor(
         }
     }
 
-    private fun maxViasReached(waypoints: List<RegistrationWaypoint> = _state.value.waypoints): Boolean {
-        val maxWaypoints = _state.value.registrationForm?.maxWaypoints ?: Int.MAX_VALUE
+    private fun maxViasReached(waypoints: List<RegistrationWaypoint> = _uiState.value.waypoints): Boolean {
+        val maxWaypoints = _uiState.value.registrationForm?.maxWaypoints ?: Int.MAX_VALUE
         return waypoints.count { it.type == RegistrationWaypointType.VIA } >= maxWaypoints.coerceAtLeast(0)
     }
 

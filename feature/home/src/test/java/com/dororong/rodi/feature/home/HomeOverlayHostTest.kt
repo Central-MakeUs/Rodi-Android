@@ -69,7 +69,7 @@ class HomeOverlayHostTest {
         composeRule.waitForIdle()
 
         assertEquals(
-            listOf(HomeIntent.OnNaviAppSelected(NaviApp.KAKAONAVI, always = false, notificationPermissionGranted = true)),
+            listOf(HomeIntent.NaviAppSelected(NaviApp.KAKAONAVI, always = false, notificationPermissionGranted = true)),
             intents,
         )
         assertNull(overlay.naviPlaceId)

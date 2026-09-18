@@ -315,13 +315,13 @@ class EntryViewModelTest {
         viewModel.continueAfterCareer()
 
         assertEquals(EntryStep.CAREER, viewModel.step)
-        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.uiState.value.onboardingAnalysisState)
 
         advanceTimeBy(3_000)
         runCurrent()
 
-        assertEquals(OnboardingLevel.NAVIGATOR, viewModel.state.value.onboardingLevel)
-        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(OnboardingLevel.NAVIGATOR, viewModel.uiState.value.onboardingLevel)
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.uiState.value.onboardingAnalysisState)
 
         viewModel.continueAfterOnboardingAnalysis()
 
@@ -358,7 +358,7 @@ class EntryViewModelTest {
         viewModel.continueAfterCareer()
 
         assertEquals(EntryStep.PREFERENCE, viewModel.step)
-        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
     }
 
     @Test
@@ -472,20 +472,20 @@ class EntryViewModelTest {
         advanceTimeBy(2_999)
         runCurrent()
 
-        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.uiState.value.onboardingAnalysisState)
 
         advanceTimeBy(1)
         runCurrent()
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.uiState.value.onboardingAnalysisState)
         coVerify(exactly = 1) { saveOnboardingProfileUseCase.saveForSubmission(any()) }
         coVerify(exactly = 1) { saveEntryProgressUseCase(any()) }
 
         viewModel.continueAfterOnboardingAnalysis()
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-        assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
     }
 
     @Test
@@ -529,13 +529,13 @@ class EntryViewModelTest {
                 advanceTimeBy(2_999)
                 runCurrent()
 
-                assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.state.value.onboardingAnalysisState)
+                assertEquals(OnboardingAnalysisState.ANALYZING, viewModel.uiState.value.onboardingAnalysisState)
                 expectNoEvents()
 
                 advanceTimeBy(1)
                 runCurrent()
 
-                assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+                assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
                 assertEquals(
                     EntryEffect.ShowSubmissionError(
                         message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
@@ -558,7 +558,7 @@ class EntryViewModelTest {
         runCurrent()
 
         assertEquals(EntryStep.PRECAUTIONS, viewModel.step)
-        assertEquals(OnboardingAnalysisState.RESULT, viewModel.state.value.onboardingAnalysisState)
+        assertEquals(OnboardingAnalysisState.RESULT, viewModel.uiState.value.onboardingAnalysisState)
     }
 
     @Test
@@ -598,7 +598,7 @@ class EntryViewModelTest {
             runCurrent()
 
             assertEquals(EntryStep.TERMS, viewModel.step)
-            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
             assertEquals(
                 EntryEffect.ShowSubmissionError(
                     message = "네트워크 연결이 원활하지 않아요.\n다시 시도해볼까요?",
@@ -643,7 +643,7 @@ class EntryViewModelTest {
             advanceTimeBy(3_000)
             runCurrent()
 
-            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
             assertEquals(
                 EntryEffect.ShowSubmissionError("입력 정보를 확인해주세요.", canRetry = false),
                 awaitItem(),
@@ -663,7 +663,7 @@ class EntryViewModelTest {
             advanceTimeBy(3_000)
             runCurrent()
 
-            assertEquals(null, viewModel.state.value.onboardingAnalysisState)
+            assertEquals(null, viewModel.uiState.value.onboardingAnalysisState)
             assertEquals(
                 EntryEffect.ShowSubmissionError(
                     message = "요청이 많아요. 잠시 기다린 뒤 다시 시도해주세요.",
@@ -800,23 +800,23 @@ class EntryViewModelTest {
 
 }
 
-private val EntryViewModel.isRestored: Boolean get() = state.value.isRestored
-private val EntryViewModel.step: EntryStep get() = state.value.step
-private val EntryViewModel.webViewUrl: String get() = state.value.webViewUrl
-private val EntryViewModel.serviceTermsChecked: Boolean get() = state.value.serviceTermsChecked
-private val EntryViewModel.privacyTermsChecked: Boolean get() = state.value.privacyTermsChecked
-private val EntryViewModel.locationTermsChecked: Boolean get() = state.value.locationTermsChecked
-private val EntryViewModel.licenseChecked: Boolean get() = state.value.licenseChecked
-private val EntryViewModel.companionChecked: Boolean get() = state.value.companionChecked
-private val EntryViewModel.precautionAgreementChecked: Boolean get() = state.value.precautionAgreementChecked
-private val EntryViewModel.nickname: String get() = state.value.nickname
-private val EntryViewModel.drivingPeriod: DrivingPeriod? get() = state.value.drivingPeriod
-private val EntryViewModel.recentFrequency: RecentDrivingFrequency? get() = state.value.recentFrequency
-private val EntryViewModel.roadExperiences: List<RoadExperience> get() = state.value.roadExperiences
-private val EntryViewModel.soloDrivingRange: SoloDrivingRange? get() = state.value.soloDrivingRange
-private val EntryViewModel.soloParkingLevel: SoloParkingLevel? get() = state.value.soloParkingLevel
-private val EntryViewModel.practiceSituations: List<PracticeSituation> get() = state.value.practiceSituations
-private val EntryViewModel.vehicleType: VehicleType? get() = state.value.vehicleType
-private val EntryViewModel.goal: String get() = state.value.goal
-private val EntryViewModel.isCareerStepValid: Boolean get() = state.value.isCareerStepValid
-private val EntryViewModel.isPreferenceNextEnabled: Boolean get() = state.value.isPreferenceNextEnabled
+private val EntryViewModel.isRestored: Boolean get() = uiState.value.isRestored
+private val EntryViewModel.step: EntryStep get() = uiState.value.step
+private val EntryViewModel.webViewUrl: String get() = uiState.value.webViewUrl
+private val EntryViewModel.serviceTermsChecked: Boolean get() = uiState.value.serviceTermsChecked
+private val EntryViewModel.privacyTermsChecked: Boolean get() = uiState.value.privacyTermsChecked
+private val EntryViewModel.locationTermsChecked: Boolean get() = uiState.value.locationTermsChecked
+private val EntryViewModel.licenseChecked: Boolean get() = uiState.value.licenseChecked
+private val EntryViewModel.companionChecked: Boolean get() = uiState.value.companionChecked
+private val EntryViewModel.precautionAgreementChecked: Boolean get() = uiState.value.precautionAgreementChecked
+private val EntryViewModel.nickname: String get() = uiState.value.nickname
+private val EntryViewModel.drivingPeriod: DrivingPeriod? get() = uiState.value.drivingPeriod
+private val EntryViewModel.recentFrequency: RecentDrivingFrequency? get() = uiState.value.recentFrequency
+private val EntryViewModel.roadExperiences: List<RoadExperience> get() = uiState.value.roadExperiences
+private val EntryViewModel.soloDrivingRange: SoloDrivingRange? get() = uiState.value.soloDrivingRange
+private val EntryViewModel.soloParkingLevel: SoloParkingLevel? get() = uiState.value.soloParkingLevel
+private val EntryViewModel.practiceSituations: List<PracticeSituation> get() = uiState.value.practiceSituations
+private val EntryViewModel.vehicleType: VehicleType? get() = uiState.value.vehicleType
+private val EntryViewModel.goal: String get() = uiState.value.goal
+private val EntryViewModel.isCareerStepValid: Boolean get() = uiState.value.isCareerStepValid
+private val EntryViewModel.isPreferenceNextEnabled: Boolean get() = uiState.value.isPreferenceNextEnabled

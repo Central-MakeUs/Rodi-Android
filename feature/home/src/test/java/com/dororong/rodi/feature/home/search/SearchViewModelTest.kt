@@ -60,18 +60,18 @@ class SearchViewModelTest {
         viewModel.initialize(GeoPoint(37.5, 126.9))
         advanceUntilIdle()
 
-        viewModel.onIntent(SearchIntent.OnQueryChange(" 강남 "))
+        viewModel.onIntent(SearchIntent.QueryChanged(" 강남 "))
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
-        assertEquals(listOf("서울 강남구"), viewModel.state.value.regionSuggestions.map { it.displayName })
-        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
-        viewModel.onIntent(SearchIntent.OnLoadNextPage)
+        assertEquals(SearchResultState.Content, viewModel.uiState.value.resultState)
+        assertEquals(listOf("서울 강남구"), viewModel.uiState.value.regionSuggestions.map { it.displayName })
+        assertEquals(listOf(1L), viewModel.uiState.value.places.map { it.placeId })
+        viewModel.onIntent(SearchIntent.ListEndReached)
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L), viewModel.state.value.places.map { it.placeId })
-        assertEquals(false, viewModel.state.value.hasNextPage)
+        assertEquals(listOf(1L, 2L), viewModel.uiState.value.places.map { it.placeId })
+        assertEquals(false, viewModel.uiState.value.hasNextPage)
     }
 
     @Test
@@ -81,12 +81,12 @@ class SearchViewModelTest {
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         val viewModel = dependencies.viewModel()
 
-        viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+        viewModel.onIntent(SearchIntent.QueryChanged("강남"))
         advanceTimeBy(300)
         advanceUntilIdle()
 
         coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
-        viewModel.onIntent(SearchIntent.OnImeSearch)
+        viewModel.onIntent(SearchIntent.ImeSearchSubmitted)
         advanceUntilIdle()
 
         coVerify(exactly = 0) { dependencies.recentRepository.registerRecentSearch(any()) }
@@ -100,20 +100,20 @@ class SearchViewModelTest {
         } throws IllegalStateException("network")
         val viewModel = dependencies.viewModel()
 
-        viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+        viewModel.onIntent(SearchIntent.QueryChanged("강남"))
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Error, viewModel.state.value.resultState)
+        assertEquals(SearchResultState.Error, viewModel.uiState.value.resultState)
 
         coEvery {
             dependencies.placeRepository.relatedSearch("강남", null, 20)
         } returns related(places = listOf(suggestion(1)))
-        viewModel.onIntent(SearchIntent.OnRetry)
+        viewModel.onIntent(SearchIntent.RetryClicked)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
-        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
+        assertEquals(SearchResultState.Content, viewModel.uiState.value.resultState)
+        assertEquals(listOf(1L), viewModel.uiState.value.places.map { it.placeId })
         coVerify(exactly = 2) { dependencies.placeRepository.relatedSearch("강남", null, 20) }
     }
 
@@ -127,13 +127,13 @@ class SearchViewModelTest {
         val viewModel = dependencies.viewModel()
 
         viewModel.effect.test {
-            viewModel.onIntent(SearchIntent.OnQueryChange("강남"))
+            viewModel.onIntent(SearchIntent.QueryChanged("강남"))
             advanceTimeBy(300)
-            viewModel.onIntent(SearchIntent.OnQueryChange("서초"))
-            viewModel.onIntent(SearchIntent.OnImeSearch)
+            viewModel.onIntent(SearchIntent.QueryChanged("서초"))
+            viewModel.onIntent(SearchIntent.ImeSearchSubmitted)
             advanceUntilIdle()
 
-            assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+            assertEquals(SearchResultState.Empty, viewModel.uiState.value.resultState)
             expectNoEvents()
         }
     }
@@ -146,13 +146,13 @@ class SearchViewModelTest {
         )
         val viewModel = dependencies.viewModel()
 
-        viewModel.onIntent(SearchIntent.OnQueryChange("중구"))
+        viewModel.onIntent(SearchIntent.QueryChanged("중구"))
         advanceTimeBy(300)
         advanceUntilIdle()
 
         assertEquals(
             listOf("부산 중구", "서울 중구"),
-            viewModel.state.value.regionSuggestions.map { it.displayName },
+            viewModel.uiState.value.regionSuggestions.map { it.displayName },
         )
     }
 
@@ -166,10 +166,10 @@ class SearchViewModelTest {
         viewModel.initialize(GeoPoint(37.5, 126.9))
         advanceUntilIdle()
 
-        viewModel.onIntent(SearchIntent.OnDeleteRecentSearch(1))
+        viewModel.onIntent(SearchIntent.DeleteRecentSearchClicked(1))
         advanceUntilIdle()
 
-        assertEquals(listOf(2L), viewModel.state.value.recentSearches.map { it.id })
+        assertEquals(listOf(2L), viewModel.uiState.value.recentSearches.map { it.id })
         coVerify { dependencies.recentRepository.deleteRecentSearch(1) }
     }
 
@@ -182,7 +182,7 @@ class SearchViewModelTest {
 
         advanceUntilIdle()
 
-        assertEquals(15, viewModel.state.value.recentSearches.size)
+        assertEquals(15, viewModel.uiState.value.recentSearches.size)
     }
 
     @Test
@@ -199,7 +199,7 @@ class SearchViewModelTest {
         val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
         val effect = async { viewModel.effect.first() }
 
-        viewModel.onIntent(SearchIntent.OnRecentSearchClick(
+        viewModel.onIntent(SearchIntent.RecentSearchClicked(
             RecentSearch(1, "서울 중구", SearchTargetType.REGION),
         ))
         advanceUntilIdle()
@@ -228,13 +228,13 @@ class SearchViewModelTest {
         viewModel.initialize(origin)
         advanceUntilIdle()
 
-        viewModel.onIntent(SearchIntent.OnRegionSuggestionClick(
+        viewModel.onIntent(SearchIntent.RegionSuggestionClicked(
             requireNotNull(RegionOfficeLocationResolver.find("서울 중구")),
         ))
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
-        assertEquals(listOf("서울 중구"), viewModel.state.value.recentSearches.map { it.keyword })
+        assertEquals(SearchResultState.RegionEmpty, viewModel.uiState.value.resultState)
+        assertEquals(listOf("서울 중구"), viewModel.uiState.value.recentSearches.map { it.keyword })
     }
 
     @Test
@@ -246,11 +246,11 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         viewModel.onIntent(
-            SearchIntent.OnRecentSearchClick(RecentSearch(1, "알 수 없는 장소")),
+            SearchIntent.RecentSearchClicked(RecentSearch(1, "알 수 없는 장소")),
         )
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+        assertEquals(SearchResultState.Empty, viewModel.uiState.value.resultState)
         coVerify(exactly = 1) {
             dependencies.placeRepository.relatedSearch("알 수 없는 장소", null, 20)
         }
@@ -264,7 +264,7 @@ class SearchViewModelTest {
         val viewModel = dependencies.viewModel()
         val effect = async { viewModel.effect.first() }
 
-        viewModel.onIntent(SearchIntent.OnPlaceSuggestionClick(suggestion(7)))
+        viewModel.onIntent(SearchIntent.PlaceSuggestionClicked(suggestion(7)))
         advanceUntilIdle()
 
         assertEquals(SearchEffect.NavigatePlace(7), effect.await())
@@ -282,7 +282,7 @@ class SearchViewModelTest {
         val viewModel = dependencies.viewModel()
         val effect = async { viewModel.effect.first() }
 
-        viewModel.onIntent(SearchIntent.OnPlaceSuggestionClick(suggestion(7)))
+        viewModel.onIntent(SearchIntent.PlaceSuggestionClicked(suggestion(7)))
         advanceUntilIdle()
 
         assertEquals(SearchEffect.NavigatePlace(7), effect.await())
