@@ -6,7 +6,6 @@ import com.dororong.rodi.core.data.source.remote.model.member.MyReviewItemRespon
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
-import com.dororong.rodi.core.domain.model.practice.PracticeException
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
@@ -82,7 +81,7 @@ class MemberMapperTest {
 
     @Test
     fun `unknown practice status fails instead of pretending it is planned`() {
-        assertThrows(PracticeException.Unexpected::class.java) {
+        assertThrows(AuthException.Unknown::class.java) {
             practiceItem(lastActivityAt = null, status = "UNKNOWN_STATUS").toDomain()
         }
     }

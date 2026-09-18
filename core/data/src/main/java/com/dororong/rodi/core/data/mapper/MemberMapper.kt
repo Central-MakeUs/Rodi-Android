@@ -49,7 +49,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     visitedAt = lastActivityAt?.let(::parseServerTimestamp),
     isVerified = isVerified,
     hasReview = hasReview,
-    status = status.toPracticeStatus(),
+    status = status.toMemberPracticeStatus(),
 )
 
 fun CursorPageMyReviewItemResponse.toDomain() = CursorPage(
@@ -92,4 +92,15 @@ private fun String.toOnboardingLevel(): OnboardingLevel =
         ?: run {
             Timber.w("Unknown member level value: %s", this)
             throw AuthException.Unknown("프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+        }
+
+/**
+ * member API 경로는 실패를 AuthException으로 다루므로 여기서 PracticeException을 던지면
+ * AuthErrorMapper가 "알 수 없는 오류"로 뭉갠다. 같은 규칙(모르는 값은 실패)을 member 예외로 적용한다.
+ */
+private fun String.toMemberPracticeStatus(): PracticeStatus =
+    PracticeStatus.entries.firstOrNull { it.name == this }
+        ?: run {
+            Timber.w("Unknown practice status value: %s", this)
+            throw AuthException.Unknown("연습 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
         }

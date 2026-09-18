@@ -47,7 +47,7 @@ fun FormResponse.toDomain() = SkipReasonForm(
 fun String.toPracticeStatus(): PracticeStatus = PracticeStatus.entries.firstOrNull { it.name == this }
     ?: run {
         Timber.w("Unknown practice status value: %s", this)
-        throw PracticeException.Unexpected("연습 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+        throw PracticeException.Unexpected("연습 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
     }
 
 private fun FormOptionResponse.toDomain() = SkipReasonOption(
