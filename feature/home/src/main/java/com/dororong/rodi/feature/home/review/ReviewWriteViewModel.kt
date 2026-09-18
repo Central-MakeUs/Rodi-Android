@@ -29,12 +29,12 @@ class ReviewWriteViewModel @Inject constructor(
     private val updateReview: UpdateReviewUseCase,
     private val getReview: GetReviewUseCase,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(ReviewWriteUiState())
-    val state: StateFlow<ReviewWriteUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(ReviewWriteUiState())
+    val uiState: StateFlow<ReviewWriteUiState> = _uiState.asStateFlow()
 
     fun start(placeId: Long, placeName: String, review: Review? = null) {
         val initial = review?.toInitialValues()
-        _state.value = ReviewWriteUiState(
+        _uiState.value = ReviewWriteUiState(
             placeId = placeId,
             placeName = placeName,
             editingReviewId = review?.reviewId,
@@ -49,7 +49,7 @@ class ReviewWriteViewModel @Inject constructor(
     }
 
     fun startForReviewId(placeId: Long, placeName: String, reviewId: Long) {
-        _state.value = ReviewWriteUiState(
+        _uiState.value = ReviewWriteUiState(
             placeId = placeId,
             placeName = placeName,
             editingReviewId = reviewId,
@@ -59,7 +59,7 @@ class ReviewWriteViewModel @Inject constructor(
             getReview(reviewId)
                 .onSuccess { review ->
                     val initial = review.toInitialValues()
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             original = initial,
                             isRecommended = initial.isRecommended,
@@ -74,7 +74,7 @@ class ReviewWriteViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             isInitializing = false,
                             initializationErrorMessage = error.userMessage("수정할 후기를 불러오지 못했어요."),
@@ -84,26 +84,26 @@ class ReviewWriteViewModel @Inject constructor(
         }
     }
 
-    fun selectRecommend(value: Boolean) = _state.update { it.copy(isRecommended = value) }
-    fun selectDifficulty(value: ReviewDifficulty) = _state.update { it.copy(difficulty = value) }
-    fun selectCongestion(value: ReviewCongestion) = _state.update { it.copy(congestion = value) }
-    fun selectPracticeMethod(value: PracticeMethod) = _state.update { it.copy(practiceMethod = value) }
-    fun updateCaution(value: String) = _state.update { it.copy(caution = value.takeGraphemes(50)) }
-    fun updateContent(value: String) = _state.update { it.copy(content = value.takeGraphemes(150)) }
-    fun next() { if (_state.value.canGoNext) _state.update { it.copy(step = ReviewWriteStep.Detail) } }
-    fun back() = _state.update { it.copy(step = ReviewWriteStep.Basics) }
+    fun selectRecommend(value: Boolean) = _uiState.update { it.copy(isRecommended = value) }
+    fun selectDifficulty(value: ReviewDifficulty) = _uiState.update { it.copy(difficulty = value) }
+    fun selectCongestion(value: ReviewCongestion) = _uiState.update { it.copy(congestion = value) }
+    fun selectPracticeMethod(value: PracticeMethod) = _uiState.update { it.copy(practiceMethod = value) }
+    fun updateCaution(value: String) = _uiState.update { it.copy(caution = value.takeGraphemes(50)) }
+    fun updateContent(value: String) = _uiState.update { it.copy(content = value.takeGraphemes(150)) }
+    fun next() { if (_uiState.value.canGoNext) _uiState.update { it.copy(step = ReviewWriteStep.Detail) } }
+    fun back() = _uiState.update { it.copy(step = ReviewWriteStep.Basics) }
     fun submit() {
-        val current = _state.value
+        val current = _uiState.value
         if (current.isSubmitting || current.isSubmitted || current.isCompletionHandled) return
         val draft = current.draftOrNull() ?: return
 
-        _state.update { it.copy(isSubmitting = true, errorMessage = null) }
+        _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
         viewModelScope.launch {
             val result = current.editingReviewId?.let { reviewId ->
                 updateReview(reviewId, draft).map { reviewId }
             } ?: createReview(current.placeId, draft)
             result.onSuccess { reviewId ->
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isSubmitting = false,
                         isSubmitted = true,
@@ -116,7 +116,7 @@ class ReviewWriteViewModel @Inject constructor(
                     )
                 }
             }.onFailure { error ->
-                _state.update {
+                _uiState.update {
                     it.copy(
                         isSubmitting = false,
                         errorMessage = error.reviewErrorMessage(),
@@ -125,12 +125,12 @@ class ReviewWriteViewModel @Inject constructor(
             }
         }
     }
-    fun consumeError() = _state.update { it.copy(errorMessage = null) }
+    fun consumeError() = _uiState.update { it.copy(errorMessage = null) }
 
     fun consumeSubmittedResult(): ReviewSubmissionResult? {
-        val current = _state.value
+        val current = _uiState.value
         val result = current.submittedResult ?: return null
-        _state.value = current.copy(
+        _uiState.value = current.copy(
             isSubmitted = false,
             submittedResult = null,
             isCompletionHandled = true,

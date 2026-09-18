@@ -50,7 +50,7 @@ fun CourseRegistrationFlow(
     modifier: Modifier = Modifier,
     viewModel: CourseRegistrationViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val context = LocalContext.current
     var isOnline by remember { mutableStateOf(context.isNetworkAvailable()) }

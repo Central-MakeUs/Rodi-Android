@@ -85,7 +85,7 @@ class BlockedMembersViewModel @Inject constructor(
                 unblockMember(member.memberId)
                     .onSuccess {
                         succeeded = true
-                        _uiState.update { state -> state.copy(members = state.members.filterNot { it.memberId == member.memberId }) }
+                        _uiState.update { uiState -> uiState.copy(members = uiState.members.filterNot { it.memberId == member.memberId }) }
                     }
                     .onFailure { error ->
                         excludedMemberIds -= member.memberId

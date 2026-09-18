@@ -78,7 +78,7 @@ fun SearchScreen(
     onRegionClick: (RegionOfficeLocation, List<PlaceSummary>) -> Unit,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
 

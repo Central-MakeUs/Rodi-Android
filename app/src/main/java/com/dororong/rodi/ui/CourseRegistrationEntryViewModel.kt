@@ -18,14 +18,14 @@ class CourseRegistrationEntryViewModel @Inject constructor(
     private val observeCourseDraft: ObserveCourseDraftUseCase,
     private val clearCourseDraft: ClearCourseDraftUseCase,
 ) : ViewModel() {
-    private val _state = MutableStateFlow<CourseRegistrationEntryState>(CourseRegistrationEntryState.Loading)
-    val state: StateFlow<CourseRegistrationEntryState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow<CourseRegistrationEntryUiState>(CourseRegistrationEntryUiState.Loading)
+    val uiState: StateFlow<CourseRegistrationEntryUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
             observeCourseDraft()
                 .catch { emit(null) }
-                .collect { draft -> _state.value = CourseRegistrationEntryState.Ready(draft) }
+                .collect { draft -> _uiState.value = CourseRegistrationEntryUiState.Ready(draft) }
         }
     }
 

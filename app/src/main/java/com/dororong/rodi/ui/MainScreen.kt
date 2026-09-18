@@ -73,7 +73,7 @@ fun MainScreen(
     val backStack = rememberNavBackStack(HomeRoute)
     val currentRoute = backStack.lastOrNull()
     val courseRegistrationEntryViewModel: CourseRegistrationEntryViewModel = hiltViewModel()
-    val entryState by courseRegistrationEntryViewModel.state.collectAsStateWithLifecycle()
+    val entryState by courseRegistrationEntryViewModel.uiState.collectAsStateWithLifecycle()
     var pendingCourseRegistrationPreflight by remember { mutableStateOf(false) }
     var showResumeDialog by rememberSaveable { mutableStateOf(false) }
     var courseRegistrationEntryMode by remember { mutableStateOf(CourseRegistrationEntryMode.Normal) }
@@ -118,7 +118,7 @@ fun MainScreen(
     }
     LaunchedEffect(pendingCourseRegistrationPreflight, entryState) {
         if (!pendingCourseRegistrationPreflight || openArrivalOnStart) return@LaunchedEffect
-        val readyState = entryState as? CourseRegistrationEntryState.Ready ?: return@LaunchedEffect
+        val readyState = entryState as? CourseRegistrationEntryUiState.Ready ?: return@LaunchedEffect
         pendingCourseRegistrationPreflight = false
         when (readyState.draft.courseRegistrationPreflightDecision()) {
             CourseRegistrationPreflightDecision.OpenImmediately -> {
@@ -266,7 +266,7 @@ fun MainScreen(
                         val registrationViewModel: CourseRegistrationViewModel = hiltViewModel()
                         var registrationEntryReady by remember { mutableStateOf(false) }
                         LaunchedEffect(registrationViewModel, courseRegistrationEntryMode) {
-                            val restoredState = registrationViewModel.state.first {
+                            val restoredState = registrationViewModel.uiState.first {
                                 it.isDraftRestored || it.isAuthResolved
                             }
                             if (restoredState.isAuthResolved && !restoredState.isLoggedIn) {

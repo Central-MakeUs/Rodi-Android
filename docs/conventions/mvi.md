@@ -49,8 +49,8 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 **정본**: `feature/mypage/.../mypage/MyPageViewModel.kt` —
 앵커 `private val _uiState = MutableStateFlow(MyPageUiState())`
 
-**Rodi는 `_state`/`_uiState`로 이름이 갈려 있다** — 통일 대상이다 → `../BACKLOG.md`.
-새 코드에는 상태 타입과 맞춰 `_uiState`/`uiState`를 쓴다.
+이름은 상태 타입과 맞춰 `_uiState`/`uiState`로 쓴다 — 타입이 `*UiState`이므로 property도 같은 말을 쓴다.
+CI가 `*ViewModel.kt`의 `_state`·`val state:`를 막는다.
 
 ## 일회성 Effect는 buffered Channel + `receiveAsFlow()`
 

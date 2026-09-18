@@ -245,6 +245,9 @@ check BLOCK "Effect 노출명은 단수 effect" \
 check BLOCK "UiState·Intent·Effect를 ViewModel 파일에 선언 (XxxContract.kt로)" \
   "rg -n -g '*ViewModel.kt' '^(data class|sealed interface) \w+(UiState|Intent|Effect)\b' . | grep -v '/src/test/'"
 
+check BLOCK "상태 프로퍼티는 _uiState/uiState (state 금지)" \
+  "rg -n -g '*ViewModel.kt' '(private val _state\b|val state: (StateFlow|Flow))' . | grep -v '/src/test/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 
@@ -264,9 +267,6 @@ check WARN "app이 Compose BOM 직접 선언" \
 
 echo
 echo "== INFO — 강제하지 않음. 리뷰 때 볼 값 =="
-
-check INFO "상태 프로퍼티를 _state로 쓰는 ViewModel (_uiState로 통일 예정)" \
-  "rg -l -g '*ViewModel.kt' 'private val _state\b' ."
 
 check INFO "authenticatedRequest 헬퍼를 자체 보유한 Repository" \
   "rg -l -g '*.kt' 'authenticatedRequest' . | grep -v '/src/test/'"
