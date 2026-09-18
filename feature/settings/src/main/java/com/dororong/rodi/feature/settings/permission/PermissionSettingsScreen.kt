@@ -45,6 +45,8 @@ import android.os.Build
 import com.dororong.rodi.core.ui.permission.PermissionAction
 import com.dororong.rodi.core.ui.permission.hasLocationPermission
 import com.dororong.rodi.core.ui.permission.hasNotificationPermission
+import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
+import com.dororong.rodi.core.ui.permission.openLiveUpdateSystemSettings
 import com.dororong.rodi.core.ui.permission.resolvePermissionAction
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.domain.model.driving.LiveUpdateSettings
@@ -63,6 +65,7 @@ fun PermissionSettingsScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     var isLocationGranted by remember(context) { mutableStateOf(context.hasLocationPermission()) }
     var isNotificationGranted by remember(context) { mutableStateOf(context.hasNotificationPermission()) }
+    var isLiveUpdateAllowedBySystem by remember(context) { mutableStateOf(context.canPostPromotedNotifications()) }
     val liveUpdateSettings by viewModel.liveUpdateSettings.collectAsStateWithLifecycle(initialValue = LiveUpdateSettings())
     val requestLocationPermission = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -76,6 +79,7 @@ fun PermissionSettingsScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         isLocationGranted = context.hasLocationPermission()
         isNotificationGranted = context.hasNotificationPermission()
+        isLiveUpdateAllowedBySystem = context.canPostPromotedNotifications()
     }
 
     PermissionSettingsContent(
@@ -83,6 +87,8 @@ fun PermissionSettingsScreen(
         isNotificationGranted = isNotificationGranted,
         isLiveUpdateEnabled = liveUpdateSettings.isEnabled,
         showLiveUpdateRow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA,
+        isLiveUpdateAllowedBySystem = isLiveUpdateAllowedBySystem,
+        onLiveUpdateSystemSettingsClick = { context.openLiveUpdateSystemSettings() },
         onBack = onBack,
         onLocationClick = {
             when (
@@ -155,6 +161,8 @@ private fun PermissionSettingsContent(
     onLocationClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onLiveUpdateChange: (Boolean) -> Unit,
+    isLiveUpdateAllowedBySystem: Boolean = true,
+    onLiveUpdateSystemSettingsClick: () -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -170,18 +178,29 @@ private fun PermissionSettingsContent(
             PermissionRow("위치", isLocationGranted, "내 위치 확인과 주행 거리 측정에 사용해요.", onLocationClick)
             PermissionRow("주행 상태 알림", isNotificationGranted, "앱을 나가도 주행 상태와 진행률을 확인해요.", onNotificationClick)
             if (showLiveUpdateRow) {
-                LiveUpdateRow(isEnabled = isLiveUpdateEnabled, onCheckedChange = onLiveUpdateChange)
+                LiveUpdateRow(
+                    isEnabled = isLiveUpdateEnabled,
+                    onCheckedChange = onLiveUpdateChange,
+                    isAllowedBySystem = isLiveUpdateAllowedBySystem,
+                    onSystemSettingsClick = onLiveUpdateSystemSettingsClick,
+                )
             }
         }
     }
 }
 
 /**
- * 시스템 설정으로 보내지 않는다 — 거기서 끄면 다른 앱의 실시간 업데이트까지 함께 꺼진다.
- * 이 스위치는 우리 알림에만 적용되고, 끄면 승격을 요청하지 않아 일반 진행 알림으로 뜬다.
+ * 이 스위치는 우리 알림에만 적용된다 — 끄면 승격을 요청하지 않아 일반 진행 알림으로 뜬다.
+ * 휴대폰 설정에서 이 앱의 실시간 업데이트를 꺼 두면 스위치를 켜도 표시되지 않으므로,
+ * 그때만 앱별 시스템 설정으로 가는 안내를 덧붙인다(전역 설정이 아니라 이 앱 설정만 연다).
  */
 @Composable
-private fun LiveUpdateRow(isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit) {
+private fun LiveUpdateRow(
+    isEnabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    isAllowedBySystem: Boolean = true,
+    onSystemSettingsClick: () -> Unit = {},
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -195,6 +214,14 @@ private fun LiveUpdateRow(isEnabled: Boolean, onCheckedChange: (Boolean) -> Unit
                 style = RodiTheme.typography.caption2Medium,
                 color = RodiTheme.colors.gray600,
             )
+            if (!isAllowedBySystem) {
+                Text(
+                    "휴대폰 설정에서 이 앱의 실시간 업데이트가 꺼져 있어요. 눌러서 켜 주세요.",
+                    style = RodiTheme.typography.caption2Medium,
+                    color = RodiTheme.colors.pointRed,
+                    modifier = Modifier.clickable(onClick = onSystemSettingsClick),
+                )
+            }
         }
         Switch(
             checked = isEnabled,
