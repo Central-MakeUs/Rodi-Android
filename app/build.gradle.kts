@@ -44,6 +44,13 @@ android {
 
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"$kakaoNativeAppKey\"")
         buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
+        // 내부 테스트 트랙은 release 빌드라 BuildConfig.DEBUG로는 가를 수 없다. 릴리스 워크플로의
+        // prerelease 판정과 같은 기준(-alpha/-beta/-rc)으로, 정식 버전에서는 빌드 시점에 빠진다.
+        buildConfigField(
+            "boolean",
+            "SHOW_TEST_MENU",
+            Regex("-(alpha|beta|rc)").containsMatchIn(checkNotNull(versionName)).toString(),
+        )
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
     }
 
@@ -67,6 +74,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "SHOW_TEST_MENU", "true")
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true

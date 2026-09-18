@@ -130,9 +130,9 @@ private fun RodiLoadingIndicator(modifier: Modifier = Modifier) {
     )
     val colors = listOf(
         RodiTheme.colors.primary600,
-        Color(0xFFF4F4FF),
+        RodiTheme.semantic.mapLoadingHighlight,
         RodiTheme.colors.primary50,
-        Color(0xFFDBD9FF),
+        RodiTheme.colors.primary100,
         RodiTheme.colors.primary200,
         RodiTheme.colors.primary300,
         RodiTheme.colors.primary400,
