@@ -124,7 +124,7 @@ class MyPostsViewModel @Inject constructor(
             if (deleteResult.isSuccess) {
                 val remainingPosts = _uiState.value.posts.filterNot { it.review.reviewId == post.review.reviewId }
                 val shouldLoadNextPage = remainingPosts.isEmpty() && _uiState.value.hasNext
-                _uiState.update { state -> state.copy(posts = remainingPosts) }
+                _uiState.update { uiState -> uiState.copy(posts = remainingPosts) }
                 if (remainingPosts.isEmpty()) {
                     if (shouldLoadNextPage) {
                         // 방금 보던 페이지가 통째로 비었을 뿐 아직 더 불러올 페이지가 있으므로,
@@ -132,7 +132,7 @@ class MyPostsViewModel @Inject constructor(
                         loadNextPage()
                     } else {
                         val hasPracticeRecords = loadPracticeRecordPresence()
-                        _uiState.update { state -> state.copy(hasPracticeRecords = hasPracticeRecords) }
+                        _uiState.update { uiState -> uiState.copy(hasPracticeRecords = hasPracticeRecords) }
                     }
                 }
             } else {

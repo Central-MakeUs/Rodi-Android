@@ -93,8 +93,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
 
-        assertEquals(page.items, vm.state.value.places)
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(page.items, vm.uiState.value.places)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
         coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -109,11 +109,11 @@ class HomeViewModelTest {
             assertEquals(HomeEffect.MoveToRegion(region), awaitItem())
         }
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        assertEquals("서울 중구", vm.state.value.searchKeyword)
-        assertEquals(region, vm.state.value.regionSearch)
-        assertEquals(HomeListState.Content, vm.state.value.listState)
-        assertEquals(listOf(1L), vm.state.value.places.map(PlaceSummary::id))
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        assertEquals("서울 중구", vm.uiState.value.searchKeyword)
+        assertEquals(region, vm.uiState.value.regionSearch)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
+        assertEquals(listOf(1L), vm.uiState.value.places.map(PlaceSummary::id))
     }
 
     @Test
@@ -126,7 +126,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPlaceClick(41L, HomeDetailOrigin.Map))
         advanceUntilIdle()
 
-        assertNull(vm.state.value.searchKeyword)
+        assertNull(vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -141,7 +141,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPlaceClick(43L, HomeDetailOrigin.Map))
         runCurrent()
 
-        assertNull(vm.state.value.searchKeyword)
+        assertNull(vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -154,7 +154,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPlaceClick(42L, HomeDetailOrigin.List))
         advanceUntilIdle()
 
-        assertEquals(place.name, vm.state.value.searchKeyword)
+        assertEquals(place.name, vm.uiState.value.searchKeyword)
     }
 
     @Test
@@ -172,8 +172,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnLoadNextPage)
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L, 3L), vm.state.value.places.map { it.id })
-        assertFalse(vm.state.value.hasNextPage)
+        assertEquals(listOf(1L, 2L, 3L), vm.uiState.value.places.map { it.id })
+        assertFalse(vm.uiState.value.hasNextPage)
     }
 
     @Test
@@ -194,30 +194,30 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
-        val initialGeneration = vm.state.value.placeListGeneration
+        val initialGeneration = vm.uiState.value.placeListGeneration
 
         vm.onIntent(HomeIntent.OnResearch(query(2.0)))
         runCurrent()
 
-        assertEquals(initialGeneration, vm.state.value.placeListGeneration)
+        assertEquals(initialGeneration, vm.uiState.value.placeListGeneration)
 
         cachedResult.complete(Result.success(cachedPage))
         runCurrent()
 
-        assertEquals(initialGeneration + 1, vm.state.value.placeListGeneration)
-        assertEquals(cachedPage.items, vm.state.value.places)
+        assertEquals(initialGeneration + 1, vm.uiState.value.placeListGeneration)
+        assertEquals(cachedPage.items, vm.uiState.value.places)
 
         refreshedResult.complete(Result.success(refreshedPage))
         advanceUntilIdle()
 
-        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
-        assertEquals(refreshedPage.items, vm.state.value.places)
+        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
+        assertEquals(refreshedPage.items, vm.uiState.value.places)
 
         vm.onIntent(HomeIntent.OnLoadNextPage)
         advanceUntilIdle()
 
-        assertEquals(initialGeneration + 2, vm.state.value.placeListGeneration)
-        assertEquals(listOf(10L, 11L, 2L, 12L), vm.state.value.places.map(PlaceSummary::id))
+        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
+        assertEquals(listOf(10L, 11L, 2L, 12L), vm.uiState.value.places.map(PlaceSummary::id))
     }
 
     @Test
@@ -236,9 +236,9 @@ class HomeViewModelTest {
         older.complete(Result.success(CursorPage(listOf(summary(1)), false, null, 1)))
         advanceUntilIdle()
 
-        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
-        assertEquals(query(2.0), vm.state.value.searchedQuery)
-        assertEquals(1, vm.state.value.placeListGeneration)
+        assertEquals(listOf(2L), vm.uiState.value.places.map { it.id })
+        assertEquals(query(2.0), vm.uiState.value.searchedQuery)
+        assertEquals(1, vm.uiState.value.placeListGeneration)
     }
 
     @Test
@@ -250,15 +250,15 @@ class HomeViewModelTest {
         val emptyVm = emptyDeps.viewModel()
         emptyVm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.Empty, emptyVm.state.value.listState)
+        assertEquals(HomeListState.Empty, emptyVm.uiState.value.listState)
 
         val failedDeps = Dependencies()
         coEvery { failedDeps.getPlaces(query(), null, 20) } returns Result.failure(IllegalStateException("failure"))
         val failedVm = failedDeps.viewModel()
         failedVm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.InitialError, failedVm.state.value.listState)
-        assertEquals(0, failedVm.state.value.placeListGeneration)
+        assertEquals(HomeListState.InitialError, failedVm.uiState.value.listState)
+        assertEquals(0, failedVm.uiState.value.placeListGeneration)
     }
 
     @Test
@@ -274,13 +274,13 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnViewportSettled(query()))
         advanceUntilIdle()
-        assertEquals(HomeListState.InitialError, vm.state.value.listState)
+        assertEquals(HomeListState.InitialError, vm.uiState.value.listState)
 
         vm.onIntent(HomeIntent.OnProgrammaticSearch(query()))
         advanceUntilIdle()
 
-        assertEquals(HomeListState.Content, vm.state.value.listState)
-        assertEquals(page.items, vm.state.value.places)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
+        assertEquals(page.items, vm.uiState.value.places)
         coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -298,8 +298,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnResearch(query(2.0)))
         advanceUntilIdle()
 
-        assertEquals(listOf(1L), vm.state.value.places.map { it.id })
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(listOf(1L), vm.uiState.value.places.map { it.id })
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
     }
 
     @Test
@@ -316,11 +316,11 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnMapGesture)
         vm.onIntent(HomeIntent.OnResearch(query()))
         advanceUntilIdle()
-        assertTrue(vm.state.value.isMapSearchDirty)
+        assertTrue(vm.uiState.value.isMapSearchDirty)
 
         vm.onIntent(HomeIntent.OnResearch(query()))
         advanceUntilIdle()
-        assertFalse(vm.state.value.isMapSearchDirty)
+        assertFalse(vm.uiState.value.isMapSearchDirty)
     }
 
     @Test
@@ -333,9 +333,9 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnResearch(query()))
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
         advanceUntilIdle()
-        assertEquals(HomeListState.Content, vm.state.value.listState)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
     }
 
     @Test
@@ -343,13 +343,13 @@ class HomeViewModelTest {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.OnListOpen)
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
         vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
-        assertEquals(HomeSurfaceState.FullList, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.FullList, vm.uiState.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
         vm.onIntent(HomeIntent.OnListCollapse)
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
     }
 
     @Test
@@ -372,7 +372,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.FullList))
         vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
     }
 
     @Test
@@ -386,10 +386,10 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnListSheetSettled(HomeSurfaceState.Navigation))
 
-        assertEquals(HomeSurfaceState.Detail, vm.state.value.surfaceState)
-        assertEquals(40L, vm.state.value.selectedPlaceId)
-        assertEquals(place, vm.state.value.selectedPlace)
-        assertFalse(vm.state.value.isDetailLoading)
+        assertEquals(HomeSurfaceState.Detail, vm.uiState.value.surfaceState)
+        assertEquals(40L, vm.uiState.value.selectedPlaceId)
+        assertEquals(place, vm.uiState.value.selectedPlace)
+        assertFalse(vm.uiState.value.isDetailLoading)
     }
 
     @Test
@@ -407,13 +407,13 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnPlaceClick(10L, HomeDetailOrigin.Map))
         advanceUntilIdle()
-        assertEquals(PendingHomeAction.OpenDetail(10L, HomeDetailOrigin.Map), vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenDetail(10L, HomeDetailOrigin.Map), vm.uiState.value.pendingAction)
 
         vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
         advanceUntilIdle()
 
-        assertNull(vm.state.value.pendingAction)
-        assertEquals(10L, vm.state.value.selectedPlaceId)
+        assertNull(vm.uiState.value.pendingAction)
+        assertEquals(10L, vm.uiState.value.selectedPlaceId)
         coVerify(exactly = 1) { deps.getDetail(10L) }
     }
 
@@ -426,7 +426,7 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnSearchClick(origin))
         advanceUntilIdle()
-        assertEquals(PendingHomeAction.OpenSearch(origin), vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenSearch(origin), vm.uiState.value.pendingAction)
 
         vm.effect.test {
             vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
@@ -450,7 +450,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnRegisterClick)
         advanceUntilIdle()
 
-        assertEquals(PendingHomeAction.OpenCourseRegistration, vm.state.value.pendingAction)
+        assertEquals(PendingHomeAction.OpenCourseRegistration, vm.uiState.value.pendingAction)
         vm.effect.test {
             vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
             advanceUntilIdle()
@@ -475,7 +475,7 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             assertEquals(HomeEffect.NavigateGuestSignUp, awaitItem())
-            assertNull(vm.state.value.pendingAction)
+            assertNull(vm.uiState.value.pendingAction)
             expectNoEvents()
         }
     }
@@ -499,12 +499,12 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.hasPendingRestore)
+        assertTrue(vm.uiState.value.hasPendingRestore)
         vm.onIntent(HomeIntent.OnRestoreAccount)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.hasPendingRestore)
-        assertNull(vm.state.value.pendingAction)
+        assertFalse(vm.uiState.value.hasPendingRestore)
+        assertNull(vm.uiState.value.pendingAction)
         coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
     }
 
@@ -522,18 +522,18 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnPlaceClick(30L, HomeDetailOrigin.List))
         advanceUntilIdle()
-        assertEquals(route, vm.state.value.selectedRoute)
+        assertEquals(route, vm.uiState.value.selectedRoute)
 
         vm.onIntent(HomeIntent.OnDragDismissDetail)
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.selectedRoute)
-        assertNull(vm.state.value.detailOrigin)
-        assertFalse(vm.state.value.isDetailLoading)
-        assertFalse(vm.state.value.isRouting)
-        assertFalse(vm.state.value.isBookmarkUpdating)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.selectedRoute)
+        assertNull(vm.uiState.value.detailOrigin)
+        assertFalse(vm.uiState.value.isDetailLoading)
+        assertFalse(vm.uiState.value.isRouting)
+        assertFalse(vm.uiState.value.isBookmarkUpdating)
     }
 
     @Test
@@ -553,16 +553,16 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnPlaceClick(31L, HomeDetailOrigin.List))
         runCurrent()
-        assertTrue(vm.state.value.isDetailLoading)
+        assertTrue(vm.uiState.value.isDetailLoading)
 
         vm.onIntent(HomeIntent.OnDragDismissDetail)
         runCurrent()
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.detailOrigin)
-        assertFalse(vm.state.value.isDetailLoading)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.detailOrigin)
+        assertFalse(vm.uiState.value.isDetailLoading)
         assertTrue(detailRequestCancelled)
     }
 
@@ -579,18 +579,18 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnBookmarkClick)
         runCurrent()
-        assertTrue(vm.state.value.isBookmarkUpdating)
+        assertTrue(vm.uiState.value.isBookmarkUpdating)
 
         vm.onIntent(HomeIntent.OnDragDismissDetail)
 
-        assertEquals(HomeSurfaceState.Navigation, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertFalse(vm.state.value.isBookmarkUpdating)
+        assertEquals(HomeSurfaceState.Navigation, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertFalse(vm.uiState.value.isBookmarkUpdating)
 
         bookmarkResult.complete(Result.success(Unit))
         advanceUntilIdle()
-        assertNull(vm.state.value.selectedPlace)
+        assertNull(vm.uiState.value.selectedPlace)
     }
 
     @Test
@@ -604,10 +604,10 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnDismissDetail)
 
-        assertEquals(HomeSurfaceState.PartialList, vm.state.value.surfaceState)
-        assertNull(vm.state.value.selectedPlaceId)
-        assertNull(vm.state.value.selectedPlace)
-        assertNull(vm.state.value.detailOrigin)
+        assertEquals(HomeSurfaceState.PartialList, vm.uiState.value.surfaceState)
+        assertNull(vm.uiState.value.selectedPlaceId)
+        assertNull(vm.uiState.value.selectedPlace)
+        assertNull(vm.uiState.value.detailOrigin)
     }
 
     @Test
@@ -623,8 +623,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnBookmarkClick)
         advanceUntilIdle()
 
-        assertTrue(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
-        assertEquals(5, vm.state.value.selectedPlace?.bookmarkCount)
+        assertTrue(requireNotNull(vm.uiState.value.selectedPlace).isBookmarked)
+        assertEquals(5, vm.uiState.value.selectedPlace?.bookmarkCount)
     }
 
     @Test
@@ -640,8 +640,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnBookmarkClick)
         advanceUntilIdle()
 
-        assertFalse(requireNotNull(vm.state.value.selectedPlace).isBookmarked)
-        assertEquals(4, vm.state.value.selectedPlace?.bookmarkCount)
+        assertFalse(requireNotNull(vm.uiState.value.selectedPlace).isBookmarked)
+        assertEquals(4, vm.uiState.value.selectedPlace?.bookmarkCount)
     }
 
     @Test
@@ -667,9 +667,9 @@ class HomeViewModelTest {
                 PracticeType.INTERSECTION,
                 PracticeType.PARKING,
             ),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.uiState.value.selectedFilterPracticeTypes,
         )
-        assertFalse(vm.state.value.isFilterSheetVisible)
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
         coVerify {
             deps.updateFilterTags(
                 setOf(
@@ -690,8 +690,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.STRAIGHT))
         vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.BASIC_DRIVING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertNull(vm.uiState.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.selectedFilterPracticeTypes)
     }
 
     @Test
@@ -699,13 +699,13 @@ class HomeViewModelTest {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
-        assertEquals(FilterCategory.PARKING, vm.state.value.activeFilterCategory)
-        assertEquals(setOf(PracticeType.PARKING), vm.state.value.selectedFilterPracticeTypes)
+        assertEquals(FilterCategory.PARKING, vm.uiState.value.activeFilterCategory)
+        assertEquals(setOf(PracticeType.PARKING), vm.uiState.value.selectedFilterPracticeTypes)
 
         vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.PARKING))
 
-        assertNull(vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertNull(vm.uiState.value.activeFilterCategory)
+        assertTrue(vm.uiState.value.selectedFilterPracticeTypes.isEmpty())
     }
 
     @Test
@@ -716,10 +716,10 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnFilterCategorySelect(FilterCategory.ROAD_FLOW))
         vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
 
-        assertEquals(FilterCategory.ROAD_FLOW, vm.state.value.activeFilterCategory)
+        assertEquals(FilterCategory.ROAD_FLOW, vm.uiState.value.activeFilterCategory)
         assertEquals(
             setOf(PracticeType.PARKING, PracticeType.MERGING),
-            vm.state.value.selectedFilterPracticeTypes,
+            vm.uiState.value.selectedFilterPracticeTypes,
         )
     }
 
@@ -732,8 +732,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnFilterPracticeOptionToggle(FilterPracticeOption.MERGING))
         vm.onIntent(HomeIntent.OnFilterReset)
 
-        assertEquals(FilterCategory.BASIC_DRIVING, vm.state.value.activeFilterCategory)
-        assertTrue(vm.state.value.selectedFilterPracticeTypes.isEmpty())
+        assertEquals(FilterCategory.BASIC_DRIVING, vm.uiState.value.activeFilterCategory)
+        assertTrue(vm.uiState.value.selectedFilterPracticeTypes.isEmpty())
     }
 
     @Test
@@ -748,8 +748,8 @@ class HomeViewModelTest {
         runCurrent()
         vm.onIntent(HomeIntent.OnFilterReset)
 
-        assertTrue(vm.state.value.isFilterSaving)
-        assertEquals(setOf(PracticeType.STRAIGHT), vm.state.value.selectedFilterPracticeTypes)
+        assertTrue(vm.uiState.value.isFilterSaving)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.selectedFilterPracticeTypes)
     }
 
     @Test
@@ -771,8 +771,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnFilterApply)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isFilterSheetVisible)
-        assertEquals(listOf(2L), vm.state.value.places.map { it.id })
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(listOf(2L), vm.uiState.value.places.map { it.id })
         coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
     }
 
@@ -788,7 +788,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
         assertEquals(
             PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
-            vm.state.value.pendingAction,
+            vm.uiState.value.pendingAction,
         )
 
         vm.onIntent(HomeIntent.OnKakaoLoginCredential("credential"))
@@ -806,8 +806,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
-        assertNull(vm.state.value.practicePrompt)
+        assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.getActiveSession() }
     }
 
@@ -824,8 +824,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
     }
 
     @Test
@@ -841,8 +841,8 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         // 알림 미허용으로 측정 자체가 없었던 세션은 "계속 측정할까요?"를 물을 이유가 없다.
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertNull(vm.state.value.practicePrompt)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
     }
 
     @Test
@@ -858,8 +858,8 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
     }
 
     @Test
@@ -905,9 +905,9 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
-        assertEquals(session.placeName, vm.state.value.practicePrompt?.placeName)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
+        assertEquals(session.placeName, vm.uiState.value.practicePrompt?.placeName)
     }
 
     @Test
@@ -922,7 +922,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isPracticeContinueDialogVisible)
+        assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
         coVerify(exactly = 2) { deps.getActiveSession() }
         coVerify(exactly = 0) { deps.clearActiveSession() }
     }
@@ -942,8 +942,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.clearActiveSession() }
         coVerify(exactly = 0) { deps.registerPractice(any()) }
         coVerify(exactly = 0) { deps.recordPracticeVisit(any(), any()) }
@@ -966,8 +966,8 @@ class HomeViewModelTest {
             vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
             advanceUntilIdle()
 
-            assertTrue(vm.state.value.isPracticeContinueDialogVisible)
-            assertEquals(27L, vm.state.value.activePracticeSession?.placeId)
+            assertTrue(vm.uiState.value.isPracticeContinueDialogVisible)
+            assertEquals(27L, vm.uiState.value.activePracticeSession?.placeId)
             coVerify(exactly = 0) { deps.saveActiveSession(any()) }
             coVerify(exactly = 0) { deps.clearActiveSession() }
         }
@@ -995,8 +995,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertEquals(20L, vm.state.value.activePracticeSession?.placeId)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertEquals(20L, vm.uiState.value.activePracticeSession?.placeId)
         coVerify(exactly = 1) { deps.clearActiveSession() }
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
     }
@@ -1008,20 +1008,20 @@ class HomeViewModelTest {
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
-        assertEquals(27L, vm.state.value.practicePrompt?.placeId)
+        assertEquals(27L, vm.uiState.value.practicePrompt?.placeId)
 
         vm.onIntent(HomeIntent.OnPracticePromptDismiss)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.clearActiveSession() }
 
         coEvery { deps.getActiveSession() } returns null
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.practicePrompt)
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
+        assertNull(vm.uiState.value.practicePrompt)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
     }
 
     @Test
@@ -1042,8 +1042,8 @@ class HomeViewModelTest {
         )
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        assertTrue(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.uiState.value.pendingPracticeNavigation?.app)
         coVerify(exactly = 0) { deps.registerPractice(any()) }
         coVerify(exactly = 0) { deps.saveActiveSession(any()) }
     }
@@ -1071,17 +1071,17 @@ class HomeViewModelTest {
         }
 
         // 측정은 안 하지만, 10분 뒤 재진입 시 RV-01을 띄우려면 isMeasured=false 세션은 남아있어야 한다.
-        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
-        assertFalse(vm.state.value.isPracticeContinueDialogVisible)
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
+        assertFalse(vm.uiState.value.activePracticeSession?.isMeasured ?: true)
+        assertFalse(vm.uiState.value.isPracticeContinueDialogVisible)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 0) { deps.markNotificationRequested() }
 
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = false))
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertEquals(NaviApp.KAKAOMAP, vm.state.value.pendingPracticeNavigation?.app)
+        assertTrue(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertEquals(NaviApp.KAKAOMAP, vm.uiState.value.pendingPracticeNavigation?.app)
         coVerify(exactly = 0) { deps.markNotificationRequested() }
     }
 
@@ -1110,10 +1110,10 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertFalse(vm.state.value.activePracticeSession?.isMeasured ?: true)
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertNull(vm.state.value.pendingPracticeNavigation)
-        assertFalse(vm.state.value.isPracticeLaunchInProgress)
+        assertFalse(vm.uiState.value.activePracticeSession?.isMeasured ?: true)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
+        assertFalse(vm.uiState.value.isPracticeLaunchInProgress)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
@@ -1144,15 +1144,15 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertEquals(start, vm.state.value.activePracticeSession?.startedAt)
+        assertEquals(start, vm.uiState.value.activePracticeSession?.startedAt)
         coVerify(exactly = 1) { deps.saveActiveSession(any()) }
         coVerify(exactly = 1) { deps.markNotificationRequested() }
 
         vm.onIntent(HomeIntent.OnNavigateClick(kakaoMapInstalled = true, kakaoNaviInstalled = false, notificationPermissionGranted = true))
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isNotificationPermissionRationaleVisible)
-        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertFalse(vm.uiState.value.isNotificationPermissionRationaleVisible)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
         coVerify(exactly = 1) { deps.markNotificationRequested() }
     }
 
@@ -1180,8 +1180,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.pendingPracticeNavigation)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.pendingPracticeNavigation)
         coVerify(exactly = 3) { deps.saveActiveSession(any()) }
     }
 
@@ -1206,7 +1206,7 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coVerifyOrder {
             deps.registerPractice(session.placeId)
             deps.saveActiveSession(any())
@@ -1235,7 +1235,7 @@ class HomeViewModelTest {
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 1) { deps.recordPracticeVisit(104L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1258,13 +1258,13 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
 
-        assertEquals(106L, vm.state.value.activePracticeSession?.practiceId)
+        assertEquals(106L, vm.uiState.value.activePracticeSession?.practiceId)
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 2) { deps.recordPracticeVisit(106L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1289,7 +1289,7 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         assertEquals(2, clearCalls)
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1312,13 +1312,13 @@ class HomeViewModelTest {
 
         val completedSession = originalSession.copy(practiceId = 107L, isCompleted = true)
         coVerify(exactly = 1) { deps.saveActiveSession(completedSession) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coEvery { deps.getActiveSession() } returns completedSession
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.recordPracticeVisit(107L, any()) }
     }
 
@@ -1340,13 +1340,13 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
-        assertEquals(101L, vm.state.value.activePracticeSession?.practiceId)
+        assertEquals(101L, vm.uiState.value.activePracticeSession?.practiceId)
         vm.onIntent(HomeIntent.OnPracticePromptVisited)
         advanceUntilIdle()
 
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 2) { deps.recordPracticeVisit(101L, any()) }
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1378,7 +1378,7 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
     }
 
     @Test
@@ -1392,7 +1392,7 @@ class HomeViewModelTest {
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
-        assertEquals(session.placeId, vm.state.value.practicePrompt?.placeId)
+        assertEquals(session.placeId, vm.uiState.value.practicePrompt?.placeId)
 
         vm.effect.test {
             vm.onIntent(HomeIntent.OnPracticePromptNotVisited)
@@ -1403,8 +1403,8 @@ class HomeViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
 
-        assertNull(vm.state.value.activePracticeSession)
-        assertNull(vm.state.value.practicePrompt)
+        assertNull(vm.uiState.value.activePracticeSession)
+        assertNull(vm.uiState.value.practicePrompt)
         coVerify(exactly = 1) { deps.registerPractice(session.placeId) }
         coVerify(exactly = 1) { deps.clearActiveSession() }
     }
@@ -1439,7 +1439,7 @@ class HomeViewModelTest {
         vm.onIntent(HomeIntent.OnAppResumed)
         advanceUntilIdle()
 
-        assertNull(vm.state.value.activePracticeSession)
+        assertNull(vm.uiState.value.activePracticeSession)
         coVerify(exactly = 0) { deps.getActiveSession() }
     }
 

@@ -291,16 +291,16 @@
 > 믿지 말고 명령을 다시 돌릴 것. (조사 원본의 수치 4건이 이미 실측과 달랐다.)
 
 ### MVI 계약이 화면마다 갈린다
-- [ ] **상태 property가 `state`/`uiState`로 양분** — `_state` 8개, `_uiState` 9개. 상태 타입이
+- [x] **상태 property가 `state`/`uiState`로 양분** (2026-09-18 전부 `_uiState`/`uiState`로 통일, check-conventions BLOCK) — `_state` 8개, `_uiState` 9개. 상태 타입이
   전부 `*UiState`이므로 `_uiState`/`uiState`로 통일한다.
   재검증: `rg -l 'private val _state\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
-- [ ] **Effect 전달·소비 방식 불일치** — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
+- [x] **Effect 전달·소비 방식 불일치** (2026-09-17 Channel + `effect` + `CollectEffect`로 통일, check-conventions BLOCK 3종으로 고정) — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
   `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
   직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
   `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
   Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
   그 이유를 Contract에 주석으로 남길 것.
-  재검증: `rg -l 'MutableSharedFlow' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+  재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
 - [ ] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** — `HomeContract`/`SearchViewModel`은
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
   이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
@@ -313,11 +313,10 @@
   재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
 
 ### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
-- [ ] **ViewModel이 다른 파일에 내장된 2건** (2026-09-17 `PracticeSkipReasonViewModel` 분리 완료, `CourseRegistrationEntryViewModel`만 남음) — `CourseRegistrationEntryViewModel`이
-  `app/.../ui/CourseRegistrationEntryCoordinator.kt`에, `PracticeSkipReasonViewModel`이
-  `feature/home/.../review/notvisited/PracticeSkipReasonScreen.kt`에 있다. 나머지는 전부
-  선언명과 파일명이 같다. 별도 파일로 추출하거나, 앞의 것처럼 "app 레벨 coordinator가
-  ViewModel을 소유한다"는 예외를 유지하려면 그 이유를 `ARCHITECTURE_TARGET.md`에 명시한다.
+- [x] **ViewModel이 다른 파일에 내장된 2건** — `PracticeSkipReasonViewModel`(2026-09-17)과
+  `CourseRegistrationEntryViewModel`(2026-09-18)을 각각 선언명과 같은 파일로 분리했다.
+  "app 레벨 coordinator가 ViewModel을 소유한다"는 예외는 두지 않기로 했다.
+  재검증: check-conventions WARN "ViewModel 선언명 ≠ 파일명" 0건
 - [x] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** (2026-09-17 `search/`로 이동) — `SearchViewModel`/`SearchUiState`는
   `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
   내린다.

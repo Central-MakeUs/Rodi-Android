@@ -84,8 +84,8 @@ class HomeViewModel @Inject constructor(
     private val clock: Clock,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(HomeUiState())
-    val state: StateFlow<HomeUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(HomeUiState())
+    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
@@ -113,7 +113,7 @@ class HomeViewModel @Inject constructor(
         when (intent) {
             HomeIntent.OnMapGesture -> {
                 mapMovementGeneration += 1
-                _state.update { it.copy(isMapSearchDirty = true) }
+                _uiState.update { it.copy(isMapSearchDirty = true) }
             }
             is HomeIntent.OnViewportSettled -> loadInitialViewport(intent.query)
             is HomeIntent.OnProgrammaticSearch -> loadFirstPage(
@@ -122,7 +122,7 @@ class HomeViewModel @Inject constructor(
                 clearMapMovementGeneration = mapMovementGeneration,
             )
             is HomeIntent.OnResearch -> {
-                _state.update {
+                _uiState.update {
                     if (it.surfaceState == HomeSurfaceState.Navigation) {
                         it.copy(surfaceState = HomeSurfaceState.PartialList)
                     } else {
@@ -135,15 +135,15 @@ class HomeViewModel @Inject constructor(
                     clearMapMovementGeneration = mapMovementGeneration,
                 )
             }
-            HomeIntent.OnListOpen -> _state.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
+            HomeIntent.OnListOpen -> _uiState.update { it.copy(surfaceState = HomeSurfaceState.PartialList) }
             HomeIntent.OnListCollapse -> collapseList()
             is HomeIntent.OnListSheetSettled -> settleListSheet(intent.surface)
             HomeIntent.OnLoadNextPage -> loadNextPage()
             is HomeIntent.OnPlaceClick -> openPlace(intent.id, intent.origin)
             HomeIntent.OnDismissDetail -> dismissDetail()
             HomeIntent.OnDragDismissDetail -> dismissDetail(HomeSurfaceState.Navigation)
-            HomeIntent.OnLevelReviewsOpen -> _state.update { it.copy(isLevelReviewsVisible = true) }
-            HomeIntent.OnLevelReviewsClose -> _state.update { it.copy(isLevelReviewsVisible = false) }
+            HomeIntent.OnLevelReviewsOpen -> _uiState.update { it.copy(isLevelReviewsVisible = true) }
+            HomeIntent.OnLevelReviewsClose -> _uiState.update { it.copy(isLevelReviewsVisible = false) }
             HomeIntent.OnReviewUpdated -> viewModelScope.launch { _effect.send(HomeEffect.RefreshReviews) }
             HomeIntent.OnAppResumed -> loadActivePracticeSession()
             HomeIntent.OnPracticeContinueMeasurement -> hidePracticeContinueDialog()
@@ -154,17 +154,17 @@ class HomeViewModel @Inject constructor(
             HomeIntent.OnNotificationPermissionAllow -> allowNotificationPermission()
             HomeIntent.OnNotificationPermissionRouteOnly -> routeWithoutPracticeMeasurement()
             is HomeIntent.OnNotificationPermissionResult -> onNotificationPermissionResult(intent.granted)
-            HomeIntent.OnLevelUpDismiss -> _state.update { it.copy(levelUp = null) }
+            HomeIntent.OnLevelUpDismiss -> _uiState.update { it.copy(levelUp = null) }
             HomeIntent.OnBookmarkClick -> toggleBookmark()
             HomeIntent.OnMyClick -> openMyPage()
             HomeIntent.OnRegisterClick -> openCourseRegistration()
             is HomeIntent.OnSearchClick -> openSearch(intent.origin)
             is HomeIntent.OnRegionSearch -> prepareRegionSearch(intent.region, intent.initialPlaces)
-            HomeIntent.OnFilterOpen -> _state.update { it.copy(isFilterSheetVisible = true) }
+            HomeIntent.OnFilterOpen -> _uiState.update { it.copy(isFilterSheetVisible = true) }
             is HomeIntent.OnFilterCategorySelect -> selectFilterCategory(intent.category)
             is HomeIntent.OnFilterPracticeOptionToggle -> toggleFilterPracticeOption(intent.option)
-            HomeIntent.OnFilterReset -> if (!_state.value.isFilterSaving) {
-                _state.update {
+            HomeIntent.OnFilterReset -> if (!_uiState.value.isFilterSaving) {
+                _uiState.update {
                     it.copy(
                         activeFilterCategory = FilterCategory.BASIC_DRIVING,
                         selectedFilterPracticeTypes = emptySet(),
@@ -173,13 +173,13 @@ class HomeViewModel @Inject constructor(
             }
             HomeIntent.OnFilterApply -> applyFilter()
             HomeIntent.OnFilterDismiss -> dismissFilter()
-            HomeIntent.OnDismissLogin -> _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+            HomeIntent.OnDismissLogin -> _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
             is HomeIntent.OnKakaoLoginCredential -> loginWithKakao(intent.accessToken)
             is HomeIntent.OnKakaoLoginFailed -> onKakaoLoginFailed(intent.message)
             HomeIntent.OnRestoreAccount -> restoreAccount()
             HomeIntent.OnDismissRestore -> {
                 pendingRestoreCredential = null
-                _state.update {
+                _uiState.update {
                     it.copy(
                         pendingAction = null,
                         hasPendingRestore = false,
@@ -197,10 +197,10 @@ class HomeViewModel @Inject constructor(
     private fun loadCoordinates() {
         viewModelScope.launch {
             getPlaceCoordinatesUseCase()
-                .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
+                .onSuccess { coordinates -> _uiState.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
                 .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
             refreshPlaceCoordinatesUseCase()
-                .onSuccess { coordinates -> _state.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
+                .onSuccess { coordinates -> _uiState.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
         }
     }
 
@@ -212,7 +212,7 @@ class HomeViewModel @Inject constructor(
         firstPageJob?.cancel()
         nextPageJob?.cancel()
         lastFirstPageKey = null
-        _state.update {
+        _uiState.update {
             it.copy(
                 surfaceState = HomeSurfaceState.PartialList,
                 searchKeyword = region.displayName,
@@ -235,7 +235,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadInitialViewport(query: PlaceViewportQuery) {
-        if (_state.value.searchedQuery == null) loadFirstPage(query, force = false)
+        if (_uiState.value.searchedQuery == null) loadFirstPage(query, force = false)
     }
 
     private fun loadFirstPage(
@@ -252,7 +252,7 @@ class HomeViewModel @Inject constructor(
         firstPageJob?.cancel()
         nextPageJob?.cancel()
         firstPageJob = viewModelScope.launch {
-            _state.update {
+            _uiState.update {
                 it.copy(
                     listState = if (it.places.isEmpty()) HomeListState.Loading else it.listState,
                     isNextPageLoading = false,
@@ -266,7 +266,7 @@ class HomeViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (generation != requestGeneration) return@onFailure
-                    _state.update { current ->
+                    _uiState.update { current ->
                         current.copy(
                             listState = if (current.places.isEmpty()) HomeListState.InitialError else current.listState,
                         )
@@ -289,13 +289,13 @@ class HomeViewModel @Inject constructor(
                         clearMapMovementGeneration != null &&
                         clearMapMovementGeneration == mapMovementGeneration
                     ) {
-                        _state.update { it.copy(isMapSearchDirty = false) }
+                        _uiState.update { it.copy(isMapSearchDirty = false) }
                     }
                 }
             }
             .onFailure { error ->
-                if (generation == requestGeneration && _state.value.places.isEmpty()) {
-                    _state.update { it.copy(listState = HomeListState.InitialError) }
+                if (generation == requestGeneration && _uiState.value.places.isEmpty()) {
+                    _uiState.update { it.copy(listState = HomeListState.InitialError) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
             }
@@ -306,7 +306,7 @@ class HomeViewModel @Inject constructor(
         page: CursorPage<PlaceSummary>,
     ) {
         val uniqueItems = page.items.distinctBy(PlaceSummary::id)
-        _state.update {
+        _uiState.update {
             it.copy(
                 places = uniqueItems,
                 listState = if (uniqueItems.isEmpty()) HomeListState.Empty else HomeListState.Content,
@@ -321,17 +321,17 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadNextPage() {
-        val current = _state.value
+        val current = _uiState.value
         val query = current.searchedQuery ?: return
         val cursor = current.nextCursor ?: return
         if (!current.hasNextPage || current.isNextPageLoading || nextPageJob?.isActive == true) return
         val generation = requestGeneration
         nextPageJob = viewModelScope.launch {
-            _state.update { it.copy(isNextPageLoading = true) }
+            _uiState.update { it.copy(isNextPageLoading = true) }
             refreshPlacesUseCase(query, cursor = cursor, size = PLACE_PAGE_SIZE)
                 .onSuccess { page ->
                     if (generation != requestGeneration) return@onSuccess
-                    _state.update { latest ->
+                    _uiState.update { latest ->
                         val merged = (latest.places + page.items).distinctBy(PlaceSummary::id)
                         latest.copy(
                             places = merged,
@@ -344,7 +344,7 @@ class HomeViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (generation != requestGeneration) return@onFailure
-                    _state.update { it.copy(isNextPageLoading = false) }
+                    _uiState.update { it.copy(isNextPageLoading = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -358,7 +358,7 @@ class HomeViewModel @Inject constructor(
                 requireLogin(PendingHomeAction.OpenDetail(placeId, origin))
                 return@launch
             }
-            _state.update {
+            _uiState.update {
                 it.copy(
                     selectedPlaceId = placeId,
                     selectedPlace = null,
@@ -374,8 +374,8 @@ class HomeViewModel @Inject constructor(
             }
             getPlaceDetailUseCase(placeId)
                 .onSuccess { detail ->
-                    if (_state.value.selectedPlaceId == placeId) {
-                        _state.update {
+                    if (_uiState.value.selectedPlaceId == placeId) {
+                        _uiState.update {
                             it.copy(
                                 selectedPlace = detail,
                                 isDetailLoading = false,
@@ -386,8 +386,8 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    if (_state.value.selectedPlaceId == placeId) {
-                        _state.update { current ->
+                    if (_uiState.value.selectedPlaceId == placeId) {
+                        _uiState.update { current ->
                             current.copy(
                                 selectedPlaceId = null,
                                 selectedPlace = null,
@@ -422,7 +422,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun dismissDetail() {
-        val destination = if (_state.value.detailOrigin == HomeDetailOrigin.List) {
+        val destination = if (_uiState.value.detailOrigin == HomeDetailOrigin.List) {
             HomeSurfaceState.PartialList
         } else {
             HomeSurfaceState.Navigation
@@ -433,7 +433,7 @@ class HomeViewModel @Inject constructor(
     private fun dismissDetail(destination: HomeSurfaceState) {
         detailJob?.cancel()
         routeJob?.cancel()
-        _state.update {
+        _uiState.update {
             it.copy(
                 selectedPlaceId = null,
                 selectedPlace = null,
@@ -451,41 +451,41 @@ class HomeViewModel @Inject constructor(
 
     private fun loadRoute(place: PlaceDetail) {
         if (place.course == null) {
-            _state.update { state ->
-                if (state.selectedPlaceId == place.id) state.copy(isRouting = false) else state
+            _uiState.update { uiState ->
+                if (uiState.selectedPlaceId == place.id) uiState.copy(isRouting = false) else uiState
             }
             return
         }
         routeJob?.cancel()
         routeJob = viewModelScope.launch {
-            _state.update { it.copy(isRouting = true) }
+            _uiState.update { it.copy(isRouting = true) }
             getRouteUseCase(place)
                 .onSuccess { route ->
-                    if (_state.value.selectedPlaceId == place.id) {
-                        _state.update { it.copy(selectedRoute = route, isRouting = false) }
+                    if (_uiState.value.selectedPlaceId == place.id) {
+                        _uiState.update { it.copy(selectedRoute = route, isRouting = false) }
                     }
                 }
                 .onFailure {
-                    if (_state.value.selectedPlaceId == place.id) {
-                        _state.update { it.copy(isRouting = false) }
+                    if (_uiState.value.selectedPlaceId == place.id) {
+                        _uiState.update { it.copy(isRouting = false) }
                     }
                 }
         }
     }
 
     private fun toggleBookmark() {
-        val place = _state.value.selectedPlace ?: return
-        if (_state.value.isBookmarkUpdating) return
+        val place = _uiState.value.selectedPlace ?: return
+        if (_uiState.value.isBookmarkUpdating) return
         viewModelScope.launch {
             if (!isLoggedIn()) {
                 requireLogin(PendingHomeAction.ToggleBookmark)
                 return@launch
             }
             val target = !place.isBookmarked
-            _state.update { it.copy(isBookmarkUpdating = true) }
+            _uiState.update { it.copy(isBookmarkUpdating = true) }
             setPlaceBookmarkUseCase(place, target)
                 .onSuccess {
-                    _state.update { current ->
+                    _uiState.update { current ->
                         val selectedPlace = current.selectedPlace
                         if (selectedPlace?.id != place.id) current else current.copy(
                             selectedPlace = selectedPlace.copy(
@@ -498,7 +498,7 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { current ->
+                    _uiState.update { current ->
                         if (current.selectedPlace?.id == place.id) current.copy(isBookmarkUpdating = false) else current
                     }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
@@ -539,8 +539,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun selectFilterCategory(category: FilterCategory) {
-        if (_state.value.isFilterSaving) return
-        _state.update { current ->
+        if (_uiState.value.isFilterSaving) return
+        _uiState.update { current ->
             if (current.activeFilterCategory == category) {
                 current.copy(
                     activeFilterCategory = null,
@@ -564,8 +564,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun toggleFilterPracticeOption(option: FilterPracticeOption) {
-        if (_state.value.isFilterSaving) return
-        _state.update { current ->
+        if (_uiState.value.isFilterSaving) return
+        _uiState.update { current ->
             val activeCategory = current.activeFilterCategory ?: return@update current
             val targetTypes = when (option) {
                 FilterPracticeOption.ALL -> activeCategory.practiceTypes()
@@ -581,8 +581,8 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun applyFilter() {
-        val filterTags = _state.value.selectedFilterPracticeTypes
-        if (_state.value.isFilterSaving) return
+        val filterTags = _uiState.value.selectedFilterPracticeTypes
+        if (_uiState.value.isFilterSaving) return
         viewModelScope.launch {
             if (isLoggedIn()) {
                 saveFilterTags(filterTags)
@@ -593,9 +593,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun saveFilterTags(filterTags: Set<PracticeType>) {
-        if (_state.value.isFilterSaving) return
+        if (_uiState.value.isFilterSaving) return
         viewModelScope.launch {
-            _state.update {
+            _uiState.update {
                 it.copy(
                     selectedFilterPracticeTypes = filterTags,
                     isFilterSaving = true,
@@ -603,38 +603,38 @@ class HomeViewModel @Inject constructor(
             }
             updateFilterTagsUseCase(filterTags)
                 .onSuccess {
-                    _state.update { it.copy(isFilterSheetVisible = false, isFilterSaving = false) }
-                    _state.value.searchedQuery?.let { query ->
+                    _uiState.update { it.copy(isFilterSheetVisible = false, isFilterSaving = false) }
+                    _uiState.value.searchedQuery?.let { query ->
                         loadFirstPage(query, force = true)
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isFilterSaving = false) }
+                    _uiState.update { it.copy(isFilterSaving = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
     }
 
     private fun dismissFilter() {
-        if (!_state.value.isFilterSaving) {
-            _state.update { it.copy(isFilterSheetVisible = false) }
+        if (!_uiState.value.isFilterSaving) {
+            _uiState.update { it.copy(isFilterSheetVisible = false) }
         }
     }
 
     private fun requireLogin(action: PendingHomeAction) {
-        _state.update { it.copy(pendingAction = action, isLoginInProgress = false) }
+        _uiState.update { it.copy(pendingAction = action, isLoginInProgress = false) }
     }
 
     private fun loginWithKakao(accessToken: String) {
-        val action = _state.value.pendingAction ?: return
-        if (_state.value.isLoginInProgress) return
+        val action = _uiState.value.pendingAction ?: return
+        if (_uiState.value.isLoginInProgress) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoginInProgress = true) }
+            _uiState.update { it.copy(isLoginInProgress = true) }
             loginWithKakaoUseCase(accessToken)
                 .onSuccess { result ->
                     when (result) {
-                        is LoginResult.Success -> if (_state.value.pendingAction == action) {
-                            _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+                        is LoginResult.Success -> if (_uiState.value.pendingAction == action) {
+                            _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
                             if (result.isNewMember) {
                                 _effect.send(HomeEffect.NavigateGuestSignUp)
                             } else {
@@ -643,7 +643,7 @@ class HomeViewModel @Inject constructor(
                         }
                         is LoginResult.WithdrawalPending -> {
                             pendingRestoreCredential = accessToken
-                            _state.update {
+                            _uiState.update {
                                 it.copy(
                                     hasPendingRestore = true,
                                     isLoginInProgress = false,
@@ -653,7 +653,7 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isLoginInProgress = false) }
+                    _uiState.update { it.copy(isLoginInProgress = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -661,15 +661,15 @@ class HomeViewModel @Inject constructor(
 
     private fun restoreAccount() {
         val credential = pendingRestoreCredential ?: return
-        val action = _state.value.pendingAction ?: return
-        if (_state.value.isRestoreInProgress) return
+        val action = _uiState.value.pendingAction ?: return
+        if (_uiState.value.isRestoreInProgress) return
         viewModelScope.launch {
-            _state.update { it.copy(isRestoreInProgress = true) }
+            _uiState.update { it.copy(isRestoreInProgress = true) }
             restoreWithKakaoUseCase(credential)
                 .onSuccess { result ->
-                    if (result is AccountRestoreResult.Restored && _state.value.pendingAction == action) {
+                    if (result is AccountRestoreResult.Restored && _uiState.value.pendingAction == action) {
                         pendingRestoreCredential = null
-                        _state.update {
+                        _uiState.update {
                             it.copy(
                                 pendingAction = null,
                                 hasPendingRestore = false,
@@ -678,12 +678,12 @@ class HomeViewModel @Inject constructor(
                         }
                         resumePendingAction(action)
                     } else {
-                        _state.update { it.copy(isRestoreInProgress = false) }
+                        _uiState.update { it.copy(isRestoreInProgress = false) }
                         _effect.send(HomeEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isRestoreInProgress = false) }
+                    _uiState.update { it.copy(isRestoreInProgress = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -691,15 +691,15 @@ class HomeViewModel @Inject constructor(
 
     private fun onKakaoLoginFailed(message: String) {
         if (message.contains("취소")) {
-            _state.update { it.copy(pendingAction = null, isLoginInProgress = false) }
+            _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
         } else {
-            _state.update { it.copy(isLoginInProgress = false) }
+            _uiState.update { it.copy(isLoginInProgress = false) }
             viewModelScope.launch { _effect.send(HomeEffect.ShowSnackbar(message)) }
         }
     }
 
     private fun collapseList() {
-        _state.update {
+        _uiState.update {
             val nextSurface = when (it.surfaceState) {
                 HomeSurfaceState.FullList -> HomeSurfaceState.PartialList
                 HomeSurfaceState.PartialList -> HomeSurfaceState.Navigation
@@ -720,13 +720,13 @@ class HomeViewModel @Inject constructor(
      * 상세를 여는 중에는 시트가 Hidden으로 정착하며 늦게 도착한 이벤트가 Detail을 덮어쓸 수 있어 무시한다.
      */
     private fun settleListSheet(surface: HomeSurfaceState) {
-        _state.update {
+        _uiState.update {
             if (it.surfaceState == HomeSurfaceState.Detail) it else it.copy(surfaceState = surface)
         }
     }
 
     private fun onNavigateClick(intent: HomeIntent.OnNavigateClick) {
-        val place = _state.value.selectedPlace ?: return
+        val place = _uiState.value.selectedPlace ?: return
         viewModelScope.launch {
             val savedApp = getNaviAlwaysUseCase()
             when {
@@ -746,7 +746,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun onNaviAppSelected(intent: HomeIntent.OnNaviAppSelected) {
-        val place = _state.value.selectedPlace ?: return
+        val place = _uiState.value.selectedPlace ?: return
         viewModelScope.launch {
             if (intent.always) setNaviAlwaysUseCase(intent.app)
             requestPracticeNavigation(place, intent.app, intent.notificationPermissionGranted)
@@ -758,20 +758,20 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun requestPracticeNavigation(place: PlaceDetail, app: NaviApp, notificationPermissionGranted: Boolean) {
-        if (practiceLaunchJob?.isActive == true || _state.value.isPracticeLaunchInProgress) return
-        val activeSession = _state.value.activePracticeSession
+        if (practiceLaunchJob?.isActive == true || _uiState.value.isPracticeLaunchInProgress) return
+        val activeSession = _uiState.value.activePracticeSession
         if (activeSession != null && activeSession.isMeasured && activeSession.placeId != place.id) {
             pendingPlaceSwitch = PendingPlaceSwitch(place, app, notificationPermissionGranted)
-            _state.update { it.copy(isPracticeContinueDialogVisible = true) }
+            _uiState.update { it.copy(isPracticeContinueDialogVisible = true) }
             return
         }
         practiceLaunchJob = viewModelScope.launch {
-            _state.update { it.copy(isPracticeLaunchInProgress = true) }
+            _uiState.update { it.copy(isPracticeLaunchInProgress = true) }
             if (notificationPermissionGranted) {
                 startPracticeNavigation(PendingPracticeNavigation(place, app))
                 return@launch
             }
-            _state.update {
+            _uiState.update {
                 it.copy(
                     isPracticeLaunchInProgress = false,
                     isNotificationPermissionRationaleVisible = true,
@@ -782,10 +782,10 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun allowNotificationPermission() {
-        if (_state.value.pendingPracticeNavigation == null || _state.value.isPracticeLaunchInProgress) return
+        if (_uiState.value.pendingPracticeNavigation == null || _uiState.value.isPracticeLaunchInProgress) return
         viewModelScope.launch {
             markNotificationPermissionRequestedSafely()
-            _state.update {
+            _uiState.update {
                 it.copy(
                     isNotificationPermissionRationaleVisible = false,
                     isPracticeLaunchInProgress = true,
@@ -796,9 +796,9 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun routeWithoutPracticeMeasurement() {
-        val pending = _state.value.pendingPracticeNavigation ?: return
+        val pending = _uiState.value.pendingPracticeNavigation ?: return
         viewModelScope.launch {
-            _state.update {
+            _uiState.update {
                 it.copy(
                     isNotificationPermissionRationaleVisible = false,
                     pendingPracticeNavigation = null,
@@ -814,7 +814,7 @@ class HomeViewModel @Inject constructor(
             )
             try {
                 saveActivePracticeSessionWithRetry(session)
-                _state.update { it.copy(activePracticeSession = session) }
+                _uiState.update { it.copy(activePracticeSession = session) }
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -829,7 +829,7 @@ class HomeViewModel @Inject constructor(
             routeWithoutPracticeMeasurement()
             return
         }
-        val pending = _state.value.pendingPracticeNavigation ?: return
+        val pending = _uiState.value.pendingPracticeNavigation ?: return
         viewModelScope.launch { startPracticeNavigation(pending) }
     }
 
@@ -845,7 +845,7 @@ class HomeViewModel @Inject constructor(
         } catch (error: CancellationException) {
             throw error
         } catch (_: Throwable) {
-            _state.update {
+            _uiState.update {
                 it.copy(
                     activePracticeSession = null,
                     practicePrompt = null,
@@ -859,7 +859,7 @@ class HomeViewModel @Inject constructor(
             _effect.send(pending.navigationEffect(startDriving = false))
             return
         }
-        _state.update {
+        _uiState.update {
             it.copy(
                 activePracticeSession = session,
                 practicePrompt = null,
@@ -877,7 +877,7 @@ class HomeViewModel @Inject constructor(
         val generation = ++practicePromptRequestGeneration
         practicePromptJob = viewModelScope.launch {
             if (!isLoggedIn()) return@launch
-            if (_state.value.isPracticeActionInProgress) return@launch
+            if (_uiState.value.isPracticeActionInProgress) return@launch
             val session = try {
                 getActivePracticeSessionUseCase()
             } catch (error: CancellationException) {
@@ -888,7 +888,7 @@ class HomeViewModel @Inject constructor(
             }
             if (generation != practicePromptRequestGeneration) return@launch
             if (session == null) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = null,
                         practicePrompt = null,
@@ -898,7 +898,7 @@ class HomeViewModel @Inject constructor(
                 return@launch
             }
             if (session.isCompleted) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = null,
                         practicePrompt = null,
@@ -909,7 +909,7 @@ class HomeViewModel @Inject constructor(
             }
             val elapsed = Duration.between(session.startedAt, Instant.now(clock))
             if (session.isArrivalConfirmed || elapsed >= PRACTICE_MEASUREMENT_DURATION) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = session,
                         practicePrompt = session.toPracticeRecordItem(),
@@ -917,7 +917,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } else if (session.isMeasured) {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = session,
                         practicePrompt = null,
@@ -925,7 +925,7 @@ class HomeViewModel @Inject constructor(
                     )
                 }
             } else {
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = session,
                         practicePrompt = null,
@@ -938,17 +938,17 @@ class HomeViewModel @Inject constructor(
 
     private fun hidePracticeContinueDialog() {
         pendingPlaceSwitch = null
-        _state.update { it.copy(isPracticeContinueDialogVisible = false) }
+        _uiState.update { it.copy(isPracticeContinueDialogVisible = false) }
     }
 
     private fun dismissPracticePrompt() {
-        if (_state.value.isPracticeActionInProgress) return
+        if (_uiState.value.isPracticeActionInProgress) return
         viewModelScope.launch {
             try {
                 // 로컬 세션을 지우지 않으면 다음 앱 재진입 때 loadActivePracticeSession()이
                 // 같은 세션을 다시 읽어 방문 확인 프롬프트가 그대로 재등장한다.
                 clearActivePracticeSessionWithRetry()
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = null,
                         practicePrompt = null,
@@ -964,11 +964,11 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun stopPracticeMeasurement() {
-        if (_state.value.isPracticeActionInProgress) return
+        if (_uiState.value.isPracticeActionInProgress) return
         viewModelScope.launch {
             try {
                 clearActivePracticeSessionWithRetry()
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = null,
                         practicePrompt = null,
@@ -989,14 +989,14 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun openPracticeSkipReason() {
-        val session = _state.value.activePracticeSession ?: return
-        if (_state.value.isPracticeActionInProgress) return
-        _state.update { it.copy(isPracticeActionInProgress = true) }
+        val session = _uiState.value.activePracticeSession ?: return
+        if (_uiState.value.isPracticeActionInProgress) return
+        _uiState.update { it.copy(isPracticeActionInProgress = true) }
         viewModelScope.launch {
             try {
                 val practiceId = session.practiceId ?: run {
                     registerPracticeUseCase(session.placeId).getOrElse { error ->
-                        _state.update { it.copy(isPracticeActionInProgress = false) }
+                        _uiState.update { it.copy(isPracticeActionInProgress = false) }
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                         return@launch
                     }.practiceId
@@ -1006,11 +1006,11 @@ class HomeViewModel @Inject constructor(
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Throwable) {
-                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _uiState.update { it.copy(isPracticeActionInProgress = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                     return@launch
                 }
-                _state.update {
+                _uiState.update {
                     it.copy(
                         activePracticeSession = null,
                         practicePrompt = null,
@@ -1021,7 +1021,7 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.StopDrivingTracking)
                 _effect.send(HomeEffect.OpenPracticeSkipReason(practiceId))
             } finally {
-                _state.update { current ->
+                _uiState.update { current ->
                     if (current.isPracticeActionInProgress) {
                         current.copy(isPracticeActionInProgress = false)
                     } else {
@@ -1033,22 +1033,22 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun recordPracticeVisit() {
-        val session = _state.value.activePracticeSession ?: return
-        if (_state.value.isPracticeActionInProgress) return
-        _state.update { it.copy(isPracticeActionInProgress = true) }
+        val session = _uiState.value.activePracticeSession ?: return
+        if (_uiState.value.isPracticeActionInProgress) return
+        _uiState.update { it.copy(isPracticeActionInProgress = true) }
         viewModelScope.launch {
             try {
                 var practiceId = session.practiceId
                 if (practiceId == null) {
                     val registration = registerPracticeUseCase(session.placeId)
                     val practice = registration.getOrElse { error ->
-                        _state.update { it.copy(isPracticeActionInProgress = false) }
+                        _uiState.update { it.copy(isPracticeActionInProgress = false) }
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                         return@launch
                     }
                     practiceId = practice.practiceId
                     val pendingSession = session.copy(practiceId = practiceId)
-                    _state.update { it.copy(activePracticeSession = pendingSession) }
+                    _uiState.update { it.copy(activePracticeSession = pendingSession) }
                     try {
                         saveActivePracticeSessionWithRetry(pendingSession)
                     } catch (error: CancellationException) {
@@ -1093,7 +1093,7 @@ class HomeViewModel @Inject constructor(
                     } catch (error: Throwable) {
                         _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                     }
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             activePracticeSession = null,
                             practicePrompt = null,
@@ -1109,11 +1109,11 @@ class HomeViewModel @Inject constructor(
                         _effect.send(HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"))
                     }
                 }.onFailure { error ->
-                    _state.update { it.copy(isPracticeActionInProgress = false) }
+                    _uiState.update { it.copy(isPracticeActionInProgress = false) }
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
             } finally {
-                _state.update { current ->
+                _uiState.update { current ->
                     if (current.isPracticeActionInProgress) current.copy(isPracticeActionInProgress = false) else current
                 }
             }

@@ -8,6 +8,7 @@ import com.dororong.rodi.core.domain.usecase.member.WithdrawUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,8 +23,8 @@ class AccountSettingsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(AccountSettingsUiState())
     val uiState: StateFlow<AccountSettingsUiState> = _uiState.asStateFlow()
 
-    private val effectChannel = Channel<AccountSettingsEffect>(Channel.BUFFERED)
-    val effects = effectChannel.receiveAsFlow()
+    private val _effect = Channel<AccountSettingsEffect>(Channel.BUFFERED)
+    val effect: Flow<AccountSettingsEffect> = _effect.receiveAsFlow()
 
     fun confirm(action: AccountAction) {
         if (_uiState.value.isSubmitting) return
@@ -36,9 +37,9 @@ class AccountSettingsViewModel @Inject constructor(
             }
             _uiState.value = AccountSettingsUiState()
             result.fold(
-                onSuccess = { effectChannel.send(AccountSettingsEffect.SessionEnded) },
+                onSuccess = { _effect.send(AccountSettingsEffect.SessionEnded) },
                 onFailure = { error ->
-                    effectChannel.send(
+                    _effect.send(
                         AccountSettingsEffect.ShowError(
                             error.userMessage("요청을 처리하지 못했어요. 잠시 후 다시 시도해 주세요."),
                         ),

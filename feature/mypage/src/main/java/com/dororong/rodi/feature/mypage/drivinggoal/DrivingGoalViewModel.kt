@@ -44,11 +44,11 @@ class DrivingGoalViewModel @Inject constructor(
     }
 
     fun save() {
-        val state = _uiState.value
-        if (state.goal == state.initialGoal || state.isSaving || state.isLoading) return
+        val uiState = _uiState.value
+        if (uiState.goal == uiState.initialGoal || uiState.isSaving || uiState.isLoading) return
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true) }
-            updateDrivingGoal(state.goal)
+            updateDrivingGoal(uiState.goal)
                 .onSuccess { _effect.send(DrivingGoalEffect.NavigateBack) }
                 .onFailure {
                     _uiState.update { it.copy(isSaving = false) }

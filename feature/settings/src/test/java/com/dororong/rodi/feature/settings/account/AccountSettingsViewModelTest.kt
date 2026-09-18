@@ -40,7 +40,7 @@ class AccountSettingsViewModelTest {
         coEvery { logout() } returns Result.success(Unit)
         val viewModel = AccountSettingsViewModel(logout, withdraw)
 
-        viewModel.effects.test {
+        viewModel.effect.test {
             viewModel.confirm(AccountAction.Logout)
             advanceUntilIdle()
 
@@ -57,7 +57,7 @@ class AccountSettingsViewModelTest {
         coEvery { withdraw() } returns Result.failure(IllegalStateException("탈퇴에 실패했습니다."))
         val viewModel = AccountSettingsViewModel(logout, withdraw)
 
-        viewModel.effects.test {
+        viewModel.effect.test {
             viewModel.confirm(AccountAction.Withdraw)
             advanceUntilIdle()
 

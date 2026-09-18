@@ -66,7 +66,7 @@ fun ReviewReportScreen(
     onReported: (Long) -> Unit = {},
     viewModel: ReviewActionsViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
 
     LaunchedEffect(reviewId) { viewModel.loadReportForm(reviewId) }
