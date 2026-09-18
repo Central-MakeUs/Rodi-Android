@@ -8,10 +8,10 @@ enum class CourseRegistrationEntryMode {
     StartFresh,
 }
 
-sealed interface CourseRegistrationEntryState {
-    data object Loading : CourseRegistrationEntryState
+sealed interface CourseRegistrationEntryUiState {
+    data object Loading : CourseRegistrationEntryUiState
 
-    data class Ready(val draft: CourseDraft?) : CourseRegistrationEntryState
+    data class Ready(val draft: CourseDraft?) : CourseRegistrationEntryUiState
 }
 
 internal enum class CourseRegistrationPreflightDecision {

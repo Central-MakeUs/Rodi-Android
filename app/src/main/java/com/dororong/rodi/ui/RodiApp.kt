@@ -47,7 +47,7 @@ fun RodiApp(
     openDrivingArrival: Boolean = false,
     onDrivingArrivalHandled: () -> Unit = {},
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
     val backStack = rememberNavBackStack()
     var splashElapsed by rememberSaveable { mutableStateOf(false) }

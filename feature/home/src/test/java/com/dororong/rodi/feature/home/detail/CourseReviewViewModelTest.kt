@@ -82,7 +82,7 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
 
-        val state = vm.state.value
+        val state = vm.uiState.value
         assertEquals(15L, state.recommendCount)
         assertEquals(61L, state.totalCount)
         assertEquals(OnboardingLevel.ROOKIE, state.selectedLevel)
@@ -121,7 +121,7 @@ class CourseReviewViewModelTest {
         vm.selectLevel(OnboardingLevel.OWNER)
         advanceUntilIdle()
 
-        val state = vm.state.value
+        val state = vm.uiState.value
         assertEquals(15L, state.recommendCount)
         assertEquals(OnboardingLevel.OWNER, state.selectedLevel)
         assertEquals(mapOf(ReviewDifficulty.HARD to 7L), state.difficultyCounts)
@@ -151,7 +151,7 @@ class CourseReviewViewModelTest {
         vm.loadNextPage()
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L, 3L), vm.state.value.reviews.map { it.reviewId })
+        assertEquals(listOf(1L, 2L, 3L), vm.uiState.value.reviews.map { it.reviewId })
     }
 
     @Test
@@ -162,7 +162,7 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.isGuest)
+        assertTrue(vm.uiState.value.isGuest)
         coVerify(exactly = 0) { getReviewSummary(any(), any()) }
         coVerify(exactly = 0) { getPlaceReviews(any(), any(), any(), any()) }
     }
@@ -181,7 +181,7 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
 
-        val state = vm.state.value
+        val state = vm.uiState.value
         assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", state.errorMessage)
         assertEquals(PLACE_ID, state.placeId)
     }
@@ -202,7 +202,7 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isLoading)
+        assertFalse(vm.uiState.value.isLoading)
         coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
     }
 
@@ -214,8 +214,8 @@ class CourseReviewViewModelTest {
         vm.load(PLACE_ID)
         advanceUntilIdle()
 
-        assertFalse(vm.state.value.isLoading)
-        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", vm.state.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", vm.uiState.value.errorMessage)
     }
 
     @Test
@@ -244,10 +244,10 @@ class CourseReviewViewModelTest {
         vm.selectLevelAndLoadReviews(OnboardingLevel.OWNER)
         advanceUntilIdle()
 
-        assertEquals(OnboardingLevel.OWNER, vm.state.value.selectedLevel)
-        assertEquals(listOf(2L), vm.state.value.reviews.map { it.reviewId })
-        assertEquals(null, vm.state.value.nextCursor)
-        assertFalse(vm.state.value.hasNext)
+        assertEquals(OnboardingLevel.OWNER, vm.uiState.value.selectedLevel)
+        assertEquals(listOf(2L), vm.uiState.value.reviews.map { it.reviewId })
+        assertEquals(null, vm.uiState.value.nextCursor)
+        assertFalse(vm.uiState.value.hasNext)
     }
 
     @Test
@@ -267,8 +267,8 @@ class CourseReviewViewModelTest {
         advanceUntilIdle()
         vm.excludeMemberReviews(1L)
 
-        assertTrue(vm.state.value.latestReviews.none { it.memberId == 1L })
-        assertTrue(vm.state.value.reviews.none { it.memberId == 1L })
+        assertTrue(vm.uiState.value.latestReviews.none { it.memberId == 1L })
+        assertTrue(vm.uiState.value.reviews.none { it.memberId == 1L })
     }
 
     @Test
@@ -290,12 +290,12 @@ class CourseReviewViewModelTest {
         vm.refresh()
         advanceUntilIdle()
 
-        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
-        assertEquals(6L, vm.state.value.totalCount)
-        assertEquals(1L, vm.state.value.recommendCount)
-        assertEquals("초보초보", vm.state.value.latestReviews.single().nickname)
-        assertEquals("후기 내용", vm.state.value.latestReviews.single().content)
-        assertEquals(clock.instant(), vm.state.value.latestReviews.single().createdAt)
+        assertEquals(listOf(REVIEW_ID), vm.uiState.value.latestReviews.map { it.reviewId })
+        assertEquals(6L, vm.uiState.value.totalCount)
+        assertEquals(1L, vm.uiState.value.recommendCount)
+        assertEquals("초보초보", vm.uiState.value.latestReviews.single().nickname)
+        assertEquals("후기 내용", vm.uiState.value.latestReviews.single().content)
+        assertEquals(clock.instant(), vm.uiState.value.latestReviews.single().createdAt)
     }
 
     @Test
@@ -315,8 +315,8 @@ class CourseReviewViewModelTest {
         vm.onReviewSubmitted(result)
         advanceUntilIdle()
 
-        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
-        assertEquals(1L, vm.state.value.totalCount)
+        assertEquals(listOf(REVIEW_ID), vm.uiState.value.latestReviews.map { it.reviewId })
+        assertEquals(1L, vm.uiState.value.totalCount)
         coVerify(exactly = 1) { getMyPage() }
     }
 
@@ -343,14 +343,14 @@ class CourseReviewViewModelTest {
 
         vm.load(SECOND_PLACE_ID)
         advanceUntilIdle()
-        assertEquals(SECOND_PLACE_ID, vm.state.value.placeId)
-        assertEquals(0L, vm.state.value.totalCount)
-        assertEquals(0L, vm.state.value.recommendCount)
+        assertEquals(SECOND_PLACE_ID, vm.uiState.value.placeId)
+        assertEquals(0L, vm.uiState.value.totalCount)
+        assertEquals(0L, vm.uiState.value.recommendCount)
 
         vm.load(PLACE_ID)
         advanceUntilIdle()
-        assertEquals(6L, vm.state.value.totalCount)
-        assertEquals(1L, vm.state.value.recommendCount)
+        assertEquals(6L, vm.uiState.value.totalCount)
+        assertEquals(1L, vm.uiState.value.recommendCount)
     }
 
     @Test
@@ -373,9 +373,9 @@ class CourseReviewViewModelTest {
         vm.removeReview(1L)
         advanceUntilIdle()
 
-        assertTrue(vm.state.value.latestReviews.isEmpty())
-        assertEquals(1L, vm.state.value.totalCount)
-        assertEquals(0L, vm.state.value.recommendCount)
+        assertTrue(vm.uiState.value.latestReviews.isEmpty())
+        assertEquals(1L, vm.uiState.value.totalCount)
+        assertEquals(0L, vm.uiState.value.recommendCount)
         coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
     }
 
@@ -397,7 +397,7 @@ class CourseReviewViewModelTest {
         vm.removeReview(1L)
         advanceUntilIdle()
 
-        assertEquals(0L, vm.state.value.recommendCount)
+        assertEquals(0L, vm.uiState.value.recommendCount)
         coVerify(exactly = 2) { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) }
     }
 
@@ -416,7 +416,7 @@ class CourseReviewViewModelTest {
         vm.onReviewSubmitted(submission())
         advanceUntilIdle()
 
-        assertEquals(OnboardingLevel.SEED, vm.state.value.latestReviews.single().memberLevel)
+        assertEquals(OnboardingLevel.SEED, vm.uiState.value.latestReviews.single().memberLevel)
     }
 
     @Test
@@ -444,9 +444,9 @@ class CourseReviewViewModelTest {
         vm.refresh()
         advanceUntilIdle()
 
-        assertEquals(listOf(REVIEW_ID), vm.state.value.latestReviews.map { it.reviewId })
-        assertEquals(1L, vm.state.value.totalCount)
-        assertEquals("초보초보", vm.state.value.latestReviews.single().nickname)
+        assertEquals(listOf(REVIEW_ID), vm.uiState.value.latestReviews.map { it.reviewId })
+        assertEquals(1L, vm.uiState.value.totalCount)
+        assertEquals("초보초보", vm.uiState.value.latestReviews.single().nickname)
     }
 
     @Test
@@ -469,7 +469,7 @@ class CourseReviewViewModelTest {
         advanceUntilIdle()
 
         assertTrue(
-            vm.state.value.latestReviews.isEmpty(),
+            vm.uiState.value.latestReviews.isEmpty(),
             "늦게 도착한 신고 목록이 이미 병합된 후기에도 적용돼야 한다",
         )
     }

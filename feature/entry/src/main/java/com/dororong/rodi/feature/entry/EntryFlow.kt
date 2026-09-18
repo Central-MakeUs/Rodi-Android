@@ -44,7 +44,7 @@ fun EntryFlow(
     onComplete: () -> Unit,
     viewModel: EntryViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     if (!state.isRestored) {
         Box(

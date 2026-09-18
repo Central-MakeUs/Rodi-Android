@@ -175,9 +175,9 @@ fun HomeScreen(
     val reviewActionsVm: ReviewActionsViewModel = hiltViewModel()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val state by vm.state.collectAsStateWithLifecycle()
-    val reviewState by reviewVm.state.collectAsStateWithLifecycle()
-    val reviewActionsState by reviewActionsVm.state.collectAsStateWithLifecycle()
+    val state by vm.uiState.collectAsStateWithLifecycle()
+    val reviewState by reviewVm.uiState.collectAsStateWithLifecycle()
+    val reviewActionsState by reviewActionsVm.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current

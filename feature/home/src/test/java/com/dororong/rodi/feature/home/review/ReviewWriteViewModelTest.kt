@@ -53,9 +53,9 @@ class ReviewWriteViewModelTest {
 
         viewModel.start(PLACE_ID, PLACE_NAME)
 
-        assertEquals(ReviewWriteStep.Basics, viewModel.state.value.step)
-        assertFalse(viewModel.state.value.isDirty)
-        assertFalse(viewModel.state.value.canGoNext)
+        assertEquals(ReviewWriteStep.Basics, viewModel.uiState.value.step)
+        assertFalse(viewModel.uiState.value.isDirty)
+        assertFalse(viewModel.uiState.value.canGoNext)
     }
 
     @Test
@@ -65,12 +65,12 @@ class ReviewWriteViewModelTest {
         viewModel.selectRecommend(true)
         viewModel.selectDifficulty(ReviewDifficulty.NORMAL)
 
-        assertFalse(viewModel.state.value.canGoNext)
+        assertFalse(viewModel.uiState.value.canGoNext)
 
         viewModel.selectCongestion(ReviewCongestion.QUIET)
         viewModel.next()
 
-        assertEquals(ReviewWriteStep.Detail, viewModel.state.value.step)
+        assertEquals(ReviewWriteStep.Detail, viewModel.uiState.value.step)
     }
 
     @Test
@@ -79,8 +79,8 @@ class ReviewWriteViewModelTest {
         viewModel.start(PLACE_ID, PLACE_NAME)
         completeBasics(viewModel)
 
-        assertTrue(viewModel.state.value.canGoNext)
-        assertEquals("", viewModel.state.value.caution)
+        assertTrue(viewModel.uiState.value.canGoNext)
+        assertEquals("", viewModel.uiState.value.caution)
     }
 
     @Test
@@ -91,8 +91,8 @@ class ReviewWriteViewModelTest {
         viewModel.updateCaution("😁".repeat(51))
         viewModel.updateContent("👨‍👩‍👧‍👦".repeat(151))
 
-        assertEquals(50, viewModel.state.value.caution.graphemeLength())
-        assertEquals(150, viewModel.state.value.content.graphemeLength())
+        assertEquals(50, viewModel.uiState.value.caution.graphemeLength())
+        assertEquals(150, viewModel.uiState.value.content.graphemeLength())
     }
 
     @Test
@@ -101,7 +101,7 @@ class ReviewWriteViewModelTest {
         viewModel.start(PLACE_ID, PLACE_NAME)
         viewModel.selectRecommend(true)
 
-        assertTrue(viewModel.state.value.isDirty)
+        assertTrue(viewModel.uiState.value.isDirty)
     }
 
     @Test
@@ -115,7 +115,7 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isSubmitted)
+        assertTrue(viewModel.uiState.value.isSubmitted)
         assertEquals(
             ReviewSubmissionResult(
                 placeId = PLACE_ID,
@@ -123,7 +123,7 @@ class ReviewWriteViewModelTest {
                 draft = expected,
                 isEditing = false,
             ),
-            viewModel.state.value.submittedResult,
+            viewModel.uiState.value.submittedResult,
         )
         coVerify(exactly = 1) { createReview(PLACE_ID, expected) }
     }
@@ -140,8 +140,8 @@ class ReviewWriteViewModelTest {
 
         assertNotNull(viewModel.consumeSubmittedResult())
         assertNull(viewModel.consumeSubmittedResult())
-        assertFalse(viewModel.state.value.isSubmitted)
-        assertFalse(viewModel.state.value.canSubmit)
+        assertFalse(viewModel.uiState.value.isSubmitted)
+        assertFalse(viewModel.uiState.value.canSubmit)
     }
 
     @Test
@@ -211,14 +211,14 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isSubmitted)
+        assertFalse(viewModel.uiState.value.isSubmitted)
         coVerify(exactly = 0) { createReview(any(), any()) }
 
         viewModel.selectPracticeMethod(PracticeMethod.SOLO)
-        assertTrue(viewModel.state.value.canSubmit)
+        assertTrue(viewModel.uiState.value.canSubmit)
 
         viewModel.selectPracticeMethod(PracticeMethod.WITH_COMPANION)
-        assertTrue(viewModel.state.value.canSubmit)
+        assertTrue(viewModel.uiState.value.canSubmit)
     }
 
     @Test
@@ -238,7 +238,7 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isSubmitted)
+        assertTrue(viewModel.uiState.value.isSubmitted)
         coVerify(exactly = 1) { createReview(PLACE_ID, expected) }
     }
 
@@ -247,10 +247,10 @@ class ReviewWriteViewModelTest {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME, review())
 
-        assertEquals(ReviewDifficulty.NORMAL, viewModel.state.value.difficulty)
-        assertEquals("자전거를 조심하세요", viewModel.state.value.caution)
-        assertEquals("좋은 코스예요", viewModel.state.value.content)
-        assertFalse(viewModel.state.value.isDirty)
+        assertEquals(ReviewDifficulty.NORMAL, viewModel.uiState.value.difficulty)
+        assertEquals("자전거를 조심하세요", viewModel.uiState.value.caution)
+        assertEquals("좋은 코스예요", viewModel.uiState.value.content)
+        assertFalse(viewModel.uiState.value.isDirty)
     }
 
     @Test
@@ -261,10 +261,10 @@ class ReviewWriteViewModelTest {
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isInitializing)
-        assertEquals(REVIEW_ID, viewModel.state.value.editingReviewId)
-        assertEquals("좋은 코스예요", viewModel.state.value.content)
-        assertFalse(viewModel.state.value.isDirty)
+        assertFalse(viewModel.uiState.value.isInitializing)
+        assertEquals(REVIEW_ID, viewModel.uiState.value.editingReviewId)
+        assertEquals("좋은 코스예요", viewModel.uiState.value.content)
+        assertFalse(viewModel.uiState.value.isDirty)
         coVerify(exactly = 1) { getReview(REVIEW_ID) }
     }
 
@@ -276,9 +276,9 @@ class ReviewWriteViewModelTest {
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isInitializing)
-        assertNotNull(viewModel.state.value.initializationErrorMessage)
-        assertFalse(viewModel.state.value.canSubmit)
+        assertFalse(viewModel.uiState.value.isInitializing)
+        assertNotNull(viewModel.uiState.value.initializationErrorMessage)
+        assertFalse(viewModel.uiState.value.canSubmit)
     }
 
     @Test
@@ -289,9 +289,9 @@ class ReviewWriteViewModelTest {
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isInitializing)
-        assertEquals("수정할 후기를 불러오지 못했어요.", viewModel.state.value.initializationErrorMessage)
-        assertFalse(viewModel.state.value.canSubmit)
+        assertFalse(viewModel.uiState.value.isInitializing)
+        assertEquals("수정할 후기를 불러오지 못했어요.", viewModel.uiState.value.initializationErrorMessage)
+        assertFalse(viewModel.uiState.value.canSubmit)
     }
 
     @Test
@@ -302,8 +302,8 @@ class ReviewWriteViewModelTest {
         viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isInitializing)
-        assertNull(viewModel.state.value.initializationErrorMessage)
+        assertTrue(viewModel.uiState.value.isInitializing)
+        assertNull(viewModel.uiState.value.initializationErrorMessage)
     }
 
     @Test
@@ -311,12 +311,12 @@ class ReviewWriteViewModelTest {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME, review().copy(congestion = null))
 
-        assertTrue(viewModel.state.value.isRecommended == true)
-        assertEquals(ReviewDifficulty.NORMAL, viewModel.state.value.difficulty)
-        assertNull(viewModel.state.value.congestion)
-        assertEquals("자전거를 조심하세요", viewModel.state.value.caution)
-        assertEquals("좋은 코스예요", viewModel.state.value.content)
-        assertFalse(viewModel.state.value.isDirty)
+        assertTrue(viewModel.uiState.value.isRecommended == true)
+        assertEquals(ReviewDifficulty.NORMAL, viewModel.uiState.value.difficulty)
+        assertNull(viewModel.uiState.value.congestion)
+        assertEquals("자전거를 조심하세요", viewModel.uiState.value.caution)
+        assertEquals("좋은 코스예요", viewModel.uiState.value.content)
+        assertFalse(viewModel.uiState.value.isDirty)
     }
 
     @Test
@@ -330,9 +330,9 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertTrue(viewModel.state.value.isSubmitted)
-        assertEquals(REVIEW_ID, viewModel.state.value.submittedResult?.reviewId)
-        assertEquals(true, viewModel.state.value.submittedResult?.isEditing)
+        assertTrue(viewModel.uiState.value.isSubmitted)
+        assertEquals(REVIEW_ID, viewModel.uiState.value.submittedResult?.reviewId)
+        assertEquals(true, viewModel.uiState.value.submittedResult?.isEditing)
         coVerify(exactly = 1) { updateReview(REVIEW_ID, expected) }
     }
 
@@ -346,10 +346,10 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertFalse(viewModel.state.value.isSubmitted)
-        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", viewModel.state.value.errorMessage)
+        assertFalse(viewModel.uiState.value.isSubmitted)
+        assertEquals("요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.", viewModel.uiState.value.errorMessage)
         viewModel.consumeError()
-        assertNull(viewModel.state.value.errorMessage)
+        assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
@@ -362,7 +362,7 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertEquals("레벨 진단을 마쳐야 후기를 남길 수 있어요.", viewModel.state.value.errorMessage)
+        assertEquals("레벨 진단을 마쳐야 후기를 남길 수 있어요.", viewModel.uiState.value.errorMessage)
     }
 
     @Test
@@ -375,7 +375,7 @@ class ReviewWriteViewModelTest {
         viewModel.submit()
         advanceUntilIdle()
 
-        assertEquals("레벨이 바뀌어서 이 후기는 수정할 수 없어요.", viewModel.state.value.errorMessage)
+        assertEquals("레벨이 바뀌어서 이 후기는 수정할 수 없어요.", viewModel.uiState.value.errorMessage)
     }
 
     private fun viewModel() = ReviewWriteViewModel(createReview, updateReview, getReview)

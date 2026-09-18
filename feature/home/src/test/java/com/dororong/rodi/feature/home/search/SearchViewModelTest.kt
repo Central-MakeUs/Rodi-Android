@@ -64,14 +64,14 @@ class SearchViewModelTest {
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
-        assertEquals(listOf("서울 강남구"), viewModel.state.value.regionSuggestions.map { it.displayName })
-        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
+        assertEquals(SearchResultState.Content, viewModel.uiState.value.resultState)
+        assertEquals(listOf("서울 강남구"), viewModel.uiState.value.regionSuggestions.map { it.displayName })
+        assertEquals(listOf(1L), viewModel.uiState.value.places.map { it.placeId })
         viewModel.onIntent(SearchIntent.OnLoadNextPage)
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 2L), viewModel.state.value.places.map { it.placeId })
-        assertEquals(false, viewModel.state.value.hasNextPage)
+        assertEquals(listOf(1L, 2L), viewModel.uiState.value.places.map { it.placeId })
+        assertEquals(false, viewModel.uiState.value.hasNextPage)
     }
 
     @Test
@@ -104,7 +104,7 @@ class SearchViewModelTest {
         advanceTimeBy(300)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Error, viewModel.state.value.resultState)
+        assertEquals(SearchResultState.Error, viewModel.uiState.value.resultState)
 
         coEvery {
             dependencies.placeRepository.relatedSearch("강남", null, 20)
@@ -112,8 +112,8 @@ class SearchViewModelTest {
         viewModel.onIntent(SearchIntent.OnRetry)
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Content, viewModel.state.value.resultState)
-        assertEquals(listOf(1L), viewModel.state.value.places.map { it.placeId })
+        assertEquals(SearchResultState.Content, viewModel.uiState.value.resultState)
+        assertEquals(listOf(1L), viewModel.uiState.value.places.map { it.placeId })
         coVerify(exactly = 2) { dependencies.placeRepository.relatedSearch("강남", null, 20) }
     }
 
@@ -133,7 +133,7 @@ class SearchViewModelTest {
             viewModel.onIntent(SearchIntent.OnImeSearch)
             advanceUntilIdle()
 
-            assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+            assertEquals(SearchResultState.Empty, viewModel.uiState.value.resultState)
             expectNoEvents()
         }
     }
@@ -152,7 +152,7 @@ class SearchViewModelTest {
 
         assertEquals(
             listOf("부산 중구", "서울 중구"),
-            viewModel.state.value.regionSuggestions.map { it.displayName },
+            viewModel.uiState.value.regionSuggestions.map { it.displayName },
         )
     }
 
@@ -169,7 +169,7 @@ class SearchViewModelTest {
         viewModel.onIntent(SearchIntent.OnDeleteRecentSearch(1))
         advanceUntilIdle()
 
-        assertEquals(listOf(2L), viewModel.state.value.recentSearches.map { it.id })
+        assertEquals(listOf(2L), viewModel.uiState.value.recentSearches.map { it.id })
         coVerify { dependencies.recentRepository.deleteRecentSearch(1) }
     }
 
@@ -182,7 +182,7 @@ class SearchViewModelTest {
 
         advanceUntilIdle()
 
-        assertEquals(15, viewModel.state.value.recentSearches.size)
+        assertEquals(15, viewModel.uiState.value.recentSearches.size)
     }
 
     @Test
@@ -233,8 +233,8 @@ class SearchViewModelTest {
         ))
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.RegionEmpty, viewModel.state.value.resultState)
-        assertEquals(listOf("서울 중구"), viewModel.state.value.recentSearches.map { it.keyword })
+        assertEquals(SearchResultState.RegionEmpty, viewModel.uiState.value.resultState)
+        assertEquals(listOf("서울 중구"), viewModel.uiState.value.recentSearches.map { it.keyword })
     }
 
     @Test
@@ -250,7 +250,7 @@ class SearchViewModelTest {
         )
         advanceUntilIdle()
 
-        assertEquals(SearchResultState.Empty, viewModel.state.value.resultState)
+        assertEquals(SearchResultState.Empty, viewModel.uiState.value.resultState)
         coVerify(exactly = 1) {
             dependencies.placeRepository.relatedSearch("알 수 없는 장소", null, 20)
         }

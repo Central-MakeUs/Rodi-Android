@@ -39,8 +39,8 @@ class SearchViewModel @Inject constructor(
     private val searchPlacesUseCase: SearchPlacesUseCase,
     private val registerRecentSearchUseCase: RegisterRecentSearchUseCase,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(SearchUiState())
-    val state: StateFlow<SearchUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(SearchUiState())
+    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private val _effect = Channel<SearchEffect>(Channel.BUFFERED)
     val effect: Flow<SearchEffect> = _effect.receiveAsFlow()
@@ -82,7 +82,7 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             getRecentSearchesUseCase()
                 .onSuccess { searches ->
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             recentSearches = searches.take(MAX_RECENT_SEARCHES),
                             isRecentSearchesLoading = false,
@@ -90,7 +90,7 @@ class SearchViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isRecentSearchesLoading = false) }
+                    _uiState.update { it.copy(isRecentSearchesLoading = false) }
                     if (showError) _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -103,7 +103,7 @@ class SearchViewModel @Inject constructor(
         searchJob?.cancel()
         nextPageJob?.cancel()
         val normalizedQuery = limitedQuery.trim()
-        _state.update {
+        _uiState.update {
             it.copy(
                 query = limitedQuery,
                 resultState = if (normalizedQuery.isBlank()) SearchResultState.Idle else SearchResultState.Loading,
@@ -123,14 +123,14 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun searchImmediately() {
-        val normalizedQuery = _state.value.query.trim()
+        val normalizedQuery = _uiState.value.query.trim()
         if (normalizedQuery.isBlank()) return
         lastRegionSearch = null
         searchGeneration += 1
         val generation = searchGeneration
         searchJob?.cancel()
         nextPageJob?.cancel()
-        _state.update {
+        _uiState.update {
             it.copy(
                 resultState = SearchResultState.Loading,
                 places = emptyList(),
@@ -147,7 +147,7 @@ class SearchViewModel @Inject constructor(
             .onSuccess { relatedSearch ->
                 if (generation != searchGeneration) return@onSuccess
                 val regions = relatedSearch.regions.mapNotNull(RegionOfficeLocationResolver::find)
-                _state.update {
+                _uiState.update {
                     it.copy(
                         resultState = if (relatedSearch.places.items.isEmpty() && regions.isEmpty()) {
                             SearchResultState.Empty
@@ -163,7 +163,7 @@ class SearchViewModel @Inject constructor(
             }
             .onFailure { error ->
                 if (generation != searchGeneration) return@onFailure
-                _state.update { it.copy(resultState = SearchResultState.Error) }
+                _uiState.update { it.copy(resultState = SearchResultState.Error) }
                 _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
             }
     }
@@ -212,7 +212,7 @@ class SearchViewModel @Inject constructor(
         nextPageJob?.cancel()
         searchGeneration += 1
         val generation = searchGeneration
-        _state.update {
+        _uiState.update {
             it.copy(
                 query = region.displayName,
                 regionSuggestions = emptyList(),
@@ -228,14 +228,14 @@ class SearchViewModel @Inject constructor(
                 .onSuccess { page ->
                     if (generation != searchGeneration) return@onSuccess
                     if (page.items.isEmpty()) {
-                        _state.update { it.copy(resultState = SearchResultState.RegionEmpty) }
+                        _uiState.update { it.copy(resultState = SearchResultState.RegionEmpty) }
                     } else {
                         _effect.send(SearchEffect.NavigateRegion(region, page.items))
                     }
                 }
                 .onFailure { error ->
                     if (generation != searchGeneration) return@onFailure
-                    _state.update { it.copy(resultState = SearchResultState.Error) }
+                    _uiState.update { it.copy(resultState = SearchResultState.Error) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -251,18 +251,18 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun loadNextPage() {
-        val current = _state.value
+        val current = _uiState.value
         val cursor = current.nextCursor ?: return
         if (!current.hasNextPage || current.isNextPageLoading || nextPageJob?.isActive == true) return
         val generation = searchGeneration
         val keyword = current.query.trim()
         if (keyword.isBlank()) return
         nextPageJob = viewModelScope.launch {
-            _state.update { it.copy(isNextPageLoading = true) }
+            _uiState.update { it.copy(isNextPageLoading = true) }
             getRelatedSearchUseCase(keyword, cursor = cursor, size = SEARCH_PAGE_SIZE)
                 .onSuccess { relatedSearch ->
                     if (generation != searchGeneration) return@onSuccess
-                    _state.update {
+                    _uiState.update {
                         val places = (it.places + relatedSearch.places.items).distinctBy(PlaceSuggestion::placeId)
                         it.copy(
                             places = places,
@@ -274,7 +274,7 @@ class SearchViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (generation != searchGeneration) return@onFailure
-                    _state.update { it.copy(isNextPageLoading = false) }
+                    _uiState.update { it.copy(isNextPageLoading = false) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }
@@ -289,12 +289,12 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun deleteAllRecentSearches() {
-        if (_state.value.isDeletingAllRecentSearches) return
+        if (_uiState.value.isDeletingAllRecentSearches) return
         viewModelScope.launch {
-            _state.update { it.copy(isDeletingAllRecentSearches = true) }
+            _uiState.update { it.copy(isDeletingAllRecentSearches = true) }
             deleteAllRecentSearchesUseCase()
                 .onSuccess {
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             recentSearches = emptyList(),
                             isDeletingAllRecentSearches = false,
@@ -302,19 +302,19 @@ class SearchViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(isDeletingAllRecentSearches = false) }
+                    _uiState.update { it.copy(isDeletingAllRecentSearches = false) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }
     }
 
     private fun deleteRecentSearch(id: Long) {
-        if (id in _state.value.deletingRecentSearchIds || _state.value.isDeletingAllRecentSearches) return
+        if (id in _uiState.value.deletingRecentSearchIds || _uiState.value.isDeletingAllRecentSearches) return
         viewModelScope.launch {
-            _state.update { it.copy(deletingRecentSearchIds = it.deletingRecentSearchIds + id) }
+            _uiState.update { it.copy(deletingRecentSearchIds = it.deletingRecentSearchIds + id) }
             deleteRecentSearchUseCase(id)
                 .onSuccess {
-                    _state.update {
+                    _uiState.update {
                         it.copy(
                             recentSearches = it.recentSearches.filterNot { search -> search.id == id },
                             deletingRecentSearchIds = it.deletingRecentSearchIds - id,
@@ -322,7 +322,7 @@ class SearchViewModel @Inject constructor(
                     }
                 }
                 .onFailure { error ->
-                    _state.update { it.copy(deletingRecentSearchIds = it.deletingRecentSearchIds - id) }
+                    _uiState.update { it.copy(deletingRecentSearchIds = it.deletingRecentSearchIds - id) }
                     _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
                 }
         }

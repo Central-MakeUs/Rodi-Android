@@ -62,7 +62,7 @@ fun PracticeSkipReasonScreen(
     onClose: () -> Unit,
     viewModel: PracticeSkipReasonViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsStateWithLifecycle()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     var confirmExit by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(practiceId) { viewModel.load(practiceId) }
 

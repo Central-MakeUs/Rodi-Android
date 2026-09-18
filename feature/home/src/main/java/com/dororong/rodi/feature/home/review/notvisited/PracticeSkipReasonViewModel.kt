@@ -20,24 +20,24 @@ class PracticeSkipReasonViewModel @Inject constructor(
     private val getSkipReasonForm: GetSkipReasonFormUseCase,
     private val submitSkipReason: SubmitSkipReasonUseCase,
 ) : ViewModel() {
-    private val _state = MutableStateFlow(PracticeSkipReasonUiState())
-    val state: StateFlow<PracticeSkipReasonUiState> = _state.asStateFlow()
+    private val _uiState = MutableStateFlow(PracticeSkipReasonUiState())
+    val uiState: StateFlow<PracticeSkipReasonUiState> = _uiState.asStateFlow()
 
     fun load(practiceId: Long) {
-        val current = _state.value
+        val current = _uiState.value
         if (current.practiceId == practiceId && (current.form != null || current.isLoading)) return
         viewModelScope.launch {
-            _state.value = PracticeSkipReasonUiState(practiceId = practiceId, isLoading = true)
+            _uiState.value = PracticeSkipReasonUiState(practiceId = practiceId, isLoading = true)
             getSkipReasonForm()
-                .onSuccess { form -> _state.update { it.copy(form = form, isLoading = false) } }
+                .onSuccess { form -> _uiState.update { it.copy(form = form, isLoading = false) } }
                 .onFailure { error ->
-                    _state.update { it.copy(isLoading = false, errorMessage = error.skipReasonErrorMessage()) }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = error.skipReasonErrorMessage()) }
                 }
         }
     }
 
     fun selectOption(option: SkipReasonOption) {
-        _state.update { current ->
+        _uiState.update { current ->
             current.copy(
                 selectedOptionCode = option.code,
                 detail = if (option.requiresTextInput) {
@@ -51,29 +51,29 @@ class PracticeSkipReasonViewModel @Inject constructor(
     }
 
     fun updateDetail(detail: String) {
-        val maxLength = _state.value.selectedOption()?.textInputMaxLength
-        _state.update { it.copy(detail = maxLength?.let(detail::takeGraphemes) ?: detail, errorMessage = null) }
+        val maxLength = _uiState.value.selectedOption()?.textInputMaxLength
+        _uiState.update { it.copy(detail = maxLength?.let(detail::takeGraphemes) ?: detail, errorMessage = null) }
     }
 
     fun submit() {
-        val current = _state.value
+        val current = _uiState.value
         val practiceId = current.practiceId ?: return
         val option = current.selectedOption() ?: return
         if (current.isSubmitting || current.isLoading || !current.isSubmittable(option)) return
         viewModelScope.launch {
-            _state.update { it.copy(isSubmitting = true, errorMessage = null) }
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
             submitSkipReason(
                 practiceId = practiceId,
                 reason = option.code,
                 detail = current.detail.takeIf { option.requiresTextInput },
-            ).onSuccess { _state.update { it.copy(isSubmitting = false, isSubmitted = true) } }
+            ).onSuccess { _uiState.update { it.copy(isSubmitting = false, isSubmitted = true) } }
                 .onFailure { error ->
-                    _state.update { it.copy(isSubmitting = false, errorMessage = error.skipReasonErrorMessage()) }
+                    _uiState.update { it.copy(isSubmitting = false, errorMessage = error.skipReasonErrorMessage()) }
                 }
         }
     }
 
-    fun consumeError() = _state.update { it.copy(errorMessage = null) }
+    fun consumeError() = _uiState.update { it.copy(errorMessage = null) }
 
     private fun PracticeSkipReasonUiState.selectedOption(): SkipReasonOption? =
         form?.options?.firstOrNull { it.code == selectedOptionCode }
