@@ -7,6 +7,7 @@ import com.dororong.rodi.core.data.source.remote.model.member.CursorPageBlockedM
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyReviewItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.BlockedMemberItemResponse
+import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.LevelProgress
 import com.dororong.rodi.core.domain.model.member.PracticeRecordItem
@@ -20,11 +21,7 @@ import timber.log.Timber
 
 fun MyPageResponse.toDomain() = MyPage(
     nickname = nickname,
-    level = runCatching { OnboardingLevel.valueOf(level) }
-        .getOrElse {
-            Timber.w("Unknown member level value: %s", level)
-            OnboardingLevel.SEED
-        },
+    level = level.toOnboardingLevel(),
     recommendationTags = recommendationTags,
     drivingGoal = drivingGoal,
     savedPlaceCount = savedPlaceCount,
@@ -52,7 +49,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     visitedAt = lastActivityAt?.let(::parseServerTimestamp),
     isVerified = isVerified,
     hasReview = hasReview,
-    status = status.toPracticeStatus(),
+    status = status.toMemberPracticeStatus(),
 )
 
 fun CursorPageMyReviewItemResponse.toDomain() = CursorPage(
@@ -85,3 +82,25 @@ fun BlockedMemberItemResponse.toDomain() = BlockedMember(
     nickname = nickname,
     blockedAt = parseServerTimestamp(blockedAt),
 )
+
+/**
+ * 레벨은 프로필 전체의 표시를 좌우하는 제어 값이라 모르는 값을 SEED로 덮지 않는다.
+ * 덮으면 서버가 레벨을 추가했을 때 사용자에게 틀린 레벨을 조용히 보여주게 된다.
+ */
+private fun String.toOnboardingLevel(): OnboardingLevel =
+    OnboardingLevel.entries.firstOrNull { it.name == this }
+        ?: run {
+            Timber.w("Unknown member level value: %s", this)
+            throw AuthException.Unknown("프로필을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+        }
+
+/**
+ * member API 경로는 실패를 AuthException으로 다루므로 여기서 PracticeException을 던지면
+ * AuthErrorMapper가 "알 수 없는 오류"로 뭉갠다. 같은 규칙(모르는 값은 실패)을 member 예외로 적용한다.
+ */
+private fun String.toMemberPracticeStatus(): PracticeStatus =
+    PracticeStatus.entries.firstOrNull { it.name == this }
+        ?: run {
+            Timber.w("Unknown practice status value: %s", this)
+            throw AuthException.Unknown("연습 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
+        }
