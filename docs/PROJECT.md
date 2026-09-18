@@ -41,7 +41,8 @@
 | `:feature:settings` | 설정과 약관 목록·WebView. Home과 직접 의존하지 않고 App route로 연결 |
 
 ## 컨벤션 (필수)
-- **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.typography`만. 하드코딩 금지.
+- **테마 토큰만 사용**: 색/타이포는 `RodiTheme.colors` / `RodiTheme.semantic` / `RodiTheme.typography`만.
+  색 리터럴(`Color(0xFF...)`)은 `core/ui/.../theme/`에만 둔다(CI가 막는다) → `docs/conventions/compose.md`.
 - **Material 아이콘 금지**: 필요한 아이콘은 Figma에서 추출하거나 사용자에게 요청. (`Icons.*` 사용 금지)
 - **주석**: 자명한 코드엔 주석 X. @Composable 함수 단위 주석 X(섹션 마커만 허용).
   외부 연동(카카오맵/내비 등) 동작·함정·폴백은 짧은 KDoc 권장. *왜*만 적고 *무엇*은 코드로.

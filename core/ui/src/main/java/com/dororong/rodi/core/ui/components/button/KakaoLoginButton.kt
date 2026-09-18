@@ -26,10 +26,6 @@ import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.R as CoreUiR
 
-// 카카오 브랜드 가이드 고정 색상 — RodiTheme 토큰 대상 아님. SemanticColors 도입(BACKLOG) 시 이관 검토.
-private val KakaoYellow = Color(0xFFFDE500)
-private val KakaoContent = Color(0xFF222222)
-
 @Composable
 fun KakaoLoginButton(
     onClick: () -> Unit,
@@ -45,10 +41,10 @@ fun KakaoLoginButton(
             .height(height),
         shape = RoundedCornerShape(RodiRadius.sm),
         colors = ButtonDefaults.buttonColors(
-            containerColor = KakaoYellow,
-            contentColor = KakaoContent,
-            disabledContainerColor = KakaoYellow.copy(alpha = 0.4f),
-            disabledContentColor = KakaoContent.copy(alpha = 0.4f),
+            containerColor = RodiTheme.semantic.brandKakao,
+            contentColor = RodiTheme.semantic.onBrandKakao,
+            disabledContainerColor = RodiTheme.semantic.brandKakao.copy(alpha = 0.4f),
+            disabledContentColor = RodiTheme.semantic.onBrandKakao.copy(alpha = 0.4f),
         ),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {

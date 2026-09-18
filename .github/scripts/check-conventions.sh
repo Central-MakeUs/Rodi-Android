@@ -251,11 +251,12 @@ check BLOCK "상태 프로퍼티는 _uiState/uiState (state 금지)" \
 check BLOCK "Intent·Effect 이름에 On 접두사 (이벤트형으로)" \
   "rg -n -g '*Contract.kt' '^\\s+data (object|class) On[A-Z]' . | grep -v '/src/test/'"
 
+# 색 리터럴은 theme 패키지(팔레트·시맨틱 토큰)에만 둔다 → docs/conventions/compose.md
+check BLOCK "하드코딩 색 (Color(0xFF...))" \
+  "rg -n -g '*.kt' 'Color\(0xFF' . | grep -v '/theme/'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
-
-check WARN "하드코딩 색 (Color(0xFF...))" \
-  "rg -n -g '*.kt' 'Color\(0xFF' . | grep -v '/theme/'"
 
 check WARN "ViewModel 선언명 ≠ 파일명" \
   "rg -n -g '*.kt' -o -r '\$1' --no-heading 'class (\w+ViewModel)\b' . \

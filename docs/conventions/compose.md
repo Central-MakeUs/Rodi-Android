@@ -4,6 +4,27 @@
 > `/android-code-standard`에 있고, 여기 규칙이 그것과 충돌하면 **이 문서가 우선**한다.
 > 수치는 적지 않는다 — 재검증 명령으로 대체한다(→ `README.md`). 시점별 조사 수치는 `../audits/`.
 
+## 색은 팔레트(`colors`)와 의미(`semantic`) 두 층으로 쓴다
+
+- `RodiTheme.colors`: 디자인 팔레트 그대로의 값(`primary600`, `gray100`). 기본은 이쪽이다.
+- `RodiTheme.semantic`: **팔레트로 설명되지 않는 색**. 값이 팔레트에 없거나, 팔레트가 바뀌어도
+  따라 바뀌면 안 되는 색이다. 지금 있는 것: 경로 핀 색(`pinStart`/`pinArrival`/`pinVia`),
+  위험 태그 배경, 카카오 브랜드색(`brandKakao`/`onBrandKakao`), 지도 로딩 그라데이션 중간색.
+- 컴포넌트 파일에 `Color(0xFF...)`를 쓰지 않는다. 팔레트에 있으면 그 토큰을, 없으면 `semantic`에
+  이름을 붙여 추가한 뒤 쓴다.
+
+**왜**: 브랜드색을 팔레트에 섞으면 테마를 바꿀 때 같이 바뀌어 가이드 위반이 된다. 반대로
+컴포넌트에 리터럴로 두면 같은 색이 여러 파일에 복제되고, 디자인이 바뀔 때 한 곳이 빠진다.
+이름을 붙이면 "이 색이 왜 여기 있는지"가 코드에 남는다.
+
+**정본**: `core/ui/.../theme/RodiSemanticColors.kt`,
+사용 예 `core/ui/.../components/button/KakaoLoginButton.kt` — 앵커 `RodiTheme.semantic.brandKakao`
+
+**재검증** (CI BLOCK — theme 밖의 색 리터럴):
+```bash
+rg -n 'Color\(0xFF' -g '*.kt' . | grep -v '/theme/'
+```
+
 ## Modifier는 필수 상태·콜백 뒤, 선택 옵션 앞. 기본값 `Modifier`
 
 ```kotlin
