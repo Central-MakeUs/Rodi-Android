@@ -46,6 +46,7 @@ import com.dororong.rodi.feature.mypage.components.ProfileCard
 import com.dororong.rodi.feature.mypage.components.PracticeRecordSection
 import com.dororong.rodi.feature.mypage.components.SavedCoursesRow
 import com.dororong.rodi.core.ui.components.button.RodiButton
+import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
@@ -89,6 +90,19 @@ fun MyPageScreen(
     var showHardDeleteConfirm by remember { mutableStateOf(false) }
     var showTestMenu by remember { mutableStateOf(false) }
     // 계정 삭제는 되돌릴 수 없어 확인 다이얼로그를 거친다 — 메뉴를 닫고 화면 쪽 다이얼로그로 넘긴다.
+    // 레벨업 축하는 주행 거리를 쌓아야만 떠서 디자인을 확인할 방법이 없다. 홈과 같은 컴포넌트를 그대로 띄운다.
+    var previewLevelUp by remember { mutableStateOf<OnboardingLevel?>(null) }
+    val levelUpTestSection = remember {
+        TestMenuSection(
+            title = "레벨업 축하",
+            actions = OnboardingLevel.entries.map { level ->
+                TestMenuAction(level.name.lowercase().replaceFirstChar { it.titlecase() }, closesMenu = true) {
+                    previewLevelUp = level
+                    null
+                }
+            },
+        )
+    }
     val accountTestSection = remember {
         TestMenuSection(
             title = "계정",
@@ -150,8 +164,15 @@ fun MyPageScreen(
         RodiSnackbarHost(snackbarHostState)
         if (showTestMenu) {
             TestMenuDialog(
-                sections = testMenuSections + accountTestSection,
+                sections = testMenuSections + levelUpTestSection + accountTestSection,
                 onDismissRequest = { showTestMenu = false },
+            )
+        }
+        previewLevelUp?.let { level ->
+            LevelUpDialog(
+                level = level,
+                onConfirm = { previewLevelUp = null },
+                onDismissRequest = { previewLevelUp = null },
             )
         }
         if (showHardDeleteConfirm) {
