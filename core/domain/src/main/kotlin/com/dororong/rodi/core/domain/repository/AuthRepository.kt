@@ -10,7 +10,7 @@ interface AuthRepository {
 
     suspend fun loginWithKakao(kakaoAccessToken: String): LoginResult
 
-    suspend fun reissueToken()
+    suspend fun reissueToken(expectedSessionId: String? = null, expectedAccessToken: String? = null)
 
     fun observeSessionExpiration(): Flow<Boolean>
 

@@ -13,7 +13,7 @@ import okhttp3.Response
 import okhttp3.Route
 
 /**
- * 401을 받으면 토큰을 재발급하고 그 요청만 한 번 더 보낸다.
+ * 요청에 기록된 로그인 세션이 유효할 때만 401 요청을 한 번 더 보낸다.
  *
  * 동시에 여러 요청이 401을 받아도 재발급은 한 번만 일어난다 — [AuthRepository.reissueToken]이
  * Mutex와 "들고 있던 refreshToken이 이미 바뀌었으면 재발급하지 않는다" 가드를 갖고 있고,
@@ -30,29 +30,31 @@ class TokenAuthenticator @Inject constructor(
 ) : Authenticator {
     override fun authenticate(route: Route?, response: Response): Request? {
         if (response.retryCount() >= MAX_RETRY) return null
+        val session = response.request.tag(AuthRequestSession::class.java) ?: return null
         val failedToken = response.request.header(HEADER_AUTHORIZATION)
             ?.removePrefix(BEARER_PREFIX)
 
         return runBlocking {
             // 다른 요청이 이미 재발급을 끝냈으면 그 토큰으로 바로 재시도한다. 이 비교를 재발급
             // 뒤에 두면, 갱신된 refreshToken을 기준으로 삼아 한 번 더 재발급이 돌아간다.
-            val current = tokenStore.getTokens()?.accessToken
-            if (current != null && current != failedToken) {
-                return@runBlocking response.request.retryWith(current)
+            val current = tokenStore.getTokens() ?: return@runBlocking null
+            if (current.sessionId != session.id) return@runBlocking null
+            if (current.accessToken != failedToken) {
+                return@runBlocking response.request.retryWith(current.accessToken)
             }
 
             try {
-                authRepository.get().reissueToken()
+                authRepository.get().reissueToken(expectedSessionId = session.id, expectedAccessToken = failedToken)
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
                 // 재발급이 실패하면 원래 401을 그대로 돌려준다. 세션 만료 처리는 AuthRepository가 한다.
                 return@runBlocking null
             }
-            val refreshed = tokenStore.getTokens()?.accessToken ?: return@runBlocking null
-            if (refreshed == failedToken) return@runBlocking null
+            val refreshed = tokenStore.getTokens() ?: return@runBlocking null
+            if (refreshed.sessionId != session.id || refreshed.accessToken == failedToken) return@runBlocking null
 
-            response.request.retryWith(refreshed)
+            response.request.retryWith(refreshed.accessToken)
         }
     }
 
