@@ -5,9 +5,9 @@ data class DrivingGoalUiState(
     val goal: String = "",
     val isLoading: Boolean = true,
     val isSaving: Boolean = false,
+    val saveSucceeded: Boolean = false,
 )
 
 sealed interface DrivingGoalEffect {
-    data object NavigateBack : DrivingGoalEffect
     data object ShowSyncError : DrivingGoalEffect
 }
