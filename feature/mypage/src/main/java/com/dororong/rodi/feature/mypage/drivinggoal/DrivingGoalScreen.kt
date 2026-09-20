@@ -54,6 +54,9 @@ fun DrivingGoalScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentOnBack by rememberUpdatedState(onBack)
 
+    // 저장 성공은 일회성 Effect가 아니라 상태라 CollectEffect를 쓰지 않는다. CollectEffect는 매
+    // 방출을 소비하는데 여기 필요한 건 한 번이고, 파생 Flow를 넘기면 그게 LaunchedEffect 키라서
+    // recomposition마다 수집이 다시 시작된다.
     LaunchedEffect(viewModel, lifecycleOwner) {
         lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             viewModel.uiState.first { it.saveSucceeded }
