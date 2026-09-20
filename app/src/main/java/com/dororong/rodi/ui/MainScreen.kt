@@ -349,7 +349,7 @@ fun MainScreen(
                     }
                     DrivingGoalRoute -> NavEntry(key) {
                         DrivingGoalScreen(
-                            onBack = { backStack.removeAt(backStack.lastIndex) },
+                            onBack = { backStack.popDrivingGoal() },
                         )
                     }
                     SavedCoursesRoute -> NavEntry(key) {
@@ -409,6 +409,10 @@ internal fun MutableList<NavKey>.pushMyPage() {
 
 internal fun MutableList<NavKey>.popMyPage() {
     if (lastOrNull() == MyPageRoute) removeAt(lastIndex)
+}
+
+internal fun MutableList<NavKey>.popDrivingGoal() {
+    if (lastOrNull() == DrivingGoalRoute) removeAt(lastIndex)
 }
 
 internal fun MutableList<NavKey>.openCourseRegistration() {

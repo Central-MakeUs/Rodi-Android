@@ -18,12 +18,14 @@ class AuthHeaderInterceptorTest {
 
     @Test
     fun `adds the access token as a bearer header`() {
-        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        val tokens = AuthTokens("access", "refresh", "kakao")
+        coEvery { tokenStore.getTokens() } returns tokens
         val chain = RecordingChain()
 
         AuthHeaderInterceptor(tokenStore).intercept(chain)
 
         assertEquals("Bearer access", chain.sent?.header("Authorization"))
+        assertEquals(tokens.sessionId, chain.sent?.tag(AuthRequestSession::class.java)?.id)
     }
 
     @Test
@@ -34,6 +36,7 @@ class AuthHeaderInterceptorTest {
         AuthHeaderInterceptor(tokenStore).intercept(chain)
 
         assertNull(chain.sent?.header("Authorization"))
+        assertNull(chain.sent?.tag(AuthRequestSession::class.java))
     }
 
     @Test
@@ -46,6 +49,7 @@ class AuthHeaderInterceptorTest {
         AuthHeaderInterceptor(tokenStore).intercept(chain)
 
         assertEquals("KakaoAK key", chain.sent?.header("Authorization"))
+        assertNull(chain.sent?.tag(AuthRequestSession::class.java))
     }
 
     private class RecordingChain(

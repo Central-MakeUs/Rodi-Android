@@ -7,6 +7,8 @@ import com.dororong.rodi.core.data.mapper.toAccountRestoreResult
 import com.dororong.rodi.core.data.mapper.toAuthTokenResponse
 import com.dororong.rodi.core.data.mapper.toLoginResult
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
+import com.dororong.rodi.core.data.source.local.security.AuthTokenMutationResult
+import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.local.security.KAKAO_PROVIDER
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.model.auth.LogoutRequest
@@ -40,6 +42,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val practiceSessionRepository: PracticeSessionRepository,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
+    private val sessionMutationMutex = Mutex()
     private val sessionExpired = MutableStateFlow(false)
 
     override suspend fun getSession(): AuthSession {
@@ -63,37 +66,45 @@ class AuthRepositoryImpl @Inject constructor(
         val result = body.toLoginResult()
         if (result is LoginResult.Success) {
             val tokens = body.toAuthTokenResponse()
-            saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
+            sessionMutationMutex.withLock {
+                saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
+            }
         }
         return result
     }
 
-    override suspend fun reissueToken() {
-        val requestedRefreshToken = tokenStore.getTokens()?.refreshToken
+    override suspend fun reissueToken(expectedSessionId: String?, expectedAccessToken: String?) {
+        val requested = tokenStore.getTokens()
             ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
+        if (expectedSessionId != null && requested.sessionId != expectedSessionId) return
+        if (expectedAccessToken != null && requested.accessToken != expectedAccessToken) return
 
         refreshMutex.withLock {
             val currentTokens = tokenStore.getTokens()
                 ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
-            if (currentTokens.refreshToken != requestedRefreshToken) return
+            if (currentTokens.sessionId != requested.sessionId || currentTokens.refreshToken != requested.refreshToken) return
 
             try {
                 val body = refreshRequest(currentTokens.refreshToken)
-                saveTokens(
-                    accessToken = body.accessToken,
-                    refreshToken = body.refreshToken,
-                    isCourseTutorialCompleted = body.isCourseTutorialCompleted,
-                    invalidatePracticeRecordCache = false,
-                )
-            } catch (exception: AuthException.SessionRevoked) {
-                try {
-                    clearTokens()
-                } catch (clearException: CancellationException) {
-                    throw clearException
-                } catch (clearException: Throwable) {
-                    exception.addSuppressed(clearException)
+                sessionMutationMutex.withLock {
+                    when (tokenStore.rotate(currentTokens, body.accessToken, body.refreshToken, body.isCourseTutorialCompleted)) {
+                        AuthTokenMutationResult.APPLIED -> sessionExpired.value = false
+                        AuthTokenMutationResult.STALE -> Unit
+                        AuthTokenMutationResult.FAILED -> throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
+                    }
                 }
-                sessionExpired.value = true
+            } catch (exception: AuthException.SessionRevoked) {
+                sessionMutationMutex.withLock {
+                    if (tokenStore.getTokens()?.sessionId != currentTokens.sessionId) return
+                    try {
+                        clearTokens(currentTokens)
+                    } catch (clearException: CancellationException) {
+                        throw clearException
+                    } catch (clearException: Throwable) {
+                        exception.addSuppressed(clearException)
+                    }
+                    sessionExpired.value = true
+                }
                 throw exception
             }
         }
@@ -106,7 +117,9 @@ class AuthRepositoryImpl @Inject constructor(
         val result = body.toAccountRestoreResult()
         if (result is AccountRestoreResult.Restored) {
             val tokens = body.toAuthTokenResponse()
-            saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
+            sessionMutationMutex.withLock {
+                saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
+            }
         }
         return result
     }
@@ -114,14 +127,18 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         val tokens = tokenStore.getTokens() ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
         request { authApi.logout(LogoutRequest(tokens.refreshToken)) }.requireSuccess()
-        clearTokens()
+        sessionMutationMutex.withLock {
+            if (tokenStore.getTokens()?.sessionId != tokens.sessionId) {
+                throw AuthException.NotAuthenticated("로그인 세션이 변경되었습니다.")
+            }
+            clearTokens(tokens)
+        }
     }
 
     private suspend fun saveTokens(
         accessToken: String,
         refreshToken: String,
         isCourseTutorialCompleted: Boolean = false,
-        invalidatePracticeRecordCache: Boolean = true,
     ) {
         val saved = if (isCourseTutorialCompleted) {
             tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER, true)
@@ -131,10 +148,8 @@ class AuthRepositoryImpl @Inject constructor(
         if (!saved) {
             throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
         }
-        if (invalidatePracticeRecordCache) {
-            clearPracticeSessionSafely()
-            practiceRecordPresenceCache.clear()
-        }
+        clearPracticeSessionSafely()
+        practiceRecordPresenceCache.clear()
         sessionExpired.value = false
     }
 
@@ -154,10 +169,12 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    private suspend fun clearTokens() {
+    private suspend fun clearTokens(expected: AuthTokens) {
         practiceSessionRepository.clear()
-        if (!tokenStore.clear()) {
-            throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+        when (tokenStore.clearSession(expected.sessionId)) {
+            AuthTokenMutationResult.STALE -> throw AuthException.NotAuthenticated("로그인 세션이 변경되었습니다.")
+            AuthTokenMutationResult.FAILED -> throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
+            AuthTokenMutationResult.APPLIED -> Unit
         }
         tokenStore.clearCourseRegistrationData()
         practiceRecordPresenceCache.clear()

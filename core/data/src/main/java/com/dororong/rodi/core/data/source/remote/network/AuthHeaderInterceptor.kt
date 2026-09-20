@@ -20,14 +20,15 @@ class AuthHeaderInterceptor @Inject constructor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (request.header(HEADER_AUTHORIZATION) != null) return chain.proceed(request)
-
-        val accessToken = runBlocking { tokenStore.getTokens()?.accessToken }
+        val tokens = runBlocking { tokenStore.getTokens() }
             ?: return chain.proceed(request)
+        val authorization = request.header(HEADER_AUTHORIZATION)
+        if (authorization != null && authorization != bearer(tokens.accessToken)) return chain.proceed(request)
 
         return chain.proceed(
             request.newBuilder()
-                .header(HEADER_AUTHORIZATION, bearer(accessToken))
+                .header(HEADER_AUTHORIZATION, bearer(tokens.accessToken))
+                .tag(AuthRequestSession::class.java, AuthRequestSession(tokens.sessionId))
                 .build(),
         )
     }

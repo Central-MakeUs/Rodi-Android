@@ -33,12 +33,7 @@ class AuthTokenStore @Inject constructor(
         if (cacheInitialized) return@withContext cachedTokens
 
         mutex.withLock {
-            if (!cacheInitialized) {
-                removeLegacyStore()
-                cachedTokens = dataStore.read()
-                cacheInitialized = true
-            }
-            cachedTokens
+            readLocked()
         }
     }
 
@@ -53,22 +48,41 @@ class AuthTokenStore @Inject constructor(
         isCourseTutorialCompleted: Boolean = false,
     ): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
-            removeLegacyStore()
             val tokens = AuthTokens(accessToken, refreshToken, provider, isCourseTutorialCompleted)
-            val saved = dataStore.save(tokens)
-            if (saved) {
-                cachedTokens = tokens
-                cacheInitialized = true
-            } else {
-                clearLocked()
+            saveLocked(tokens)
+        }
+    }
+
+    suspend fun rotate(
+        expected: AuthTokens,
+        accessToken: String,
+        refreshToken: String,
+        isCourseTutorialCompleted: Boolean,
+    ): AuthTokenMutationResult = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val current = readLocked()
+            if (current?.sessionId != expected.sessionId || current.refreshToken != expected.refreshToken) {
+                return@withLock AuthTokenMutationResult.STALE
             }
-            saved
+            val updated = current.copy(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                isCourseTutorialCompleted = isCourseTutorialCompleted,
+            )
+            if (saveLocked(updated)) AuthTokenMutationResult.APPLIED else AuthTokenMutationResult.FAILED
+        }
+    }
+
+    suspend fun clearSession(sessionId: String): AuthTokenMutationResult = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            if (readLocked()?.sessionId != sessionId) return@withLock AuthTokenMutationResult.STALE
+            if (clearLocked()) AuthTokenMutationResult.APPLIED else AuthTokenMutationResult.FAILED
         }
     }
 
     suspend fun markCourseTutorialCompleted(): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
-            val current = cachedTokens ?: dataStore.read() ?: return@withLock false
+            val current = readLocked() ?: return@withLock false
             val updated = current.copy(isCourseTutorialCompleted = true)
             val saved = dataStore.save(updated)
             if (saved) cachedTokens = updated
@@ -86,6 +100,27 @@ class AuthTokenStore @Inject constructor(
     }
 
     suspend fun clear(): Boolean = withContext(Dispatchers.IO) { mutex.withLock { clearLocked() } }
+
+    private suspend fun readLocked(): AuthTokens? {
+        if (!cacheInitialized) {
+            removeLegacyStore()
+            cachedTokens = dataStore.read()
+            cacheInitialized = true
+        }
+        return cachedTokens
+    }
+
+    private suspend fun saveLocked(tokens: AuthTokens): Boolean {
+        removeLegacyStore()
+        val saved = dataStore.save(tokens)
+        if (saved) {
+            cachedTokens = tokens
+            cacheInitialized = true
+        } else {
+            clearLocked()
+        }
+        return saved
+    }
 
     private suspend fun clearLocked(): Boolean {
         val recentProvider = cachedTokens?.provider

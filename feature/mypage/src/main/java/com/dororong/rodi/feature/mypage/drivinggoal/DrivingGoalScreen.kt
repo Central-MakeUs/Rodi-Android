@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
@@ -27,6 +28,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.flow.first
 import com.dororong.rodi.core.ui.R as CoreUiR
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -46,10 +51,21 @@ fun DrivingGoalScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { RodiSnackbarHostState() }
     val errorIcon = painterResource(CoreUiR.drawable.ic_alert_circle)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentOnBack by rememberUpdatedState(onBack)
+
+    // 저장 성공은 일회성 Effect가 아니라 상태라 CollectEffect를 쓰지 않는다. CollectEffect는 매
+    // 방출을 소비하는데 여기 필요한 건 한 번이고, 파생 Flow를 넘기면 그게 LaunchedEffect 키라서
+    // recomposition마다 수집이 다시 시작된다.
+    LaunchedEffect(viewModel, lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            viewModel.uiState.first { it.saveSucceeded }
+            currentOnBack()
+        }
+    }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            DrivingGoalEffect.NavigateBack -> onBack()
             DrivingGoalEffect.ShowSyncError -> snackbarHostState.show(
                 RodiSnackbarData(
                     message = "작성해주신 목표가 정상적으로 처리되지 못했어요.\n다시 한번 시도해주세요.",

@@ -7,6 +7,25 @@ import org.junit.jupiter.api.Test
 
 class MainScreenNavigationTest {
     @Test
+    fun `driving goal completion only pops its own destination once`() {
+        val backStack = mutableListOf<NavKey>(HomeRoute, MyPageRoute, DrivingGoalRoute)
+
+        backStack.popDrivingGoal()
+        backStack.popDrivingGoal()
+
+        assertEquals(listOf<NavKey>(HomeRoute, MyPageRoute), backStack)
+    }
+
+    @Test
+    fun `driving goal completion leaves another top destination unchanged`() {
+        val backStack = mutableListOf<NavKey>(HomeRoute, DrivingGoalRoute, SettingsRoute)
+
+        backStack.popDrivingGoal()
+
+        assertEquals(listOf<NavKey>(HomeRoute, DrivingGoalRoute, SettingsRoute), backStack)
+    }
+
+    @Test
     fun `my page is pushed without replacing home and popped back to home`() {
         val backStack = mutableListOf<NavKey>(HomeRoute)
 
