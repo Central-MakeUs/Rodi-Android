@@ -81,7 +81,8 @@ rg --files -g '*.kt' core/data/src/main | grep '/repository/' | grep -v 'Reposit
 **정본**: `feature/mypage/.../MyPageScreen.kt` — 앵커 `onSettingsClick: () -> Unit`
 
 **주의**: 이건 **UI 콜백 파라미터** 규칙이고 MVI `Intent` 자식 타입 이름과는 다르다.
-Intent는 `Retry`/`Submit` 같은 동작형을 쓴다(→ `mvi.md`).
+typed Intent는 `RetryClicked`/`SubmitClicked` 같은 이벤트형을 쓴다(→ `mvi.md`).
+이 규칙은 Intent를 채택한 화면에 적용하며 모든 public method를 Intent로 바꾸라는 뜻이 아니다.
 
 ## Boolean 상태는 질문으로 읽히게
 

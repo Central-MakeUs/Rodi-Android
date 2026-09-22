@@ -38,8 +38,9 @@ find app core feature -type d -name component -not -path '*/build/*'
 
 ## Contract는 화면(ViewModel)마다 하나, ViewModel 옆에
 
-`XxxViewModel.kt`와 같은 패키지에 `XxxContract.kt`를 두고, 그 화면의 보조 타입·`UiState`·
-`Intent`·`Effect`를 전부 여기에 선언한다. ViewModel 파일에는 ViewModel과 그 private 헬퍼만 둔다.
+`XxxViewModel.kt`와 같은 패키지에 `XxxContract.kt`를 두고, 그 화면의 보조 타입·`UiState`와
+필요한 `Intent`·`Effect`를 여기에 선언한다. 두 타입은 모든 화면의 필수 구성요소가 아니다.
+ViewModel 파일에는 ViewModel과 그 private 헬퍼만 둔다.
 ViewModel 없는 화면(상태를 Composable이 소유)은 Contract를 만들지 않는다.
 
 **왜**: 2026-09-17에 "feature 루트에 하나"에서 바꿨다. mypage처럼 화면이 여러 개인 feature를
@@ -56,7 +57,9 @@ rg -n -g '*ViewModel.kt' '^(data class|sealed interface) \w+(UiState|Intent|Effe
 ## 화면은 UseCase를 거쳐 domain에 접근한다
 
 `feature`·`app`의 ViewModel과 Coordinator는 `core.domain.repository.*`를 직접 주입하지 않는다.
-단순 위임이라도 UseCase를 둔다.
+단순 위임이라도 UseCase를 둔다. 이는 **Rodi의 strict 정책**이며 Android 전체의 필수 경계가 아니다.
+UseCase가 많으면 VM ownership과 하나의 business workflow인지 먼저 검토한다. constructor
+개수만 줄이는 wrapper나 Repository 직접 접근으로 우회하지 않는다.
 
 ```kotlin
 class CourseRegistrationViewModel @Inject constructor(
@@ -70,7 +73,10 @@ class CourseRegistrationViewModel @Inject constructor(
 Repository를 직접 불러, 초안 저장 분기와 제출 검증이 UseCase·ViewModel·RepositoryImpl에 흩어졌다.
 
 **예외**: `RodiAppViewModel`의 `AuthRepository.observeSessionExpiration()` — 화면 기능이 아니라
-앱 전역 세션 만료 신호를 구독하는 진입점이다. 예외를 늘리려면 이 목록에 이유와 함께 적는다.
+앱 전역 세션 만료 신호를 구독하는 진입점으로 **현재 허용하는 제한된 예외**다.
+같은 VM constructor default의 `ReissueAuthTokenUseCase(authRepository)` 직접 생성은
+전역 composition-root 패턴이 아니라 별도 정리할 legacy debt다. 예외 확대는 명시 결정이 필요하다.
+Repository import 차단은 현재 checker의 자동 집행 항목이 아니며 아래 검색과 review로 확인한다.
 
 **정본**: `feature/course-registration/.../CourseRegistrationViewModel.kt` — 앵커 `@Inject constructor(`
 

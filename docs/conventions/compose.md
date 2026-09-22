@@ -71,7 +71,7 @@ val controller = remember(retryToken) { ... }
 **정본**: `feature/mypage/.../registeredcourses/RegisteredCoursesScreen.kt` —
 앵커 `LaunchedEffect(uiState.`
 
-## 파생 조건은 `derivedStateOf`, 입력 상태를 key로
+## 변화 빈도가 다른 파생 조건은 `derivedStateOf`를 검토
 
 ```kotlin
 val shouldLoadNextPage by remember(listState, hasNextPage) {
@@ -80,7 +80,10 @@ val shouldLoadNextPage by remember(listState, hasNextPage) {
 ```
 
 **왜**: 스크롤 위치는 매 프레임 바뀌지만 "다음 페이지를 불러야 하는가"는 거의 안 바뀐다.
-`derivedStateOf` 없이 쓰면 스크롤할 때마다 재구성되고 페이지 요청이 중복된다.
+결과 변화가 입력보다 적을 때 재구성을 줄일 수 있지만 비용도 있다. 모든 파생식에 쓰지 않는다.
+페이지 요청 중복은 별도의 ViewModel/data 요청 guard가 필요하며 derivedStateOf가 보장하지 않는다.
+성능 처방은 Global Compose reference와 현재 compiler/Strong Skipping 설정을 확인한다.
+unstable·lambda라는 이유만으로 annotation이나 remember를 추가하지 않는다.
 
 **정본**: `feature/home/.../list/components/PlaceListContent.kt` — 앵커 `derivedStateOf`
 

@@ -1,8 +1,16 @@
-# MVI 계약
+# 화면 상태와 입력 계약
 
-> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. 프로젝트 무관 규범은 전역 스킬
-> `/android-code-standard`에 있고, 여기 규칙이 그것과 충돌하면 **이 문서가 우선**한다.
+> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. Global 판단 절차는 전역 Skill
+> `android-development`, 코드 위생은 `android-code-standard`를 참고한다. API 사실·프로젝트 결정·
+> 현재 구현·작업 범위의 authority 구분은 `README.md`를 따른다.
 > 수치는 적지 않는다 — 재검증 명령으로 대체한다(→ `README.md`). 시점별 조사 수치는 `../audits/`.
+
+## 화면 패턴 선택
+
+새 화면은 explicit ViewModel methods + UiState로 시작할 수 있다. state-dependent 전이·경쟁 입력·
+ordering·invariant를 typed Intent가 더 명확하게 설명하고 검증할 때 MVI를 선택한다.
+화면 크기·Intent 수·wizard 여부만으로 승격하지 않는다. onIntent는 직렬화나 race 방어가 아니다.
+기존 화면은 이 결정만으로 일괄 재작성하지 않는다. 아래 Intent/Effect 규칙은 해당 타입을 채택했을 때 적용한다.
 
 ## 일반 화면 상태는 불변 `data class *UiState`
 
@@ -17,7 +25,7 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 **정본**: `feature/home/.../home/HomeContract.kt`(data class),
 `feature/auth/.../LoginContract.kt`(sealed) — 앵커 `sealed interface LoginUiState`
 
-## Intent와 Effect는 `sealed interface`, payload 유무로 `data object`/`data class`
+## 채택한 Intent와 Effect는 `sealed interface`, payload 유무로 `data object`/`data class`
 
 **왜**: 입력과 일회성 출력을 닫힌 집합으로 만들면 `when`이 전수 분기를 강제한다. payload 없는
 것을 `data object`로 두면 인스턴스가 하나뿐임이 타입에 드러난다.
@@ -42,7 +50,7 @@ sealed로 쪼개면 조합마다 타입이 폭발한다. 반대로 진짜 배타
 rg -n -g '*Contract.kt' '^\s+data (object|class) On[A-Z]' .
 ```
 
-## Contract는 보조 타입 → UiState → Intent → Effect 순서
+## Contract는 필요한 타입만 보조 타입 → UiState → Intent → Effect 순서
 
 화면 전용 enum이나 작은 보조 모델은 UiState 앞에 둔다.
 
@@ -66,58 +74,42 @@ rg -n -g '*Contract.kt' '^\s+data (object|class) On[A-Z]' .
 이름은 상태 타입과 맞춰 `_uiState`/`uiState`로 쓴다 — 타입이 `*UiState`이므로 property도 같은 말을 쓴다.
 CI가 `*ViewModel.kt`의 `_state`·`val state:`를 막는다.
 
-## 일회성 Effect는 buffered Channel + `receiveAsFlow()`
+## Output은 의미·수명·소비 요구로 선택
 
-```kotlin
-private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
-val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
-```
+Global `android-development`의 `state-and-events` 판단을 따른다. business 결과는 UiState 표현을
+우선 검토하고, UI만 결정하는 이동은 callback/local state를 검토한다. launcher·지도 자원을 쓰는
+명령은 executor·유실·중복·result 요구를 정한다. State 전환이나 Effect 제거를 일괄 강제하지 않는다.
+UserMessage representation은 아직 전역·Rodi 기본값으로 확정하지 않는다. RodiSnackbarHost의
+기존 queue와 VM queue가 같은 책임을 중복 소유하지 않는지 먼저 확인한다.
 
-**왜**: Effect는 "스낵바를 띄워라", "이 화면으로 가라" 같은 **명령**이고, 소비자는 화면 하나다.
-Channel은 각 원소를 **한 소비자에게만** 전달하고, 소비자가 없는 동안 버퍼에 쌓아둔다.
+기존 Rodi Effect는 주로 `Channel<T>(Channel.BUFFERED)` + `receiveAsFlow()`다. 이 형태를
+유지할 수 있지만 새로운 output의 필수 기본값은 아니다. 단일 consumer service 명령 queue도
+Channel의 유효한 사용이다. SharedFlow는 실제 transient broadcast 요구에 따라 선택한다.
+어떤 transport도 UI 처리 완료·정확히 한 번 실행·process 복원을 단독 보장하지 않는다.
 
-**보장하지 않는 것**: *정확히 한 번 실행*은 아니다. `repeatOnLifecycle` 수집이 원소를 꺼낸 뒤
-처리 전에 취소되면 그 Effect는 **유실된다.** 반드시 실행돼야 하는 것(결제 완료 기록 같은)은
-Effect로 보내지 말고 상태로 남겨 화면이 다시 읽게 한다. `SharedFlow`(replay=0)를 쓰면 수집자가 없는 순간에
-보낸 이벤트가 조용히 사라진다 — 화면 전환 직후나 회전 중에 스낵바가 안 뜨는 형태로 터진다.
-**SharedFlow를 쓰는 경우**: Channel과 기능이 다르므로 통일 대상이 아니라 선택 대상이다.
+**현재 프로젝트 집행**: Effect를 채택하면 노출명은 `effect`, 소비는 아래 `CollectEffect` 규칙을
+따른다. ViewModel의 `MutableSharedFlow`는 선언 직전 `// SharedFlow 사용 이유: ...` 주석을
+요구하는 기존 CI를 유지한다. 이 주석 정책은 SharedFlow 금지가 아니며 신규 정책을 이유로 CI를 우회하지 않는다.
 
-| | Channel | SharedFlow(replay=0) |
-|---|---|---|
-| 수집자가 여럿 | 원소마다 **한 곳만** 받는다 | **모두** 받는다 |
-| 수집자가 없을 때 | 버퍼에 쌓았다가 나중에 전달 | **버린다** |
-| 늦게 구독 | 쌓인 것만 받는다 | `replay=N`이면 최근 N개를 **다시** 받는다 |
+**State-driven navigation**: owner/entry 수명, collector 재시작, 복귀, 중복 입력·result,
+process recreation을 검토한다. 필요할 때 ack/operation identity/terminal state/idempotent 이동을
+선택한다. `DrivingGoal`은 `saveSucceeded`와 오류 Effect가 공존하는 사례이며 단순화의 보편 증거가 아니다.
 
-화면 하나가 받는 일회성 명령이면 Channel이다. **여러 수집자가 같은 이벤트를 모두 받아야 하거나,
-아무도 안 볼 때 버리는 게 맞는 이벤트**면 SharedFlow를 쓰고, 선언 바로 윗줄에
-`// SharedFlow 사용 이유: ...`를 적는다. 이유 없는 SharedFlow는 CI가 막는다 — 기본값을 무심코
-고른 것과 의도해서 고른 것을 구분하려는 장치다. ViewModel 밖(앱 전역 세션 이벤트 등)은 검사하지 않는다.
+**Map command**: `HomeEffect.MoveToRegion`처럼 준비가 필요한 UI 자원의 명령은 현 Effect를
+유지할 수 있다. 로컬 pending의 수명·재진입 동작을 확인한다. 증가 counter와 소비 flag만으로
+명령 중복 방지가 해결된다고 가정하지 않는다.
 
-**generation 카운터를 명령 대신 쓰지 않는다**: "지도를 이 지역으로 옮겨라"를 상태의 증가 카운터로 보내고
-화면이 `remember`로 소비 여부를 기억하면, 화면이 다시 그려질 때(다른 route에서 복귀) 기억이 초기화돼
-명령이 **반복 실행된다.** 이런 명령은 Effect로 보낸다. 받는 쪽 자원(지도 등)이 아직 준비되지 않았으면
-화면 로컬 pending에 담았다가 준비되면 한 번 소비한다(`HomeEffect.MoveToRegion`). Compose `key`처럼
-화면이 계속 읽는 값은 상태로 둔다(`HomeUiState.placeListGeneration`).
-
-**정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `Channel<HomeEffect>(Channel.BUFFERED)`
-
-**재검증** (ViewModel의 SharedFlow — 각 선언 윗줄에 이유 주석이 있어야 한다, CI BLOCK):
-```bash
-rg -n 'MutableSharedFlow' -g '*ViewModel.kt' . | grep -v -E '/src/test/|:import ' \
-| while IFS=: read -r f n _; do \
-    sed -n "$((n - 1))p" "$f" | grep -q 'SharedFlow 사용 이유:' || echo "$f:$n"; \
-  done
-```
-> 앵커를 `Channel(Channel.BUFFERED)`로 적으면 0건이 나온다. 실제 코드는
-> `Channel<HomeEffect>(...)`라 제네릭이 사이에 낀다. 세는 쪽이 아니라 **어긋난 쪽을 세는**
-> 명령이 짧고 덜 틀린다.
+**재검증**: `.github/scripts/check-conventions.sh`의 Effect 노출·수집·SharedFlow 사유 검사를
+확인한다. 검사 통과는 delivery/lifecycle contract의 증명이 아니다.
 
 ## Effect는 lifecycle-aware 공통 수집기로 소비
 
 `CollectEffect`가 `repeatOnLifecycle(STARTED)`로 Flow를 수집한다.
 
 **왜**: 화면이 중지된 동안 네비게이션이나 스낵바를 실행하면 크래시하거나 엉뚱한 화면에 뜬다.
-수집 재시작 로직을 화면마다 손으로 쓰면 한 곳은 반드시 빠뜨린다.
+기존 Effect 소비의 공통 경계를 유지한다. 이 수집기는 exactly-once 보장이 아니며,
+State-driven observer까지 Effect 수집기에 맞춰 변환하지 않는다. STARTED/RESUMED 요구가 다른
+flow는 해당 lifecycle과 callback 최신성을 따로 검토한다.
 
 **정본**: `core/ui/.../effect/CollectEffect.kt` — 앵커 `repeatOnLifecycle(lifecycleState)`
 

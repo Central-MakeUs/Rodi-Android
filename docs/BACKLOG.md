@@ -312,13 +312,13 @@
   `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
   직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
   `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
-  Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
-  그 이유를 Contract에 주석으로 남길 것.
+  당시 Channel + `effect` + `CollectEffect`로 정리했다. 현재 신규 output 정책은
+  `conventions/mvi.md`의 의미·수명 판단을 따른다. 모든 화면에 Effect/Channel을 생성하지 않는다.
   재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
 - [x] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** (2026-09-18 전부 이벤트형으로 통일, check-conventions BLOCK) — `HomeContract`/`SearchViewModel`은
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
-  이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
-  않는 이점도 있다.
+  이미 "입력"을 뜻한다. 현재 typed Intent는 `RetryClicked` 등 이벤트형으로 통일하며
+  명령형을 권장하던 이전 설명을 정정한다(`conventions/naming.md`, `mvi.md`).
 - [x] **Contract 선언 위치가 컨벤션과 절반만 맞다** (2026-09-17 "화면마다 ViewModel 옆 Contract"로 규칙을 고치고 10개 화면 이동, CI BLOCK) — 루트 `*Contract.kt` 8개 대 UiState를
   ViewModel 파일에 내장한 것 9개(`SavedCourses`/`MyPage`/`PracticeRecords`/`DrivingGoal`/
   `AccountSettings`/`BlockedMembers`/`Search`/`RodiApp`/`ReviewActions`). PROJECT.md는 "Contract는
