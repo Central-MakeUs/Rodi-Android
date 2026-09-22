@@ -18,6 +18,8 @@ import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -45,13 +47,20 @@ import java.io.IOException
 class AuthRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
     private val practiceSessionRepository = mockk<PracticeSessionRepository>(relaxed = true)
+    private val onboardingRepository = mockk<OnboardingRepository>(relaxed = true)
+    private val entryRepository = mockk<EntryRepository>(relaxed = true)
+
+    private fun coordinator(
+        tokenStore: AuthTokenStore,
+        cache: PracticeRecordPresenceCache = PracticeRecordPresenceCache(),
+    ) = AuthSessionCoordinator(tokenStore, practiceSessionRepository, cache, onboardingRepository, entryRepository)
 
     @Test
     fun `getSession maps atomic token snapshot`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens(provider = "kakao")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val session = repository.getSession()
 
@@ -65,7 +74,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
         coEvery { tokenStore.getRecentProvider() } returns "kakao"
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val session = repository.getSession()
 
@@ -79,7 +88,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(true)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val result = repository.loginWithKakao("kakao-token")
 
@@ -95,7 +104,7 @@ class AuthRepositoryImplTest {
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         coEvery { practiceSessionRepository.clear() } throws IOException("local storage unavailable")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertTrue(repository.loginWithKakao("kakao-token") is LoginResult.Success)
         coVerify(exactly = 1) { tokenStore.save("access-new", "refresh-new", "kakao") }
@@ -109,7 +118,7 @@ class AuthRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(false)
         coEvery { tokenStore.rotate(any(), "access-new", "refresh-new", false) } returns AuthTokenMutationResult.APPLIED
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         repository.reissueToken()
 
@@ -127,7 +136,7 @@ class AuthRepositoryImplTest {
             isCourseTutorialCompleted = true,
         )
         coEvery { tokenStore.rotate(any(), "access-new", "refresh-new", true) } returns AuthTokenMutationResult.APPLIED
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         repository.reissueToken()
 
@@ -142,7 +151,7 @@ class AuthRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } returns tokenEnvelope(false)
         coEvery { tokenStore.rotate(any(), "access-new", "refresh-new", false) } returns AuthTokenMutationResult.APPLIED
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, cache))
 
         repository.reissueToken()
 
@@ -155,7 +164,7 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.NotAuthenticated> { repository.reissueToken() }
 
@@ -174,7 +183,7 @@ class AuthRepositoryImplTest {
         )
         coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
@@ -194,7 +203,7 @@ class AuthRepositoryImplTest {
         )
         coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val expiration = async(start = CoroutineStart.UNDISPATCHED) {
             repository.observeSessionExpiration().first { it }
         }
@@ -217,7 +226,7 @@ class AuthRepositoryImplTest {
             message = "refresh token이 유효하지 않습니다.",
         )
         coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
@@ -234,7 +243,7 @@ class AuthRepositoryImplTest {
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws httpException
         coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.SessionRevoked> { repository.reissueToken() }
 
@@ -249,7 +258,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
         coEvery { authApi.reissue(TokenRefreshRequest("refresh-old")) } throws IOException("offline")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.Network> { repository.reissueToken() }
 
@@ -274,7 +283,7 @@ class AuthRepositoryImplTest {
             ),
         )
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val result = repository.restoreWithKakao("kakao-token")
 
@@ -299,7 +308,7 @@ class AuthRepositoryImplTest {
                 recoverableUntil = "2026-07-16T00:00:00Z",
             ),
         )
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val result = repository.restoreWithKakao("kakao-token")
 
@@ -319,7 +328,7 @@ class AuthRepositoryImplTest {
         )
         coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         repository.logout()
 
@@ -332,7 +341,7 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws IOException("offline")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<AuthException.Network> { repository.loginWithKakao("kakao-token") }
     }
@@ -342,7 +351,7 @@ class AuthRepositoryImplTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws CancellationException("cancelled")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         assertThrowsSuspend<CancellationException> { repository.loginWithKakao("kakao-token") }
     }
@@ -358,7 +367,7 @@ class AuthRepositoryImplTest {
             response.await()
         }
         coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async { repository.reissueToken() }
         started.await()
 
@@ -381,7 +390,7 @@ class AuthRepositoryImplTest {
             response.await()
         }
         coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async {
             try {
                 repository.reissueToken()
@@ -415,7 +424,7 @@ class AuthRepositoryImplTest {
             response.await()
         }
         coEvery { authApi.logout(any()) } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "success")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async { repository.reissueToken() }
         started.await()
 
@@ -439,7 +448,7 @@ class AuthRepositoryImplTest {
             current = current.copy(accessToken = secondArg(), refreshToken = thirdArg())
             AuthTokenMutationResult.APPLIED
         }
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val first = async(start = CoroutineStart.UNDISPATCHED) { repository.reissueToken(sessionId, "access-old") }
         val second = async(start = CoroutineStart.UNDISPATCHED) { repository.reissueToken(sessionId, "access-old") }
@@ -459,7 +468,7 @@ class AuthRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         val current = tokens().copy(accessToken = "rotated", refreshToken = "rotated-refresh")
         coEvery { tokenStore.getTokens() } returns current
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         repository.reissueToken(current.sessionId, "access-old")
 
@@ -473,7 +482,7 @@ class AuthRepositoryImplTest {
         val tokenStore = realTokenStore()
         val previous = tokenStore.getTokens()!!
         tokenStore.save("access-b", "refresh-b")
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         repository.reissueToken(previous.sessionId, previous.accessToken)
 
@@ -492,7 +501,7 @@ class AuthRepositoryImplTest {
             response.await()
         }
         coEvery { authApi.restore(any(), any()) } returns loginEnvelope(false)
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async { repository.reissueToken() }
         started.await()
 
@@ -514,7 +523,7 @@ class AuthRepositoryImplTest {
             response.await()
         }
         coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val logout = async {
             assertThrowsSuspend<AuthException.NotAuthenticated> { repository.logout() }
         }
@@ -526,6 +535,8 @@ class AuthRepositoryImplTest {
 
         assertEquals("access-new", tokenStore.getTokens()?.accessToken)
         coVerify(exactly = 1) { practiceSessionRepository.clear() }
+        coVerify(exactly = 0) { onboardingRepository.clear() }
+        coVerify(exactly = 0) { entryRepository.clear() }
     }
 
     @Test
@@ -534,7 +545,7 @@ class AuthRepositoryImplTest {
         val tokenStore = realTokenStore()
         val cancellation = CancellationException("cancelled")
         coEvery { authApi.reissue(any()) } throws cancellation
-        val repository = AuthRepositoryImpl(authApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val thrown = assertThrowsSuspend<CancellationException> { repository.reissueToken() }
 

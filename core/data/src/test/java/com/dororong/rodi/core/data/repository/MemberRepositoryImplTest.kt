@@ -1,6 +1,9 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
+import android.content.Context
+import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
+import com.dororong.rodi.core.data.source.local.security.AuthTokenMutationResult
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
@@ -15,22 +18,37 @@ import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.repository.AuthRepository
+import com.dororong.rodi.core.domain.repository.EntryRepository
+import com.dororong.rodi.core.domain.repository.OnboardingRepository
 import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
+import io.mockk.spyk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class MemberRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
     private val practiceSessionRepository = mockk<PracticeSessionRepository>(relaxed = true)
+    private val onboardingRepository = mockk<OnboardingRepository>(relaxed = true)
+    private val entryRepository = mockk<EntryRepository>(relaxed = true)
+
+    private fun coordinator(
+        tokenStore: AuthTokenStore,
+        cache: PracticeRecordPresenceCache = PracticeRecordPresenceCache(),
+    ) = AuthSessionCoordinator(tokenStore, practiceSessionRepository, cache, onboardingRepository, entryRepository)
 
     @Test
     fun `course tutorial completion patches server then stores local flag`() = runTest {
@@ -43,13 +61,13 @@ class MemberRepositoryImplTest {
             message = "성공",
             data = CourseTutorialCompletionResponse("2026-08-15T00:00:00Z"),
         )
-        coEvery { tokenStore.markCourseTutorialCompleted() } returns true
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        coEvery { tokenStore.markCourseTutorialCompleted(any()) } returns true
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         repository.completeCourseTutorial()
 
         coVerify(exactly = 1) { memberApi.completeCourseTutorial() }
-        coVerify(exactly = 1) { tokenStore.markCourseTutorialCompleted() }
+        coVerify(exactly = 1) { tokenStore.markCourseTutorialCompleted(any()) }
     }
 
     @Test
@@ -69,7 +87,7 @@ class MemberRepositoryImplTest {
                 savedPlaceCount = 12,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val result = repository.getMyPage()
 
@@ -86,7 +104,7 @@ class MemberRepositoryImplTest {
         coEvery {
             memberApi.updateMe(MemberUpdateRequest("   "))
         } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         repository.updateDrivingGoal("   ")
 
@@ -103,7 +121,7 @@ class MemberRepositoryImplTest {
                 FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
             )
         } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         repository.updateFilterTags(
             listOf(PracticeType.STRAIGHT, PracticeType.PARKING, PracticeType.INTERSECTION),
@@ -133,7 +151,7 @@ class MemberRepositoryImplTest {
             message = "성공",
             data = buildJsonObject { },
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         repository.blockMember(7)
         repository.unblockMember(7)
@@ -152,7 +170,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_400",
             message = "자기 자신은 차단할 수 없습니다.",
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         assertThrowsSuspend<AuthException.InvalidRequest> { repository.blockMember(7) }
     }
@@ -161,7 +179,7 @@ class MemberRepositoryImplTest {
     fun `driving goal longer than thirty characters is rejected before request`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         assertThrowsSuspend<IllegalArgumentException> {
             repository.updateDrivingGoal("가".repeat(31))
@@ -180,15 +198,15 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
         )
-        coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         repository.withdraw()
 
         coVerify { memberApi.withdraw() }
         coVerify { practiceSessionRepository.clear() }
-        coVerify { tokenStore.clear() }
+        coVerify { tokenStore.clearSession(any()) }
     }
 
     @Test
@@ -196,7 +214,7 @@ class MemberRepositoryImplTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val exception = assertThrowsSuspend<AuthException.NotAuthenticated> { repository.withdraw() }
 
@@ -210,7 +228,7 @@ class MemberRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         coEvery { memberApi.withdraw() } throws CancellationException("cancelled")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         assertThrowsSuspend<CancellationException> { repository.withdraw() }
     }
@@ -225,16 +243,16 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
         )
-        coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val result = repository.hardDelete()
 
         assertTrue(result.localCleanupSucceeded)
         coVerify { memberApi.hardDelete() }
         coVerify { practiceSessionRepository.clear() }
-        coVerify { tokenStore.clear() }
+        coVerify { tokenStore.clearSession(any()) }
     }
 
     @Test
@@ -247,15 +265,15 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
         )
-        coEvery { tokenStore.clear() } returns false
+        coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.FAILED
         coEvery { tokenStore.clearCourseRegistrationData() } returns Unit
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val result = repository.hardDelete()
 
         assertFalse(result.localCleanupSucceeded)
         coVerify { memberApi.hardDelete() }
-        coVerify { tokenStore.clear() }
+        coVerify { tokenStore.clearSession(any()) }
     }
 
     @Test
@@ -268,9 +286,9 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
         )
-        coEvery { tokenStore.clear() } returns true
+        coEvery { tokenStore.clearSession(any()) } returns AuthTokenMutationResult.APPLIED
         coEvery { tokenStore.clearCourseRegistrationData() } throws IllegalStateException("datastore unavailable")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val result = repository.hardDelete()
 
@@ -283,7 +301,7 @@ class MemberRepositoryImplTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         val exception = assertThrowsSuspend<AuthException.NotAuthenticated> { repository.hardDelete() }
 
@@ -297,12 +315,12 @@ class MemberRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         coEvery { memberApi.hardDelete() } throws CancellationException("cancelled")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         assertThrowsSuspend<CancellationException> { repository.hardDelete() }
 
         coVerify(exactly = 0) { practiceSessionRepository.clear() }
-        coVerify(exactly = 0) { tokenStore.clear() }
+        coVerify(exactly = 0) { tokenStore.clearSession(any()) }
     }
 
     @Test
@@ -320,7 +338,7 @@ class MemberRepositoryImplTest {
                 totalCount = 1,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
         repository.getPracticeRecords(cursor = null, size = 4)
 
@@ -341,7 +359,7 @@ class MemberRepositoryImplTest {
             message = "성공",
             data = CursorPagePracticeItemResponse(),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
         assertEquals(false, repository.hasPracticeRecords())
         assertEquals(false, repository.hasPracticeRecords())
@@ -364,7 +382,7 @@ class MemberRepositoryImplTest {
                 hasNext = false,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
         repository.getPracticeRecords(cursor = null, size = 4)
 
@@ -398,7 +416,7 @@ class MemberRepositoryImplTest {
                 hasNext = false,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
         assertTrue(repository.hasPracticeRecords())
 
@@ -416,7 +434,7 @@ class MemberRepositoryImplTest {
         coEvery { memberApi.getPracticeRecords(20, "cursor-2") } returns practicePresencePage("cursor-3")
         coEvery { memberApi.getPracticeRecords(20, "cursor-3") } returns practicePresencePage("cursor-4")
         coEvery { memberApi.getPracticeRecords(20, "cursor-4") } returns practicePresencePage("cursor-5")
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
         assertFalse(repository.hasPracticeRecords())
         assertFalse(repository.hasPracticeRecords())
@@ -440,13 +458,112 @@ class MemberRepositoryImplTest {
                 hasNext = false,
             ),
         )
-        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, practiceSessionRepository)
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
         repository.getPracticeRecords(cursor = "last", size = 4)
 
         assertTrue(repository.hasPracticeRecords())
         coVerify(exactly = 1) { memberApi.getPracticeRecords(4, "last") }
         coVerify(exactly = 0) { memberApi.getPracticeRecords(20, null) }
+    }
+
+    @Test
+    fun `withdraw response after a new login keeps the new session`() = runTest {
+        val tokenStore = realTokenStore()
+        val memberApi = mockk<MemberApi>()
+        val started = CompletableDeferred<Unit>()
+        val response = CompletableDeferred<ApiEnvelope<JsonObject>>()
+        coEvery { memberApi.withdraw() } coAnswers {
+            started.complete(Unit)
+            response.await()
+        }
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+        val withdraw = async { runCatching { repository.withdraw() } }
+        started.await()
+
+        tokenStore.save("access-b", "refresh-b")
+        response.complete(ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공"))
+        val result = withdraw.await()
+
+        assertTrue(result.exceptionOrNull() is AuthException.NotAuthenticated)
+        assertEquals("access-b", tokenStore.getTokens()?.accessToken)
+        coVerify(exactly = 0) { practiceSessionRepository.clear() }
+    }
+
+    @Test
+    fun `hard delete response after a new login keeps the new session`() = runTest {
+        val tokenStore = realTokenStore()
+        val memberApi = mockk<MemberApi>()
+        val started = CompletableDeferred<Unit>()
+        val response = CompletableDeferred<ApiEnvelope<JsonObject>>()
+        coEvery { memberApi.hardDelete() } coAnswers {
+            started.complete(Unit)
+            response.await()
+        }
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+        val hardDelete = async { runCatching { repository.hardDelete() } }
+        started.await()
+
+        tokenStore.save("access-b", "refresh-b")
+        response.complete(ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공"))
+        val result = hardDelete.await()
+
+        assertTrue(result.exceptionOrNull() is AuthException.NotAuthenticated)
+        assertEquals("access-b", tokenStore.getTokens()?.accessToken)
+        coVerify(exactly = 0) { practiceSessionRepository.clear() }
+    }
+
+    @Test
+    fun `withdraw clears the session even when practice cleanup fails after server success`() = runTest {
+        val tokenStore = realTokenStore()
+        val memberApi = mockk<MemberApi>()
+        coEvery { memberApi.withdraw() } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
+        coEvery { practiceSessionRepository.clear() } throws IllegalStateException("datastore unavailable")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        runCatching { repository.withdraw() }
+
+        assertNull(tokenStore.getTokens())
+    }
+
+    @Test
+    fun `tutorial completion from an old session does not mark a new session`() = runTest {
+        val tokenStore = realTokenStore()
+        val memberApi = mockk<MemberApi>()
+        val started = CompletableDeferred<Unit>()
+        val response = CompletableDeferred<ApiEnvelope<CourseTutorialCompletionResponse>>()
+        coEvery { memberApi.completeCourseTutorial() } coAnswers {
+            started.complete(Unit)
+            response.await()
+        }
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+        val completion = async { runCatching { repository.completeCourseTutorial() } }
+        started.await()
+
+        tokenStore.save("access-b", "refresh-b")
+        response.complete(
+            ApiEnvelope(
+                isSuccess = true,
+                code = "COMMON_200",
+                message = "성공",
+                data = CourseTutorialCompletionResponse("2026-08-15T00:00:00Z"),
+            ),
+        )
+        completion.await()
+
+        assertFalse(tokenStore.getTokens()?.isCourseTutorialCompleted == true)
+    }
+
+    private fun realTokenStore(): AuthTokenStore {
+        val context = mockk<Context>()
+        val dataStore = mockk<AuthTokenDataStore>()
+        every { context.deleteSharedPreferences(any()) } returns true
+        coEvery { dataStore.read() } returns AuthTokens("access-a", "refresh-a", "kakao")
+        coEvery { dataStore.save(any()) } returns true
+        coEvery { dataStore.clear(any()) } returns true
+        return spyk(AuthTokenStore(context, dataStore)).also {
+            coEvery { it.clearCourseRegistrationData() } returns Unit
+        }
     }
 
     private fun practicePresencePage(nextCursor: String) = ApiEnvelope(

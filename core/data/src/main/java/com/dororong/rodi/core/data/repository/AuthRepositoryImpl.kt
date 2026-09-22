@@ -1,14 +1,11 @@
 package com.dororong.rodi.core.data.repository
 
-import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.authRequest
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toAccountRestoreResult
 import com.dororong.rodi.core.data.mapper.toAuthTokenResponse
 import com.dororong.rodi.core.data.mapper.toLoginResult
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
-import com.dororong.rodi.core.data.source.local.security.AuthTokenMutationResult
-import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.local.security.KAKAO_PROVIDER
 import com.dororong.rodi.core.data.source.remote.api.AuthApi
 import com.dororong.rodi.core.data.source.remote.model.auth.LogoutRequest
@@ -21,11 +18,8 @@ import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
-import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -38,12 +32,9 @@ class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
     private val tokenStore: AuthTokenStore,
     private val json: Json,
-    private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
-    private val practiceSessionRepository: PracticeSessionRepository,
+    private val sessionCoordinator: AuthSessionCoordinator,
 ) : AuthRepository {
     private val refreshMutex = Mutex()
-    private val sessionMutationMutex = Mutex()
-    private val sessionExpired = MutableStateFlow(false)
 
     override suspend fun getSession(): AuthSession {
         val tokens = tokenStore.getTokens()
@@ -66,9 +57,7 @@ class AuthRepositoryImpl @Inject constructor(
         val result = body.toLoginResult()
         if (result is LoginResult.Success) {
             val tokens = body.toAuthTokenResponse()
-            sessionMutationMutex.withLock {
-                saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
-            }
+            sessionCoordinator.start(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
         }
         return result
     }
@@ -86,40 +75,30 @@ class AuthRepositoryImpl @Inject constructor(
 
             try {
                 val body = refreshRequest(currentTokens.refreshToken)
-                sessionMutationMutex.withLock {
-                    when (tokenStore.rotate(currentTokens, body.accessToken, body.refreshToken, body.isCourseTutorialCompleted)) {
-                        AuthTokenMutationResult.APPLIED -> sessionExpired.value = false
-                        AuthTokenMutationResult.STALE -> Unit
-                        AuthTokenMutationResult.FAILED -> throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
-                    }
-                }
+                sessionCoordinator.rotate(currentTokens, body.accessToken, body.refreshToken, body.isCourseTutorialCompleted)
             } catch (exception: AuthException.SessionRevoked) {
-                sessionMutationMutex.withLock {
-                    if (tokenStore.getTokens()?.sessionId != currentTokens.sessionId) return
-                    try {
-                        clearTokens(currentTokens)
-                    } catch (clearException: CancellationException) {
-                        throw clearException
-                    } catch (clearException: Throwable) {
-                        exception.addSuppressed(clearException)
-                    }
-                    sessionExpired.value = true
+                try {
+                    if (!sessionCoordinator.expire(currentTokens)) return
+                } catch (clearException: CancellationException) {
+                    throw clearException
+                } catch (clearException: Throwable) {
+                    exception.addSuppressed(clearException)
                 }
                 throw exception
             }
         }
     }
 
-    override fun observeSessionExpiration(): Flow<Boolean> = sessionExpired.asStateFlow()
+    override fun observeSessionExpiration(): Flow<Boolean> = sessionCoordinator.observeExpiration()
+
+    override fun observeSignOut(): Flow<Unit> = sessionCoordinator.observeSignOut()
 
     override suspend fun restoreWithKakao(credential: String): AccountRestoreResult {
         val body = request { authApi.restore("kakao", SocialLoginRequest(credential)) }.requireData()
         val result = body.toAccountRestoreResult()
         if (result is AccountRestoreResult.Restored) {
             val tokens = body.toAuthTokenResponse()
-            sessionMutationMutex.withLock {
-                saveTokens(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
-            }
+            sessionCoordinator.start(tokens.accessToken, tokens.refreshToken, tokens.isCourseTutorialCompleted)
         }
         return result
     }
@@ -127,57 +106,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         val tokens = tokenStore.getTokens() ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
         request { authApi.logout(LogoutRequest(tokens.refreshToken)) }.requireSuccess()
-        sessionMutationMutex.withLock {
-            if (tokenStore.getTokens()?.sessionId != tokens.sessionId) {
-                throw AuthException.NotAuthenticated("로그인 세션이 변경되었습니다.")
-            }
-            clearTokens(tokens)
-        }
-    }
-
-    private suspend fun saveTokens(
-        accessToken: String,
-        refreshToken: String,
-        isCourseTutorialCompleted: Boolean = false,
-    ) {
-        val saved = if (isCourseTutorialCompleted) {
-            tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER, true)
-        } else {
-            tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER)
-        }
-        if (!saved) {
-            throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
-        }
-        clearPracticeSessionSafely()
-        practiceRecordPresenceCache.clear()
-        sessionExpired.value = false
-    }
-
-    // 계정 전환 시 이전 계정의 연습 세션이 다음 로그인 계정에 노출되면 안 되므로 몇 번은
-    // 재시도한다. 그래도 실패하면(그래도 흔치 않다) 로그인 자체는 막지 않는다 — 로컬 캐시
-    // 하나 못 지웠다고 로그인이 실패하는 게 더 나쁘다.
-    private suspend fun clearPracticeSessionSafely() {
-        repeat(PRACTICE_SESSION_CLEAR_ATTEMPTS) { attempt ->
-            try {
-                practiceSessionRepository.clear()
-                return
-            } catch (exception: CancellationException) {
-                throw exception
-            } catch (exception: Throwable) {
-                if (attempt == PRACTICE_SESSION_CLEAR_ATTEMPTS - 1) return
-            }
-        }
-    }
-
-    private suspend fun clearTokens(expected: AuthTokens) {
-        practiceSessionRepository.clear()
-        when (tokenStore.clearSession(expected.sessionId)) {
-            AuthTokenMutationResult.STALE -> throw AuthException.NotAuthenticated("로그인 세션이 변경되었습니다.")
-            AuthTokenMutationResult.FAILED -> throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
-            AuthTokenMutationResult.APPLIED -> Unit
-        }
-        tokenStore.clearCourseRegistrationData()
-        practiceRecordPresenceCache.clear()
+        sessionCoordinator.signOut(tokens)
     }
 
     private suspend fun <T> request(block: suspend () -> T): T = json.authRequest(block)
@@ -217,6 +146,5 @@ class AuthRepositoryImpl @Inject constructor(
     private companion object {
         const val HTTP_UNAUTHORIZED = 401
         const val SESSION_EXPIRED_MESSAGE = "로그인 정보가 만료되었습니다."
-        const val PRACTICE_SESSION_CLEAR_ATTEMPTS = 3
     }
 }
