@@ -93,15 +93,18 @@ fun Throwable.userMessage(): String =
 ```bash
 rg -n '\.message\b' -g '*ViewModel.kt' . | grep -v '/src/test/'
 ```
-> Rodi는 아직 이 통일이 안 끝났다 — 상당수 ViewModel이 `error.message`를 쓴다.
-> 수정 대상이지 따라 할 사례가 아니다 → `../BACKLOG.md`.
+> 검색 결과가 있으면 실제 예외 원문인지 다른 모델의 message 필드인지 확인한다.
+> 과거 조사 수치는 현재 위반 수가 아니며 legacy를 따라 쓰지 않는다 → `../BACKLOG.md`.
 
-## 인증 재발급은 한 곳에서
+## 인증 재발급의 현재 경계
 
-Rodi는 각 Repository가 401을 잡아 재발급하는 `authenticatedRequest` 헬퍼를 **복사해서** 들고
-있다. 이건 사례가 아니라 부채다 — 새 프로젝트에 옮기지 말 것. OkHttp `Authenticator`로
-중앙화하는 게 맞고, single-flight 가드(요청 시점 refreshToken ≠ 현재 저장분이면 재발급 생략)는
-어느 쪽이든 반드시 유지해야 한다. 없으면 동시 401이 refreshToken을 서로 무효화해 전 세션이
-폐기된다.
+현재 `NetworkModule`은 인증 client에 `AuthHeaderInterceptor`와 `TokenAuthenticator`를 연결한다.
+공개 Auth API와 Kakao client는 분리되어 있다. 기존 `authenticatedRequest` 이름의 helper는
+일부 Repository에 남아 로그인 확인·도메인 예외 mapping을 수행하지만 401 refresh/retry를 직접
+소유하지 않는다. 이름 검색 건수를 중복 재발급 구현 수로 해석하지 않는다. 새 보호 API에 이전
+재발급 로직을 복사하지 않는다. single-flight refresh와 session-bound commit/retry 방어는
+`AuthRepositoryImpl`, `AuthTokenStore`, `TokenAuthenticator`의 계약·테스트로 확인한다.
 
-**정본**: `core/data/.../repository/AuthRepositoryImpl.kt` — 앵커 `refreshMutex`
+#166은 새 login/logout 뒤 늦은 refresh 결과와 이전 요청의 새 세션 credential retry를 방어했다.
+이는 모든 login/profile/onboarding 후처리의 원자성이나 process 복원을 입증하지 않는다.
+2026-09-17 auth audit은 중앙화 이전 snapshot으로 보존한다.
