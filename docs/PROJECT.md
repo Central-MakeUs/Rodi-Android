@@ -76,13 +76,14 @@
 
 ## 코드 규칙 적용 (Claude·Codex 공통)
 두 에이전트가 같은 기준으로 쓰고 같은 기준으로 판정받게 하는 절차다.
-- **읽는 순서**: 위 컨벤션 → `docs/conventions/`(Rodi 고유 규칙) → 전역 스킬 `android-code-standard`
-  (프로젝트 무관 기본값). 충돌하면 앞쪽이 우선한다.
+- **읽는 범위**: 전역 `android-development` entry → 관련 Rodi conventions/ADR와 필요한 reference.
+  코드 위생은 `android-code-standard`가 보완한다. 질문별 authority는 `docs/conventions/README.md`를 따른다.
 - **옆 파일이 아니라 규칙 문서의 정본을 따라 쓴다.** 코드베이스엔 아직 정리 안 된 관용구가 섞여 있다
   (→ `docs/BACKLOG.md` "코드 관용구 정합성"). 가까운 파일을 흉내 내면 부채가 복제된다.
 - **완료 보고 전에 `.github/scripts/check-conventions.sh`를 돌린다.** BLOCK 0건, WARN 합계가 작업
-  전보다 늘지 않아야 한다. CI도 같은 스크립트로 판정한다. ripgrep이 필요하다(`brew install ripgrep`).
-- **같은 리뷰 지적이 두 번 나오면 규칙으로 올린다** → `docs/conventions/README.md` "리뷰 지적을 규칙으로".
+  전보다 늘지 않아야 한다. **CI는 BLOCK만 자동 실패 처리하며 WARN 비증가는 수동 비교**다.
+  현재 task와 무관한 build를 문서·Skill 변경 때문에 강제하지 않는다. ripgrep이 필요하다.
+- **반복된 리뷰 지적은 반례·적용 조건을 검토한 뒤 규칙 후보로 삼는다** → `docs/conventions/README.md` "리뷰 지적을 규칙으로".
 
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.
@@ -98,6 +99,6 @@
 | 자동 판정 가능한 규칙의 집행 | `.github/scripts/check-conventions.sh` (CI) |
 | 규칙과 코드의 현재 차이 | `docs/BACKLOG.md` |
 | 특정 시점 조사 수치 | `docs/audits/` (스냅샷. 갱신하지 않고 새로 만든다) |
-| 프로젝트 무관 규범 | 전역 스킬 `/android-code-standard` |
+| 프로젝트 무관 판단 workflow / 코드 위생 | 전역 Skill `android-development` / `android-code-standard` |
 
 `docs/BACKLOG.md`는 Claude 메모리를 못 보는 Codex와 공유하는 채널이기도 하다.

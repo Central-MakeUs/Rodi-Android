@@ -36,17 +36,20 @@
 
 ## 스킬 선택
 
-- Android 모듈, Gradle, Clean Architecture, MVI, Compose lifecycle, 테스트 작업은 구현 전에 `maintainable-android-delivery`를 읽고 적용한다
-- Kotlin·Compose 코드를 쓰거나 고칠 때는 `android-code-standard`와 `docs/conventions/`의 해당 주제 파일을 읽는다. 충돌하면 `docs/conventions/`가 우선한다
+- Android 작업은 `android-development`를 entry로 읽고 관련 reference만 적용한다.
+  `maintainable-android-delivery`는 호환 router다. 버전별 API는 프로젝트 dependency와 공급자 자료를 대조한다
+- Kotlin·Compose 코드를 쓰거나 고칠 때는 `android-code-standard`와 `docs/conventions/`의 해당 주제 파일을 읽는다. Rodi의 명시적 프로젝트 결정은 `docs/conventions/`를 따르며 API 사실과 현재 구현은 별도로 확인한다
 - Figma 또는 스크린샷 기반 UI 구현과 검증은 `figma-device-verify`를 함께 적용한다
 - 커밋, 푸시, PR, 병합, 릴리스 작업은 `git-release-publish`를 적용한다
 - 릴리스 노트 작성과 수정은 `release-notes`를 적용하고, 이 리포의 형식은 `docs/conventions/release.md`가 우선한다
-- 스킬에 구체 규칙이 없으면 `docs/PROJECT.md`와 `docs/ARCHITECTURE_TARGET.md`가 우선한다
+- 프로젝트 사실·의도된 경계는 `docs/PROJECT.md`와 `docs/ARCHITECTURE_TARGET.md`에서 확인한다.
+  현재 코드가 다르면 legacy인지 문서가 오래되었는지 구분하며 자동으로 규범을 바꾸지 않는다
 
 ## 구조 규칙
 
 - 같은 역할의 파일이 2개 이상이면 역할 패키지를 만들고 하나뿐이면 Screen, ViewModel, Contract와 같은 depth에 둔다
-- Contract는 화면마다 `XxxViewModel.kt` 옆 `XxxContract.kt` 하나로 두고 UiState·Intent·Effect를 ViewModel 파일에 선언하지 않는다
+- Contract는 화면마다 `XxxViewModel.kt` 옆 `XxxContract.kt` 하나로 두고 채택한 UiState·Intent·Effect를 여기에 선언한다.
+  Intent·Effect가 필요 없는 화면에 빈 타입이나 stream을 만들지 않는다(`docs/conventions/mvi.md`)
 - 재사용 public Composable은 파일 하나당 하나가 기본이며 소유 컴포넌트 전용 private helper만 같은 파일에 둔다
 - Domain과 Data 패키지 및 의존 방향은 `docs/ARCHITECTURE_TARGET.md`를 따른다
 - 동일 Gradle configuration에서 항상 함께 쓰는 의존성이 2개 이상이면 version catalog bundle을 사용한다
@@ -54,8 +57,11 @@
 
 ## 검증과 보고
 
-- HANDOFF Verification에 적힌 검증과 `./gradlew assembleDebug`를 실행한다
-- 완료로 바꾸기 전에 `.github/scripts/check-conventions.sh`를 실행해 BLOCK 0건, WARN 합계 비증가를 확인하고 결과를 `HANDOFF.md`에 적는다 (`docs/PROJECT.md` "코드 규칙 적용")
+- 현재 사용자 요청의 검증 범위를 따른다. production 변경은 유효한 HANDOFF Verification과
+  `./gradlew assembleDebug`를 실행한다. 문서·Skill만 바꾸는 작업은 링크·규칙·behavior 검증을 수행하며
+  관련 없는 과거 HANDOFF acceptance를 현재 작업으로 실행하지 않는다
+- `.github/scripts/check-conventions.sh`의 BLOCK 0건을 확인한다. WARN 비증가는 전후 결과를
+  사람이 비교하는 요구이며 현재 script가 자동 강제하지 않는다. HANDOFF 기록 범위도 사용자 요청을 따른다
 - 실패하면 원인을 수정하고 다시 실행하며 실행할 수 없는 검증은 이유와 영향을 기록한다
 - 커밋·PR 생성은 기본적으로 하지 않는다(Claude가 별도로 수행). 사용자가 예외적으로 직접 커밋/PR을
   요청한 경우에만: PR 본문 체크리스트에는 코드 셀프 리뷰, 실기기 확인, 디자인 대조처럼 사람이

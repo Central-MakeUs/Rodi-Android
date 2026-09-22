@@ -16,13 +16,12 @@
 - 승인 게이트를 포함한 세부 진행 절차와 자동화는 로컬 파이프라인 도구가 관리하며 이 리포에는 두지 않는다.
 
 ## Skills
-- **코드 작성·리뷰 규범: `/android-code-standard`** — 이 리포가 그 규범의 정본이다.
-  PROJECT.md 컨벤션에 더해 "왜 그 규칙인지"(실제 사고 사례)와 정본 파일 경로가 정리돼 있다.
-  **그 스킬은 프로젝트 무관 규범만 담는다.** Rodi 고유 규칙은 `docs/conventions/`에 있고,
-  충돌하면 **`docs/conventions/`가 우선**한다.
-  갱신 누락을 막는 장치는 ADR이다 → `docs/adr/TEMPLATE.md`의 "무효화하는 규범 항목" 칸.
-- 기능 개발(설계→구현→검증): `/maintainable-android-delivery`
-- 디자인 → Compose 변환: `/design-to-compose`
+- Android 판단 entry: `/android-development`. 필요한 reference와 프로젝트 규범만 읽는다.
+- 코드 위생: `/android-code-standard`. Rodi는 Global 규범의 정본이 아니라 검증 사례 중 하나다.
+  프로젝트 결정은 `docs/conventions/`, API 사실은 실제 dependency와 공급자 자료로 확인한다.
+  질문별 authority는 `docs/conventions/README.md`를 따른다.
+- `/maintainable-android-delivery`는 Global entry의 호환 router다.
+- 디자인 구현: `/visual-design-sync`; `/design-to-compose`는 호환 router다.
 - 구현 결과를 Figma·기기에서 자가 검증: `/figma-device-verify`
 - Compose 성능(recomposition/stability): `/recomposition_optimization`
 - 의존성 버전 관리: `/version_control_wisdom`
@@ -34,14 +33,15 @@
 ## 지식의 정본 (섞지 말 것)
 지식 종류마다 수명과 최신화 방법이 다르다. 자세한 표는 `docs/PROJECT.md`.
 
-- **현재 구현** → 코드. 문서를 근거로 코드를 되돌리지 않는다.
+- **현재 구현** → 코드. 규범과 다르면 legacy·stale 설명·의도된 변경을 구분한다.
+  현재 코드를 자동으로 규범으로 승격하거나 문서만 보고 범위 밖 코드를 바꾸지 않는다.
 - **왜 이 구조인가** → `docs/adr/`
 - **Rodi 고유 규칙** → `docs/conventions/`
 - **자동 판정 가능한 규칙** → `.github/scripts/check-conventions.sh` (CI가 판정자)
 - **규칙과 코드의 차이** → `docs/BACKLOG.md`
 - **특정 시점 조사 수치** → `docs/audits/` — **스냅샷이지 현재값이 아니다.**
   "지금 몇 개야?"에 이 숫자를 답하지 말고 리포에서 재측정한다. 갱신하지 않고 새 날짜로 새로 만든다.
-- **프로젝트 무관 규범** → 전역 스킬 `/android-code-standard`
+- **프로젝트 무관 판단 / 코드 위생** → `/android-development` / `/android-code-standard`
 
 ## 향후
 - 멀티모듈 목표 구조: `docs/ARCHITECTURE_TARGET.md`

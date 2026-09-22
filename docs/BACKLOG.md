@@ -232,12 +232,12 @@
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **Nav3 도입 + 하드코딩 축소** — Navigation 3(`androidx.navigation3`)로 전환하고
-  `kotlinx.serialization`으로 라우트를 타입-세이프하게 정의해 문자열 하드코딩 제거.
+- [x] **Nav3 도입** — 현재 app은 Navigation3 `NavDisplay`와 typed route를 사용한다.
+  최신 result API 사용 가능성은 `libs.versions.toml`의 실제 버전과 공식 도입 버전을 별도로 확인한다.
 - [ ] **테마 시스템 고도화** — 마찬가지로 `dnd-14th-2-android`의 `designsystem/theme/`
   (Theme.kt/Color.kt/Typography.kt/Dimensions.kt)를 참고해 `RodiTheme`을 확장.
-  **목표: 이 참고 프로젝트와 같거나 더 나은 완성도로, Rodi가 앞으로의 모든 프로젝트에서 기준이
-  되는 디자인 시스템/테마 구조를 갖추는 것.** 참고 프로젝트 구조:
+  **목표: Rodi의 제품 요구와 유지보수에 맞는 디자인 시스템을 갖추는 것. 다른 프로젝트의
+  전역 규범으로 이 구조를 강제하지 않는다.** 참고 프로젝트 구조:
   - `PickleTheme.colors` / `.semantic` / `.typography` 3개의 `CompositionLocal`을
     `ReadOnlyComposable`로 노출하는 패턴 (색상 토큰과 "의미 있는" 색상 매핑을 분리)
   - `SemanticColors`: 카카오/구글 로그인 브랜드색, 도메인 상태색(예: guilty/innocent) 등
@@ -284,7 +284,7 @@
 ## 코드 관용구 정합성 (2026-09-06 전수 조사)
 
 > `app`/`core`/`feature` 전 소스에서 관용구를 추출하다 나온 **Rodi 내부 불일치**만 모은다.
-> 규범 자체("어떻게 쓰는 게 맞는가")는 `/android-code-standard` 스킬이 정본이고, 여기엔
+> Rodi 규범은 `conventions/`, Global 판단 절차는 `android-development`가 소유하며, 여기엔
 > "Rodi가 그 규범과 어긋난 지점"만 남긴다 — 규범과 할 일을 한 문서에 섞지 않는다.
 >
 > **수치는 전부 `91799c57` 기준 실측이며 재검증 명령을 함께 적는다.** 시간이 지나면 수치를
@@ -298,13 +298,13 @@
   `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
   직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
   `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
-  Channel + `effect` + `CollectEffect`로 통일한다. 재생·다중 소비가 실제로 필요한 화면이 있으면
-  그 이유를 Contract에 주석으로 남길 것.
+  당시 Channel + `effect` + `CollectEffect`로 정리했다. 현재 신규 output 정책은
+  `conventions/mvi.md`의 의미·수명 판단을 따른다. 모든 화면에 Effect/Channel을 생성하지 않는다.
   재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
 - [x] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** (2026-09-18 전부 이벤트형으로 통일, check-conventions BLOCK) — `HomeContract`/`SearchViewModel`은
   `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
-  이미 "입력"을 뜻하므로 동작형으로 통일한다 — UI 콜백 파라미터의 `onXxx`와 이름이 겹치지
-  않는 이점도 있다.
+  이미 "입력"을 뜻한다. 현재 typed Intent는 `RetryClicked` 등 이벤트형으로 통일하며
+  명령형을 권장하던 이전 설명을 정정한다(`conventions/naming.md`, `mvi.md`).
 - [x] **Contract 선언 위치가 컨벤션과 절반만 맞다** (2026-09-17 "화면마다 ViewModel 옆 Contract"로 규칙을 고치고 10개 화면 이동, CI BLOCK) — 루트 `*Contract.kt` 8개 대 UiState를
   ViewModel 파일에 내장한 것 9개(`SavedCourses`/`MyPage`/`PracticeRecords`/`DrivingGoal`/
   `AccountSettings`/`BlockedMembers`/`Search`/`RodiApp`/`ReviewActions`). PROJECT.md는 "Contract는

@@ -1,7 +1,8 @@
 # 이름
 
-> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. 프로젝트 무관 규범은 전역 스킬
-> `/android-code-standard`에 있고, 여기 규칙이 그것과 충돌하면 **이 문서가 우선**한다.
+> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. Global 판단 절차는 전역 Skill
+> `android-development`, 코드 위생은 `android-code-standard`를 참고한다. API 사실·프로젝트 결정·
+> 현재 구현·작업 범위의 authority 구분은 `README.md`를 따른다.
 > 수치는 적지 않는다 — 재검증 명령으로 대체한다(→ `README.md`). 시점별 조사 수치는 `../audits/`.
 > 모든 `rg` 명령은 리포 루트에서 실행한다. `build/`는 `.gitignore`에 있어 rg가 알아서 건너뛴다.
 
@@ -80,7 +81,8 @@ rg --files -g '*.kt' core/data/src/main | grep '/repository/' | grep -v 'Reposit
 **정본**: `feature/mypage/.../MyPageScreen.kt` — 앵커 `onSettingsClick: () -> Unit`
 
 **주의**: 이건 **UI 콜백 파라미터** 규칙이고 MVI `Intent` 자식 타입 이름과는 다르다.
-Intent는 `Retry`/`Submit` 같은 동작형을 쓴다(→ `mvi.md`).
+typed Intent는 `RetryClicked`/`SubmitClicked` 같은 이벤트형을 쓴다(→ `mvi.md`).
+이 규칙은 Intent를 채택한 화면에 적용하며 모든 public method를 Intent로 바꾸라는 뜻이 아니다.
 
 ## Boolean 상태는 질문으로 읽히게
 
