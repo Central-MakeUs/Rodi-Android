@@ -17,7 +17,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -175,10 +177,17 @@ class RodiAppViewModelTest {
             hasRecentKakaoLogin = true,
         )
 
-        val viewModel = RodiAppViewModel(getEntryCompleted, getGuestAccess, getAuthSession, syncUseCase(), sessionExpirationUseCase())
+        val signOuts = MutableSharedFlow<Unit>()
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(signOuts = signOuts),
+        )
         advanceUntilIdle()
 
-        viewModel.onSessionEnded()
+        signOuts.emit(Unit)
         guestAccess.value = true
         advanceUntilIdle()
 
@@ -210,7 +219,69 @@ class RodiAppViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
-        assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin(showSessionExpiredMessage = true)), effects)
+        effectCollection.cancel()
+    }
+
+    @Test
+    fun `user sign out navigates to login once without the expiration message`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val signOuts = MutableSharedFlow<Unit>()
+        val expirations = MutableStateFlow(false)
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(expirations, signOuts),
+        )
+        val effects = mutableListOf<RodiAppEffect>()
+        val effectCollection = launch { viewModel.effect.collect(effects::add) }
+        advanceUntilIdle()
+
+        signOuts.emit(Unit)
+        expirations.value = true
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin(showSessionExpiredMessage = false)), effects)
+        effectCollection.cancel()
+    }
+
+    @Test
+    fun `a new login re-arms navigation for the next sign out`() = runTest(dispatcher) {
+        val getEntryCompleted = mockk<GetEntryCompletedUseCase>()
+        val getGuestAccess = mockk<GetGuestAccessUseCase>()
+        val getAuthSession = mockk<GetAuthSessionUseCase>()
+        val signOuts = MutableSharedFlow<Unit>()
+        every { getEntryCompleted() } returns flowOf(true)
+        every { getGuestAccess() } returns flowOf(false)
+        coEvery { getAuthSession() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
+        val viewModel = RodiAppViewModel(
+            getEntryCompleted,
+            getGuestAccess,
+            getAuthSession,
+            syncUseCase(),
+            sessionExpirationUseCase(signOuts = signOuts),
+        )
+        val effects = mutableListOf<RodiAppEffect>()
+        val effectCollection = launch { viewModel.effect.collect(effects::add) }
+        advanceUntilIdle()
+
+        signOuts.emit(Unit)
+        advanceUntilIdle()
+        viewModel.onLoginSucceeded()
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.authSession.isLoggedIn)
+        signOuts.emit(Unit)
+        advanceUntilIdle()
+
+        assertEquals(2, effects.size)
         effectCollection.cancel()
     }
 
@@ -234,7 +305,7 @@ class RodiAppViewModelTest {
         advanceUntilIdle()
 
         assertFalse(viewModel.uiState.value.authSession.isLoggedIn)
-        assertEquals(listOf(RodiAppEffect.NavigateToLogin), effects)
+        assertEquals(listOf(RodiAppEffect.NavigateToLogin(showSessionExpiredMessage = true)), effects)
         effectCollection.cancel()
     }
 
@@ -452,7 +523,9 @@ class RodiAppViewModelTest {
 
     private fun sessionExpirationUseCase(
         expirations: kotlinx.coroutines.flow.Flow<Boolean> = flowOf(false),
+        signOuts: kotlinx.coroutines.flow.Flow<Unit> = emptyFlow(),
     ): AuthRepository = mockk {
         every { observeSessionExpiration() } returns expirations
+        every { observeSignOut() } returns signOuts
     }
 }

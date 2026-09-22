@@ -13,5 +13,5 @@ data class RodiAppUiState(
 )
 
 sealed interface RodiAppEffect {
-    data object NavigateToLogin : RodiAppEffect
+    data class NavigateToLogin(val showSessionExpiredMessage: Boolean) : RodiAppEffect
 }

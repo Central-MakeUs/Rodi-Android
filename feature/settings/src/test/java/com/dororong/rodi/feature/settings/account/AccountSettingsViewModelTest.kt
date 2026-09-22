@@ -34,7 +34,7 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `emits session ended after logout succeeds`() = runTest(testDispatcher) {
+    fun `leaves navigation to the app session owner after logout succeeds`() = runTest(testDispatcher) {
         val logout = mockk<LogoutUseCase>()
         val withdraw = mockk<WithdrawUseCase>()
         coEvery { logout() } returns Result.success(Unit)
@@ -44,8 +44,9 @@ class AccountSettingsViewModelTest {
             viewModel.confirm(AccountAction.Logout)
             advanceUntilIdle()
 
-            assertEquals(AccountSettingsEffect.SessionEnded, awaitItem())
+            expectNoEvents()
         }
+        assertEquals(false, viewModel.uiState.value.isSubmitting)
         coVerify(exactly = 1) { logout() }
         coVerify(exactly = 0) { withdraw() }
     }

@@ -10,6 +10,5 @@ data class AccountSettingsUiState(
 )
 
 sealed interface AccountSettingsEffect {
-    data object SessionEnded : AccountSettingsEffect
     data class ShowError(val message: String) : AccountSettingsEffect
 }

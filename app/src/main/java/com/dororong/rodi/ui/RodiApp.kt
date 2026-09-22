@@ -67,8 +67,8 @@ fun RodiApp(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            RodiAppEffect.NavigateToLogin -> {
-                showSessionExpiredMessage = true
+            is RodiAppEffect.NavigateToLogin -> {
+                showSessionExpiredMessage = effect.showSessionExpiredMessage
                 backStack.clear()
                 backStack.add(LoginRoute)
             }
@@ -168,9 +168,6 @@ fun RodiApp(
                         },
                         openArrivalOnStart = openArrivalOnStart,
                         onArrivalHandled = { openArrivalOnStart = false },
-                        onSessionEnded = {
-                            viewModel.onSessionEnded()
-                        },
                     )
                 }
                 else -> error("Unknown route: $key")

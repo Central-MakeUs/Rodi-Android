@@ -62,7 +62,6 @@ private enum class SettingsDestination {
 fun SettingsScreen(
     onBack: () -> Unit,
     appVersion: String,
-    onSessionEnded: () -> Unit,
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
@@ -106,7 +105,6 @@ fun SettingsScreen(
         destination == SettingsDestination.Account -> AccountSettingsScreen(
             onBack = { destinationName = SettingsDestination.Menu.name },
             onInquiryClick = { destinationName = SettingsDestination.Inquiry.name },
-            onSessionEnded = onSessionEnded,
         )
 
         destination == SettingsDestination.Inquiry -> InquiryScreen(

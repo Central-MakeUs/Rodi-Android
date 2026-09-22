@@ -80,7 +80,6 @@ fun MyPageScreen(
     onMyPostsClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
     testMenuSections: List<TestMenuSection> = emptyList(),
-    onSessionEnded: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel = hiltViewModel(),
 ) {
@@ -124,7 +123,6 @@ fun MyPageScreen(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            is MyPageEffect.HardDeleteCompleted -> onSessionEnded()
             is MyPageEffect.ShowError -> snackbarHostState.show(
                 RodiSnackbarData(message = effect.message),
             )
