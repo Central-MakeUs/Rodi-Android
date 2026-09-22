@@ -107,5 +107,8 @@ rg -n '\.message\b' -g '*ViewModel.kt' . | grep -v '/src/test/'
 `AuthRepositoryImpl`, `AuthTokenStore`, `TokenAuthenticator`의 계약·테스트로 확인한다.
 
 #166은 새 login/logout 뒤 늦은 refresh 결과와 이전 요청의 새 세션 credential retry를 방어했다.
-이는 모든 login/profile/onboarding 후처리의 원자성이나 process 복원을 입증하지 않는다.
+세션의 로컬 시작·재발급 반영·종료 commit은 `AuthSessionCoordinator` 한 곳이 소유한다(→ ADR 0002).
+로그아웃·탈퇴·삭제는 서버 요청 뒤 이 객체로 시작 세션을 대조해 로컬 데이터를 모두 정리한 다음
+알리고, root가 그 알림을 관찰해 로그인 화면으로 간다. 세션을 끝내는 repository·UseCase·화면이
+토큰을 직접 지우거나 root에 종료를 따로 전달하지 않는다. 이 경계는 process 복원을 다루지 않는다.
 2026-09-17 auth audit은 중앙화 이전 snapshot으로 보존한다.
