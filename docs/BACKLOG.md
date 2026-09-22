@@ -204,29 +204,15 @@
 - [x] **장소 상세 조회 실패 시 에러 피드백 부재** — 재확인(2026-08-14) 결과 이미 해결돼 있다.
   `HomeViewModel.openPlace()`의 `onFailure`가 `_effect.send(HomeEffect.ShowSnackbar(error.userMessage()))`를
   호출 중.
-- [ ] **보호 API 토큰 갱신 로직 중앙화(OkHttp Authenticator)** — `Authorization` 헤더가 필요한 보호
-  API가 이미 다수인데 `NetworkModule`엔 `Authenticator`가 없고, Repository들이 각각 401을 잡아
-  `authRepository.reissueToken()`을 호출하는 `authenticatedRequest` 헬퍼를 **거의 동일하게 복사**해
-  들고 있다. 남은 문제는 **중복뿐**이다.
-  **2026-09-17 실측: 7곳이다** — `Place`/`RecentSearch`/`Member`/`CourseRegistration`/`Practice`/`Review`의
-  각 `RepositoryImpl`에 더해 `OnboardingRepositoryImpl`도 `submitWithAccessToken(canRefreshToken)`이라는
-  자체 재시도를 갖고 있다(09-06 기록의 "Onboarding은 빠짐"은 틀렸다). 인자 형태도 갈렸다 — 헬퍼가 완성된
-  `"Bearer $token"`을 넘기는 쪽 5개, raw token을 넘기고 호출부에서 Bearer를 조합하는 쪽 2개.
-  수치·차이 표·권고안은 `audits/2026-09-17-auth-header.md`.
-  중앙화 전까지 **새 Repository에 이 헬퍼를 또 복사하지 말 것.**
-  **중앙화 시 인자 형식을 먼저 하나로 정한다** — 다수인 "헬퍼가 완성된 `Bearer <token>`을
-  넘긴다"로 통일하고, raw token을 넘기던 2곳의 호출부를 함께 고친다. 이걸 정하지 않고 합치면
-  `Bearer` 누락이나 `Bearer Bearer ...`가 난다.
-  재검증: `rg -l 'authenticatedRequest' --glob '**/*.kt' --glob '!**/build/**'`
-  **refreshToken 재사용으로 전 세션이 폐기되는(`AUTH_401_4`) 레이스는 이미 막혀 있다** — 2026-08-08
-  확인: `AuthRepositoryImpl`이 `@Singleton`이고 `reissueToken()`이 인스턴스 `refreshMutex`로 감싼 뒤
-  "요청 시점 refreshToken ≠ 현재 저장된 refreshToken이면 재발급하지 않고 return"하는 single-flight
-  가드를 이미 구현하고 있다. 따라서 이 항목은 데이터 손실 위험이 아니라 **리팩터링 우선순위**다.
-  중앙화 시: `OkHttpClient`에 `Authenticator`를 추가하고 각 Repository의 중복 헬퍼를 제거한다.
-  순환 의존(OkHttpClient → AuthApi → Retrofit → 같은 OkHttpClient) 방지를 위해 재발급 전용
-  Retrofit/OkHttpClient 인스턴스를 따로 구성해야 하고, 위 single-flight 가드는 그대로 유지해야 한다.
-  **지금 OkHttpClient는 하나이고 카카오 로컬 API(`KakaoAK` 헤더)와 공유한다** — 인증 Interceptor를
-  그대로 붙이면 카카오 요청에도 `Bearer`가 실리므로 Rodi 서버 전용 클라이언트를 먼저 분리한다.
+- [x] **보호 API 인증 중앙화 및 session 경합 방어** — 현재 `NetworkModule`의 인증 전용 client에
+  `AuthHeaderInterceptor`/`TokenAuthenticator`가 연결되어 있고 공개 Auth/Kakao client와 분리되어 있다.
+  #166(`eeb60466`)에서 새 login/logout 이후 stale refresh commit과 old-request retry를 방어했다.
+  일부 `authenticatedRequest` helper는 로그인 확인·오류 mapping 용도로 남아 있다. helper 이름의
+  검색 결과를 Repository별 refresh/retry 중복으로 해석하지 않는다.
+  `audits/2026-09-17-auth-header.md`는 중앙화 이전 snapshot이며 당시 수치를 현재 상태로 사용하지 않는다.
+- [ ] **인증 workflow 후처리 ownership 추가 검토** — #166의 token 경계 방어가 login/profile/
+  onboarding cleanup 전체 원자성을 뜻하지 않는다. 특히 `LogoutUseCase`의 repository 호출 이후
+  후처리와 새 session의 관계를 별도 재현·검증한다. 이번 Skill 개편에서 production을 수정하지 않았다.
 - [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
