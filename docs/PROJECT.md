@@ -81,8 +81,9 @@
 - **옆 파일이 아니라 규칙 문서의 정본을 따라 쓴다.** 코드베이스엔 아직 정리 안 된 관용구가 섞여 있다
   (→ `docs/BACKLOG.md` "코드 관용구 정합성"). 가까운 파일을 흉내 내면 부채가 복제된다.
 - **완료 보고 전에 `.github/scripts/check-conventions.sh`를 돌린다.** BLOCK 0건, WARN 합계가 작업
-  전보다 늘지 않아야 한다. CI도 같은 스크립트로 판정한다. ripgrep이 필요하다(`brew install ripgrep`).
-- **같은 리뷰 지적이 두 번 나오면 규칙으로 올린다** → `docs/conventions/README.md` "리뷰 지적을 규칙으로".
+  전보다 늘지 않아야 한다. **CI는 BLOCK만 자동 실패 처리하며 WARN 비증가는 수동 비교**다.
+  현재 task와 무관한 build를 문서·Skill 변경 때문에 강제하지 않는다. ripgrep이 필요하다.
+- **반복된 리뷰 지적은 반례·적용 조건을 검토한 뒤 규칙 후보로 삼는다** → `docs/conventions/README.md` "리뷰 지적을 규칙으로".
 
 ## 디자인 원천
 - Figma "루티 DESIGN" (예: 홈 node 366-3412). 토큰/픽셀은 Figma 확정값 기준.

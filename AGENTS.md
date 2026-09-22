@@ -57,8 +57,11 @@
 
 ## 검증과 보고
 
-- HANDOFF Verification에 적힌 검증과 `./gradlew assembleDebug`를 실행한다
-- 완료로 바꾸기 전에 `.github/scripts/check-conventions.sh`를 실행해 BLOCK 0건, WARN 합계 비증가를 확인하고 결과를 `HANDOFF.md`에 적는다 (`docs/PROJECT.md` "코드 규칙 적용")
+- 현재 사용자 요청의 검증 범위를 따른다. production 변경은 유효한 HANDOFF Verification과
+  `./gradlew assembleDebug`를 실행한다. 문서·Skill만 바꾸는 작업은 링크·규칙·behavior 검증을 수행하며
+  관련 없는 과거 HANDOFF acceptance를 현재 작업으로 실행하지 않는다
+- `.github/scripts/check-conventions.sh`의 BLOCK 0건을 확인한다. WARN 비증가는 전후 결과를
+  사람이 비교하는 요구이며 현재 script가 자동 강제하지 않는다. HANDOFF 기록 범위도 사용자 요청을 따른다
 - 실패하면 원인을 수정하고 다시 실행하며 실행할 수 없는 검증은 이유와 영향을 기록한다
 - 커밋·PR 생성은 기본적으로 하지 않는다(Claude가 별도로 수행). 사용자가 예외적으로 직접 커밋/PR을
   요청한 경우에만: PR 본문 체크리스트에는 코드 셀프 리뷰, 실기기 확인, 디자인 대조처럼 사람이

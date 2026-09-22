@@ -1,5 +1,18 @@
 # TESTING.md — Rodi 단위 테스트 컨벤션
 
+## 테스트 선택과 집행 범위
+
+UseCase 길이보다 validation/mapping/retry/ordering/cancellation/Result/business 계약을 본다.
+pure forwarding의 호출만 복제하는 테스트는 항상 추가할 필요가 없다. 공통 wrapper 계약은
+공통 테스트로 검증할 수 있다. 기존 테스트는 이 원칙만으로 삭제하지 않는다.
+
+- **현재 CI**: workflow에 연결된 build/lint/test/Roborazzi task와 convention BLOCK을 확인한다.
+- **수동 요구**: convention WARN 비증가는 작업 전후 합계를 비교한다. 현재 script는 WARN을 출력하며 자동 실패시키지 않는다.
+- **향후 후보**: strict UseCase 경계 검사와 WARN baseline 자동화. 현재 구현됐다고 보고하지 않는다.
+- 커밋 직전 최종 Gradle 검증은 `--rerun-tasks`로 UP-TO-DATE 캐시 재사용을 배제한다. 작업 중 반복 확인 빌드에는 강제하지 않는다.
+- 문서·Skill만 수정하면 해당 링크/metadata/behavior 검증을 수행한다. production 검증과 혼동하지 않는다.
+- configuration change, collector restart, entry recreation, process death의 증거를 구분한다.
+
 ## 파일 위치
 - `src/main/kotlin/...`에 있는 JVM 모듈 소스(`core:domain`, `core:common`)는 `src/test/kotlin/...`에 둔다.
 - `src/main/java/...`에 있는 Android 모듈 소스(`app`, `core:data`, `core:ui`, `feature:*` 전부)는 `src/test/java/...`에 둔다.
