@@ -14,6 +14,8 @@ import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,7 +51,7 @@ class AuthSessionCoordinator @Inject constructor(
 
     fun observeSignOut(): Flow<Unit> = signOuts.asSharedFlow()
 
-    suspend fun start(accessToken: String, refreshToken: String, isCourseTutorialCompleted: Boolean) {
+    suspend fun start(accessToken: String, refreshToken: String, isCourseTutorialCompleted: Boolean) = commit {
         mutex.withLock {
             if (!tokenStore.save(accessToken, refreshToken, KAKAO_PROVIDER, isCourseTutorialCompleted)) {
                 throw AuthException.Unknown("로그인 정보를 안전하게 저장하지 못했습니다.")
@@ -76,7 +78,7 @@ class AuthSessionCoordinator @Inject constructor(
     }
 
     /** 서버가 [expected] 세션을 거부했다. 그 사이 다른 세션으로 바뀌었으면 아무것도 하지 않고 false. */
-    suspend fun expire(expected: AuthTokens): Boolean = withContext(NonCancellable) {
+    suspend fun expire(expected: AuthTokens): Boolean = commit {
         mutex.withLock {
             if (tokenStore.getTokens()?.sessionId != expected.sessionId) return@withLock false
             try {
@@ -94,7 +96,7 @@ class AuthSessionCoordinator @Inject constructor(
      * 다른 세션으로 이미 바뀌었으면 새 세션을 건드리지 않고 [AuthException.NotAuthenticated]를 던진다.
      * 토큰 영구 삭제가 실패해도 메모리 세션은 비워지므로 종료로 보고 알린다.
      */
-    suspend fun signOut(expected: AuthTokens): Boolean = withContext(NonCancellable) {
+    suspend fun signOut(expected: AuthTokens): Boolean = commit {
         mutex.withLock {
             if (tokenStore.getTokens()?.sessionId != expected.sessionId) {
                 throw AuthException.NotAuthenticated("로그인 세션이 변경되었습니다.")
@@ -103,6 +105,15 @@ class AuthSessionCoordinator @Inject constructor(
             signOuts.tryEmit(Unit)
             localCleanupSucceeded
         }
+    }
+
+    // 시작한 commit은 호출자가 취소돼도 끝까지 수행하고, 취소는 결과 대신 호출자에게 다시 던진다.
+    // 같은 dispatcher의 withContext(NonCancellable)는 반환 시 취소를 확인하지 않는다.
+    private suspend fun <T> commit(block: suspend () -> T): T {
+        currentCoroutineContext().ensureActive()
+        val result = withContext(NonCancellable) { block() }
+        currentCoroutineContext().ensureActive()
+        return result
     }
 
     private suspend fun endLocked(expected: AuthTokens, clearsDeviceOnboarding: Boolean): Boolean {

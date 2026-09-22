@@ -89,16 +89,45 @@ class AuthSessionCoordinatorTest {
             onboardingCleanup.await()
         }
         val published = async { coordinator.observeSignOut().first() }
-        val signOut = launch { coordinator.signOut(tokenStore.getTokens()!!) }
+        var returnedNormally = false
+        val signOut = launch {
+            coordinator.signOut(tokenStore.getTokens()!!)
+            returnedNormally = true
+        }
         cleanupStarted.await()
 
         signOut.cancel()
         onboardingCleanup.complete(Unit)
         signOut.join()
 
-        assertTrue(signOut.isCancelled)
+        assertFalse(returnedNormally)
         published.await()
         coVerify(exactly = 1) { entryRepository.clear() }
+    }
+
+    @Test
+    fun `login finishes its local commit even when the caller is cancelled`() = runTest {
+        coordinator.expire(tokenStore.getTokens()!!)
+        val practiceCleanup = CompletableDeferred<Unit>()
+        val cleanupStarted = CompletableDeferred<Unit>()
+        coEvery { practiceSessionRepository.clear() } coAnswers {
+            cleanupStarted.complete(Unit)
+            practiceCleanup.await()
+        }
+        var returnedNormally = false
+        val login = launch {
+            coordinator.start("access-b", "refresh-b", false)
+            returnedNormally = true
+        }
+        cleanupStarted.await()
+
+        login.cancel()
+        practiceCleanup.complete(Unit)
+        login.join()
+
+        assertFalse(returnedNormally)
+        assertEquals("access-b", tokenStore.getTokens()?.accessToken)
+        assertFalse(coordinator.observeExpiration().first())
     }
 
     @Test
