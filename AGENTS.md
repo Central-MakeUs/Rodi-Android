@@ -36,12 +36,14 @@
 
 ## 스킬 선택
 
-- Android 모듈, Gradle, Clean Architecture, MVI, Compose lifecycle, 테스트 작업은 구현 전에 `maintainable-android-delivery`를 읽고 적용한다
-- Kotlin·Compose 코드를 쓰거나 고칠 때는 `android-code-standard`와 `docs/conventions/`의 해당 주제 파일을 읽는다. 충돌하면 `docs/conventions/`가 우선한다
+- Android 작업은 `android-development`를 entry로 읽고 관련 reference만 적용한다.
+  `maintainable-android-delivery`는 호환 router다. 버전별 API는 프로젝트 dependency와 공급자 자료를 대조한다
+- Kotlin·Compose 코드를 쓰거나 고칠 때는 `android-code-standard`와 `docs/conventions/`의 해당 주제 파일을 읽는다. Rodi의 명시적 프로젝트 결정은 `docs/conventions/`를 따르며 API 사실과 현재 구현은 별도로 확인한다
 - Figma 또는 스크린샷 기반 UI 구현과 검증은 `figma-device-verify`를 함께 적용한다
 - 커밋, 푸시, PR, 병합, 릴리스 작업은 `git-release-publish`를 적용한다
 - 릴리스 노트 작성과 수정은 `release-notes`를 적용하고, 이 리포의 형식은 `docs/conventions/release.md`가 우선한다
-- 스킬에 구체 규칙이 없으면 `docs/PROJECT.md`와 `docs/ARCHITECTURE_TARGET.md`가 우선한다
+- 프로젝트 사실·의도된 경계는 `docs/PROJECT.md`와 `docs/ARCHITECTURE_TARGET.md`에서 확인한다.
+  현재 코드가 다르면 legacy인지 문서가 오래되었는지 구분하며 자동으로 규범을 바꾸지 않는다
 
 ## 구조 규칙
 

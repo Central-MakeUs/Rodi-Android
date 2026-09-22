@@ -1,7 +1,8 @@
 # Preview
 
-> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. 프로젝트 무관 규범은 전역 스킬
-> `/android-code-standard`에 있고, 여기 규칙이 그것과 충돌하면 **이 문서가 우선**한다.
+> Rodi가 의도적으로 유지하는 **프로젝트 고유 규칙**이다. Global 판단 절차는 전역 Skill
+> `android-development`, 코드 위생은 `android-code-standard`를 참고한다. API 사실·프로젝트 결정·
+> 현재 구현·작업 범위의 authority 구분은 `README.md`를 따른다.
 > 수치는 적지 않는다 — 재검증 명령으로 대체한다(→ `README.md`). 시점별 조사 수치는 `../audits/`.
 
 ## `private` 최상위 함수, 이름은 `<대상><상태>Preview`

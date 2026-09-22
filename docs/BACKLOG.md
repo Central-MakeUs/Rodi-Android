@@ -246,12 +246,12 @@
   compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
 - [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
   미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [ ] **Nav3 도입 + 하드코딩 축소** — Navigation 3(`androidx.navigation3`)로 전환하고
-  `kotlinx.serialization`으로 라우트를 타입-세이프하게 정의해 문자열 하드코딩 제거.
+- [x] **Nav3 도입** — 현재 app은 Navigation3 `NavDisplay`와 typed route를 사용한다.
+  최신 result API 사용 가능성은 `libs.versions.toml`의 실제 버전과 공식 도입 버전을 별도로 확인한다.
 - [ ] **테마 시스템 고도화** — 마찬가지로 `dnd-14th-2-android`의 `designsystem/theme/`
   (Theme.kt/Color.kt/Typography.kt/Dimensions.kt)를 참고해 `RodiTheme`을 확장.
-  **목표: 이 참고 프로젝트와 같거나 더 나은 완성도로, Rodi가 앞으로의 모든 프로젝트에서 기준이
-  되는 디자인 시스템/테마 구조를 갖추는 것.** 참고 프로젝트 구조:
+  **목표: Rodi의 제품 요구와 유지보수에 맞는 디자인 시스템을 갖추는 것. 다른 프로젝트의
+  전역 규범으로 이 구조를 강제하지 않는다.** 참고 프로젝트 구조:
   - `PickleTheme.colors` / `.semantic` / `.typography` 3개의 `CompositionLocal`을
     `ReadOnlyComposable`로 노출하는 패턴 (색상 토큰과 "의미 있는" 색상 매핑을 분리)
   - `SemanticColors`: 카카오/구글 로그인 브랜드색, 도메인 상태색(예: guilty/innocent) 등
@@ -298,7 +298,7 @@
 ## 코드 관용구 정합성 (2026-09-06 전수 조사)
 
 > `app`/`core`/`feature` 전 소스에서 관용구를 추출하다 나온 **Rodi 내부 불일치**만 모은다.
-> 규범 자체("어떻게 쓰는 게 맞는가")는 `/android-code-standard` 스킬이 정본이고, 여기엔
+> Rodi 규범은 `conventions/`, Global 판단 절차는 `android-development`가 소유하며, 여기엔
 > "Rodi가 그 규범과 어긋난 지점"만 남긴다 — 규범과 할 일을 한 문서에 섞지 않는다.
 >
 > **수치는 전부 `91799c57` 기준 실측이며 재검증 명령을 함께 적는다.** 시간이 지나면 수치를
