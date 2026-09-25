@@ -38,7 +38,7 @@ class PracticeRepositoryImplTest {
     fun `registering a planned practice does not mark record presence`() = runTest {
         val api = mockk<PracticeApi>()
         coEvery { api.register(7) } returns
-            ApiEnvelope(true, "COMMON_200", "성공", PracticeRegisterResponse(practiceId = 11))
+            ApiEnvelope(true, "COMMON_200", "성공", PracticeRegisterResponse(practiceId = 11, status = "PLANNED", visitCount = 0, requiredDistanceMeters = 0))
         val cache = PracticeRecordPresenceCache()
         val repository = repository(api, cache)
 
@@ -72,6 +72,11 @@ class PracticeRepositoryImplTest {
 
     private fun practiceVisitResponse() = com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse(
         visitCount = 1,
+        addedCertifiedDistanceMeters = 0,
+        requiredDistanceMeters = 0,
+        isCertifiedNow = true,
+        totalDistanceKm = 0.0,
+        levelUp = false,
     )
 
     private fun <T> failureEnvelope(code: String): ApiEnvelope<T> = ApiEnvelope(

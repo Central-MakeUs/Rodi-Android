@@ -176,5 +176,6 @@ private fun Throwable.toPlaceException(): PlaceException = when (this) {
         else -> PlaceException.Unexpected(message(), this)
     }
     is IOException -> PlaceException.Network("네트워크 연결을 확인해주세요.", this)
-    else -> PlaceException.Unexpected(message ?: "장소 요청에 실패했습니다.", this)
+    // 직렬화 예외 등의 원문은 사용자 문구가 아니다. 원인은 cause로만 남긴다.
+    else -> PlaceException.Unexpected("장소 요청에 실패했습니다.", this)
 }

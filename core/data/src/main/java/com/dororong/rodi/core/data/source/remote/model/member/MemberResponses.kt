@@ -4,26 +4,26 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class MyPageResponse(
-    val nickname: String = "",
-    val level: String = "",
-    val recommendationTags: List<String> = emptyList(),
+    val nickname: String,
+    val level: String,
+    val recommendationTags: List<String>,
     val drivingGoal: String? = null,
-    val savedPlaceCount: Long = 0,
-    val levelProgress: LevelProgressResponse = LevelProgressResponse(),
+    val savedPlaceCount: Long,
+    val levelProgress: LevelProgressResponse,
 )
 
 @Serializable
 data class LevelProgressResponse(
-    val totalDistanceKm: Double = 0.0,
-    val currentLevelStartKm: Double = 0.0,
+    val totalDistanceKm: Double,
+    val currentLevelStartKm: Double,
     val nextLevelKm: Double? = null,
-    val progressPercent: Int = 0,
+    val progressPercent: Int,
 )
 
 @Serializable
 data class CursorPagePracticeItemResponse(
-    val items: List<PracticeItemResponse> = emptyList(),
-    val hasNext: Boolean = false,
+    val items: List<PracticeItemResponse>,
+    val hasNext: Boolean,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
 )
@@ -33,18 +33,18 @@ data class PracticeItemResponse(
     val practiceId: Long,
     val placeId: Long,
     val placeName: String,
-    val practiceTypes: List<String> = emptyList(),
-    val status: String = "PLANNED",
-    val visitCount: Int = 0,
+    val practiceTypes: List<String>,
+    val status: String,
+    val visitCount: Int,
     val lastActivityAt: String? = null,
     val isVerified: Boolean = false,
-    val hasReview: Boolean = false,
+    val hasReview: Boolean,
 )
 
 @Serializable
 data class CursorPageMyReviewItemResponse(
-    val items: List<MyReviewItemResponse> = emptyList(),
-    val hasNext: Boolean = false,
+    val items: List<MyReviewItemResponse>,
+    val hasNext: Boolean,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
 )
@@ -55,16 +55,16 @@ data class MyReviewItemResponse(
     val placeId: Long,
     val placeName: String,
     val content: String? = null,
-    val isEditable: Boolean = false,
-    val isHidden: Boolean = false,
-    val isVerifiedVisit: Boolean = false,
+    val isEditable: Boolean,
+    val isHidden: Boolean,
+    val isVerifiedVisit: Boolean,
     val createdAt: String,
 )
 
 @Serializable
 data class CursorPageBlockedMemberItemResponse(
-    val items: List<BlockedMemberItemResponse> = emptyList(),
-    val hasNext: Boolean = false,
+    val items: List<BlockedMemberItemResponse>,
+    val hasNext: Boolean,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
 )

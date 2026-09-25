@@ -21,8 +21,8 @@ data class ReportRequest(
 
 @Serializable
 data class CursorPageReviewResponse(
-    val items: List<ReviewResponse> = emptyList(),
-    val hasNext: Boolean = false,
+    val items: List<ReviewResponse>,
+    val hasNext: Boolean,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
 )
@@ -70,13 +70,13 @@ data class ReviewSummaryResponse(
     // 기준)/totalReviewCount(전체 레벨 합산)로 나뉘었다. levelReviewCount는 아직 UI에서 안 쓴다.
     // topDifficulty(신규, 서버가 동률 처리까지 계산해 내려줌)는 클라이언트가 difficultyCounts로
     // 이미 같은 규칙(동률이면 더 어려운 쪽 우선)을 계산하고 있어 당장은 매핑하지 않는다.
-    val levelReviewCount: Long = 0L,
-    val totalReviewCount: Long = 0L,
-    val recommendCount: Long = 0L,
-    val notRecommendCount: Long = 0L,
-    val difficultyCounts: Map<String, Long> = emptyMap(),
+    val levelReviewCount: Long,
+    val totalReviewCount: Long,
+    val recommendCount: Long,
+    val notRecommendCount: Long,
+    val difficultyCounts: Map<String, Long>,
     val congestionCounts: Map<String, Long> = emptyMap(),
-    val levelCounts: Map<String, Long> = emptyMap(),
+    val levelCounts: Map<String, Long>,
 )
 
 @Serializable
@@ -85,7 +85,7 @@ data class ReportFormResponse(
     val title: String,
     val description: String? = null,
     val required: Boolean,
-    val options: List<ReportFormOptionResponse> = emptyList(),
+    val options: List<ReportFormOptionResponse>,
 )
 
 @Serializable

@@ -4,10 +4,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class PracticeRegisterResponse(
-    val practiceId: Long = 0,
-    val status: String = "PLANNED",
-    val visitCount: Int = 0,
-    val requiredDistanceMeters: Int = 0,
+    val practiceId: Long,
+    val status: String,
+    val visitCount: Int,
+    val requiredDistanceMeters: Int,
 )
 
 @Serializable
@@ -17,13 +17,13 @@ data class PracticeVisitRequest(
 
 @Serializable
 data class PracticeVisitResponse(
-    val visitCount: Int = 0,
-    val addedCertifiedDistanceMeters: Int = 0,
-    val requiredDistanceMeters: Int = 0,
-    val isCertifiedNow: Boolean = false,
+    val visitCount: Int,
+    val addedCertifiedDistanceMeters: Int,
+    val requiredDistanceMeters: Int,
+    val isCertifiedNow: Boolean,
     val isVerified: Boolean = false,
-    val totalDistanceKm: Double = 0.0,
-    val levelUp: Boolean = false,
+    val totalDistanceKm: Double,
+    val levelUp: Boolean,
     val newLevel: String? = null,
 )
 
@@ -35,20 +35,20 @@ data class PracticeSkipReasonRequest(
 
 @Serializable
 data class FormResponse(
-    val questionId: String = "",
-    val type: String = "SINGLE_SELECT",
-    val title: String = "",
+    val questionId: String,
+    val type: String,
+    val title: String,
     val description: String? = null,
-    val required: Boolean = false,
-    val options: List<FormOptionResponse> = emptyList(),
+    val required: Boolean,
+    val options: List<FormOptionResponse>,
 )
 
 @Serializable
 data class FormOptionResponse(
-    val code: String = "",
-    val label: String = "",
-    val order: Int = 0,
-    val requiresTextInput: Boolean = false,
+    val code: String,
+    val label: String,
+    val order: Int,
+    val requiresTextInput: Boolean,
     val textInputPlaceholder: String? = null,
     val textInputMaxLength: Int? = null,
 )
