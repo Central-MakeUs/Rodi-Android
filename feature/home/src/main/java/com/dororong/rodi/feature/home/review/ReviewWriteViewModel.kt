@@ -18,6 +18,7 @@ import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,8 +37,10 @@ class ReviewWriteViewModel @Inject constructor(
 
     // 시스템이 앱을 종료한 뒤 다시 만든 ViewModel에서만 의미가 있다. 첫 시작 대상이 같을 때 한 번만 쓴다.
     private var restorableDraft: SavedReviewDraft? = SavedReviewDraft.read(savedStateHandle)
+    private var initializationJob: Job? = null
 
     fun start(placeId: Long, placeName: String, review: Review? = null) {
+        initializationJob?.cancel()
         val restored = takeRestorableDraft(placeId, review?.reviewId)
         val initial = review?.toInitialValues()
         _uiState.value = ReviewWriteUiState(
@@ -56,6 +59,7 @@ class ReviewWriteViewModel @Inject constructor(
     }
 
     fun startForReviewId(placeId: Long, placeName: String, reviewId: Long) {
+        initializationJob?.cancel()
         val restored = takeRestorableDraft(placeId, reviewId)
         _uiState.value = ReviewWriteUiState(
             placeId = placeId,
@@ -63,7 +67,7 @@ class ReviewWriteViewModel @Inject constructor(
             editingReviewId = reviewId,
             isInitializing = true,
         )
-        viewModelScope.launch {
+        initializationJob = viewModelScope.launch {
             getReview(reviewId)
                 .onSuccess { review ->
                     val initial = review.toInitialValues()
@@ -105,6 +109,8 @@ class ReviewWriteViewModel @Inject constructor(
 
     /** 사용자가 작성을 그만두고 닫았다. 다음에 다시 만들어진 화면이 이 입력을 되살리지 않게 지운다. */
     fun discardDraft() {
+        // 닫은 뒤 끝난 원본 조회가 지운 입력을 다시 저장하지 않게 한다.
+        initializationJob?.cancel()
         restorableDraft = null
         SavedReviewDraft.clear(savedStateHandle)
     }

@@ -20,6 +20,7 @@ import io.mockk.mockk
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -467,6 +468,32 @@ class ReviewWriteViewModelTest {
         assertEquals("다시 써 봤어요", restored.content)
         assertEquals("좋은 코스예요", restored.original?.content)
         assertTrue(restored.isDirty)
+    }
+
+    @Test
+    fun `closing while the edited review is loading does not save the draft again`() = runTest(dispatcher) {
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+        before.updateContent("다시 써 봤어요")
+        val slowLoad = CompletableDeferred<Result<ReviewDetail>>()
+        coEvery { getReview(REVIEW_ID) } coAnswers { slowLoad.await() }
+        val restoredHandle = recreatedFrom(handle)
+        val reopened = viewModel(restoredHandle)
+        reopened.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        reopened.discardDraft()
+        slowLoad.complete(Result.success(reviewDetail()))
+        advanceUntilIdle()
+
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
+        val afterClose = viewModel(recreatedFrom(restoredHandle))
+        afterClose.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+        assertFalse(afterClose.uiState.value.isDirty)
     }
 
     /** 프로세스 재생성 뒤처럼, 저장된 키·값만 가진 새 핸들을 만든다. */
