@@ -4,6 +4,7 @@ import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
+import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
@@ -18,7 +19,6 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import com.dororong.rodi.core.domain.repository.MemberRepository
-import com.dororong.rodi.core.domain.repository.PracticeSessionRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
@@ -29,13 +29,14 @@ class MemberRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val json: Json,
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
-    private val practiceSessionRepository: PracticeSessionRepository,
+    private val sessionCoordinator: AuthSessionCoordinator,
 ) : MemberRepository {
     override suspend fun completeCourseTutorial() {
+        val tokens = currentSession()
         authenticatedRequest {
             memberApi.completeCourseTutorial().requireData()
         }
-        if (!tokenStore.markCourseTutorialCompleted()) {
+        if (!tokenStore.markCourseTutorialCompleted(tokens.sessionId)) {
             throw AuthException.Unknown("튜토리얼 완료 상태를 저장하지 못했습니다.")
         }
     }
@@ -127,52 +128,26 @@ class MemberRepositoryImpl @Inject constructor(
     }
 
     override suspend fun withdraw() {
+        val tokens = currentSession()
         authenticatedRequest { memberApi.withdraw().requireSuccess() }
-        practiceSessionRepository.clear()
-        tokenStore.clearCourseRegistrationData()
-        if (!tokenStore.clear()) {
-            throw AuthException.Unknown("로그인 정보를 안전하게 삭제하지 못했습니다.")
-        }
-        practiceRecordPresenceCache.clear()
+        sessionCoordinator.signOut(tokens)
     }
 
     override suspend fun hardDelete(): HardDeleteResult {
+        val tokens = currentSession()
         authenticatedRequest { memberApi.hardDelete().requireSuccess() }
-        var localCleanupSucceeded = true
-        try {
-            practiceSessionRepository.clear()
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (_: Throwable) {
-            localCleanupSucceeded = false
-        }
-        val tokensCleared = try {
-            tokenStore.clear()
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (_: Throwable) {
-            false
-        }
-        if (!tokensCleared) {
-            localCleanupSucceeded = false
-        }
-        try {
-            tokenStore.clearCourseRegistrationData()
-        } catch (exception: CancellationException) {
-            throw exception
-        } catch (_: Throwable) {
-            localCleanupSucceeded = false
-        }
-        practiceRecordPresenceCache.clear()
-        return HardDeleteResult(localCleanupSucceeded = localCleanupSucceeded)
+        return HardDeleteResult(localCleanupSucceeded = sessionCoordinator.signOut(tokens))
     }
+
+    private suspend fun currentSession(): AuthTokens =
+        tokenStore.getTokens() ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
 
     /**
      * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
      * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
      */
     private suspend fun <T> authenticatedRequest(block: suspend () -> T): T {
-        tokenStore.getTokens()?.accessToken ?: throw AuthException.NotAuthenticated("로그인 세션이 없습니다.")
+        currentSession()
         return try {
             block()
         } catch (error: CancellationException) {

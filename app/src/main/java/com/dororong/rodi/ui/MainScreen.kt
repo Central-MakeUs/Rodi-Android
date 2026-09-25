@@ -62,7 +62,6 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
-    onSessionEnded: () -> Unit,
     onGuestSignUp: () -> Unit,
     onLoginRequired: () -> Unit = {},
     openCourseRegistrationOnStart: Boolean = false,
@@ -271,7 +270,6 @@ fun MainScreen(
                                     }
                                     .orEmpty()
                             },
-                            onSessionEnded = onSessionEnded,
                         )
                     }
                     CourseRegistrationFlowRoute -> NavEntry(key) {
@@ -368,7 +366,6 @@ fun MainScreen(
                                 if (backStack.size > 1) backStack.removeAt(backStack.lastIndex)
                             },
                             appVersion = BuildConfig.VERSION_NAME,
-                            onSessionEnded = onSessionEnded,
                         )
                     }
                     else -> error("Unknown main route: $key")

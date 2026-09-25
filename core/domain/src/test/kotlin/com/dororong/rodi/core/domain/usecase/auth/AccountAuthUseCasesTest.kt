@@ -5,16 +5,15 @@ import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
-import com.dororong.rodi.core.domain.usecase.onboarding.ClearOnboardingDataUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.flow.flowOf
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.time.Instant
@@ -43,51 +42,28 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `logout clears onboarding data after the session ends`() = runTest {
+    fun `logout returns success when repository ends the session`() = runTest {
         val repository = mockk<AuthRepository>()
-        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
         coEvery { repository.logout() } returns Unit
-        coEvery { clearOnboardingData() } returns Unit
 
-        val result = LogoutUseCase(repository, clearOnboardingData)()
+        val result = LogoutUseCase(repository)()
 
         assertTrue(result.isSuccess)
-        coVerifyOrder {
-            repository.logout()
-            clearOnboardingData()
-        }
     }
 
     @Test
-    fun `logout propagates cancellation without clearing onboarding data`() = runTest {
+    fun `logout propagates cancellation`() = runTest {
         val repository = mockk<AuthRepository>()
-        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
-        coEvery { repository.logout() } throws CancellationException("cancelled")
+        val cancellation = CancellationException("cancelled")
+        coEvery { repository.logout() } throws cancellation
 
         try {
-            LogoutUseCase(repository, clearOnboardingData)()
-        } catch (_: CancellationException) {
-            coVerify { repository.logout() }
-            coVerify(exactly = 0) { clearOnboardingData() }
+            LogoutUseCase(repository)()
+        } catch (thrown: CancellationException) {
+            assertSame(cancellation, thrown)
             return@runTest
         }
         throw AssertionError("CancellationException should be rethrown")
-    }
-
-    @Test
-    fun `logout returns failure when local onboarding cleanup fails after server logout`() = runTest {
-        val repository = mockk<AuthRepository>()
-        val clearOnboardingData = mockk<ClearOnboardingDataUseCase>()
-        coEvery { repository.logout() } returns Unit
-        coEvery { clearOnboardingData() } throws IllegalStateException("local cleanup failed")
-
-        val result = LogoutUseCase(repository, clearOnboardingData)()
-
-        assertTrue(result.isFailure)
-        coVerifyOrder {
-            repository.logout()
-            clearOnboardingData()
-        }
     }
 
     @Test

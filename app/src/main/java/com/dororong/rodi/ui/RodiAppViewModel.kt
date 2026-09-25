@@ -54,7 +54,10 @@ class RodiAppViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.observeSessionExpiration()
                 .filter { it }
-                .collect { onSessionEnded() }
+                .collect { onSessionEnded(expired = true) }
+        }
+        viewModelScope.launch {
+            authRepository.observeSignOut().collect { onSessionEnded(expired = false) }
         }
         viewModelScope.launch {
             combine(
@@ -120,10 +123,10 @@ class RodiAppViewModel @Inject constructor(
         )
     }
 
-    fun onSessionEnded() {
+    private fun onSessionEnded(expired: Boolean) {
         if (sessionEnded.value) return
         sessionEnded.value = true
-        _effect.trySend(RodiAppEffect.NavigateToLogin)
+        _effect.trySend(RodiAppEffect.NavigateToLogin(showSessionExpiredMessage = expired))
     }
 
     fun retryPendingOnboardingSync(): Job =

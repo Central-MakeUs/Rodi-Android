@@ -80,9 +80,10 @@ class AuthTokenStore @Inject constructor(
         }
     }
 
-    suspend fun markCourseTutorialCompleted(): Boolean = withContext(Dispatchers.IO) {
+    suspend fun markCourseTutorialCompleted(sessionId: String): Boolean = withContext(Dispatchers.IO) {
         mutex.withLock {
             val current = readLocked() ?: return@withLock false
+            if (current.sessionId != sessionId) return@withLock false
             val updated = current.copy(isCourseTutorialCompleted = true)
             val saved = dataStore.save(updated)
             if (saved) cachedTokens = updated

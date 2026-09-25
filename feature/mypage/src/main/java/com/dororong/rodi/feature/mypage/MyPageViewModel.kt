@@ -79,9 +79,6 @@ class MyPageViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 hardDeleteAccount()
-                    .onSuccess { result ->
-                        _effect.send(MyPageEffect.HardDeleteCompleted(result.localCleanupSucceeded))
-                    }
                     .onFailure { error ->
                         _effect.send(
                             MyPageEffect.ShowError(error.userMessage("계정을 삭제하지 못했어요.")),

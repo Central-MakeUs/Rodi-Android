@@ -12,6 +12,5 @@ data class MyPageUiState(
 )
 
 sealed interface MyPageEffect {
-    data class HardDeleteCompleted(val localCleanupSucceeded: Boolean) : MyPageEffect
     data class ShowError(val message: String) : MyPageEffect
 }

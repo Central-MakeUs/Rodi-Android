@@ -17,6 +17,7 @@ import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -239,19 +240,21 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `hard delete emits completion after the account is deleted`() = runTest(dispatcher) {
+    fun `hard delete leaves navigation to the app session owner`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
-        coEvery { hardDeleteAccount() } returns Result.success(HardDeleteResult(localCleanupSucceeded = true))
+        coEvery { hardDeleteAccount() } returns Result.success(HardDeleteResult(localCleanupSucceeded = false))
         val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, hardDeleteAccount)
-        val effect = async { viewModel.effect.first() }
+        val effects = mutableListOf<MyPageEffect>()
+        val collector = launch { viewModel.effect.collect(effects::add) }
 
         viewModel.hardDelete()
         assertEquals(true, viewModel.uiState.value.isHardDeleteSubmitting)
         advanceUntilIdle()
+        collector.cancel()
 
-        assertEquals(MyPageEffect.HardDeleteCompleted(localCleanupSucceeded = true), effect.await())
+        assertEquals(emptyList<MyPageEffect>(), effects)
         assertFalse(viewModel.uiState.value.isHardDeleteSubmitting)
         coVerify(exactly = 1) { hardDeleteAccount() }
     }

@@ -55,7 +55,6 @@ import kotlinx.coroutines.launch
 fun AccountSettingsScreen(
     onBack: () -> Unit,
     onInquiryClick: () -> Unit,
-    onSessionEnded: () -> Unit,
     viewModel: AccountSettingsViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -64,7 +63,6 @@ fun AccountSettingsScreen(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            AccountSettingsEffect.SessionEnded -> onSessionEnded()
             is AccountSettingsEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
         }
     }

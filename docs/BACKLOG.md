@@ -210,9 +210,10 @@
   일부 `authenticatedRequest` helper는 로그인 확인·오류 mapping 용도로 남아 있다. helper 이름의
   검색 결과를 Repository별 refresh/retry 중복으로 해석하지 않는다.
   `audits/2026-09-17-auth-header.md`는 중앙화 이전 snapshot이며 당시 수치를 현재 상태로 사용하지 않는다.
-- [ ] **인증 workflow 후처리 ownership 추가 검토** — #166의 token 경계 방어가 login/profile/
-  onboarding cleanup 전체 원자성을 뜻하지 않는다. 특히 `LogoutUseCase`의 repository 호출 이후
-  후처리와 새 session의 관계를 별도 재현·검증한다. 이번 Skill 개편에서 production을 수정하지 않았다.
+- [x] **인증 workflow 후처리 ownership 추가 검토** — 로그아웃·탈퇴·삭제의 로컬 정리를
+  `AuthSessionCoordinator`의 세션 소유권 확인 commit으로 모으고 root가 종료를 관찰하게 했다(ADR 0002).
+  남은 것: 이전 세션 workflow가 새 로그인 뒤 처음 보내는 요청의 세션 고정(재현 경로 미확인),
+  로그아웃 온보딩 정리가 실패해 남은 초안이 다음 계정의 보류 동기화로 전송될 가능성.
 - [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
   지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
   `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
