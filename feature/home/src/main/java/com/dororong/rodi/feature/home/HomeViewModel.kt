@@ -975,7 +975,6 @@ class HomeViewModel @Inject constructor(
                         isPracticeContinueDialogVisible = false,
                     )
                 }
-                _effect.send(HomeEffect.StopDrivingTracking)
                 pendingPlaceSwitch?.let { switch ->
                     pendingPlaceSwitch = null
                     requestPracticeNavigation(switch.place, switch.app, switch.notificationPermissionGranted)
@@ -1018,7 +1017,6 @@ class HomeViewModel @Inject constructor(
                         isPracticeActionInProgress = false,
                     )
                 }
-                _effect.send(HomeEffect.StopDrivingTracking)
                 _effect.send(HomeEffect.OpenPracticeSkipReason(practiceId))
             } finally {
                 _uiState.update { current ->
@@ -1102,7 +1100,6 @@ class HomeViewModel @Inject constructor(
                             levelUp = visitResult.newLevel.takeIf { level -> visitResult.levelUp && level != null },
                         )
                     }
-                    _effect.send(HomeEffect.StopDrivingTracking)
                     if (session.placeType == PlaceType.COURSE) {
                         _effect.send(HomeEffect.OpenPracticeReview(session.placeId, session.placeName))
                     } else {

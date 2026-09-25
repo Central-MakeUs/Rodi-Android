@@ -938,7 +938,7 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.PracticeStopClicked)
             advanceUntilIdle()
-            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
+            expectNoEvents()
             cancelAndIgnoreRemainingEvents()
         }
 
@@ -990,7 +990,6 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.PracticeStopClicked)
             advanceUntilIdle()
-            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.LaunchKakaoMap(otherPlace), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -1201,7 +1200,6 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.PracticeVisitedAnswered)
             advanceUntilIdle()
-            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.OpenPracticeReview(session.placeId, session.placeName), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
@@ -1368,8 +1366,6 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.PracticeVisitedAnswered)
             advanceUntilIdle()
-
-            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(
                 HomeEffect.ShowSnackbar("연습 기록에 추가되었습니다"),
                 awaitItem(),
@@ -1397,8 +1393,6 @@ class HomeViewModelTest {
         vm.effect.test {
             vm.onIntent(HomeIntent.PracticeNotVisitedAnswered)
             advanceUntilIdle()
-
-            assertEquals(HomeEffect.StopDrivingTracking, awaitItem())
             assertEquals(HomeEffect.OpenPracticeSkipReason(108L), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }

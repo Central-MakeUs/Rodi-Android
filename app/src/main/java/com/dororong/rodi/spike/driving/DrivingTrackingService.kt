@@ -28,11 +28,14 @@ import com.dororong.rodi.core.domain.usecase.driving.RouteProgressTracker
 import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
+import com.dororong.rodi.core.domain.model.practice.isMeasuringAt
 import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ObserveActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.ObserveLiveUpdateSettingsUseCase
 import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -40,9 +43,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -52,6 +58,7 @@ private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
 /** startForeground는 약 5초 안에 끝나야 하므로 저장된 설정을 기다리는 시간을 짧게 잡는다. */
 private const val SETTINGS_READ_TIMEOUT_MILLIS = 500L
 private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
+private const val PRACTICE_OBSERVE_RETRY_DELAY_MILLIS = 1_000L
 
 // 목적지 반경 도달을 완료 조건으로 같이 쓰되, 출발-도착이 가까운 순환/왕복 코스에서
 // 출발하자마자 "도착"으로 잡히는 걸 막기 위한 안전장치. 코스 길이 자체가 짧으면 반경
@@ -74,6 +81,7 @@ internal class DrivingTrackingService : Service() {
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
     @Inject lateinit var endDrivingSession: EndDrivingSessionUseCase
     @Inject lateinit var confirmPracticeArrivalUseCase: ConfirmPracticeArrivalUseCase
+    @Inject lateinit var observeActivePracticeSession: ObserveActivePracticeSessionUseCase
     @Inject lateinit var observeLiveUpdateSettings: ObserveLiveUpdateSettingsUseCase
 
     @Volatile private var isLiveUpdateEnabled = true
@@ -82,7 +90,9 @@ internal class DrivingTrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val notificationManager by lazy { NotificationManagerCompat.from(this) }
     private var trackingJob: Job? = null
-    private var activeSession: DrivingSession? = null
+    private var trackingSessionId: String? = null
+    @Volatile private var activeSession: DrivingSession? = null
+    private var lastStartId = 0
     @Volatile private var isFinishing = false
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -103,7 +113,8 @@ internal class DrivingTrackingService : Service() {
                 if (changed) activeSession?.let { publishOngoing(it, lastTraveledDistanceMeters) }
             }
         }
-        serviceScope.launch {
+        // onStartCommand와 같은 메인 스레드에서 처리해야 세션 교체와 종료 판단 사이에 끼어들 틈이 없다.
+        serviceScope.launch(Dispatchers.Main.immediate) {
             for (command in commandChannel) {
                 when (command) {
                     is Command.Start -> handleStartCommand(command.session)
@@ -119,9 +130,10 @@ internal class DrivingTrackingService : Service() {
         flags: Int,
         startId: Int,
     ): Int {
+        lastStartId = startId
         when (intent?.action) {
             ACTION_START -> handleStartAction(intent)
-            ACTION_STOP -> commandChannel.trySend(Command.Stop(intent.getStringExtra(EXTRA_SESSION_ID)))
+            ACTION_STOP -> requestStop(intent.getStringExtra(EXTRA_SESSION_ID))
         }
         return START_NOT_STICKY
     }
@@ -133,16 +145,18 @@ internal class DrivingTrackingService : Service() {
      * 날 수 있어, 이 검증·승격은 onStartCommand에서 동기적으로 끝낸다.
      */
     private fun handleStartAction(intent: Intent) {
-        if (activeSession != null || isFinishing) return
         val session = intent.toDrivingSession() ?: run {
-            stopSelf()
+            if (activeSession == null) stopSelf(lastStartId)
             return
         }
         if (!hasLocationPermission()) {
-            stopSelf()
+            if (activeSession == null) stopSelf(lastStartId)
             return
         }
+        // 다른 장소로 바꾸면 이전 세션 종료가 끝나기 전에 새 시작이 도착한다. 새 시작을 버리지 않고 이전 세션을 대체한다.
+        if (activeSession != null) requestStop(sessionId = null)
         activeSession = session
+        isFinishing = false
         DrivingNotificationFactory.createChannels(this)
         val notification = DrivingNotificationFactory.ongoing(this, session, 0.0, isLiveUpdateEnabled)
         try {
@@ -155,11 +169,18 @@ internal class DrivingTrackingService : Service() {
         } catch (error: RuntimeException) {
             Timber.e(error, "Driving foreground service could not start.")
             activeSession = null
-            stopSelf()
+            stopSelf(lastStartId)
             return
         }
         logPromotionEligibility(notification)
         commandChannel.trySend(Command.Start(session))
+    }
+
+    /** 종료 대상은 요청을 받은 시점의 세션이다. 바로 뒤에 오는 새 시작과 섞이지 않게 여기서 떼어 낸다. */
+    private fun requestStop(sessionId: String?) {
+        val target = activeSession?.takeIf { sessionId == null || it.id == sessionId }
+        if (target != null) activeSession = null
+        commandChannel.trySend(Command.Stop(target?.id ?: sessionId))
     }
 
     override fun onDestroy() {
@@ -170,26 +191,56 @@ internal class DrivingTrackingService : Service() {
     }
 
     private suspend fun handleStartCommand(session: DrivingSession) {
+        if (activeSession?.id != session.id) return
         try {
             startDrivingSession(session)
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
             Timber.e(error, "Driving tracking stopped unexpectedly.")
-            finishSession(session.id, removeNotification = true, clearSession = true)
+            finishSession(session.id)
             return
         }
+        if (activeSession?.id != session.id) {
+            finishSession(session.id)
+            return
+        }
+        trackingJob?.cancel()
+        trackingSessionId = session.id
         trackingJob = serviceScope.launch {
+            launch { stopWhenPracticeEnds(session) }
             try {
                 collectLocations(session)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
                 Timber.e(error, "Driving tracking stopped unexpectedly.")
-                trackingJob = null
-                finishSession(session.id, removeNotification = true, clearSession = true)
+                commandChannel.trySend(Command.Stop(session.id))
             }
         }
+    }
+
+    /**
+     * 연습 측정이 끝나면(방문 기록·중단·다른 장소·로그아웃) 추적도 끝낸다. 측정 종료를 commit하는 쪽이
+     * 화면을 떠나 있어도 추적이 남지 않게, 화면 명령이 아니라 저장된 연습 세션을 기준으로 한다.
+     * 연습 세션 없이 시작된 추적은 이 규칙의 대상이 아니다.
+     */
+    private suspend fun stopWhenPracticeEnds(session: DrivingSession) {
+        val practice = observeActivePracticeSession().retryWhen { error, _ ->
+            if (error !is IOException) return@retryWhen false
+            delay(PRACTICE_OBSERVE_RETRY_DELAY_MILLIS)
+            true
+        }
+        try {
+            if (!practice.first().isMeasuringAt(session.placeId)) return
+            practice.first { !it.isMeasuringAt(session.placeId) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Timber.e(error, "Practice session could not be observed; keeping driving tracking.")
+            return
+        }
+        commandChannel.trySend(Command.Stop(session.id))
     }
 
     private suspend fun collectLocations(session: DrivingSession) {
@@ -219,8 +270,7 @@ internal class DrivingTrackingService : Service() {
         rawCurrentLocationUpdates().collect { location ->
             if (isFinishing || activeSession?.id != session.id) return@collect
             if (!canKeepTrackingVisible()) {
-                trackingJob = null
-                finishSession(session.id, removeNotification = true, clearSession = true)
+                commandChannel.trySend(Command.Stop(session.id))
                 return@collect
             }
             val sample = location.toDrivingLocationSample()
@@ -241,7 +291,7 @@ internal class DrivingTrackingService : Service() {
             }
             if (hasArrived) {
                 commandChannel.trySend(Command.Arrive(session, progress.recognizedDistanceMeters))
-                trackingJob?.cancel()
+                currentCoroutineContext().cancel()
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
@@ -266,8 +316,7 @@ internal class DrivingTrackingService : Service() {
         rawCurrentLocationUpdates().collect { location ->
             if (isFinishing || activeSession?.id != session.id) return@collect
             if (!canKeepTrackingVisible()) {
-                trackingJob = null
-                finishSession(session.id, removeNotification = true, clearSession = true)
+                commandChannel.trySend(Command.Stop(session.id))
                 return@collect
             }
             val sample = location.toDrivingLocationSample()
@@ -280,7 +329,7 @@ internal class DrivingTrackingService : Service() {
             consecutiveMatches = arrival.consecutiveMatches
             if (arrival.hasArrived) {
                 commandChannel.trySend(Command.Arrive(session, traveledDistance))
-                trackingJob?.cancel()
+                currentCoroutineContext().cancel()
                 return@collect
             }
             val now = SystemClock.elapsedRealtime()
@@ -301,34 +350,37 @@ internal class DrivingTrackingService : Service() {
         session: DrivingSession,
         traveledDistanceMeters: Double,
     ) {
-        if (isFinishing) return
+        if (isFinishing || activeSession?.id != session.id) return
         isFinishing = true
         val arrivedAt = System.currentTimeMillis()
         val transitioned = runCatching {
             markDrivingArrived(session.id, arrivedAt, traveledDistanceMeters)
         }.getOrElse { error ->
-            isFinishing = false
             Timber.e(error, "Driving arrival could not be persisted.")
+            // 위치 수집은 도착 감지 때 이미 멈췄다. 남겨 두면 알림만 남고 끝낼 주체가 없다.
+            finishSession(session.id)
             return
         }
         if (!transitioned) {
-            isFinishing = false
+            finishSession(session.id)
             return
         }
+        if (activeSession?.id != session.id) return
         confirmPracticeArrival(session.placeId)
         val arrivedSession = session.copy(
             arrivedAtEpochMillis = arrivedAt,
             traveledDistanceMeters = traveledDistanceMeters,
             status = DrivingSessionStatus.ARRIVED,
         )
+        if (activeSession?.id != session.id) return
         activeSession = null
         stopForeground(STOP_FOREGROUND_DETACH)
         notificationManager.notify(
             DrivingNotificationFactory.NOTIFICATION_ID,
             DrivingNotificationFactory.arrival(this, arrivedSession),
         )
-        trackingJob?.cancel()
-        stopSelf()
+        cancelTracking(session.id)
+        stopSelf(lastStartId)
     }
 
     private suspend fun confirmPracticeArrival(placeId: Long) {
@@ -342,31 +394,36 @@ internal class DrivingTrackingService : Service() {
     }
 
     private suspend fun handleStopCommand(sessionId: String?) {
-        val active = activeSession ?: run {
-            stopSelf()
+        if (sessionId == null) {
+            if (activeSession == null) stopSelf(lastStartId)
             return
         }
-        if (sessionId != null && sessionId != active.id) return
-        if (isFinishing) return
-        isFinishing = true
-        finishSession(active.id, removeNotification = true, clearSession = true)
+        finishSession(sessionId)
     }
 
-    private suspend fun finishSession(
-        sessionId: String,
-        removeNotification: Boolean,
-        clearSession: Boolean,
-    ) {
-        isFinishing = true
-        trackingJob?.cancel()
-        if (clearSession) runCatching { endDrivingSession(sessionId) }
-            .onFailure { Timber.e(it, "Driving session could not be cleared.") }
-        activeSession = null
-        if (removeNotification) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            notificationManager.cancel(DrivingNotificationFactory.NOTIFICATION_ID)
+    /** [sessionId]만 정리한다. 그 사이 새 세션이 시작됐으면 알림과 서비스는 새 세션 몫으로 남긴다. */
+    private suspend fun finishSession(sessionId: String) {
+        if (activeSession?.id == sessionId) activeSession = null
+        cancelTracking(sessionId)
+        try {
+            endDrivingSession(sessionId)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Timber.e(error, "Driving session could not be cleared.")
         }
-        stopSelf()
+        if (activeSession != null) return
+        isFinishing = true
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        notificationManager.cancel(DrivingNotificationFactory.NOTIFICATION_ID)
+        stopSelf(lastStartId)
+    }
+
+    private fun cancelTracking(sessionId: String) {
+        if (trackingSessionId != sessionId) return
+        trackingJob?.cancel()
+        trackingJob = null
+        trackingSessionId = null
     }
 
     @SuppressLint("MissingPermission")

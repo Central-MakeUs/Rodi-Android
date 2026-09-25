@@ -167,7 +167,6 @@ sealed interface HomeEffect {
     data object NavigateMyPage : HomeEffect
     data object NavigateCourseRegistration : HomeEffect
     data object NavigateGuestSignUp : HomeEffect
-    data object StopDrivingTracking : HomeEffect
 }
 
 sealed interface HomePermissionEffect {
