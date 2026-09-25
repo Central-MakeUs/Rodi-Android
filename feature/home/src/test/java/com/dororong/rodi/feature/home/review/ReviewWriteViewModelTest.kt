@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.review
 
+import androidx.lifecycle.SavedStateHandle
 import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
@@ -378,7 +379,102 @@ class ReviewWriteViewModelTest {
         assertEquals("레벨이 바뀌어서 이 후기는 수정할 수 없어요.", viewModel.uiState.value.errorMessage)
     }
 
-    private fun viewModel() = ReviewWriteViewModel(createReview, updateReview, getReview)
+    @Test
+    fun `unsent review input survives view model recreation from saved state`() {
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(before)
+
+        val after = viewModel(recreatedFrom(handle))
+        after.start(PLACE_ID, PLACE_NAME)
+
+        val restored = after.uiState.value
+        assertEquals(ReviewWriteStep.Detail, restored.step)
+        assertEquals(draft(), restored.draftOrNull())
+        assertTrue(restored.isDirty)
+    }
+
+    @Test
+    fun `saved input is not applied to a different place`() {
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(before)
+
+        val after = viewModel(recreatedFrom(handle))
+        after.start(OTHER_PLACE_ID, PLACE_NAME)
+
+        assertFalse(after.uiState.value.isDirty)
+        assertEquals(ReviewWriteStep.Basics, after.uiState.value.step)
+    }
+
+    @Test
+    fun `closing the form discards saved input`() {
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(before)
+
+        before.discardDraft()
+        val after = viewModel(recreatedFrom(handle))
+        after.start(PLACE_ID, PLACE_NAME)
+
+        assertFalse(after.uiState.value.isDirty)
+    }
+
+    @Test
+    fun `a submitted review is not restored as a new draft`() = runTest(dispatcher) {
+        coEvery { createReview(PLACE_ID, draft()) } returns Result.success(31L)
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(before)
+        before.submit()
+        advanceUntilIdle()
+
+        val after = viewModel(recreatedFrom(handle))
+        after.start(PLACE_ID, PLACE_NAME)
+
+        assertFalse(after.uiState.value.isDirty)
+    }
+
+    @Test
+    fun `reopening in the same view model starts fresh as before`() {
+        val viewModel = viewModel()
+        viewModel.start(PLACE_ID, PLACE_NAME)
+        fillForSubmit(viewModel)
+
+        viewModel.start(PLACE_ID, PLACE_NAME)
+
+        assertFalse(viewModel.uiState.value.isDirty)
+    }
+
+    @Test
+    fun `edited review restores unsent changes on top of the server original`() = runTest(dispatcher) {
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+        before.updateContent("다시 써 봤어요")
+
+        val after = viewModel(recreatedFrom(handle))
+        after.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        val restored = after.uiState.value
+        assertEquals("다시 써 봤어요", restored.content)
+        assertEquals("좋은 코스예요", restored.original?.content)
+        assertTrue(restored.isDirty)
+    }
+
+    /** 프로세스 재생성 뒤처럼, 저장된 키·값만 가진 새 핸들을 만든다. */
+    private fun recreatedFrom(handle: SavedStateHandle) =
+        SavedStateHandle(handle.keys().associateWith { key -> handle.get<Any?>(key) })
+
+    private fun viewModel(savedStateHandle: SavedStateHandle = SavedStateHandle()) =
+        ReviewWriteViewModel(createReview, updateReview, getReview, savedStateHandle)
 
     private fun completeBasics(viewModel: ReviewWriteViewModel) {
         viewModel.selectRecommend(true)
@@ -441,5 +537,6 @@ class ReviewWriteViewModelTest {
         const val PLACE_ID = 11L
         const val PLACE_NAME = "강남역 주변 코스"
         const val REVIEW_ID = 7L
+        const val OTHER_PLACE_ID = 12L
     }
 }
