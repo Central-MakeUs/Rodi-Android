@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -69,6 +70,7 @@ import com.dororong.rodi.core.ui.components.input.rodiCursorBrush
 import com.dororong.rodi.core.ui.effect.CollectEffect
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.R
+import kotlinx.coroutines.launch
 
 @Composable
 fun SearchScreen(
@@ -81,6 +83,7 @@ fun SearchScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val focusRequester = remember { FocusRequester() }
     val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarScope = rememberCoroutineScope()
 
     LaunchedEffect(origin) {
         viewModel.initialize(origin)
@@ -89,7 +92,8 @@ fun SearchScreen(
     BackHandler(onBack = onBack)
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            is SearchEffect.ShowSnackbar -> snackbarHostState.showSnackbar(effect.message)
+            // showSnackbar는 스낵바가 닫힐 때까지 suspend된다. 여기서 기다리면 그동안 누른 장소·지역 이동이 밀린다.
+            is SearchEffect.ShowSnackbar -> snackbarScope.launch { snackbarHostState.showSnackbar(effect.message) }
             is SearchEffect.NavigatePlace -> onPlaceClick(effect.placeId)
             is SearchEffect.NavigateRegion -> onRegionClick(effect.region, effect.initialPlaces)
         }
