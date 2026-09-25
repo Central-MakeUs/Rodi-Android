@@ -21,10 +21,12 @@ class ReviewMapperTest {
     fun `unknown difficulty count key is excluded`() {
         val response = ReviewSummaryResponse(
             level = "ALL",
+            levelReviewCount = 3,
             totalReviewCount = 3,
             recommendCount = 2,
             notRecommendCount = 1,
             difficultyCounts = mapOf("VERY_EASY" to 2, "UNKNOWN_DIFFICULTY" to 1),
+            levelCounts = emptyMap(),
         )
 
         val result = response.toDomain()
@@ -36,7 +38,15 @@ class ReviewMapperTest {
     fun `totalReviewCount maps to domain totalCount`() {
         // 서버 스키마가 totalCount에서 levelReviewCount·totalReviewCount로 갈렸다(2026-08-13).
         // totalReviewCount(전체 레벨 합산)를 놓치면 전체보기 링크가 후기가 있어도 안 뜬다.
-        val response = ReviewSummaryResponse(level = "ALL", totalReviewCount = 12)
+        val response = ReviewSummaryResponse(
+            level = "ALL",
+            levelReviewCount = 12,
+            totalReviewCount = 12,
+            recommendCount = 0,
+            notRecommendCount = 0,
+            difficultyCounts = emptyMap(),
+            levelCounts = emptyMap(),
+        )
 
         assertEquals(12, response.toDomain().totalCount)
     }

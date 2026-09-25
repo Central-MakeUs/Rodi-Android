@@ -1,5 +1,7 @@
 package com.dororong.rodi.core.data.repository
 
+import com.dororong.rodi.core.common.userMessage
+import com.dororong.rodi.core.data.di.NetworkModule
 import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
@@ -14,6 +16,7 @@ import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceException
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import io.mockk.coEvery
@@ -21,6 +24,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -195,6 +199,26 @@ class PlaceRepositoryImplTest {
         coVerify(exactly = 0) { local.setBookmarked(any(), any()) }
     }
 
+    @Test
+    fun `missing required response field does not surface the serializer message to users`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        val missingField = runCatching {
+            NetworkModule.provideJson().decodeFromString<ApiEnvelope<PlaceDetailResponse>>(
+                """{"isSuccess":true,"code":"COMMON_200","message":"성공","data":""" +
+                    """{"id":9,"type":"PARKING","name":"주차장","address":"서울","lat":37.5,"lng":126.9,""" +
+                    """"practiceTypes":["PARKING"],"isBookmarked":false,"course":null,"parking":null}}""",
+            )
+        }.exceptionOrNull()
+        coEvery { api.getPlaceDetail(9) } throws requireNotNull(missingField)
+        val repository = PlaceRepositoryImpl(api, mockk(relaxed = true), tokenStore)
+
+        val error = assertThrowsSuspend<PlaceException.Unexpected> { repository.getPlaceDetail(9) }
+
+        assertEquals("장소 요청에 실패했습니다.", error.userMessage())
+    }
+
     private fun tokens(access: String) = AuthTokens(access, "refresh", "kakao")
 
     private fun viewportQuery() = com.dororong.rodi.core.domain.model.place.PlaceViewportQuery(
@@ -207,14 +231,14 @@ class PlaceRepositoryImplTest {
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
-        data = CursorPagePlaceResponse(),
+        data = CursorPagePlaceResponse(items = emptyList(), hasNext = false),
     )
 
     private fun detailEnvelope(id: Long) = ApiEnvelope(
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
-        data = PlaceDetailResponse(id, "PARKING", "주차장", "서울", 37.5, 126.9),
+        data = PlaceDetailResponse(id, "PARKING", "주차장", "서울", 37.5, 126.9, practiceTypes = listOf("PARKING"), bookmarkCount = 0, isBookmarked = false),
     )
 
     private fun <T> failureEnvelope(code: String): ApiEnvelope<T> = ApiEnvelope(

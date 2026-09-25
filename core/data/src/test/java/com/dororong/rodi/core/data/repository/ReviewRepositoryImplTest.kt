@@ -160,7 +160,7 @@ class ReviewRepositoryImplTest {
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
-        data = CursorPageReviewResponse(),
+        data = CursorPageReviewResponse(items = emptyList(), hasNext = false),
     )
 
     private fun <T> failureEnvelope(code: String): ApiEnvelope<T> = ApiEnvelope(

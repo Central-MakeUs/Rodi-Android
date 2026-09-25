@@ -20,7 +20,11 @@ class PlaceMapperTest {
             lat = 37.5,
             lng = 126.9,
             practiceTypes = listOf("STRAIGHT", "FUTURE_TYPE"),
+            bookmarkCount = 0,
+            isBookmarked = false,
             course = CourseDetailResponse(
+                description = "",
+                cautions = emptyList(),
                 distanceMeters = 3200,
                 waypoints = listOf(
                     WaypointResponse("DESTINATION", 2, 37.6, 127.0),

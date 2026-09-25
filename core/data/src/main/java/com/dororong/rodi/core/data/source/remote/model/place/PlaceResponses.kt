@@ -14,8 +14,8 @@ data class PlaceCoordinateResponse(
 
 @Serializable
 data class CursorPagePlaceResponse(
-    val items: List<PlaceListItemResponse> = emptyList(),
-    val hasNext: Boolean = false,
+    val items: List<PlaceListItemResponse>,
+    val hasNext: Boolean,
     val nextCursor: String? = null,
     val totalCount: Long? = null,
 )
@@ -29,7 +29,7 @@ data class PlaceListItemResponse(
     val lat: Double,
     val lng: Double,
     val distanceFromMe: Long? = null,
-    val practiceTypes: List<String> = emptyList(),
+    val practiceTypes: List<String>,
     val description: String? = null,
     val distanceMeters: Int? = null,
     val capacity: Int? = null,
@@ -44,19 +44,19 @@ data class PlaceDetailResponse(
     val address: String,
     val lat: Double,
     val lng: Double,
-    val practiceTypes: List<String> = emptyList(),
-    val bookmarkCount: Long = 0,
-    val isBookmarked: Boolean = false,
+    val practiceTypes: List<String>,
+    val bookmarkCount: Long,
+    val isBookmarked: Boolean,
     val course: CourseDetailResponse? = null,
     val parking: ParkingDetailResponse? = null,
 )
 
 @Serializable
 data class CourseDetailResponse(
-    val description: String = "",
-    val cautions: List<String> = emptyList(),
-    val distanceMeters: Int = 0,
-    val waypoints: List<WaypointResponse> = emptyList(),
+    val description: String,
+    val cautions: List<String>,
+    val distanceMeters: Int,
+    val waypoints: List<WaypointResponse>,
 )
 
 @Serializable
@@ -75,7 +75,7 @@ data class ParkingDetailResponse(
     val managementNo: String? = null,
     val parkingType: String? = null,
     val capacity: Int? = null,
-    val isFree: Boolean = false,
+    val isFree: Boolean,
     val feeInfo: FeeInfoResponse? = null,
     val operatingHours: OperatingHoursResponse? = null,
 )

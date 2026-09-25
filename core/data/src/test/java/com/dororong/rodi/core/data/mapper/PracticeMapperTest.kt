@@ -27,13 +27,13 @@ class PracticeMapperTest {
     @Test
     fun `unknown practice status fails instead of pretending it is planned`() {
         assertThrows(PracticeException.Unexpected::class.java) {
-            PracticeRegisterResponse(status = "NEW_STATUS").toDomain()
+            PracticeRegisterResponse(practiceId = 1, status = "NEW_STATUS", visitCount = 0, requiredDistanceMeters = 0).toDomain()
         }
     }
 
     @Test
     fun `visit response maps known level`() {
-        val result = PracticeVisitResponse(levelUp = true, newLevel = "NAVIGATOR").toDomain()
+        val result = PracticeVisitResponse(visitCount = 1, addedCertifiedDistanceMeters = 0, requiredDistanceMeters = 0, isCertifiedNow = true, totalDistanceKm = 0.0, levelUp = true, newLevel = "NAVIGATOR").toDomain()
 
         assertEquals(true, result.levelUp)
         assertEquals(OnboardingLevel.NAVIGATOR, result.newLevel)
@@ -41,7 +41,7 @@ class PracticeMapperTest {
 
     @Test
     fun `visit response maps unknown level to null`() {
-        val result = PracticeVisitResponse(levelUp = true, newLevel = "NEW_LEVEL").toDomain()
+        val result = PracticeVisitResponse(visitCount = 1, addedCertifiedDistanceMeters = 0, requiredDistanceMeters = 0, isCertifiedNow = true, totalDistanceKm = 0.0, levelUp = true, newLevel = "NEW_LEVEL").toDomain()
 
         assertNull(result.newLevel)
     }
