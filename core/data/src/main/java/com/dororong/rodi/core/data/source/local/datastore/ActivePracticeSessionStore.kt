@@ -14,7 +14,10 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -44,6 +47,21 @@ class ActivePracticeSessionStore @Inject constructor(
             null
         }
     }
+
+    override fun observe(): Flow<ActivePracticeSession?> = context.activePracticeSessionDataStore.data
+        .map { preferences ->
+            preferences[activeSessionKey]
+                ?.let { encoded ->
+                    try {
+                        json.decodeFromString<StoredActivePracticeSession>(encoded)
+                    } catch (_: SerializationException) {
+                        null
+                    }
+                }
+                ?.takeUnless(StoredActivePracticeSession::isCompleted)
+                ?.toDomain()
+        }
+        .distinctUntilChanged()
 
     override suspend fun save(session: ActivePracticeSession) {
         withContext(Dispatchers.IO) {

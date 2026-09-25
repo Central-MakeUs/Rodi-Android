@@ -28,7 +28,9 @@ import com.dororong.rodi.core.domain.usecase.driving.RouteProgressTracker
 import com.dororong.rodi.core.domain.usecase.driving.StartDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.UpdateDrivingProgressUseCase
 import com.dororong.rodi.core.domain.usecase.driving.distanceTo
+import com.dororong.rodi.core.domain.model.practice.isMeasuringAt
 import com.dororong.rodi.core.domain.usecase.practice.ConfirmPracticeArrivalUseCase
+import com.dororong.rodi.core.domain.usecase.practice.ObserveActivePracticeSessionUseCase
 import com.dororong.rodi.core.domain.usecase.driving.ObserveLiveUpdateSettingsUseCase
 import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
@@ -75,6 +77,7 @@ internal class DrivingTrackingService : Service() {
     @Inject lateinit var markDrivingArrived: MarkDrivingArrivedUseCase
     @Inject lateinit var endDrivingSession: EndDrivingSessionUseCase
     @Inject lateinit var confirmPracticeArrivalUseCase: ConfirmPracticeArrivalUseCase
+    @Inject lateinit var observeActivePracticeSession: ObserveActivePracticeSessionUseCase
     @Inject lateinit var observeLiveUpdateSettings: ObserveLiveUpdateSettingsUseCase
 
     @Volatile private var isLiveUpdateEnabled = true
@@ -201,6 +204,7 @@ internal class DrivingTrackingService : Service() {
         trackingJob?.cancel()
         trackingSessionId = session.id
         trackingJob = serviceScope.launch {
+            launch { stopWhenPracticeEnds(session) }
             try {
                 collectLocations(session)
             } catch (error: CancellationException) {
@@ -210,6 +214,25 @@ internal class DrivingTrackingService : Service() {
                 commandChannel.trySend(Command.Stop(session.id))
             }
         }
+    }
+
+    /**
+     * 연습 측정이 끝나면(방문 기록·중단·다른 장소·로그아웃) 추적도 끝낸다. 측정 종료를 commit하는 쪽이
+     * 화면을 떠나 있어도 추적이 남지 않게, 화면 명령이 아니라 저장된 연습 세션을 기준으로 한다.
+     * 연습 세션 없이 시작된 추적은 이 규칙의 대상이 아니다.
+     */
+    private suspend fun stopWhenPracticeEnds(session: DrivingSession) {
+        val practice = observeActivePracticeSession()
+        try {
+            if (!practice.first().isMeasuringAt(session.placeId)) return
+            practice.first { !it.isMeasuringAt(session.placeId) }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Timber.e(error, "Practice session could not be observed; keeping driving tracking.")
+            return
+        }
+        commandChannel.trySend(Command.Stop(session.id))
     }
 
     private suspend fun collectLocations(session: DrivingSession) {
