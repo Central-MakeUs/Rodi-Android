@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.review
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.ui.text.takeGraphemes
@@ -17,6 +18,7 @@ import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -28,11 +30,18 @@ class ReviewWriteViewModel @Inject constructor(
     private val createReview: CreateReviewUseCase,
     private val updateReview: UpdateReviewUseCase,
     private val getReview: GetReviewUseCase,
+    private val savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ReviewWriteUiState())
     val uiState: StateFlow<ReviewWriteUiState> = _uiState.asStateFlow()
 
+    // 시스템이 앱을 종료한 뒤 다시 만든 ViewModel에서만 의미가 있다. 첫 시작 대상이 같을 때 한 번만 쓴다.
+    private var restorableDraft: SavedReviewDraft? = SavedReviewDraft.read(savedStateHandle)
+    private var initializationJob: Job? = null
+
     fun start(placeId: Long, placeName: String, review: Review? = null) {
+        initializationJob?.cancel()
+        val restored = takeRestorableDraft(placeId, review?.reviewId)
         val initial = review?.toInitialValues()
         _uiState.value = ReviewWriteUiState(
             placeId = placeId,
@@ -45,17 +54,20 @@ class ReviewWriteViewModel @Inject constructor(
             caution = initial?.caution.orEmpty(),
             practiceMethod = initial?.practiceMethod,
             content = initial?.content.orEmpty(),
-        )
+        ).restoredWith(restored)
+        saveDraft()
     }
 
     fun startForReviewId(placeId: Long, placeName: String, reviewId: Long) {
+        initializationJob?.cancel()
+        val restored = takeRestorableDraft(placeId, reviewId)
         _uiState.value = ReviewWriteUiState(
             placeId = placeId,
             placeName = placeName,
             editingReviewId = reviewId,
             isInitializing = true,
         )
-        viewModelScope.launch {
+        initializationJob = viewModelScope.launch {
             getReview(reviewId)
                 .onSuccess { review ->
                     val initial = review.toInitialValues()
@@ -70,10 +82,12 @@ class ReviewWriteViewModel @Inject constructor(
                             content = initial.content.orEmpty(),
                             isInitializing = false,
                             initializationErrorMessage = null,
-                        )
+                        ).restoredWith(restored)
                     }
+                    saveDraft()
                 }
                 .onFailure { error ->
+                    restorableDraft = restored
                     _uiState.update {
                         it.copy(
                             isInitializing = false,
@@ -84,14 +98,22 @@ class ReviewWriteViewModel @Inject constructor(
         }
     }
 
-    fun selectRecommend(value: Boolean) = _uiState.update { it.copy(isRecommended = value) }
-    fun selectDifficulty(value: ReviewDifficulty) = _uiState.update { it.copy(difficulty = value) }
-    fun selectCongestion(value: ReviewCongestion) = _uiState.update { it.copy(congestion = value) }
-    fun selectPracticeMethod(value: PracticeMethod) = _uiState.update { it.copy(practiceMethod = value) }
-    fun updateCaution(value: String) = _uiState.update { it.copy(caution = value.takeGraphemes(50)) }
-    fun updateContent(value: String) = _uiState.update { it.copy(content = value.takeGraphemes(150)) }
-    fun next() { if (_uiState.value.canGoNext) _uiState.update { it.copy(step = ReviewWriteStep.Detail) } }
-    fun back() = _uiState.update { it.copy(step = ReviewWriteStep.Basics) }
+    fun selectRecommend(value: Boolean) = edit { it.copy(isRecommended = value) }
+    fun selectDifficulty(value: ReviewDifficulty) = edit { it.copy(difficulty = value) }
+    fun selectCongestion(value: ReviewCongestion) = edit { it.copy(congestion = value) }
+    fun selectPracticeMethod(value: PracticeMethod) = edit { it.copy(practiceMethod = value) }
+    fun updateCaution(value: String) = edit { it.copy(caution = value.takeGraphemes(50)) }
+    fun updateContent(value: String) = edit { it.copy(content = value.takeGraphemes(150)) }
+    fun next() { if (_uiState.value.canGoNext) edit { it.copy(step = ReviewWriteStep.Detail) } }
+    fun back() = edit { it.copy(step = ReviewWriteStep.Basics) }
+
+    /** 사용자가 작성을 그만두고 닫았다. 다음에 다시 만들어진 화면이 이 입력을 되살리지 않게 지운다. */
+    fun discardDraft() {
+        // 닫은 뒤 끝난 원본 조회가 지운 입력을 다시 저장하지 않게 한다.
+        initializationJob?.cancel()
+        restorableDraft = null
+        SavedReviewDraft.clear(savedStateHandle)
+    }
     fun submit() {
         val current = _uiState.value
         if (current.isSubmitting || current.isSubmitted || current.isCompletionHandled) return
@@ -103,6 +125,7 @@ class ReviewWriteViewModel @Inject constructor(
                 updateReview(reviewId, draft).map { reviewId }
             } ?: createReview(current.placeId, draft)
             result.onSuccess { reviewId ->
+                discardDraft()
                 _uiState.update {
                     it.copy(
                         isSubmitting = false,
@@ -137,6 +160,42 @@ class ReviewWriteViewModel @Inject constructor(
         )
         return result
     }
+    private fun edit(transform: (ReviewWriteUiState) -> ReviewWriteUiState) {
+        _uiState.update(transform)
+        saveDraft()
+    }
+
+    private fun takeRestorableDraft(placeId: Long, reviewId: Long?): SavedReviewDraft? {
+        val draft = restorableDraft
+        restorableDraft = null
+        return draft?.takeIf { it.placeId == placeId && it.reviewId == reviewId }
+    }
+
+    private fun saveDraft() {
+        val state = _uiState.value
+        if (state.placeId == 0L || state.isInitializing || state.isSubmitted || state.isCompletionHandled) return
+        if (!state.isDirty) {
+            SavedReviewDraft.clear(savedStateHandle)
+            return
+        }
+        SavedReviewDraft.from(state).write(savedStateHandle)
+    }
+
+    private fun ReviewWriteUiState.restoredWith(draft: SavedReviewDraft?): ReviewWriteUiState =
+        if (draft == null) {
+            this
+        } else {
+            copy(
+                step = draft.step,
+                isRecommended = draft.isRecommended,
+                difficulty = draft.difficulty,
+                congestion = draft.congestion,
+                caution = draft.caution,
+                practiceMethod = draft.practiceMethod,
+                content = draft.content,
+            )
+        }
+
     private fun Review.toInitialValues() = ReviewWriteInitialValues(
         isRecommended = isRecommended,
         difficulty = difficulty,

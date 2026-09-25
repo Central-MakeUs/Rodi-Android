@@ -58,7 +58,11 @@ fun ReviewWriteScreen(
             viewModel.startForReviewId(placeId, placeName, editingReviewId)
         }
     }
-    val requestClose = { if (state.isDirty) confirmExit = true else onClose() }
+    val close = {
+        viewModel.discardDraft()
+        onClose()
+    }
+    val requestClose = { if (state.isDirty) confirmExit = true else close() }
     BackHandler {
         if (state.step == ReviewWriteStep.Detail) viewModel.back() else requestClose()
     }
@@ -73,11 +77,11 @@ fun ReviewWriteScreen(
             RodiAlertDialog(
                 confirmText = "다시 시도",
                 onConfirm = {
-                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) } ?: onClose()
+                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) } ?: close()
                 },
                 dismissText = "닫기",
-                onDismiss = onClose,
-                onDismissRequest = onClose,
+                onDismiss = close,
+                onDismissRequest = close,
                 title = "후기를 불러오지 못했어요",
                 description = state.initializationErrorMessage,
             )
@@ -104,7 +108,7 @@ fun ReviewWriteScreen(
     if (confirmExit) {
         RodiUnsavedChangesDialog(
             onContinueWriting = { confirmExit = false },
-            onExit = onClose,
+            onExit = close,
         )
     }
     if (state.isSubmitted) {
