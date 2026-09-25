@@ -35,6 +35,7 @@ import com.dororong.rodi.core.domain.usecase.driving.ObserveLiveUpdateSettingsUs
 import com.dororong.rodi.core.ui.permission.canPostPromotedNotifications
 import com.dororong.rodi.feature.home.location.rawCurrentLocationUpdates
 import dagger.hilt.android.AndroidEntryPoint
+import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -44,8 +45,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
@@ -55,6 +58,7 @@ private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
 /** startForeground는 약 5초 안에 끝나야 하므로 저장된 설정을 기다리는 시간을 짧게 잡는다. */
 private const val SETTINGS_READ_TIMEOUT_MILLIS = 500L
 private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
+private const val PRACTICE_OBSERVE_RETRY_DELAY_MILLIS = 1_000L
 
 // 목적지 반경 도달을 완료 조건으로 같이 쓰되, 출발-도착이 가까운 순환/왕복 코스에서
 // 출발하자마자 "도착"으로 잡히는 걸 막기 위한 안전장치. 코스 길이 자체가 짧으면 반경
@@ -222,7 +226,11 @@ internal class DrivingTrackingService : Service() {
      * 연습 세션 없이 시작된 추적은 이 규칙의 대상이 아니다.
      */
     private suspend fun stopWhenPracticeEnds(session: DrivingSession) {
-        val practice = observeActivePracticeSession()
+        val practice = observeActivePracticeSession().retryWhen { error, _ ->
+            if (error !is IOException) return@retryWhen false
+            delay(PRACTICE_OBSERVE_RETRY_DELAY_MILLIS)
+            true
+        }
         try {
             if (!practice.first().isMeasuringAt(session.placeId)) return
             practice.first { !it.isMeasuringAt(session.placeId) }
@@ -348,12 +356,13 @@ internal class DrivingTrackingService : Service() {
         val transitioned = runCatching {
             markDrivingArrived(session.id, arrivedAt, traveledDistanceMeters)
         }.getOrElse { error ->
-            isFinishing = false
             Timber.e(error, "Driving arrival could not be persisted.")
+            // 위치 수집은 도착 감지 때 이미 멈췄다. 남겨 두면 알림만 남고 끝낼 주체가 없다.
+            finishSession(session.id)
             return
         }
         if (!transitioned) {
-            isFinishing = false
+            finishSession(session.id)
             return
         }
         if (activeSession?.id != session.id) return
