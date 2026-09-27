@@ -24,7 +24,8 @@ class LoginWithKakaoUseCase @Inject constructor(
             val result = authRepository.loginWithKakao(kakaoAccessToken)
             if (result !is LoginResult.Success) return@runSuspendCatching result
             val hasGuestAccess = entryRepository.hasGuestAccess.first()
-            val isOnboarded = result.isOnboarded || deliverLocallyCompletedOnboarding()
+            val localDelivery = if (result.isOnboarded) null else deliverLocallyCompletedOnboarding()
+            val isOnboarded = result.isOnboarded || localDelivery == true
             val profile = if (!isOnboarded && hasGuestAccess) {
                 onboardingRepository.clear()
                 OnboardingProfile(nickname = result.nickname)
@@ -46,20 +47,21 @@ class LoginWithKakaoUseCase @Inject constructor(
             } else {
                 onboardingRepository.isSyncAuthorized.first()
             }
-            if (!isOnboarded && hasGuestAccess) {
-                onboardingRepository.clearSyncPending()
-            } else if (canSyncPendingProfile) {
-                attemptPendingSync()
-            } else {
-                onboardingRepository.clearSyncPending()
+            when {
+                !isOnboarded && hasGuestAccess -> onboardingRepository.clearSyncPending()
+                // 방금 한 번 보냈다. 실패했으면 대기로 남겨 다음 동기화 때 다시 보낸다.
+                localDelivery != null -> Unit
+                canSyncPendingProfile -> attemptPendingSync()
+                else -> onboardingRepository.clearSyncPending()
             }
             result.copy(isOnboarded = isOnboarded)
         }
 
     // 이 기기에서 온보딩을 끝냈지만 서버 제출만 실패한 채 다시 로그인하면 서버는 아직 미완료로 본다.
     // 온보딩을 처음부터 다시 시키지 않고 남은 제출을 먼저 보내, 서버가 받으면 완료로 본다.
-    private suspend fun deliverLocallyCompletedOnboarding(): Boolean {
-        if (entryRepository.isCompleted.first() != true || !onboardingRepository.isSyncPending.first()) return false
+    // 보낼 것이 없으면 null, 보냈으면 서버가 받았는지를 돌려준다.
+    private suspend fun deliverLocallyCompletedOnboarding(): Boolean? {
+        if (entryRepository.isCompleted.first() != true || !onboardingRepository.isSyncPending.first()) return null
         val submission = try {
             syncPendingOnboarding()
         } catch (error: CancellationException) {

@@ -127,6 +127,7 @@ class LoginWithKakaoUseCaseTest {
         assertEquals(LoginResult.Success(isOnboarded = true, nickname = "서버"), result)
         coVerify { entry.setCompleted() }
         coVerify(exactly = 0) { entry.start(any()) }
+        coVerify(exactly = 1) { sync() }
     }
 
     @Test
@@ -142,6 +143,8 @@ class LoginWithKakaoUseCaseTest {
         assertEquals(LoginResult.Success(isOnboarded = false, nickname = "서버"), result)
         coVerify { entry.start(EntryMode.AUTHENTICATED) }
         coVerify(exactly = 0) { entry.setCompleted() }
+        // 한 번 실패한 제출을 곧바로 다시 보내면, 두 번째가 성공해도 결과는 이미 온보딩으로 정해져 있다.
+        coVerify(exactly = 1) { sync() }
     }
 
     @Test
