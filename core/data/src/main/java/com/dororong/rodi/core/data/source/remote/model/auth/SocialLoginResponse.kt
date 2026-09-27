@@ -8,6 +8,7 @@ data class SocialLoginResponse(
     val accessToken: String? = null,
     val refreshToken: String? = null,
     val isNewMember: Boolean? = null,
+    val isOnboarded: Boolean?,
     val isCourseTutorialCompleted: Boolean?,
     val nickname: String? = null,
     val withdrawalRequestedAt: String? = null,

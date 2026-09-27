@@ -4,7 +4,7 @@ import java.time.Instant
 
 sealed interface AccountRestoreResult {
     data class Restored(
-        val isNewMember: Boolean,
+        val isOnboarded: Boolean,
         val nickname: String,
     ) : AccountRestoreResult
 

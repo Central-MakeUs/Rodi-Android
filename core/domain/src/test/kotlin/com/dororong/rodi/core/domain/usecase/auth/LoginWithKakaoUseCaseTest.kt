@@ -28,7 +28,7 @@ class LoginWithKakaoUseCaseTest {
         val onboarding = onboardingRepository(OnboardingProfile(nickname = "로컬"))
         val entry = entryRepository()
         val sync = syncUseCase()
-        val login = LoginResult.Success(isNewMember = false, nickname = "서버 닉네임")
+        val login = LoginResult.Success(isOnboarded = true, nickname = "서버 닉네임")
         coEvery { auth.loginWithKakao("access-token") } returns login
 
         val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token")
@@ -50,7 +50,7 @@ class LoginWithKakaoUseCaseTest {
         val onboarding = onboardingRepository(profile)
         val entry = entryRepository(isCompleted = true, hasGuestAccess = true)
         val sync = syncUseCase()
-        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(true, "서버")
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(isOnboarded = false, nickname = "서버")
 
         LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
 
@@ -70,7 +70,7 @@ class LoginWithKakaoUseCaseTest {
         val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9))
         val entry = entryRepository(isCompleted = true, hasGuestAccess = false)
         val sync = syncUseCase()
-        val login = LoginResult.Success(true, "서버")
+        val login = LoginResult.Success(isOnboarded = false, nickname = "서버")
         coEvery { auth.loginWithKakao("access-token") } returns login
         coEvery { sync() } throws IllegalStateException("offline")
 
@@ -82,7 +82,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `authorized pending sync retries even when a later login is no longer new`() = runTest {
+    fun `authorized pending sync retries for an onboarded member`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(
             profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9),
@@ -90,12 +90,61 @@ class LoginWithKakaoUseCaseTest {
         )
         val entry = entryRepository()
         val sync = syncUseCase()
-        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(false, "서버")
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(isOnboarded = true, nickname = "서버")
 
         LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
 
         coVerify { sync() }
         coVerify(exactly = 0) { onboarding.clearSyncPending() }
+    }
+
+    @Test
+    fun `member who left onboarding after sign up is sent back to onboarding`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository()
+        val entry = entryRepository(isCompleted = false, hasGuestAccess = false)
+        val sync = syncUseCase()
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(isOnboarded = false, nickname = "서버")
+
+        val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
+
+        assertEquals(LoginResult.Success(isOnboarded = false, nickname = "서버"), result)
+        coVerify { entry.start(EntryMode.AUTHENTICATED) }
+        coVerify { onboarding.authorizeSync() }
+        coVerify(exactly = 0) { entry.setCompleted() }
+    }
+
+    @Test
+    fun `onboarding finished on this device is delivered instead of starting over`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository(isSyncPending = true, isSyncAuthorized = true)
+        val entry = entryRepository(isCompleted = true)
+        val sync = syncUseCase()
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(isOnboarded = false, nickname = "서버")
+
+        val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
+
+        assertEquals(LoginResult.Success(isOnboarded = true, nickname = "서버"), result)
+        coVerify { entry.setCompleted() }
+        coVerify(exactly = 0) { entry.start(any()) }
+        coVerify(exactly = 1) { sync() }
+    }
+
+    @Test
+    fun `onboarding finished on this device goes back to onboarding when the server still rejects it`() = runTest {
+        val auth = mockk<AuthRepository>()
+        val onboarding = onboardingRepository(isSyncPending = true, isSyncAuthorized = true)
+        val entry = entryRepository(isCompleted = true)
+        val sync = syncUseCase(OnboardingSubmissionResult.RetryableFailure)
+        coEvery { auth.loginWithKakao("access-token") } returns LoginResult.Success(isOnboarded = false, nickname = "서버")
+
+        val result = LoginWithKakaoUseCase(auth, onboarding, entry, sync)("access-token").getOrThrow()
+
+        assertEquals(LoginResult.Success(isOnboarded = false, nickname = "서버"), result)
+        coVerify { entry.start(EntryMode.AUTHENTICATED) }
+        coVerify(exactly = 0) { entry.setCompleted() }
+        // 한 번 실패한 제출을 곧바로 다시 보내면, 두 번째가 성공해도 결과는 이미 온보딩으로 정해져 있다.
+        coVerify(exactly = 1) { sync() }
     }
 
     @Test
@@ -134,6 +183,7 @@ class LoginWithKakaoUseCaseTest {
     private fun onboardingRepository(
         profile: OnboardingProfile = OnboardingProfile(),
         isSyncAuthorized: Boolean = false,
+        isSyncPending: Boolean = false,
     ): OnboardingRepository = mockk {
         coEvery { this@mockk.profile } returns flowOf(profile)
         coEvery { saveProfile(any()) } returns Unit
@@ -142,6 +192,7 @@ class LoginWithKakaoUseCaseTest {
         coEvery { clearSyncPending() } returns Unit
         coEvery { clear() } returns Unit
         coEvery { this@mockk.isSyncAuthorized } returns flowOf(isSyncAuthorized)
+        coEvery { this@mockk.isSyncPending } returns flowOf(isSyncPending)
     }
 
     private fun entryRepository(
@@ -155,7 +206,9 @@ class LoginWithKakaoUseCaseTest {
         coEvery { clearGuestAccess() } returns Unit
     }
 
-    private fun syncUseCase(): SyncPendingOnboardingUseCase = mockk {
-        coEvery { this@mockk() } returns OnboardingSubmissionResult.Submitted
+    private fun syncUseCase(
+        result: OnboardingSubmissionResult = OnboardingSubmissionResult.Submitted,
+    ): SyncPendingOnboardingUseCase = mockk {
+        coEvery { this@mockk() } returns result
     }
 }

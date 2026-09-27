@@ -9,7 +9,7 @@ import java.time.Instant
 
 fun SocialLoginResponse.toAccountRestoreResult(): AccountRestoreResult = when (status) {
     STATUS_SUCCESS -> AccountRestoreResult.Restored(
-        isNewMember = requireField(isNewMember, "isNewMember"),
+        isOnboarded = requireField(isOnboarded, "isOnboarded"),
         nickname = requireField(nickname?.takeIf { it.isNotBlank() }, "nickname"),
     )
     STATUS_WITHDRAWAL_PENDING -> AccountRestoreResult.WithdrawalPending(
@@ -21,7 +21,7 @@ fun SocialLoginResponse.toAccountRestoreResult(): AccountRestoreResult = when (s
 
 fun SocialLoginResponse.toLoginResult(): LoginResult = when (status) {
     STATUS_SUCCESS -> LoginResult.Success(
-        isNewMember = requireField(isNewMember, "isNewMember"),
+        isOnboarded = requireField(isOnboarded, "isOnboarded"),
         nickname = requireField(nickname?.takeIf { it.isNotBlank() }, "nickname"),
     )
     STATUS_WITHDRAWAL_PENDING -> LoginResult.WithdrawalPending(

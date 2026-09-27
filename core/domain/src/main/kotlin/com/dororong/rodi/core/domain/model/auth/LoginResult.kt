@@ -3,8 +3,9 @@ package com.dororong.rodi.core.domain.model.auth
 import java.time.Instant
 
 sealed interface LoginResult {
+    /** [isOnboarded]가 false면 신규 가입이든 가입 후 온보딩 중 이탈한 회원이든 온보딩으로 보낸다. */
     data class Success(
-        val isNewMember: Boolean,
+        val isOnboarded: Boolean,
         val nickname: String,
     ) : LoginResult
 

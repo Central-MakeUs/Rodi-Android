@@ -2,6 +2,7 @@ package com.dororong.rodi.core.domain.usecase.auth
 
 import com.dororong.rodi.core.common.runSuspendCatching
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
@@ -27,8 +28,13 @@ class RestoreWithKakaoUseCase @Inject constructor(
             )
         }
         attemptLocalUpdate { onboardingRepository.clearSyncPending() }
-        if (!result.isNewMember) {
-            attemptLocalUpdate { entryRepository.setCompleted() }
+        attemptLocalUpdate {
+            if (result.isOnboarded) {
+                entryRepository.setCompleted()
+            } else {
+                val hasGuestAccess = entryRepository.hasGuestAccess.first()
+                entryRepository.start(if (hasGuestAccess) EntryMode.GUEST_SIGN_UP else EntryMode.AUTHENTICATED)
+            }
         }
         attemptLocalUpdate { entryRepository.clearGuestAccess() }
     }

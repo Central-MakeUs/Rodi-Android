@@ -7,6 +7,6 @@ sealed interface LoginUiState {
 }
 
 sealed interface LoginEffect {
-    data class NavigateNext(val isNewMember: Boolean?) : LoginEffect
+    data class NavigateNext(val needsOnboarding: Boolean?) : LoginEffect
     data class ShowSnackbar(val message: String) : LoginEffect
 }

@@ -36,13 +36,27 @@ class LoginViewModelTest {
     @Test
     fun `successful login navigates next`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
-        coEvery { login("access-token") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { login("access-token") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         val viewModel = viewModel(login = login)
 
         viewModel.effect.test {
             viewModel.onKakaoLoginResult("access-token")
             advanceUntilIdle()
-            assertEquals(LoginEffect.NavigateNext(isNewMember = false), awaitItem())
+            assertEquals(LoginEffect.NavigateNext(needsOnboarding = false), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `login of a member who has not finished onboarding navigates to onboarding`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(LoginResult.Success(isOnboarded = false, nickname = "로디"))
+        val viewModel = viewModel(login = login)
+
+        viewModel.effect.test {
+            viewModel.onKakaoLoginResult("access-token")
+            advanceUntilIdle()
+            assertEquals(LoginEffect.NavigateNext(needsOnboarding = true), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -54,7 +68,7 @@ class LoginViewModelTest {
         coEvery { login("access-token") } returns Result.success(
             LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
         )
-        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(false, "로디"))
+        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디"))
         val viewModel = viewModel(login, restore)
 
         viewModel.onKakaoLoginResult("access-token")
@@ -64,19 +78,19 @@ class LoginViewModelTest {
         viewModel.effect.test {
             viewModel.onRecoveryConfirm()
             advanceUntilIdle()
-            assertEquals(LoginEffect.NavigateNext(isNewMember = false), awaitItem())
+            assertEquals(LoginEffect.NavigateNext(needsOnboarding = false), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `recovery preserves new member routing`() = runTest(testDispatcher) {
+    fun `recovery of a member who has not finished onboarding navigates to onboarding`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         val restore = mockk<RestoreWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(
             LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
         )
-        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(true, "로디"))
+        coEvery { restore("access-token") } returns Result.success(AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디"))
         val viewModel = viewModel(login, restore)
 
         viewModel.onKakaoLoginResult("access-token")
@@ -85,7 +99,7 @@ class LoginViewModelTest {
         viewModel.effect.test {
             viewModel.onRecoveryConfirm()
             advanceUntilIdle()
-            assertEquals(LoginEffect.NavigateNext(isNewMember = true), awaitItem())
+            assertEquals(LoginEffect.NavigateNext(needsOnboarding = true), awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -117,7 +131,7 @@ class LoginViewModelTest {
         viewModel.effect.test {
             viewModel.onSkipClick()
             advanceUntilIdle()
-            assertEquals(LoginEffect.NavigateNext(isNewMember = null), awaitItem())
+            assertEquals(LoginEffect.NavigateNext(needsOnboarding = null), awaitItem())
             coVerify(exactly = 1) { grant() }
             cancelAndIgnoreRemainingEvents()
         }

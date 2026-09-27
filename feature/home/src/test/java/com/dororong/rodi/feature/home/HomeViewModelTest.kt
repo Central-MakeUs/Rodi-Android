@@ -395,7 +395,7 @@ class HomeViewModelTest {
     @Test
     fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
             AuthSession(false, false),
             AuthSession(true, true),
@@ -420,7 +420,7 @@ class HomeViewModelTest {
     @Test
     fun `search opens login flow and navigates after existing member login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         val vm = deps.viewModel()
         val origin = GeoPoint(37.5, 126.9)
 
@@ -440,7 +440,7 @@ class HomeViewModelTest {
     @Test
     fun `guest registration action uses the existing login gate and resumes after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
             AuthSession(false, false),
             AuthSession(true, true),
@@ -461,10 +461,10 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest new member navigates to sign up without resuming pending action`() = runTest(dispatcher) {
+    fun `guest who has not finished onboarding navigates to sign up without resuming pending action`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns
-            Result.success(LoginResult.Success(true, "로디"))
+            Result.success(LoginResult.Success(isOnboarded = false, nickname = "로디"))
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.MyPageClicked)
@@ -490,7 +490,7 @@ class HomeViewModelTest {
             ),
         )
         coEvery { deps.restoreWithKakao("credential") } returns Result.success(
-            AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"),
+            AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디"),
         )
         val vm = deps.viewModel()
 
@@ -506,6 +506,32 @@ class HomeViewModelTest {
         assertFalse(vm.uiState.value.hasPendingRestore)
         assertNull(vm.uiState.value.pendingAction)
         coVerify(exactly = 1) { deps.restoreWithKakao("credential") }
+    }
+
+    @Test
+    fun `restoring an account that never finished onboarding navigates to sign up`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(
+            LoginResult.WithdrawalPending(withdrawalRequestedAt = null, recoverableUntil = null),
+        )
+        coEvery { deps.restoreWithKakao("credential") } returns Result.success(
+            AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디"),
+        )
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.MyPageClicked)
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.AccountRestoreClicked)
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.NavigateGuestSignUp, awaitItem())
+            assertNull(vm.uiState.value.pendingAction)
+            expectNoEvents()
+        }
     }
 
     @Test
@@ -779,7 +805,7 @@ class HomeViewModelTest {
     @Test
     fun `guest filter save resumes after existing member login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(false, "로디"))
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
 
