@@ -1560,7 +1560,6 @@ private fun visitResult(
     addedCertifiedDistanceMeters = 0,
     requiredDistanceMeters = 1000,
     isCertifiedNow = false,
-    isVerified = false,
     totalDistanceKm = 0.0,
     levelUp = levelUp,
     newLevel = newLevel,

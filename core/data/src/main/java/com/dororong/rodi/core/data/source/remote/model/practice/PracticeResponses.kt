@@ -21,7 +21,6 @@ data class PracticeVisitResponse(
     val addedCertifiedDistanceMeters: Int,
     val requiredDistanceMeters: Int,
     val isCertifiedNow: Boolean,
-    val isVerified: Boolean = false,
     val totalDistanceKm: Double,
     val levelUp: Boolean,
     val newLevel: String? = null,

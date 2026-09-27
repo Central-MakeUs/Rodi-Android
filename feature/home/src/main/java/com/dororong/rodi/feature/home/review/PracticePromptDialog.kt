@@ -63,7 +63,7 @@ private fun PracticePromptShortPreview() {
             contentAlignment = Alignment.Center,
         ) {
             PracticePromptDialog(
-                practice = PracticeRecordItem(1L, 1L, "강남역 코스", emptyList(), 0, Instant.EPOCH, false, false),
+                practice = PracticeRecordItem(1L, 1L, "강남역 코스", emptyList(), 0, Instant.EPOCH, false),
                 onVisited = {},
                 onNotVisited = {},
                 onDismiss = {},
@@ -88,7 +88,6 @@ private fun PracticePromptLongPreview() {
                     practiceTypes = emptyList(),
                     visitCount = 0,
                     visitedAt = null,
-                    isVerified = false,
                     hasReview = false,
                 ),
                 onVisited = {},

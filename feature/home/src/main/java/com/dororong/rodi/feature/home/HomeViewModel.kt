@@ -1186,7 +1186,6 @@ private fun ActivePracticeSession.toPracticeRecordItem() = PracticeRecordItem(
     practiceTypes = if (placeType == PlaceType.PARKING) listOf(PracticeType.PARKING) else emptyList(),
     visitCount = 0,
     visitedAt = null,
-    isVerified = false,
     hasReview = false,
 )
 

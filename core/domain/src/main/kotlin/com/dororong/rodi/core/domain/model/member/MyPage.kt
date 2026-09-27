@@ -27,7 +27,6 @@ data class PracticeRecordItem(
     val practiceTypes: List<PracticeType>,
     val visitCount: Int,
     val visitedAt: java.time.Instant?,
-    val isVerified: Boolean,
     val hasReview: Boolean,
     val status: PracticeStatus = PracticeStatus.PLANNED,
 )

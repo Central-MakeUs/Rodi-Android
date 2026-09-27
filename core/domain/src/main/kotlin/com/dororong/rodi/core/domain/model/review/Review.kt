@@ -71,7 +71,6 @@ data class ReviewSummary(
     val recommendCount: Long,
     val notRecommendCount: Long,
     val difficultyCounts: Map<ReviewDifficulty, Long>,
-    val congestionCounts: Map<ReviewCongestion, Long>,
     val levelCounts: Map<OnboardingLevel, Long>,
 )
 

@@ -37,7 +37,7 @@ class ReviewUseCasesTest {
 
     @Test
     fun `get review summary delegates once`() = runTest {
-        val summary = ReviewSummary(null, 1, 1, 0, emptyMap(), emptyMap(), emptyMap())
+        val summary = ReviewSummary(null, 1, 1, 0, emptyMap(), emptyMap())
         coEvery { repository.getSummary(7, ReviewLevelFilter.Mine) } returns summary
 
         val result = GetReviewSummaryUseCase(repository)(7)

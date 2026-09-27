@@ -75,7 +75,6 @@ data class ReviewSummaryResponse(
     val recommendCount: Long,
     val notRecommendCount: Long,
     val difficultyCounts: Map<String, Long>,
-    val congestionCounts: Map<String, Long> = emptyMap(),
     val levelCounts: Map<String, Long>,
 )
 

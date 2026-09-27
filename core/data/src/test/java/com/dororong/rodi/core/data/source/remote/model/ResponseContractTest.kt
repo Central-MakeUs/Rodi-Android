@@ -3,17 +3,22 @@ package com.dororong.rodi.core.data.source.remote.model
 import com.dororong.rodi.core.data.di.NetworkModule
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
+import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.FormResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeRegisterResponse
 import com.dororong.rodi.core.data.source.remote.model.practice.PracticeVisitResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
+import com.dororong.rodi.core.data.source.remote.model.search.RecentSearchResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.serializer
+import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -57,11 +62,10 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `review summary tolerates the omitted top difficulty and unsent congestion counts`() {
+    fun `review summary tolerates the omitted top difficulty`() {
         val summary = decode<ReviewSummaryResponse>(SUMMARY)
 
         assertEquals(3L, summary.totalReviewCount)
-        assertEquals(emptyMap<String, Long>(), summary.congestionCounts)
     }
 
     @Test
@@ -74,10 +78,13 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `practice records parse without the verification flag the server does not send`() {
-        val page = decode<CursorPagePracticeItemResponse>(PRACTICE_PAGE)
-
-        assertFalse(page.items.single().isVerified)
+    fun `response models declare only fields the server sends`() {
+        assertAll(
+            { assertDeclaresOnlyServerFields<PracticeItemResponse>(PRACTICE_PAGE.firstItem()) },
+            { assertDeclaresOnlyServerFields<PracticeVisitResponse>(PRACTICE_VISIT_LEVEL_UP) },
+            { assertDeclaresOnlyServerFields<ReviewSummaryResponse>(SUMMARY) },
+            { assertDeclaresOnlyServerFields<RecentSearchResponse>(RECENT_SEARCH) },
+        )
     }
 
     @Test
@@ -127,6 +134,17 @@ class ResponseContractTest {
     private fun envelope(data: String) =
         """{"isSuccess":true,"code":"COMMON_200","message":"요청에 성공했습니다.","data":$data}"""
 
+    // 서버가 보내지 않는 필드를 선언하면 기본값이 늘 정상값처럼 채워진다.
+    private inline fun <reified T> assertDeclaresOnlyServerFields(serverResponse: String) {
+        val serverFields = json.parseToJsonElement(serverResponse).jsonObject.keys
+        val descriptor = serializer<T>().descriptor
+        val declared = (0 until descriptor.elementsCount).map(descriptor::getElementName).toSet()
+        assertEquals(emptySet<String>(), declared - serverFields, T::class.simpleName)
+    }
+
+    private fun String.firstItem(): String =
+        json.parseToJsonElement(this).jsonObject.getValue("items").jsonArray.first().toString()
+
     private fun String.without(field: String): String {
         val fields = json.parseToJsonElement(this).jsonObject
         check(field in fields) { "$field not found" }
@@ -147,6 +165,9 @@ class ResponseContractTest {
         const val PRACTICE_REGISTER = """{"practiceId":7,"status":"PLANNED","visitCount":0,"requiredDistanceMeters":0}"""
         const val PRACTICE_VISIT = """{"visitCount":1,"addedCertifiedDistanceMeters":0,"requiredDistanceMeters":0,""" +
             """"isCertifiedNow":true,"totalDistanceKm":3.0,"levelUp":false}"""
+        const val PRACTICE_VISIT_LEVEL_UP = """{"visitCount":1,"addedCertifiedDistanceMeters":1200,""" +
+            """"requiredDistanceMeters":1000,"isCertifiedNow":true,"totalDistanceKm":13.0,"levelUp":true,"newLevel":"ROOKIE"}"""
+        const val RECENT_SEARCH = """{"id":1,"type":"REGION","keyword":"서울 중구","placeId":null}"""
         const val FORM = """{"questionId":"SKIP_REASON","type":"SINGLE_SELECT","title":"왜 못 갔나요?","required":true,""" +
             """"options":[{"code":"NO_TIME","label":"시간이 없었어요","order":1,"requiresTextInput":false}]}"""
 

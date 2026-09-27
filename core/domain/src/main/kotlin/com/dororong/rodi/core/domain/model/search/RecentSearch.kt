@@ -10,5 +10,4 @@ data class RecentSearch(
     val keyword: String,
     val type: SearchTargetType? = null,
     val placeId: Long? = null,
-    val regionKey: String? = null,
 )

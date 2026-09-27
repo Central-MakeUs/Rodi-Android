@@ -8,5 +8,4 @@ data class RecentSearchResponse(
     val keyword: String,
     val type: String? = null,
     val placeId: Long? = null,
-    val regionKey: String? = null,
 )

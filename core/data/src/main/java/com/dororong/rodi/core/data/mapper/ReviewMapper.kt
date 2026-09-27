@@ -96,7 +96,6 @@ fun ReviewSummaryResponse.toDomain() = ReviewSummary(
     recommendCount = recommendCount,
     notRecommendCount = notRecommendCount,
     difficultyCounts = difficultyCounts.toEnumMap<ReviewDifficulty>("difficultyCounts"),
-    congestionCounts = congestionCounts.toEnumMap<ReviewCongestion>("congestionCounts"),
     levelCounts = levelCounts.toEnumMap<OnboardingLevel>("levelCounts"),
 )
 
