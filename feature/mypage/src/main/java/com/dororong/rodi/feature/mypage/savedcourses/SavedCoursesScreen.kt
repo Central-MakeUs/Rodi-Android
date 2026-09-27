@@ -195,6 +195,7 @@ private fun SavedCoursesFilledPreview() {
                         distanceMeters = 4200,
                         capacity = null,
                         openTime = null,
+                        isDeleted = false,
                     ),
                 ),
                 totalCount = 1,

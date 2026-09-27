@@ -21,12 +21,17 @@ import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.HttpException
 
 class PlaceRepositoryImpl @Inject constructor(
     private val api: PlaceApi,
     private val savedPlaceLocalDataSource: SavedPlaceLocalDataSource,
     private val tokenStore: AuthTokenStore,
+    private val json: Json,
 ) : PlaceRepository {
     override suspend fun getCoordinates(): List<PlaceCoordinate> {
         val coordinates = publicRequest {
@@ -133,7 +138,7 @@ class PlaceRepositoryImpl @Inject constructor(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            throw error.toPlaceException()
+            throw error.toPlaceException(json)
         }
     }
 
@@ -149,7 +154,7 @@ class PlaceRepositoryImpl @Inject constructor(
     } catch (error: CancellationException) {
         throw error
     } catch (error: Throwable) {
-        throw error.toPlaceException()
+        throw error.toPlaceException(json)
     }
 }
 
@@ -163,19 +168,31 @@ private fun ApiEnvelope<*>.requireSuccess() {
 }
 
 private fun ApiEnvelope<*>.toPlaceException(): PlaceException = when {
+    code == CODE_DELETED_COURSE -> PlaceException.NotFound(DELETED_COURSE_MESSAGE)
     code.contains("401") -> PlaceException.AuthenticationRequired(message)
     code.contains("404") -> PlaceException.NotFound(message)
     else -> PlaceException.Unexpected(message.ifBlank { "장소 요청에 실패했습니다." })
 }
 
-private fun Throwable.toPlaceException(): PlaceException = when (this) {
+private fun Throwable.toPlaceException(json: Json): PlaceException = when (this) {
     is PlaceException -> this
-    is HttpException -> when (code()) {
-        401 -> PlaceException.AuthenticationRequired(message(), this)
-        404 -> PlaceException.NotFound(message(), this)
+    is HttpException -> when {
+        // 목록을 받은 뒤 등록자가 지운 코스. 다시 시도해도 열리지 않으므로 재시도를 권하지 않는다.
+        errorCode(json) == CODE_DELETED_COURSE -> PlaceException.NotFound(DELETED_COURSE_MESSAGE, this)
+        code() == 401 -> PlaceException.AuthenticationRequired(message(), this)
+        code() == 404 -> PlaceException.NotFound(message(), this)
         else -> PlaceException.Unexpected(message(), this)
     }
     is IOException -> PlaceException.Network("네트워크 연결을 확인해주세요.", this)
     // 직렬화 예외 등의 원문은 사용자 문구가 아니다. 원인은 cause로만 남긴다.
     else -> PlaceException.Unexpected("장소 요청에 실패했습니다.", this)
 }
+
+private fun HttpException.errorCode(json: Json): String? = runCatching {
+    response()?.errorBody()?.string()?.let { body ->
+        json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.contentOrNull
+    }
+}.getOrNull()
+
+private const val CODE_DELETED_COURSE = "COURSE_404_2"
+private const val DELETED_COURSE_MESSAGE = "삭제된 코스예요."

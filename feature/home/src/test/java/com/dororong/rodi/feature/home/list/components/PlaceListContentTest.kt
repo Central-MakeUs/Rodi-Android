@@ -72,4 +72,5 @@ private fun summary(id: Long) = PlaceSummary(
     distanceMeters = 1_000,
     capacity = null,
     openTime = null,
+    isDeleted = false,
 )

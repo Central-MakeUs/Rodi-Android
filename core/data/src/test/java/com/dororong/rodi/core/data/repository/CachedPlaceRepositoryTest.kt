@@ -92,6 +92,7 @@ class CachedPlaceRepositoryTest {
         distanceMeters = null,
         capacity = null,
         openTime = null,
+        isDeleted = false,
     )
 
     private fun viewportQuery() = PlaceViewportQuery(

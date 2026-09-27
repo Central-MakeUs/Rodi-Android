@@ -48,6 +48,7 @@ object LocalTestPlaces {
         distanceMeters = 700,
         capacity = null,
         openTime = null,
+        isDeleted = false,
     )
 
     fun detail() = PlaceDetail(

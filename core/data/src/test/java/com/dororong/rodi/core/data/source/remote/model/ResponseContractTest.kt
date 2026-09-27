@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.data.source.remote.model
 
 import com.dororong.rodi.core.data.di.NetworkModule
+import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Assertions.assertAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -126,6 +128,16 @@ class ResponseContractTest {
         assertEquals(2, page.items.size)
         assertFalse(page.hasNext)
         assertNull(page.items.first { it.type == "COURSE" }.capacity)
+    }
+
+    @Test
+    fun `saved place list keeps the deleted flag and rejects it missing`() {
+        val saved = LIVE_PLACE_PAGE.replaceFirst("\"isDeleted\":false", "\"isDeleted\":true")
+
+        assertTrue(decode<CursorPagePlaceResponse>(saved).toDomain().items.first().isDeleted)
+        assertThrows<SerializationException> {
+            decode<CursorPagePlaceResponse>(LIVE_PLACE_PAGE.replaceFirst(",\"isDeleted\":false", ""))
+        }
     }
 
     private inline fun <reified T> decode(data: String): T =

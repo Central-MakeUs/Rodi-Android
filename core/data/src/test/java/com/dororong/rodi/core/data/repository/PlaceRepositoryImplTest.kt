@@ -28,6 +28,10 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 
 class PlaceRepositoryImplTest {
     @Test
@@ -53,7 +57,7 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            
+            NetworkModule.provideJson(),
         )
 
         val result = repository.relatedSearch("중구", cursor = null, size = 20)
@@ -86,7 +90,7 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            
+            NetworkModule.provideJson(),
         )
 
         repository.getPlaces(query, cursor = null, size = 20)
@@ -125,6 +129,7 @@ class PlaceRepositoryImplTest {
                         lng = 126.9,
                         distanceFromMe = null,
                         practiceTypes = listOf("PARKING"),
+                        isDeleted = false,
                     ),
                 ),
                 hasNext = true,
@@ -136,7 +141,7 @@ class PlaceRepositoryImplTest {
             api,
             mockk<SavedPlaceLocalDataSource>(relaxed = true),
             tokenStore,
-            
+            NetworkModule.provideJson(),
         )
 
         val page = repository.getSavedPlaces(cursor = null, size = 20)
@@ -159,7 +164,7 @@ class PlaceRepositoryImplTest {
             message = "성공",
             data = buildJsonObject { },
         )
-        val repository = PlaceRepositoryImpl(api, local, tokenStore)
+        val repository = PlaceRepositoryImpl(api, local, tokenStore, NetworkModule.provideJson())
         val place = place(9)
 
         repository.setBookmarked(place, true)
@@ -175,7 +180,7 @@ class PlaceRepositoryImplTest {
         val authRepository = mockk<AuthRepository>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
         coEvery { api.bookmark(9) } returns failureEnvelope("COMMON_500")
-        val repository = PlaceRepositoryImpl(api, local, tokenStore)
+        val repository = PlaceRepositoryImpl(api, local, tokenStore, NetworkModule.provideJson())
         val place = place(9)
 
         assertThrowsSuspend<RuntimeException> { repository.setBookmarked(place, true) }
@@ -191,7 +196,7 @@ class PlaceRepositoryImplTest {
         val authRepository = mockk<AuthRepository>(relaxed = true)
         coEvery { tokenStore.getTokens() } returns tokens("access")
         coEvery { api.bookmark(9) } throws CancellationException()
-        val repository = PlaceRepositoryImpl(api, local, tokenStore)
+        val repository = PlaceRepositoryImpl(api, local, tokenStore, NetworkModule.provideJson())
 
         assertThrowsSuspend<CancellationException> { repository.setBookmarked(place(9), true) }
 
@@ -212,11 +217,30 @@ class PlaceRepositoryImplTest {
             )
         }.exceptionOrNull()
         coEvery { api.getPlaceDetail(9) } throws requireNotNull(missingField)
-        val repository = PlaceRepositoryImpl(api, mockk(relaxed = true), tokenStore)
+        val repository = PlaceRepositoryImpl(api, mockk(relaxed = true), tokenStore, NetworkModule.provideJson())
 
         val error = assertThrowsSuspend<PlaceException.Unexpected> { repository.getPlaceDetail(9) }
 
         assertEquals("장소 요청에 실패했습니다.", error.userMessage())
+    }
+
+    @Test
+    fun `detail of a course deleted after the list was loaded tells the user it was deleted`() = runTest {
+        val api = mockk<PlaceApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens("access")
+        coEvery { api.getPlaceDetail(9) } throws HttpException(
+            Response.error<Any>(
+                404,
+                """{"isSuccess":false,"code":"COURSE_404_2","message":"삭제된 코스입니다.","data":null}"""
+                    .toResponseBody("application/json".toMediaType()),
+            ),
+        )
+        val repository = PlaceRepositoryImpl(api, mockk(relaxed = true), tokenStore, NetworkModule.provideJson())
+
+        val error = assertThrowsSuspend<PlaceException.NotFound> { repository.getPlaceDetail(9) }
+
+        assertEquals("삭제된 코스예요.", error.userMessage())
     }
 
     private fun tokens(access: String) = AuthTokens(access, "refresh", "kakao")

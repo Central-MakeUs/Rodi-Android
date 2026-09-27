@@ -43,6 +43,8 @@ data class PlaceSummary(
     val distanceMeters: Int?,
     val capacity: Int?,
     val openTime: String?,
+    /** 등록자가 삭제한 코스. 저장 목록에만 true로 올 수 있고 상세에는 들어갈 수 없다. */
+    val isDeleted: Boolean,
 )
 
 data class CursorPage<T>(

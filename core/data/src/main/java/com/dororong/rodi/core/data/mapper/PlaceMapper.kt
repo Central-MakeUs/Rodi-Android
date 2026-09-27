@@ -63,6 +63,7 @@ fun PlaceListItemResponse.toDomain() = PlaceSummary(
     distanceMeters = distanceMeters,
     capacity = capacity,
     openTime = openTime,
+    isDeleted = isDeleted,
 )
 
 fun PlaceDetailResponse.toDomain() = PlaceDetail(

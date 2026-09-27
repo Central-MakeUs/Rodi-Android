@@ -25,6 +25,7 @@ internal object HomePreviewData {
         distanceMeters = 12_400,
         capacity = null,
         openTime = null,
+        isDeleted = false,
     )
 
     val longCourseSummary = courseSummary.copy(
@@ -45,6 +46,7 @@ internal object HomePreviewData {
         distanceMeters = null,
         capacity = 128,
         openTime = "06:00",
+        isDeleted = false,
     )
 
     val summaries = listOf(courseSummary, parkingSummary, longCourseSummary)
