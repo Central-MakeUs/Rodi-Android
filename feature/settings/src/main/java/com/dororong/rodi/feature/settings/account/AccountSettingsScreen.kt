@@ -34,6 +34,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -263,12 +264,14 @@ private fun DialogButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
+    val shape = RoundedCornerShape(RodiRadius.sm)
     Surface(
         modifier = Modifier
             .width(116.dp)
             .height(42.dp)
+            .clip(shape)
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(RodiRadius.sm),
+        shape = shape,
         color = if (isPrimary) RodiTheme.colors.primary600 else RodiTheme.colors.white,
         border = if (isPrimary) null else BorderStroke(1.dp, RodiTheme.colors.gray300),
     ) {

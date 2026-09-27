@@ -320,6 +320,7 @@ private fun FilterActionButton(
     Box(
         modifier = modifier
             .height(48.dp)
+            .clip(shape)
             .border(1.dp, borderColor, shape)
             .background(containerColor, shape)
             .clickable(enabled = enabled, onClick = onClick),
