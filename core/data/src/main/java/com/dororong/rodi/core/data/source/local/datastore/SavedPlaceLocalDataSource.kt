@@ -79,6 +79,7 @@ private fun SavedPlaceDto.toDomain() = PlaceSummary(
     distanceMeters = distanceMeters,
     capacity = capacity,
     openTime = openTime,
+    isDeleted = false,
 )
 
 private fun PlaceDetail.toSummary() = PlaceSummary(
@@ -93,4 +94,5 @@ private fun PlaceDetail.toSummary() = PlaceSummary(
     distanceMeters = course?.distanceMeters,
     capacity = parking?.capacity,
     openTime = parking?.operatingHours?.weekday?.substringBefore("-")?.trim(),
+    isDeleted = false,
 )

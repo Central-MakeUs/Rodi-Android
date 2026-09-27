@@ -330,4 +330,5 @@ private fun place(id: Long) = PlaceSummary(
     distanceMeters = null,
     capacity = null,
     openTime = null,
+    isDeleted = false,
 )

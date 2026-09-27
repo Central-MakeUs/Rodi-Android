@@ -195,6 +195,7 @@ private val previewCourseSummary = PlaceSummary(
     distanceMeters = 12_400,
     capacity = null,
     openTime = null,
+    isDeleted = false,
 )
 
 private val previewLongCourseSummary = previewCourseSummary.copy(
@@ -215,6 +216,7 @@ private val previewParkingSummary = PlaceSummary(
     distanceMeters = null,
     capacity = 128,
     openTime = "06:00",
+    isDeleted = false,
 )
 
 @Preview(name = "Place card - course", showBackground = true, widthDp = 360)

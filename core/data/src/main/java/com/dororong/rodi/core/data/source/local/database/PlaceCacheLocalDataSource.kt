@@ -81,6 +81,7 @@ private fun PlaceSummaryEntity.toDomain(origin: GeoPoint) = PlaceSummary(
     distanceMeters = distanceMeters,
     capacity = capacity,
     openTime = openTime,
+    isDeleted = false,
 )
 
 private fun GeoPoint.distanceToMeters(other: GeoPoint): Long {

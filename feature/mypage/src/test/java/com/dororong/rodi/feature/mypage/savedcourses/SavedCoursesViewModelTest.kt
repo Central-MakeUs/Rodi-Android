@@ -213,7 +213,60 @@ class SavedCoursesViewModelTest {
         assertFalse(viewModel.uiState.value.isLoading)
     }
 
-    private fun place(id: Long, type: PlaceType) = PlaceSummary(
+    @Test
+    fun `courses deleted by their author are hidden from the saved list and its count`() = runTest(dispatcher) {
+        val getSaved = mockk<GetSavedPlacesUseCase>()
+        coEvery { getSaved(null, 20) } returns Result.success(
+            CursorPage(listOf(place(1, PlaceType.COURSE, isDeleted = true), place(2, PlaceType.PARKING)), false, null, 2),
+        )
+
+        val viewModel = SavedCoursesViewModel(getSaved)
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L), viewModel.uiState.value.places.map { it.id })
+        assertEquals(1L, viewModel.uiState.value.totalCount)
+    }
+
+    @Test
+    fun `a first page of only deleted courses continues to the next page instead of showing empty`() =
+        runTest(dispatcher) {
+            val getSaved = mockk<GetSavedPlacesUseCase>()
+            coEvery { getSaved(null, 20) } returns Result.success(
+                CursorPage(listOf(place(1, PlaceType.COURSE, isDeleted = true)), true, "next", 2),
+            )
+            coEvery { getSaved("next", 20) } returns Result.success(
+                CursorPage(listOf(place(2, PlaceType.COURSE)), false, null, null),
+            )
+
+            val viewModel = SavedCoursesViewModel(getSaved)
+            advanceUntilIdle()
+
+            assertEquals(listOf(2L), viewModel.uiState.value.places.map { it.id })
+            assertEquals(1L, viewModel.uiState.value.totalCount)
+            assertFalse(viewModel.uiState.value.hasNext)
+            assertFalse(viewModel.uiState.value.isLoading)
+        }
+
+    @Test
+    fun `deleted courses found on later pages also lower the count`() = runTest(dispatcher) {
+        val getSaved = mockk<GetSavedPlacesUseCase>()
+        coEvery { getSaved(null, 20) } returns Result.success(
+            CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 3),
+        )
+        coEvery { getSaved("next", 20) } returns Result.success(
+            CursorPage(listOf(place(2, PlaceType.COURSE, isDeleted = true), place(3, PlaceType.PARKING)), false, null, null),
+        )
+        val viewModel = SavedCoursesViewModel(getSaved)
+        advanceUntilIdle()
+
+        viewModel.loadNextPage()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L, 3L), viewModel.uiState.value.places.map { it.id })
+        assertEquals(2L, viewModel.uiState.value.totalCount)
+    }
+
+    private fun place(id: Long, type: PlaceType, isDeleted: Boolean = false) = PlaceSummary(
         id = id,
         type = type,
         name = "장소 $id",
@@ -225,5 +278,6 @@ class SavedCoursesViewModelTest {
         distanceMeters = null,
         capacity = null,
         openTime = null,
+        isDeleted = isDeleted,
     )
 }

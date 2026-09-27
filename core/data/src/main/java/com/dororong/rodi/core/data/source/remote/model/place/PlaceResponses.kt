@@ -34,6 +34,7 @@ data class PlaceListItemResponse(
     val distanceMeters: Int? = null,
     val capacity: Int? = null,
     val openTime: String? = null,
+    val isDeleted: Boolean,
 )
 
 @Serializable
