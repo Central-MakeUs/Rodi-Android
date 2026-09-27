@@ -13,6 +13,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
+import com.dororong.rodi.core.ui.components.WithdrawalLockedDialog
 import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.feature.home.components.LoginRequiredDialog
@@ -202,6 +203,12 @@ internal fun HomeOverlayHost(
             isRestoring = state.isRestoreInProgress,
             onConfirm = { onIntent(HomeIntent.AccountRestoreClicked) },
             onDismiss = { onIntent(HomeIntent.AccountRestoreDismissed) },
+        )
+    }
+    state.withdrawalLockedUntil?.let { reRegisterableAt ->
+        WithdrawalLockedDialog(
+            reRegisterableAt = reRegisterableAt,
+            onDismiss = { onIntent(HomeIntent.WithdrawalLockedDismissed) },
         )
     }
 

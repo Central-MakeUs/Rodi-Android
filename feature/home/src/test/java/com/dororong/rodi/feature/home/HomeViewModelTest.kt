@@ -393,6 +393,80 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `locked account login keeps browsing as a guest and never resumes the protected action`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        val rejoinAt = Instant.parse("2026-09-20T03:00:00Z")
+        coEvery { deps.loginWithKakao("credential") } returns
+            Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = rejoinAt))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.PlaceClicked(10L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.pendingAction)
+        assertFalse(vm.uiState.value.isLoginInProgress)
+        assertFalse(vm.uiState.value.hasPendingRestore)
+        assertEquals(rejoinAt, vm.uiState.value.withdrawalLockedUntil)
+        coVerify(exactly = 0) { deps.getDetail(any()) }
+        coVerify(exactly = 0) { deps.restoreWithKakao(any()) }
+
+        vm.onIntent(HomeIntent.WithdrawalLockedDismissed)
+        assertNull(vm.uiState.value.withdrawalLockedUntil)
+    }
+
+    @Test
+    fun `restore that finds the grace period over closes recovery without resuming the action`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        val rejoinAt = Instant.parse("2026-09-20T03:00:00Z")
+        coEvery { deps.loginWithKakao("credential") } returns Result.success(
+            LoginResult.WithdrawalPending(withdrawalRequestedAt = null, recoverableUntil = null),
+        )
+        coEvery { deps.restoreWithKakao("credential") } returns
+            Result.success(AccountRestoreResult.WithdrawalLocked(reRegisterableAt = rejoinAt))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.PlaceClicked(10L, HomeDetailOrigin.Map))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.AccountRestoreClicked)
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.hasPendingRestore)
+        assertFalse(vm.uiState.value.isRestoreInProgress)
+        assertNull(vm.uiState.value.pendingAction)
+        assertEquals(rejoinAt, vm.uiState.value.withdrawalLockedUntil)
+        coVerify(exactly = 0) { deps.getDetail(any()) }
+
+        vm.onIntent(HomeIntent.AccountRestoreClicked)
+        advanceUntilIdle()
+        coVerify(exactly = 1) { deps.restoreWithKakao(any()) }
+    }
+
+    @Test
+    fun `locked account without a usable date shows the date-unavailable message`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        coEvery { deps.loginWithKakao("credential") } returns
+            Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = null))
+        val vm = deps.viewModel()
+
+        vm.onIntent(HomeIntent.MyPageClicked)
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.ShowSnackbar("재가입 가능 날짜를 불러오지 못했어요."), awaitItem())
+            assertNull(vm.uiState.value.pendingAction)
+            assertNull(vm.uiState.value.withdrawalLockedUntil)
+            expectNoEvents()
+        }
+    }
+
+    @Test
     fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))

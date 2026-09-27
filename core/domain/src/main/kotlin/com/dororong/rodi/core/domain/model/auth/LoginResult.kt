@@ -18,4 +18,10 @@ sealed interface LoginResult {
         val withdrawalRequestedAt: Instant?,
         val recoverableUntil: Instant?,
     ) : LoginResult
+
+    /**
+     * 복구 기간이 지나 재가입을 기다리는 계정. 복구할 수 없고 [reRegisterableAt] 이후 다시 가입할 수 있다.
+     * 시각은 안내용이라 해석에 실패하면 null로 두고 상태 자체는 그대로 전달한다.
+     */
+    data class WithdrawalLocked(val reRegisterableAt: Instant?) : LoginResult
 }

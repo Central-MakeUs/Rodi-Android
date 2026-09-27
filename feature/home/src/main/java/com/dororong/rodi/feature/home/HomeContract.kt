@@ -14,6 +14,7 @@ import com.dororong.rodi.core.domain.model.practice.ActivePracticeSession
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
+import java.time.Instant
 
 enum class HomeSurfaceState {
     Navigation,
@@ -58,6 +59,8 @@ data class HomeUiState(
     val isLoginInProgress: Boolean = false,
     val hasPendingRestore: Boolean = false,
     val isRestoreInProgress: Boolean = false,
+    /** 복구 기간이 지나 재가입을 기다리는 계정으로 로그인했다. 값이 있으면 재가입 가능 안내를 띄운다. */
+    val withdrawalLockedUntil: Instant? = null,
     val isFilterSheetVisible: Boolean = false,
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
@@ -122,6 +125,7 @@ sealed interface HomeIntent {
     data class KakaoLoginFailed(val message: String) : HomeIntent
     data object AccountRestoreClicked : HomeIntent
     data object AccountRestoreDismissed : HomeIntent
+    data object WithdrawalLockedDismissed : HomeIntent
 
     data class NavigateClicked(
         val kakaoMapInstalled: Boolean,

@@ -13,4 +13,5 @@ data class SocialLoginResponse(
     val nickname: String? = null,
     val withdrawalRequestedAt: String? = null,
     val recoverableUntil: String? = null,
+    val reRegisterableAt: String? = null,
 )

@@ -177,6 +177,7 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.KakaoLoginSucceeded -> loginWithKakao(intent.accessToken)
             is HomeIntent.KakaoLoginFailed -> onKakaoLoginFailed(intent.message)
             HomeIntent.AccountRestoreClicked -> restoreAccount()
+            HomeIntent.WithdrawalLockedDismissed -> _uiState.update { it.copy(withdrawalLockedUntil = null) }
             HomeIntent.AccountRestoreDismissed -> {
                 pendingRestoreCredential = null
                 _uiState.update {
@@ -650,6 +651,7 @@ class HomeViewModel @Inject constructor(
                                 )
                             }
                         }
+                        is LoginResult.WithdrawalLocked -> showWithdrawalLocked(result.reRegisterableAt)
                     }
                 }
                 .onFailure { error ->
@@ -667,7 +669,10 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(isRestoreInProgress = true) }
             restoreWithKakaoUseCase(credential)
                 .onSuccess { result ->
-                    if (result is AccountRestoreResult.Restored && _uiState.value.pendingAction == action) {
+                    if (result is AccountRestoreResult.WithdrawalLocked) {
+                        pendingRestoreCredential = null
+                        showWithdrawalLocked(result.reRegisterableAt)
+                    } else if (result is AccountRestoreResult.Restored && _uiState.value.pendingAction == action) {
                         pendingRestoreCredential = null
                         _uiState.update {
                             it.copy(
@@ -691,6 +696,20 @@ class HomeViewModel @Inject constructor(
                     _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
                 }
         }
+    }
+
+    // 복구 기간이 지나 이 계정으로는 로그인할 수 없다. 로그인을 기다리던 동작은 버리고 둘러보기로 돌아간다.
+    private suspend fun showWithdrawalLocked(reRegisterableAt: Instant?) {
+        _uiState.update {
+            it.copy(
+                pendingAction = null,
+                isLoginInProgress = false,
+                hasPendingRestore = false,
+                isRestoreInProgress = false,
+                withdrawalLockedUntil = reRegisterableAt,
+            )
+        }
+        if (reRegisterableAt == null) _effect.send(HomeEffect.ShowSnackbar(REJOIN_DATE_UNAVAILABLE_MESSAGE))
     }
 
     private fun onKakaoLoginFailed(message: String) {
@@ -1201,3 +1220,4 @@ private const val LOCAL_PRACTICE_ID = 0L
 private const val PRACTICE_SESSION_CLEAR_ATTEMPTS = 3
 private const val PRACTICE_SESSION_SAVE_ATTEMPTS = 3
 private val PRACTICE_MEASUREMENT_DURATION: Duration = Duration.ofMinutes(10)
+private const val REJOIN_DATE_UNAVAILABLE_MESSAGE = "재가입 가능 날짜를 불러오지 못했어요."

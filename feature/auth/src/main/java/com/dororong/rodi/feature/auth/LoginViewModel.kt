@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Instant
 import javax.inject.Inject
 
 @HiltViewModel
@@ -47,6 +48,7 @@ class LoginViewModel @Inject constructor(
                             pendingCredential = accessToken
                             _uiState.update { LoginUiState.RecoveryRequired() }
                         }
+                        is LoginResult.WithdrawalLocked -> showWithdrawalLocked(result.reRegisterableAt)
                     }
                 }
                 .onFailure { error ->
@@ -64,12 +66,19 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             restoreWithKakaoUseCase(credential)
                 .onSuccess { result ->
-                    if (result is AccountRestoreResult.Restored) {
-                        pendingCredential = null
-                        _effect.send(LoginEffect.NavigateNext(needsOnboarding = !result.isOnboarded))
-                    } else {
-                        _uiState.update { LoginUiState.RecoveryRequired() }
-                        _effect.send(LoginEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
+                    when (result) {
+                        is AccountRestoreResult.Restored -> {
+                            pendingCredential = null
+                            _effect.send(LoginEffect.NavigateNext(needsOnboarding = !result.isOnboarded))
+                        }
+                        is AccountRestoreResult.WithdrawalLocked -> {
+                            pendingCredential = null
+                            showWithdrawalLocked(result.reRegisterableAt)
+                        }
+                        is AccountRestoreResult.WithdrawalPending -> {
+                            _uiState.update { LoginUiState.RecoveryRequired() }
+                            _effect.send(LoginEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
+                        }
                     }
                 }
                 .onFailure { error ->
@@ -83,6 +92,19 @@ class LoginViewModel @Inject constructor(
         if ((_uiState.value as? LoginUiState.RecoveryRequired)?.isRestoring == true) return
         pendingCredential = null
         _uiState.update { LoginUiState.Idle }
+    }
+
+    fun onWithdrawalLockedDismiss() {
+        _uiState.update { LoginUiState.Idle }
+    }
+
+    private suspend fun showWithdrawalLocked(reRegisterableAt: Instant?) {
+        if (reRegisterableAt != null) {
+            _uiState.update { LoginUiState.WithdrawalLocked(reRegisterableAt) }
+        } else {
+            _uiState.update { LoginUiState.Idle }
+            _effect.send(LoginEffect.ShowSnackbar(REJOIN_DATE_UNAVAILABLE_MESSAGE))
+        }
     }
 
     fun onKakaoLoginFailed(message: String) {
@@ -104,3 +126,5 @@ class LoginViewModel @Inject constructor(
         }
     }
 }
+
+private const val REJOIN_DATE_UNAVAILABLE_MESSAGE = "재가입 가능 날짜를 불러오지 못했어요."
