@@ -1,10 +1,9 @@
 import java.util.Properties
 
 plugins {
-    alias(libs.plugins.android.application)
+    id("dororong.rodi.android.application")
     alias(libs.plugins.aboutlibraries.android)
     alias(libs.plugins.androidx.baselineprofile)
-    alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     id("dororong.rodi.android.hilt")
     id("dororong.rodi.kover")
@@ -29,14 +28,9 @@ val hasLocalReleaseSigning = releaseSigningProperties.isNotEmpty()
 
 android {
     namespace = "com.dororong.rodi"
-    compileSdk {
-        version = release(37)
-    }
 
     defaultConfig {
         applicationId = "com.dororong.rodi"
-        minSdk = 30
-        targetSdk = 36
         versionCode = 25
         versionName = "1.5.0-alpha02"
 
@@ -96,12 +90,7 @@ android {
             buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
         }
     }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
     buildFeatures {
-        compose = true
         buildConfig = true
     }
 }
