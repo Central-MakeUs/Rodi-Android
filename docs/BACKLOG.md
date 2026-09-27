@@ -176,7 +176,7 @@
   원문 누출 차단은 `AuthErrorMapper`가 맡는다(`876f3142`) — 리포지토리가 모든 예외를
   `AuthException`으로 감싸므로 화면 단 필터로는 못 막는다.
 
-- [ ] **재가입 가능 시각(`rejoinableAt`) 서버 필드 요청됨 (백엔드 대기)** — 탈퇴 정책은
+- [x] **재가입 가능 시각 서버 필드** (`rejoinableAt`으로 요청 → 서버는 `reRegisterableAt`으로 제공, 2026-09-27 완료) — 탈퇴 정책은
   유예 3일(복구 가능) → 이후 총 10일까지 재가입 불가 → 그 뒤 재가입 가능, 3구간이다.
   가운데 구간(탈퇴+3일 ~ +10일)에서 서버는 `MEMBER_409_1`을 주는데 본문이 `code`/`message`뿐이라
   **안내에 쓸 기준 날짜가 오지 않는다.** 그래서 MY-06-R "0월 0일 이후 재가입 가능해요." 다이얼로그를
@@ -191,6 +191,14 @@
   `recoverableUntil`까지는 이미 받고 있지만 화면에 날짜를 표시하는 곳은 없다 — 연결 누락이
   아니라 애초에 서버 필드가 없어서 못 붙인 상태. 백엔드가 "`recoverableUntil`을 재가입 기준으로
   쓴다"고 확정하면 새 필드 없이도 바로 연결 가능하니, 필드 추가 대신 그 방향으로 정리될 수도 있다.
+
+  **2026-09-27 완료(#177).** 서버는 요청한 `rejoinableAt` 대신 로그인·복구 모두
+  `200 status=WITHDRAWAL_LOCKED` + `reRegisterableAt`으로 이 구간을 내려준다(`MEMBER_409_1` 경로는
+  명세에서 사라졌다). 앱은 이를 복구 가능 상태와 별도 결과(`WithdrawalLocked`)로 받아 MY-06-R
+  "M월 d일 이후 재가입 가능해요." 다이얼로그를 띄우고, 날짜는 서버 값만 쓴다(정책 날짜 재계산 없음).
+  날짜를 해석하지 못하면 "재가입 가능 날짜를 불러오지 못했어요."만 띄운다 — 날짜가 응답에 함께 오므로
+  다시 요청해도 결과가 같아 디자인의 "새로고침"은 넣지 않았다. 남은 것: 해당 상태의 계정이 없어
+  기기 확인은 못 했고, 다이얼로그는 공용 팝업 규격이라 시안보다 간격이 좁다(높이 약 40dp 차이).
 - [x] **미방문 사유 제출 API 연동** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/skip-reason`이
   최신 Swagger에 있고 `PracticeApi.submitSkipReason` → `PracticeRepositoryImpl` →
   `SubmitSkipReasonUseCase` → `PracticeSkipReasonViewModel.submit()`까지 전부 실제 API를
@@ -439,8 +447,11 @@
   등록. `fix/typography-and-onboarding-cleanup` 브랜치, 2026-08-08.
 - [x] **로그아웃 API(`POST /auth/logout`) 연동** — `LogoutUseCase`/`AuthRepositoryImpl`이
   `AccountSettingsViewModel`에 연결되어 동작 중.
-- [x] **`isNewMember` 기반 온보딩 분기** — `LoginWithKakaoUseCase`가 `isNewMember`로 온보딩 진입
-  여부를 분기하고 `LoginContract`/`LoginViewModel`/`LoginScreen`이 이를 소비.
+- [x] **로그인 후 온보딩 분기** — 2026-09-27(#176)부터 `isNewMember`가 아니라 서버 `isOnboarded`로
+  판단한다. 가입 후 온보딩 중 이탈한 회원은 재로그인 시 `isNewMember=false`·`isOnboarded=false`라
+  예전 분기로는 온보딩을 건너뛰고 레벨 없이 홈에 들어갔다. 로그인·복구·홈 로그인이 모두 같은 기준으로
+  온보딩(Entry)에 보낸다. 이 기기에서 온보딩을 끝냈는데 서버 제출만 남은 경우는 다시 시키지 않고
+  남은 제출을 한 번 보낸 뒤, 서버가 받으면 완료로 본다.
 - [x] **EntryRepository/NaviPreferenceRepository UseCase 래핑** (커밋 `290fdd4f`) —
   `EntryViewModel`/`HomeViewModel`이 Repository 대신 UseCase(`GetEntryProgressUseCase` 등)를 주입받음.
 - [x] **커스텀 스낵바 도입 (PR #18)** — `core:ui/components/snackbar/`에 `RodiSnackbar`/
