@@ -1,6 +1,7 @@
 package com.dororong.rodi.core.data.mapper
 
 import com.dororong.rodi.core.data.source.remote.model.member.BlockedMemberItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.LevelProgressResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyReviewItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
@@ -24,6 +25,9 @@ class MemberMapperTest {
             placeId = 10,
             placeName = "망원한강공원",
             content = "차선 변경 연습에 좋아요.",
+            isEditable = true,
+            isHidden = false,
+            isVerifiedVisit = false,
             createdAt = OFFSET_LESS,
         ).toDomain()
 
@@ -61,9 +65,11 @@ class MemberMapperTest {
               "practiceId": 1,
               "placeId": 10,
               "placeName": "망원한강공원",
+              "practiceTypes": ["ROUNDABOUT"],
               "status": "VISITED",
               "visitCount": 1,
-              "lastActivityAt": "$OFFSET_LESS"
+              "lastActivityAt": "$OFFSET_LESS",
+              "hasReview": false
             }
             """.trimIndent(),
         )
@@ -93,7 +99,16 @@ class MemberMapperTest {
         practiceTypes = listOf("ROUNDABOUT"),
         visitCount = 1,
         lastActivityAt = lastActivityAt,
+        hasReview = false,
         status = status,
+    )
+
+    private fun myPage(level: String) = MyPageResponse(
+        nickname = "로디",
+        level = level,
+        recommendationTags = emptyList(),
+        savedPlaceCount = 0,
+        levelProgress = LevelProgressResponse(totalDistanceKm = 0.0, currentLevelStartKm = 0.0, progressPercent = 0),
     )
 
     private companion object {
@@ -102,7 +117,7 @@ class MemberMapperTest {
 
     @Test
     fun `known member level maps to the domain level`() {
-        val result = MyPageResponse(nickname = "로디", level = "NAVIGATOR").toDomain()
+        val result = myPage(level = "NAVIGATOR").toDomain()
 
         assertEquals(OnboardingLevel.NAVIGATOR, result.level)
     }
@@ -110,7 +125,7 @@ class MemberMapperTest {
     @Test
     fun `unknown member level fails instead of showing the lowest level`() {
         assertThrows(AuthException.Unknown::class.java) {
-            MyPageResponse(nickname = "로디", level = "NEW_LEVEL").toDomain()
+            myPage(level = "NEW_LEVEL").toDomain()
         }
     }
 }

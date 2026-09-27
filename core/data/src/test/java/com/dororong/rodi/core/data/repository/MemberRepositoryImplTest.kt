@@ -11,6 +11,7 @@ import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateReques
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
+import com.dororong.rodi.core.data.source.remote.model.member.LevelProgressResponse
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CourseTutorialCompletionResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -85,6 +86,7 @@ class MemberRepositoryImplTest {
                 recommendationTags = listOf("SERVER_TAG"),
                 drivingGoal = null,
                 savedPlaceCount = 12,
+                levelProgress = LevelProgressResponse(totalDistanceKm = 0.0, currentLevelStartKm = 0.0, progressPercent = 0),
             ),
         )
         val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
@@ -334,7 +336,8 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "장소", status = "VISITED")),
+                items = listOf(PracticeItemResponse(1, 1, "장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
+                hasNext = false,
                 totalCount = 1,
             ),
         )
@@ -357,7 +360,7 @@ class MemberRepositoryImplTest {
             isSuccess = true,
             code = "COMMON_200",
             message = "성공",
-            data = CursorPagePracticeItemResponse(),
+            data = CursorPagePracticeItemResponse(items = emptyList(), hasNext = false),
         )
         val repository = MemberRepositoryImpl(memberApi, tokenStore, json, cache, coordinator(tokenStore))
 
@@ -378,7 +381,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", status = "PLANNED")),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
                 hasNext = false,
             ),
         )
@@ -402,7 +405,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", status = "PLANNED")),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
                 hasNext = true,
                 nextCursor = "next",
             ),
@@ -412,7 +415,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(2, 2, "방문 장소", status = "VISITED")),
+                items = listOf(PracticeItemResponse(2, 2, "방문 장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
                 hasNext = false,
             ),
         )
@@ -454,7 +457,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(3, 3, "예정 장소", status = "PLANNED")),
+                items = listOf(PracticeItemResponse(3, 3, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
                 hasNext = false,
             ),
         )
@@ -571,7 +574,7 @@ class MemberRepositoryImplTest {
         code = "COMMON_200",
         message = "성공",
         data = CursorPagePracticeItemResponse(
-            items = listOf(PracticeItemResponse(1, 1, "예정 장소", status = "PLANNED")),
+            items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
             hasNext = true,
             nextCursor = nextCursor,
         ),
