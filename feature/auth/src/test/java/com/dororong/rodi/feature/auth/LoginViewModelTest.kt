@@ -137,9 +137,70 @@ class LoginViewModelTest {
         }
     }
 
+    @Test
+    fun `locked account shows the re-registration date instead of recovery`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        val restore = mockk<RestoreWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = REJOIN_AT))
+        val viewModel = viewModel(login, restore)
+
+        viewModel.onKakaoLoginResult("access-token")
+        advanceUntilIdle()
+
+        assertEquals(LoginUiState.WithdrawalLocked(reRegisterableAt = REJOIN_AT), viewModel.uiState.value)
+        viewModel.onRecoveryConfirm()
+        advanceUntilIdle()
+        coVerify(exactly = 0) { restore(any()) }
+
+        viewModel.onWithdrawalLockedDismiss()
+        assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `locked account without a usable date falls back to the date-unavailable message`() = runTest(testDispatcher) {
+        val login = mockk<LoginWithKakaoUseCase>()
+        coEvery { login("access-token") } returns Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = null))
+        val viewModel = viewModel(login = login)
+
+        viewModel.effect.test {
+            viewModel.onKakaoLoginResult("access-token")
+            advanceUntilIdle()
+            assertEquals(LoginEffect.ShowSnackbar("재가입 가능 날짜를 불러오지 못했어요."), awaitItem())
+            assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `recovery that finds the grace period over shows the re-registration date and drops the credential`() =
+        runTest(testDispatcher) {
+            val login = mockk<LoginWithKakaoUseCase>()
+            val restore = mockk<RestoreWithKakaoUseCase>()
+            coEvery { login("access-token") } returns Result.success(
+                LoginResult.WithdrawalPending(Instant.EPOCH, Instant.EPOCH.plusSeconds(60)),
+            )
+            coEvery { restore("access-token") } returns
+                Result.success(AccountRestoreResult.WithdrawalLocked(reRegisterableAt = REJOIN_AT))
+            val viewModel = viewModel(login, restore)
+            viewModel.onKakaoLoginResult("access-token")
+            advanceUntilIdle()
+
+            viewModel.onRecoveryConfirm()
+            advanceUntilIdle()
+
+            assertEquals(LoginUiState.WithdrawalLocked(reRegisterableAt = REJOIN_AT), viewModel.uiState.value)
+            viewModel.onRecoveryConfirm()
+            advanceUntilIdle()
+            coVerify(exactly = 1) { restore(any()) }
+        }
+
     private fun viewModel(
         login: LoginWithKakaoUseCase,
         restore: RestoreWithKakaoUseCase = mockk(),
         grant: GrantGuestAccessUseCase = mockk(relaxed = true),
     ) = LoginViewModel(login, restore, grant)
+
+    private companion object {
+        val REJOIN_AT: Instant = Instant.parse("2026-09-20T03:00:00Z")
+    }
 }

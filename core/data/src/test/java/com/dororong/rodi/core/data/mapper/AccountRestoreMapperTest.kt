@@ -4,6 +4,9 @@ import com.dororong.rodi.core.data.source.remote.model.auth.SocialLoginResponse
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.auth.LoginResult
+import com.dororong.rodi.core.data.di.NetworkModule
+import kotlinx.serialization.decodeFromString
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -11,6 +14,56 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 
 class AccountRestoreMapperTest {
+    private val json = NetworkModule.provideJson()
+
+    @Test
+    fun `locked account is a login and restore result instead of an unknown error`() {
+        val response = json.decodeFromString<SocialLoginResponse>(LOCKED_RESPONSE)
+
+        assertDoesNotThrow { response.toLoginResult() }
+        assertDoesNotThrow { response.toAccountRestoreResult() }
+    }
+
+    @Test
+    fun `locked account carries the server re-registration time as the only date`() {
+        val response = json.decodeFromString<SocialLoginResponse>(LOCKED_RESPONSE)
+        // 오프셋 없는 서버 시각은 서비스 시간대(KST)로 해석한다.
+        val expected = Instant.parse("2026-09-20T03:00:00Z")
+
+        assertEquals(LoginResult.WithdrawalLocked(reRegisterableAt = expected), response.toLoginResult())
+        assertEquals(AccountRestoreResult.WithdrawalLocked(reRegisterableAt = expected), response.toAccountRestoreResult())
+    }
+
+    @Test
+    fun `locked account keeps an offset re-registration time`() {
+        val response = SocialLoginResponse(
+            status = "WITHDRAWAL_LOCKED",
+            isOnboarded = false,
+            isCourseTutorialCompleted = false,
+            reRegisterableAt = "2026-09-20T12:00:00+09:00",
+        )
+
+        assertEquals(
+            LoginResult.WithdrawalLocked(reRegisterableAt = Instant.parse("2026-09-20T03:00:00Z")),
+            response.toLoginResult(),
+        )
+    }
+
+    @Test
+    fun `locked account stays locked when the re-registration time is missing or unusable`() {
+        listOf(null, "invalid").forEach { value ->
+            val response = SocialLoginResponse(
+                status = "WITHDRAWAL_LOCKED",
+                isOnboarded = false,
+                isCourseTutorialCompleted = false,
+                reRegisterableAt = value,
+            )
+
+            assertEquals(LoginResult.WithdrawalLocked(reRegisterableAt = null), response.toLoginResult(), value)
+            assertEquals(AccountRestoreResult.WithdrawalLocked(reRegisterableAt = null), response.toAccountRestoreResult(), value)
+        }
+    }
+
     @Test
     fun `maps success status to restored result`() {
         val response = SocialLoginResponse(
@@ -138,5 +191,12 @@ class AccountRestoreMapperTest {
         val result = response.toLoginResult()
 
         assertEquals(LoginResult.WithdrawalPending(null, null), result)
+    }
+
+    private companion object {
+        // 서버 계약(2026-09-27 Swagger): 200 + status=WITHDRAWAL_LOCKED, 토큰·닉네임은 null, reRegisterableAt만 온다.
+        const val LOCKED_RESPONSE = """{"status":"WITHDRAWAL_LOCKED","accessToken":null,"refreshToken":null,""" +
+            """"isNewMember":false,"isOnboarded":false,"isCourseTutorialCompleted":false,"nickname":null,""" +
+            """"withdrawalRequestedAt":"2026-09-10T12:00:00","recoverableUntil":null,"reRegisterableAt":"2026-09-20T12:00:00"}"""
     }
 }

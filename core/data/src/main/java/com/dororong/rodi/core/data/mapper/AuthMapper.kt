@@ -16,6 +16,9 @@ fun SocialLoginResponse.toAccountRestoreResult(): AccountRestoreResult = when (s
         withdrawalRequestedAt = parseDateTimeOrNull(withdrawalRequestedAt),
         recoverableUntil = parseDateTimeOrNull(recoverableUntil),
     )
+    STATUS_WITHDRAWAL_LOCKED -> AccountRestoreResult.WithdrawalLocked(
+        reRegisterableAt = parseDateTimeOrNull(reRegisterableAt),
+    )
     else -> throw AuthException.Unknown("복구 응답 상태를 처리할 수 없습니다.")
 }
 
@@ -27,6 +30,9 @@ fun SocialLoginResponse.toLoginResult(): LoginResult = when (status) {
     STATUS_WITHDRAWAL_PENDING -> LoginResult.WithdrawalPending(
         withdrawalRequestedAt = parseDateTimeOrNull(withdrawalRequestedAt),
         recoverableUntil = parseDateTimeOrNull(recoverableUntil),
+    )
+    STATUS_WITHDRAWAL_LOCKED -> LoginResult.WithdrawalLocked(
+        reRegisterableAt = parseDateTimeOrNull(reRegisterableAt),
     )
     else -> throw AuthException.Unknown("로그인 응답 상태를 처리할 수 없습니다.")
 }
@@ -46,3 +52,4 @@ private fun <T> requireField(value: T?, field: String): T =
 
 private const val STATUS_SUCCESS = "SUCCESS"
 private const val STATUS_WITHDRAWAL_PENDING = "WITHDRAWAL_PENDING"
+private const val STATUS_WITHDRAWAL_LOCKED = "WITHDRAWAL_LOCKED"

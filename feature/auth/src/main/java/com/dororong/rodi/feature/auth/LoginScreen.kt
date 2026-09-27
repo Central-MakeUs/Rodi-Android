@@ -28,6 +28,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dororong.rodi.core.ui.components.RodiTooltip
 import com.dororong.rodi.core.ui.components.AccountRecoveryDialog
+import com.dororong.rodi.core.ui.components.WithdrawalLockedDialog
 import com.dororong.rodi.core.ui.components.button.KakaoLoginButton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
@@ -94,6 +95,12 @@ fun LoginScreen(
             isRestoring = recoveryState.isRestoring,
             onConfirm = viewModel::onRecoveryConfirm,
             onDismiss = viewModel::onRecoveryDismiss,
+        )
+    }
+    (uiState as? LoginUiState.WithdrawalLocked)?.let { lockedState ->
+        WithdrawalLockedDialog(
+            reRegisterableAt = lockedState.reRegisterableAt,
+            onDismiss = viewModel::onWithdrawalLockedDismiss,
         )
     }
 }

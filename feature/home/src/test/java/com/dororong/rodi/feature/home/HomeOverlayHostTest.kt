@@ -75,11 +75,25 @@ class HomeOverlayHostTest {
         assertNull(overlay.naviPlaceId)
     }
 
-    private fun setHost(overlay: HomeOverlayState, isDeleting: Boolean) {
+    @Test
+    fun `locked account shows the server re-registration date with a single confirm`() {
+        // UTC 정오라 CI(UTC)와 기기 시간대(KST) 어디서도 같은 날짜로 표시된다.
+        val state = HomeUiState(withdrawalLockedUntil = Instant.parse("2026-09-20T12:00:00Z"))
+        setHost(HomeOverlayState(), isDeleting = false, state = state)
+
+        composeRule.onNodeWithText("탈퇴 처리 중 계정").assertIsDisplayed()
+        composeRule.onNodeWithText("9월 20일 이후 재가입 가능해요.").assertIsDisplayed()
+        composeRule.onNodeWithText("예").assertDoesNotExist()
+        composeRule.onNodeWithText("확인").performClick()
+
+        assertEquals(listOf<HomeIntent>(HomeIntent.WithdrawalLockedDismissed), intents)
+    }
+
+    private fun setHost(overlay: HomeOverlayState, isDeleting: Boolean, state: HomeUiState = HomeUiState()) {
         composeRule.setContent {
             RodiTheme {
                 HomeOverlayHost(
-                    state = HomeUiState(),
+                    state = state,
                     reviewState = CourseReviewUiState(),
                     isBlocking = false,
                     isDeleting = isDeleting,
