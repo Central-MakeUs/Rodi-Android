@@ -20,7 +20,6 @@ data class PracticeVisitResult(
     val addedCertifiedDistanceMeters: Int,
     val requiredDistanceMeters: Int,
     val isCertifiedNow: Boolean,
-    val isVerified: Boolean,
     val totalDistanceKm: Double,
     val levelUp: Boolean,
     val newLevel: OnboardingLevel?,

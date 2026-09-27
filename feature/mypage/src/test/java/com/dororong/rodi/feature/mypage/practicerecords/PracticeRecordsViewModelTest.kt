@@ -26,7 +26,7 @@ import org.junit.jupiter.api.Test
 class PracticeRecordsViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
-    private val first = PracticeRecord(1, 1, "장소", listOf(PracticeType.ROUNDABOUT), 1, Instant.EPOCH, true, false, PracticeStatus.VISITED)
+    private val first = PracticeRecord(1, 1, "장소", listOf(PracticeType.ROUNDABOUT), 1, Instant.EPOCH, false, PracticeStatus.VISITED)
 
     @BeforeEach fun setUp() {
         Dispatchers.setMain(dispatcher)

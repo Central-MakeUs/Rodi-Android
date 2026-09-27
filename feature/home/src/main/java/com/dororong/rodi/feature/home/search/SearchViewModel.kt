@@ -169,8 +169,7 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun onRecentSearchClick(search: RecentSearch) {
-        val region = search.regionKey?.let(RegionOfficeLocationResolver::find)
-            ?: RegionOfficeLocationResolver.find(search.keyword)
+        val region = RegionOfficeLocationResolver.find(search.keyword)
         val placeId = search.placeId
         when {
             search.type == SearchTargetType.PLACE && placeId != null -> {

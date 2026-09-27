@@ -485,7 +485,6 @@ class CourseReviewViewModelTest {
         recommendCount = recommend,
         notRecommendCount = 0,
         difficultyCounts = difficulty,
-        congestionCounts = emptyMap(),
         levelCounts = emptyMap(),
     )
 

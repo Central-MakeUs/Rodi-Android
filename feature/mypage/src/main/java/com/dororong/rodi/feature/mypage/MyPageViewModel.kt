@@ -111,7 +111,6 @@ private fun com.dororong.rodi.core.domain.model.member.PracticeRecordItem.toFeat
     practiceTypes = practiceTypes,
     visitCount = visitCount,
     visitedAt = visitedAt,
-    isVerified = isVerified,
     hasReview = hasReview,
     status = status,
 )

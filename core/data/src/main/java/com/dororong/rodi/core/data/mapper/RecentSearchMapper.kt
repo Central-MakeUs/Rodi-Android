@@ -11,5 +11,4 @@ fun RecentSearchResponse.toDomain() = RecentSearch(
         SearchTargetType.entries.firstOrNull { it.name == targetType }
     },
     placeId = placeId,
-    regionKey = regionKey,
 )

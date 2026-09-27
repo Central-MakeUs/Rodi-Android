@@ -97,7 +97,6 @@ class MyPageViewModelTest {
             practiceTypes = emptyList(),
             visitCount = 0,
             visitedAt = null,
-            isVerified = false,
             hasReview = true,
             status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.NOT_VISITED,
         )
@@ -134,7 +133,6 @@ class MyPageViewModelTest {
             practiceTypes = emptyList(),
             visitCount = 1,
             visitedAt = null,
-            isVerified = false,
             hasReview = false,
             status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
         )

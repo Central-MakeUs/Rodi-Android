@@ -27,7 +27,7 @@ class PracticeUseCasesTest {
 
     @Test
     fun `record visit omits distance by default`() = runTest {
-        val result = PracticeVisitResult(1, 0, 0, false, false, 0.0, false, null)
+        val result = PracticeVisitResult(1, 0, 0, false, 0.0, false, null)
         coEvery { repository.recordVisit(3, null) } returns result
 
         assertEquals(result, RecordPracticeVisitUseCase(repository)(3).getOrThrow())

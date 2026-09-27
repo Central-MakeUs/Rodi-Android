@@ -25,7 +25,6 @@ fun PracticeVisitResponse.toDomain() = PracticeVisitResult(
     addedCertifiedDistanceMeters = addedCertifiedDistanceMeters,
     requiredDistanceMeters = requiredDistanceMeters,
     isCertifiedNow = isCertifiedNow,
-    isVerified = isVerified,
     totalDistanceKm = totalDistanceKm,
     levelUp = levelUp,
     newLevel = newLevel.toOnboardingLevelOrNull("newLevel"),

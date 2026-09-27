@@ -37,7 +37,6 @@ data class PracticeItemResponse(
     val status: String,
     val visitCount: Int,
     val lastActivityAt: String? = null,
-    val isVerified: Boolean = false,
     val hasReview: Boolean,
 )
 

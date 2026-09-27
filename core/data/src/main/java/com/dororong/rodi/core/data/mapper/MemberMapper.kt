@@ -47,7 +47,6 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     practiceTypes = practiceTypes.mapNotNull { value -> PracticeType.entries.firstOrNull { it.name == value } },
     visitCount = visitCount,
     visitedAt = lastActivityAt?.let(::parseServerTimestamp),
-    isVerified = isVerified,
     hasReview = hasReview,
     status = status.toMemberPracticeStatus(),
 )

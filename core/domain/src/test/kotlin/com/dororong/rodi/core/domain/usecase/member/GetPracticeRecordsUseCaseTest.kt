@@ -65,7 +65,6 @@ class GetPracticeRecordsUseCaseTest {
         practiceTypes = listOf(PracticeType.ROUNDABOUT),
         visitCount = 1,
         visitedAt = Instant.EPOCH.takeIf { status == PracticeStatus.VISITED },
-        isVerified = status == PracticeStatus.VISITED,
         hasReview = false,
         status = status,
     )

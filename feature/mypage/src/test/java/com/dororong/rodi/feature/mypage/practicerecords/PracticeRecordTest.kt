@@ -70,7 +70,6 @@ class PracticeRecordTest {
         practiceTypes = listOf(PracticeType.ROUNDABOUT),
         visitCount = 1,
         visitedAt = java.time.Instant.EPOCH,
-        isVerified = true,
         hasReview = false,
         status = PracticeStatus.VISITED,
     )
