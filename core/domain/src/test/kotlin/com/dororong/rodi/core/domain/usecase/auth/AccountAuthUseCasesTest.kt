@@ -2,6 +2,7 @@ package com.dororong.rodi.core.domain.usecase.auth
 
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthException
+import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
@@ -81,10 +82,10 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restoring an existing member persists entry completion`() = runTest {
+    fun `restoring an onboarded member persists entry completion`() = runTest {
         val repository = mockk<AuthRepository>()
         val entry = entryRepository()
-        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        val restored = AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디")
         coEvery { repository.restoreWithKakao("credential") } returns restored
 
         val result = RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential")
@@ -95,16 +96,29 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restoring a new member keeps entry incomplete`() = runTest {
+    fun `restoring a member who never finished onboarding sends them to onboarding`() = runTest {
         val repository = mockk<AuthRepository>()
         val entry = entryRepository()
-        val restored = AccountRestoreResult.Restored(isNewMember = true, nickname = "로디")
+        val restored = AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디")
         coEvery { repository.restoreWithKakao("credential") } returns restored
 
         RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential").getOrThrow()
 
+        coVerify { entry.start(EntryMode.AUTHENTICATED) }
         coVerify(exactly = 0) { entry.setCompleted() }
         coVerify { entry.clearGuestAccess() }
+    }
+
+    @Test
+    fun `restoring a guest who never finished onboarding starts guest sign up`() = runTest {
+        val repository = mockk<AuthRepository>()
+        val entry = entryRepository(hasGuestAccess = true)
+        coEvery { repository.restoreWithKakao("credential") } returns
+            AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디")
+
+        RestoreWithKakaoUseCase(repository, onboardingRepository(), entry)("credential").getOrThrow()
+
+        coVerify { entry.start(EntryMode.GUEST_SIGN_UP) }
     }
 
     @Test
@@ -112,7 +126,7 @@ class AccountAuthUseCasesTest {
         val repository = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val entry = entryRepository()
-        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        val restored = AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디")
         coEvery { repository.restoreWithKakao("credential") } returns restored
         coEvery { onboarding.saveProfile(any()) } throws IllegalStateException("local write failed")
 
@@ -128,7 +142,7 @@ class AccountAuthUseCasesTest {
     fun `restore local synchronization propagates cancellation`() = runTest {
         val repository = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
-        val restored = AccountRestoreResult.Restored(isNewMember = false, nickname = "로디")
+        val restored = AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디")
         coEvery { repository.restoreWithKakao("credential") } returns restored
         coEvery { onboarding.saveProfile(any()) } throws CancellationException("cancelled")
 
@@ -146,7 +160,9 @@ class AccountAuthUseCasesTest {
         coEvery { clearSyncPending() } returns Unit
     }
 
-    private fun entryRepository(): EntryRepository = mockk {
+    private fun entryRepository(hasGuestAccess: Boolean = false): EntryRepository = mockk {
+        coEvery { this@mockk.hasGuestAccess } returns flowOf(hasGuestAccess)
+        coEvery { start(any()) } returns Unit
         coEvery { setCompleted() } returns Unit
         coEvery { clearGuestAccess() } returns Unit
     }

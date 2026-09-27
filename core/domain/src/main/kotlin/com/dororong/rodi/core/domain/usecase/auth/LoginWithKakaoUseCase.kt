@@ -4,6 +4,7 @@ import com.dororong.rodi.core.common.runSuspendCatching
 import com.dororong.rodi.core.domain.model.auth.LoginResult
 import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingSubmissionResult
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.EntryRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
@@ -21,39 +22,54 @@ class LoginWithKakaoUseCase @Inject constructor(
     suspend operator fun invoke(kakaoAccessToken: String): Result<LoginResult> =
         runSuspendCatching {
             val result = authRepository.loginWithKakao(kakaoAccessToken)
-            if (result is LoginResult.Success) {
-                val hasGuestAccess = entryRepository.hasGuestAccess.first()
-                val profile = if (result.isNewMember && hasGuestAccess) {
-                    onboardingRepository.clear()
-                    OnboardingProfile(nickname = result.nickname)
-                } else {
-                    onboardingRepository.profile.first().copy(nickname = result.nickname)
-                }
-                onboardingRepository.saveProfile(profile)
-                if (result.isNewMember) {
-                    entryRepository.start(
-                        if (hasGuestAccess) EntryMode.GUEST_SIGN_UP else EntryMode.AUTHENTICATED,
-                    )
-                } else {
-                    entryRepository.setCompleted()
-                }
-                entryRepository.clearGuestAccess()
-                val canSyncPendingProfile = if (result.isNewMember) {
-                    onboardingRepository.authorizeSync()
-                    true
-                } else {
-                    onboardingRepository.isSyncAuthorized.first()
-                }
-                if (result.isNewMember && hasGuestAccess) {
-                    onboardingRepository.clearSyncPending()
-                } else if (canSyncPendingProfile) {
-                    attemptPendingSync()
-                } else {
-                    onboardingRepository.clearSyncPending()
-                }
+            if (result !is LoginResult.Success) return@runSuspendCatching result
+            val hasGuestAccess = entryRepository.hasGuestAccess.first()
+            val isOnboarded = result.isOnboarded || deliverLocallyCompletedOnboarding()
+            val profile = if (!isOnboarded && hasGuestAccess) {
+                onboardingRepository.clear()
+                OnboardingProfile(nickname = result.nickname)
+            } else {
+                onboardingRepository.profile.first().copy(nickname = result.nickname)
             }
-            result
+            onboardingRepository.saveProfile(profile)
+            if (isOnboarded) {
+                entryRepository.setCompleted()
+            } else {
+                entryRepository.start(
+                    if (hasGuestAccess) EntryMode.GUEST_SIGN_UP else EntryMode.AUTHENTICATED,
+                )
+            }
+            entryRepository.clearGuestAccess()
+            val canSyncPendingProfile = if (!isOnboarded) {
+                onboardingRepository.authorizeSync()
+                true
+            } else {
+                onboardingRepository.isSyncAuthorized.first()
+            }
+            if (!isOnboarded && hasGuestAccess) {
+                onboardingRepository.clearSyncPending()
+            } else if (canSyncPendingProfile) {
+                attemptPendingSync()
+            } else {
+                onboardingRepository.clearSyncPending()
+            }
+            result.copy(isOnboarded = isOnboarded)
         }
+
+    // 이 기기에서 온보딩을 끝냈지만 서버 제출만 실패한 채 다시 로그인하면 서버는 아직 미완료로 본다.
+    // 온보딩을 처음부터 다시 시키지 않고 남은 제출을 먼저 보내, 서버가 받으면 완료로 본다.
+    private suspend fun deliverLocallyCompletedOnboarding(): Boolean {
+        if (entryRepository.isCompleted.first() != true || !onboardingRepository.isSyncPending.first()) return false
+        val submission = try {
+            syncPendingOnboarding()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            null
+        }
+        return submission == OnboardingSubmissionResult.Submitted ||
+            submission == OnboardingSubmissionResult.AlreadyCompleted
+    }
 
     private suspend fun attemptPendingSync() {
         try {

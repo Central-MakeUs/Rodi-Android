@@ -131,10 +131,10 @@ fun RodiApp(
                         showRecentKakaoLogin = state.authSession.hasRecentKakaoLogin,
                         sessionExpiredMessage = showSessionExpiredMessage,
                         onSessionExpiredMessageShown = { showSessionExpiredMessage = false },
-                        onNavigateNext = { isNewMember ->
+                        onNavigateNext = { needsOnboarding ->
                             viewModel.onLoginSucceeded()
                             backStack.clear()
-                            backStack.add(postLoginDestination(isNewMember, state.isEntryCompleted))
+                            backStack.add(postLoginDestination(needsOnboarding, state.isEntryCompleted))
                         },
                     )
                 }
@@ -177,11 +177,11 @@ fun RodiApp(
 }
 
 internal fun postLoginDestination(
-    isNewMember: Boolean?,
+    needsOnboarding: Boolean?,
     isEntryCompleted: Boolean,
 ): NavKey = when {
-    isNewMember == true -> EntryRoute
-    isNewMember == false -> MainRoute
+    needsOnboarding == true -> EntryRoute
+    needsOnboarding == false -> MainRoute
     isEntryCompleted -> MainRoute
     else -> EntryRoute
 }

@@ -39,7 +39,7 @@ import dagger.hilt.android.EntryPointAccessors
 
 @Composable
 fun LoginScreen(
-    onNavigateNext: (isNewMember: Boolean?) -> Unit,
+    onNavigateNext: (needsOnboarding: Boolean?) -> Unit,
     showRecentKakaoLogin: Boolean,
     sessionExpiredMessage: Boolean = false,
     onSessionExpiredMessageShown: () -> Unit = {},
@@ -66,7 +66,7 @@ fun LoginScreen(
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
-            is LoginEffect.NavigateNext -> onNavigateNext(effect.isNewMember)
+            is LoginEffect.NavigateNext -> onNavigateNext(effect.needsOnboarding)
             is LoginEffect.ShowSnackbar ->
                 snackbarHostState.show(RodiSnackbarData(message = effect.message))
         }

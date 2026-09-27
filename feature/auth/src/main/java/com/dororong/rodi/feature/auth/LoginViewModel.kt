@@ -41,7 +41,7 @@ class LoginViewModel @Inject constructor(
                 .onSuccess { result ->
                     when (result) {
                         is LoginResult.Success -> {
-                            _effect.send(LoginEffect.NavigateNext(isNewMember = result.isNewMember))
+                            _effect.send(LoginEffect.NavigateNext(needsOnboarding = !result.isOnboarded))
                         }
                         is LoginResult.WithdrawalPending -> {
                             pendingCredential = accessToken
@@ -66,7 +66,7 @@ class LoginViewModel @Inject constructor(
                 .onSuccess { result ->
                     if (result is AccountRestoreResult.Restored) {
                         pendingCredential = null
-                        _effect.send(LoginEffect.NavigateNext(isNewMember = result.isNewMember))
+                        _effect.send(LoginEffect.NavigateNext(needsOnboarding = !result.isOnboarded))
                     } else {
                         _uiState.update { LoginUiState.RecoveryRequired() }
                         _effect.send(LoginEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
@@ -95,7 +95,7 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 grantGuestAccessUseCase()
-                _effect.send(LoginEffect.NavigateNext(isNewMember = null))
+                _effect.send(LoginEffect.NavigateNext(needsOnboarding = null))
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Throwable) {

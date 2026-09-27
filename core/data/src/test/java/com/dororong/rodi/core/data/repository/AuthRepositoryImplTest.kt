@@ -86,13 +86,13 @@ class AuthRepositoryImplTest {
     fun `loginWithKakao saves server tokens`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(true)
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(isOnboarded = false)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
 
         val result = repository.loginWithKakao("kakao-token")
 
-        assertEquals(LoginResult.Success(true, "서버 닉네임"), result)
+        assertEquals(LoginResult.Success(isOnboarded = false, nickname = "서버 닉네임"), result)
         coVerify(exactly = 1) { practiceSessionRepository.clear() }
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
     }
@@ -101,7 +101,7 @@ class AuthRepositoryImplTest {
     fun `login succeeds when stale practice session cleanup fails`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
-        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(false)
+        coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(isOnboarded = true)
         coEvery { tokenStore.save("access-new", "refresh-new", "kakao") } returns true
         coEvery { practiceSessionRepository.clear() } throws IOException("local storage unavailable")
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
@@ -278,6 +278,7 @@ class AuthRepositoryImplTest {
                 accessToken = "access-new",
                 refreshToken = "refresh-new",
                 isNewMember = false,
+                isOnboarded = true,
                 isCourseTutorialCompleted = false,
                 nickname = "로디",
             ),
@@ -287,7 +288,7 @@ class AuthRepositoryImplTest {
 
         val result = repository.restoreWithKakao("kakao-token")
 
-        assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
+        assertEquals(AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디"), result)
         coVerify { tokenStore.save("access-new", "refresh-new", "kakao") }
         coVerify(exactly = 1) { practiceSessionRepository.clear() }
     }
@@ -304,6 +305,7 @@ class AuthRepositoryImplTest {
                 status = "WITHDRAWAL_PENDING",
                 isCourseTutorialCompleted = false,
                 isNewMember = false,
+                isOnboarded = false,
                 withdrawalRequestedAt = "2026-07-13T00:00:00Z",
                 recoverableUntil = "2026-07-16T00:00:00Z",
             ),
@@ -366,7 +368,7 @@ class AuthRepositoryImplTest {
             started.complete(Unit)
             response.await()
         }
-        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
+        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(isOnboarded = true)
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async { repository.reissueToken() }
         started.await()
@@ -389,7 +391,7 @@ class AuthRepositoryImplTest {
             started.complete(Unit)
             response.await()
         }
-        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
+        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(isOnboarded = true)
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async {
             try {
@@ -500,7 +502,7 @@ class AuthRepositoryImplTest {
             started.complete(Unit)
             response.await()
         }
-        coEvery { authApi.restore(any(), any()) } returns loginEnvelope(false)
+        coEvery { authApi.restore(any(), any()) } returns loginEnvelope(isOnboarded = true)
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val refresh = async { repository.reissueToken() }
         started.await()
@@ -522,7 +524,7 @@ class AuthRepositoryImplTest {
             started.complete(Unit)
             response.await()
         }
-        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(false)
+        coEvery { authApi.oauthLogin(any(), any()) } returns loginEnvelope(isOnboarded = true)
         val repository = AuthRepositoryImpl(authApi, tokenStore, json, coordinator(tokenStore, PracticeRecordPresenceCache()))
         val logout = async {
             assertThrowsSuspend<AuthException.NotAuthenticated> { repository.logout() }
@@ -595,7 +597,7 @@ class AuthRepositoryImplTest {
         ),
     )
 
-    private fun loginEnvelope(isNewMember: Boolean) = ApiEnvelope(
+    private fun loginEnvelope(isOnboarded: Boolean) = ApiEnvelope(
         isSuccess = true,
         code = "COMMON_200",
         message = "성공",
@@ -603,7 +605,8 @@ class AuthRepositoryImplTest {
             status = "SUCCESS",
             accessToken = "access-new",
             refreshToken = "refresh-new",
-            isNewMember = isNewMember,
+            isNewMember = !isOnboarded,
+            isOnboarded = isOnboarded,
             isCourseTutorialCompleted = false,
             nickname = "서버 닉네임",
         ),

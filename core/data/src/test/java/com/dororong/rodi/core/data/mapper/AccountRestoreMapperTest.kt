@@ -17,12 +17,29 @@ class AccountRestoreMapperTest {
             status = "SUCCESS",
             isNewMember = false,
             isCourseTutorialCompleted = false,
+            isOnboarded = true,
             nickname = "로디",
         )
 
         val result = response.toAccountRestoreResult()
 
-        assertEquals(AccountRestoreResult.Restored(isNewMember = false, nickname = "로디"), result)
+        assertEquals(AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디"), result)
+    }
+
+    @Test
+    fun `maps server onboarding state instead of whether the member is new`() {
+        val response = SocialLoginResponse(
+            status = "SUCCESS",
+            accessToken = "access",
+            refreshToken = "refresh",
+            isNewMember = false,
+            isOnboarded = false,
+            isCourseTutorialCompleted = false,
+            nickname = "로디",
+        )
+
+        assertEquals(LoginResult.Success(isOnboarded = false, nickname = "로디"), response.toLoginResult())
+        assertEquals(AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디"), response.toAccountRestoreResult())
     }
 
     @Test
@@ -30,6 +47,7 @@ class AccountRestoreMapperTest {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,
+            isOnboarded = false,
             withdrawalRequestedAt = "2026-07-13T00:00:00+09:00",
             recoverableUntil = "2026-07-16T00:00:00+09:00",
         )
@@ -51,6 +69,7 @@ class AccountRestoreMapperTest {
             status = "SUCCESS",
             isNewMember = false,
             isCourseTutorialCompleted = null,
+            isOnboarded = true,
             nickname = "로디",
         )
 
@@ -67,6 +86,7 @@ class AccountRestoreMapperTest {
             refreshToken = "refresh",
             isNewMember = false,
             isCourseTutorialCompleted = null,
+            isOnboarded = true,
             nickname = "로디",
         )
 
@@ -77,7 +97,7 @@ class AccountRestoreMapperTest {
 
     @Test
     fun `rejects unsupported restore status`() {
-        val response = SocialLoginResponse(status = "LOCKED", isCourseTutorialCompleted = false)
+        val response = SocialLoginResponse(status = "LOCKED", isOnboarded = false, isCourseTutorialCompleted = false)
 
         val exception = assertThrows(AuthException.Unknown::class.java) { response.toAccountRestoreResult() }
 
@@ -89,6 +109,7 @@ class AccountRestoreMapperTest {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,
+            isOnboarded = false,
             withdrawalRequestedAt = "2026-07-13T00:00:00.996642",
             recoverableUntil = "2026-07-16T00:00:00",
         )
@@ -109,6 +130,7 @@ class AccountRestoreMapperTest {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,
+            isOnboarded = false,
             withdrawalRequestedAt = "invalid",
             recoverableUntil = null,
         )

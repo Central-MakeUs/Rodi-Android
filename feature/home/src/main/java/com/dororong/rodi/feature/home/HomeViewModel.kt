@@ -635,7 +635,7 @@ class HomeViewModel @Inject constructor(
                     when (result) {
                         is LoginResult.Success -> if (_uiState.value.pendingAction == action) {
                             _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
-                            if (result.isNewMember) {
+                            if (!result.isOnboarded) {
                                 _effect.send(HomeEffect.NavigateGuestSignUp)
                             } else {
                                 resumePendingAction(action)
@@ -676,7 +676,11 @@ class HomeViewModel @Inject constructor(
                                 isRestoreInProgress = false,
                             )
                         }
-                        resumePendingAction(action)
+                        if (!result.isOnboarded) {
+                            _effect.send(HomeEffect.NavigateGuestSignUp)
+                        } else {
+                            resumePendingAction(action)
+                        }
                     } else {
                         _uiState.update { it.copy(isRestoreInProgress = false) }
                         _effect.send(HomeEffect.ShowSnackbar("계정 복구를 완료하지 못했습니다."))
