@@ -31,7 +31,7 @@ class BlockedMembersViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `successful unblock removes member`() = runTest(dispatcher) {
+    fun `차단 해제에 성공하면 회원을 목록에서 지운다`() = runTest(dispatcher) {
         coEvery { unblock(1) } returns Result.success(Unit)
         coEvery { getBlocked(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         val viewModel = BlockedMembersViewModel(unblock, getBlocked)
@@ -42,7 +42,7 @@ class BlockedMembersViewModelTest {
     }
 
     @Test
-    fun `failed unblock keeps member and exposes error`() = runTest(dispatcher) {
+    fun `차단 해제가 실패하면 회원을 유지하고 오류를 보여준다`() = runTest(dispatcher) {
         coEvery { unblock(1) } returns Result.failure(IllegalStateException("실패"))
         coEvery { getBlocked(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         val viewModel = BlockedMembersViewModel(unblock, getBlocked)
@@ -54,7 +54,7 @@ class BlockedMembersViewModelTest {
     }
 
     @Test
-    fun `cancellation during unblock does not become a user error`() = runTest(dispatcher) {
+    fun `차단 해제 중 취소는 사용자 오류로 보여주지 않는다`() = runTest(dispatcher) {
         coEvery { unblock(1) } coAnswers { throw CancellationException("취소") }
         coEvery { getBlocked(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         val viewModel = BlockedMembersViewModel(unblock, getBlocked)
@@ -70,7 +70,7 @@ class BlockedMembersViewModelTest {
     }
 
     @Test
-    fun `duplicate unblock taps share one in-flight request`() = runTest(dispatcher) {
+    fun `차단 해제를 여러 번 눌러도 진행 중인 요청 하나를 공유한다`() = runTest(dispatcher) {
         val completion = CompletableDeferred<Result<Unit>>()
         coEvery { unblock(1) } coAnswers { completion.await() }
         coEvery { getBlocked(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -88,7 +88,7 @@ class BlockedMembersViewModelTest {
     }
 
     @Test
-    fun `late page response does not restore an unblocked member`() = runTest(dispatcher) {
+    fun `늦게 도착한 페이지 응답은 이미 차단 해제한 사용자를 다시 추가하지 않는다`() = runTest(dispatcher) {
         val page = CompletableDeferred<Result<CursorPage<BlockedMember>>>()
         coEvery { getBlocked(null, 20) } returns Result.success(
             CursorPage(listOf(member), true, "next", 2),

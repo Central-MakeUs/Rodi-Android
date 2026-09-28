@@ -18,7 +18,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = "w375dp-h812dp")
 class LevelReviewSectionRoborazziTest {
     @Test
-    fun `captures empty review state`() {
+    fun `후기가 없는 상태를 캡처한다`() {
         captureRoboImage("LevelReviewSectionRoborazziTest/empty.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -42,7 +42,7 @@ class LevelReviewSectionRoborazziTest {
     }
 
     @Test
-    fun `captures review summary without a selected level review`() {
+    fun `선택한 레벨 후기가 없는 요약 상태를 캡처한다`() {
         captureRoboImage("LevelReviewSectionRoborazziTest/summary.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

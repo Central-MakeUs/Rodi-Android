@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 class OnboardingLevelTest {
 
     @Test
-    fun `driving period options follow the approved order and labels`() {
+    fun `운전 경력 선택지는 승인된 순서와 문구를 따른다`() {
         assertEquals(
             listOf(
                 "UNDER_1_MONTH" to "1개월 미만",
@@ -22,7 +22,7 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `score boundaries map to the expected non navigator levels`() {
+    fun `점수 경계값을 내비게이터가 아닌 레벨에 정확히 매핑한다`() {
         val profilesByExpectedScore = mapOf(
             0 to OnboardingProfile(),
             2 to OnboardingProfile(recentFrequency = RecentDrivingFrequency.WEEKLY_4_PLUS),
@@ -71,7 +71,7 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `three years or more is always navigator`() {
+    fun `운전 경력 3년 이상은 항상 내비게이터다`() {
         val periods = listOf(DrivingPeriod.YEARS_3_9, DrivingPeriod.OVER_10_YEARS)
 
         periods.forEach { period ->
@@ -82,7 +82,7 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `driving periods apply the approved score and forced level policy`() {
+    fun `운전 경력별 승인된 점수와 레벨 고정 정책을 적용한다`() {
         val expected = mapOf(
             DrivingPeriod.UNDER_1_MONTH to (0 to false),
             DrivingPeriod.MONTHS_1_2 to (0 to false),
@@ -105,7 +105,7 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `highest road experience and solo answers determine score`() {
+    fun `가장 높은 도로 경험과 단독 운전 답변으로 점수를 정한다`() {
         val profile = OnboardingProfile(
             drivingPeriod = DrivingPeriod.YEARS_1_2,
             recentFrequency = RecentDrivingFrequency.WEEKLY_2_TO_3,
@@ -119,7 +119,7 @@ class OnboardingLevelTest {
     }
 
     @Test
-    fun `missing conditional answers are scored as zero`() {
+    fun `조건부 답변이 없으면 0점으로 계산한다`() {
         val profile = OnboardingProfile(
             drivingPeriod = DrivingPeriod.UNDER_1_MONTH,
             recentFrequency = RecentDrivingFrequency.RARELY,

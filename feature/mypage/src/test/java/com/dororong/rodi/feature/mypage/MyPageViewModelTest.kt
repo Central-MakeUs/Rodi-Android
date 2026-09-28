@@ -39,7 +39,7 @@ class MyPageViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `server progress percent drives the profile gauge`() = runTest(dispatcher) {
+    fun `서버의 진행률로 프로필 게이지를 채운다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -67,7 +67,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `server my page is rendered with canonical recommendations`() = runTest(dispatcher) {
+    fun `서버 마이페이지를 보여주고 추천 연습은 레벨 기준 목록으로 채운다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -87,7 +87,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `mypage keeps visited records and removes invisible statuses`() = runTest(dispatcher) {
+    fun `마이페이지는 방문 기록만 남기고 보이지 않는 상태는 뺀다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val notVisited = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
@@ -123,7 +123,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `practice records retain the order returned by the server`() = runTest(dispatcher) {
+    fun `연습 기록은 서버가 준 순서를 유지한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val first = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
@@ -150,7 +150,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `practice record failure is preserved separately from profile state`() = runTest(dispatcher) {
+    fun `연습 기록 실패는 프로필 상태와 따로 보관한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.failure(IllegalStateException("기록 조회 실패"))
@@ -167,7 +167,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `practice record success leaves the error message null`() = runTest(dispatcher) {
+    fun `연습 기록을 불러오면 오류 문구는 null이다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -183,7 +183,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `refresh failure preserves loaded profile and exposes the error`() = runTest(dispatcher) {
+    fun `새로고침이 실패해도 불러온 프로필을 유지하고 오류를 보여준다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -208,7 +208,7 @@ class MyPageViewModelTest {
     // 실제 경로에서는 리포지토리가 예외를 AuthException.Unknown으로 감싸므로 원문 차단은
     // AuthErrorMapper가 맡는다(AuthErrorMapperTest). 여기서 보는 건 그 경로를 거치지 않고
     // 올라오는 예외에 대한 이중 방어다.
-    fun `non-auth failures fall back to the generic message`() = runTest(dispatcher) {
+    fun `인증 외 실패는 일반 문구로 대신한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -224,7 +224,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `authentication failures keep their own message`() = runTest(dispatcher) {
+    fun `인증 실패는 자기 문구를 유지한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
@@ -238,7 +238,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `hard delete leaves navigation to the app session owner`() = runTest(dispatcher) {
+    fun `즉시 삭제 후 화면 이동은 앱 세션 담당에게 맡긴다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
@@ -258,7 +258,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `hard delete exposes failure and prevents duplicate requests while submitting`() = runTest(dispatcher) {
+    fun `즉시 삭제 실패를 보여주고 제출 중에는 중복 요청을 막는다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()
@@ -281,7 +281,7 @@ class MyPageViewModelTest {
     }
 
     @Test
-    fun `hard delete clears submitting state when cancelled`() = runTest(dispatcher) {
+    fun `즉시 삭제가 취소되면 제출 중 상태를 끝낸다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
         val hardDeleteAccount = mockk<HardDeleteAccountUseCase>()

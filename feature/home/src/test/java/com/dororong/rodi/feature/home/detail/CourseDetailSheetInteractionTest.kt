@@ -31,7 +31,7 @@ class CourseDetailSheetInteractionTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun swipingSheetHandleExpandsCourseDetailContent() {
+    fun `시트 손잡이를 밀어 올리면 코스 상세 내용이 펼쳐진다`() {
         composeRule.setContent {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

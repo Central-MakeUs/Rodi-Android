@@ -26,7 +26,7 @@ class ResolveCourseLocationSelectionUseCaseTest {
     )
 
     @Test
-    fun `returns the resolved suggestion from the repository`() = runTest {
+    fun `저장소가 확정한 검색 결과를 반환한다`() = runTest {
         val resolved = suggestion.copy(point = GeoPoint(37.5495, 126.9139))
         coEvery { repository.resolveSelection(suggestion) } returns resolved
 
@@ -34,14 +34,14 @@ class ResolveCourseLocationSelectionUseCaseTest {
     }
 
     @Test
-    fun `wraps repository failure as Result failure`() = runTest {
+    fun `저장소 실패를 Result 실패로 감싼다`() = runTest {
         coEvery { repository.resolveSelection(suggestion) } throws IllegalStateException("boom")
 
         assertTrue(useCase(suggestion).exceptionOrNull() is IllegalStateException)
     }
 
     @Test
-    fun `rethrows cancellation instead of wrapping it`() {
+    fun `취소는 감싸지 않고 다시 던진다`() {
         coEvery { repository.resolveSelection(suggestion) } throws CancellationException("cancelled")
 
         assertThrows(CancellationException::class.java) {

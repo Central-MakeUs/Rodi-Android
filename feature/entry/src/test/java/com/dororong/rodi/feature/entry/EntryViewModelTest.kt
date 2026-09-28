@@ -58,14 +58,14 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `initial step is terms`() {
+    fun `첫 단계는 약관이다`() {
         val viewModel = testViewModel()
 
         assertEquals(EntryStep.TERMS, viewModel.step)
     }
 
     @Test
-    fun `restores saved entry step and onboarding selections`() = runTest(testDispatcher) {
+    fun `저장된 진입 단계와 온보딩 선택을 복원한다`() = runTest(testDispatcher) {
         val viewModel = testViewModel(
             savedProgress = EntryProgress(
                 step = EntryProgressStep.PREFERENCE,
@@ -105,7 +105,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `restores completed profile at precautions without another submission`() = runTest(testDispatcher) {
+    fun `완성된 프로필은 다시 제출하지 않고 주의사항 단계로 복원한다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
             saveOnboardingProfileUseCase = saveOnboardingProfileUseCase,
@@ -119,7 +119,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `next moves through onboarding, precautions, location and stays at location`() {
+    fun `다음을 누르면 온보딩과 주의사항과 위치 단계를 거쳐 위치 단계에 머문다`() {
         val viewModel = testViewModel()
 
         viewModel.next()
@@ -142,7 +142,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `guest browse skips onboarding between terms and precautions`() = runTest(testDispatcher) {
+    fun `둘러보기는 약관 다음 온보딩을 건너뛰고 주의사항으로 간다`() = runTest(testDispatcher) {
         val viewModel = testViewModel(mode = EntryMode.GUEST_BROWSE)
         advanceUntilIdle()
 
@@ -153,7 +153,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `guest browse restores legacy onboarding step at precautions`() = runTest(testDispatcher) {
+    fun `둘러보기는 예전 온보딩 단계가 저장돼 있어도 주의사항으로 복원한다`() = runTest(testDispatcher) {
         val viewModel = testViewModel(
             mode = EntryMode.GUEST_BROWSE,
             savedProgress = EntryProgress(step = EntryProgressStep.PREFERENCE),
@@ -165,7 +165,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `guest sign up starts at nickname and cannot return to terms`() = runTest(testDispatcher) {
+    fun `둘러보기 가입은 닉네임부터 시작하고 약관으로 돌아갈 수 없다`() = runTest(testDispatcher) {
         val viewModel = testViewModel(
             mode = EntryMode.GUEST_SIGN_UP,
             savedProgress = EntryProgress(step = EntryProgressStep.NICKNAME),
@@ -178,7 +178,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `back moves through previous steps and stops at precautions`() {
+    fun `뒤로가기는 이전 단계로 가고 주의사항에서 멈춘다`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.back())
@@ -203,7 +203,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `openWebView stores url and moves to webview step`() {
+    fun `openWebView는 URL을 저장하고 웹뷰 단계로 이동한다`() {
         val viewModel = testViewModel()
 
         viewModel.openWebView("https://example.com/terms")
@@ -213,7 +213,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `step and gate selections are saved when changed`() = runTest(testDispatcher) {
+    fun `단계와 확인 항목이 바뀌면 저장한다`() = runTest(testDispatcher) {
         val saveEntryProgressUseCase = testSaveEntryProgressUseCase()
         val viewModel = testViewModel(saveEntryProgressUseCase = saveEntryProgressUseCase)
         advanceUntilIdle()
@@ -235,7 +235,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `setAllTermsChecked updates only terms checkboxes`() {
+    fun `setAllTermsChecked로 약관을 모두 선택해도 이미 선택한 확인 항목은 유지된다`() {
         val viewModel = testViewModel()
         viewModel.toggleLicense()
         viewModel.toggleCompanion()
@@ -252,7 +252,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `toggleServiceTerms flips only service terms`() {
+    fun `toggleServiceTerms는 서비스 약관만 바꾼다`() {
         val viewModel = testViewModel()
 
         viewModel.toggleServiceTerms()
@@ -266,7 +266,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `toggleLicense flips only license`() {
+    fun `toggleLicense는 면허 항목만 바꾼다`() {
         val viewModel = testViewModel()
 
         viewModel.toggleLicense()
@@ -280,7 +280,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `nickname is generated only once`() {
+    fun `닉네임은 한 번만 생성한다`() {
         val viewModel = testViewModel()
 
         viewModel.next()
@@ -292,7 +292,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `long driving period completes career step without detail questions`() {
+    fun `운전 경력이 길면 세부 질문 없이 경력 단계를 마친다`() {
         val viewModel = testViewModel()
 
         viewModel.selectDrivingPeriod(DrivingPeriod.YEARS_3_9)
@@ -303,7 +303,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `long driving period completes navigator analysis from career step`() = runTest(testDispatcher) {
+    fun `운전 경력이 길면 경력 단계에서 내비게이터 분석을 마친다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
@@ -331,7 +331,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `short driving period requires recent frequency and road experience`() {
+    fun `운전 경력이 짧으면 최근 운전 빈도와 도로 경험이 필요하다`() {
         val viewModel = testViewModel()
 
         viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
@@ -345,7 +345,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `short driving period continues to preference after career`() = runTest(testDispatcher) {
+    fun `운전 경력이 짧으면 경력 단계 다음 선호 단계로 간다`() = runTest(testDispatcher) {
         val viewModel = testViewModel()
         advanceUntilIdle()
 
@@ -362,7 +362,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `solo road experience among multiple selections requires conditional answers and clears them when removed`() {
+    fun `여러 도로 경험 중 단독 운전이 있으면 조건부 답변이 필요하고 빼면 답변을 지운다`() {
         val viewModel = testViewModel()
 
         viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
@@ -385,7 +385,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `goal is limited to thirty characters`() {
+    fun `목표는 30자까지만 입력된다`() {
         val viewModel = testViewModel()
 
         viewModel.updateGoal("1234567890123456789012345678901")
@@ -394,7 +394,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `practice situations are limited to three and fourth selection is ignored`() {
+    fun `연습 상황은 세 개까지이고 네 번째 선택은 무시한다`() {
         val viewModel = testViewModel()
 
         viewModel.togglePracticeSituation(PracticeSituation.U_TURN)
@@ -412,7 +412,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `preference next requires situation but not vehicle or goal`() {
+    fun `선호 단계의 다음 버튼은 연습 상황만 필요하고 차종과 목표는 필요 없다`() {
         val viewModel = testViewModel()
 
         assertFalse(viewModel.isPreferenceNextEnabled)
@@ -425,7 +425,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding selections are saved when changed`() = runTest(testDispatcher) {
+    fun `온보딩 선택이 바뀌면 저장한다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         advanceUntilIdle()
@@ -457,7 +457,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis shows result only after three seconds`() = runTest(testDispatcher) {
+    fun `온보딩 분석 결과는 3초가 지난 뒤에만 보여준다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val saveEntryProgressUseCase = testSaveEntryProgressUseCase()
         val viewModel = testViewModel(
@@ -489,7 +489,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `guest sign up completes entry when analysis result is confirmed`() = runTest(testDispatcher) {
+    fun `둘러보기 가입은 분석 결과를 확인하면 진입을 완료한다`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -516,7 +516,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis emits failure only after three seconds when local save fails`() =
+    fun `로컬 저장이 실패해도 온보딩 분석 실패는 3초가 지난 뒤에 알린다`() =
         runTest(testDispatcher) {
             val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
             val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
@@ -547,7 +547,7 @@ class EntryViewModelTest {
         }
 
     @Test
-    fun `onboarding analysis treats already completed submission as success`() = runTest(testDispatcher) {
+    fun `이미 완료된 제출은 온보딩 분석에서 성공으로 처리한다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.AlreadyCompleted
@@ -562,7 +562,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis applies initial filter tags from calculated level`() = runTest(testDispatcher) {
+    fun `온보딩 분석은 계산한 레벨로 초기 필터 태그를 적용한다`() = runTest(testDispatcher) {
         val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -581,7 +581,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis stays on the current step when initial filter tags fail`() = runTest(testDispatcher) {
+    fun `초기 필터 태그 적용이 실패하면 현재 단계에 머문다`() = runTest(testDispatcher) {
         val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -610,7 +610,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis does not emit an error when initial filter tag application is cancelled`() = runTest(testDispatcher) {
+    fun `초기 필터 태그 적용이 취소되면 오류를 보내지 않는다`() = runTest(testDispatcher) {
         val applyInitialFilterTags = testApplyInitialFilterTagsUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -632,7 +632,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis shows input error without retry action`() = runTest(testDispatcher) {
+    fun `입력 오류는 다시 시도 버튼 없이 알린다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.InvalidProfile
@@ -652,7 +652,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis asks user to wait after rate limit without retry action`() = runTest(testDispatcher) {
+    fun `요청 제한에 걸리면 다시 시도 버튼 없이 기다리라고 알린다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.RateLimited
@@ -675,7 +675,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `onboarding analysis ignores duplicate submit while analyzing`() = runTest(testDispatcher) {
+    fun `분석 중 중복 제출은 무시한다`() = runTest(testDispatcher) {
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(saveOnboardingProfileUseCase = saveOnboardingProfileUseCase)
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
@@ -690,7 +690,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `finish stores entry completion and emits completion effect`() = runTest(testDispatcher) {
+    fun `완료하면 진입 완료를 저장하고 완료 효과를 보낸다`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -712,7 +712,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `finish does not invoke callback when use case throws`() = runTest(testDispatcher) {
+    fun `진입 완료 저장이 실패하면 완료 효과를 보내지 않는다`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(
@@ -732,7 +732,7 @@ class EntryViewModelTest {
     }
 
     @Test
-    fun `finish does not invoke callback when use case is cancelled`() = runTest(testDispatcher) {
+    fun `진입 완료 저장이 취소되면 완료 효과를 보내지 않는다`() = runTest(testDispatcher) {
         val setEntryCompletedUseCase = testSetEntryCompletedUseCase()
         val saveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase()
         val viewModel = testViewModel(

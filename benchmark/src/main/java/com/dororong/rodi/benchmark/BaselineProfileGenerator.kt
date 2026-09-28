@@ -13,7 +13,7 @@ class BaselineProfileGenerator {
     val baselineProfileRule = BaselineProfileRule()
 
     @Test
-    fun generate() {
+    fun `앱 시작 경로의 Baseline Profile을 생성한다`() {
         baselineProfileRule.collect(packageName = TARGET_PACKAGE_NAME) {
             pressHome()
             startActivityAndWait()

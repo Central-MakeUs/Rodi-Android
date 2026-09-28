@@ -35,7 +35,7 @@ import retrofit2.Response
 
 class PlaceRepositoryImplTest {
     @Test
-    fun `related search maps server regions and place cursor`() = runTest {
+    fun `연관 검색은 서버 지역과 장소 커서를 매핑한다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
@@ -69,7 +69,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `places sends access token when a session exists`() = runTest {
+    fun `세션이 있으면 장소 목록을 조회 조건 그대로 요청한다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val query = viewportQuery()
@@ -110,7 +110,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `saved places preserves nullable distance and cursor page metadata`() = runTest {
+    fun `저장 목록은 없을 수 있는 거리와 커서 페이지 정보를 유지한다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
@@ -152,7 +152,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `bookmark updates local cache only after server success`() = runTest {
+    fun `북마크는 서버가 성공한 뒤에만 로컬 캐시를 갱신한다`() = runTest {
         val api = mockk<PlaceApi>()
         val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
         val tokenStore = mockk<AuthTokenStore>()
@@ -173,7 +173,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `bookmark failure leaves local cache unchanged`() = runTest {
+    fun `북마크 요청이 실패하면 로컬 캐시를 바꾸지 않는다`() = runTest {
         val api = mockk<PlaceApi>()
         val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
         val tokenStore = mockk<AuthTokenStore>()
@@ -189,7 +189,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `bookmark cancellation is rethrown without side effects`() = runTest {
+    fun `북마크 중 취소는 부수 효과 없이 다시 던진다`() = runTest {
         val api = mockk<PlaceApi>()
         val local = mockk<SavedPlaceLocalDataSource>(relaxed = true)
         val tokenStore = mockk<AuthTokenStore>()
@@ -205,7 +205,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `missing required response field does not surface the serializer message to users`() = runTest {
+    fun `응답 필수 필드가 누락돼도 직렬화 오류 문구를 사용자에게 노출하지 않는다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")
@@ -225,7 +225,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `detail of a course deleted after the list was loaded tells the user it was deleted`() = runTest {
+    fun `목록을 받은 뒤 삭제된 코스의 상세를 열면 삭제됐다고 알린다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens("access")

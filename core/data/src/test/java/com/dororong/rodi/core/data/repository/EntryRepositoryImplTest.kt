@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class EntryRepositoryImplTest {
     @Test
-    fun `start delegates entry mode to local preferences`() = runTest {
+    fun `진입 시작은 진입 모드를 로컬 저장소에 위임한다`() = runTest {
         val prefs = mockk<EntryPreferences>(relaxed = true)
         val repository = EntryRepositoryImpl(prefs)
 
@@ -20,7 +20,7 @@ class EntryRepositoryImplTest {
     }
 
     @Test
-    fun `clear delegates to local preferences`() = runTest {
+    fun `초기화는 로컬 저장소에 위임한다`() = runTest {
         val prefs = mockk<EntryPreferences>(relaxed = true)
         coEvery { prefs.clear() } returns Unit
         val repository = EntryRepositoryImpl(prefs)

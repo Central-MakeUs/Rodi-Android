@@ -42,7 +42,7 @@ class AuthSessionCoordinatorTest {
     )
 
     @Test
-    fun `sign out publishes only after every session local store is cleared`() = runTest {
+    fun `로그아웃은 세션의 로컬 저장소를 모두 지운 뒤에 알린다`() = runTest {
         val cleared = mutableListOf<String>()
         coEvery { onboardingRepository.clear() } coAnswers { cleared += "onboarding" }
         coEvery { entryRepository.clear() } coAnswers { cleared += "entry" }
@@ -57,7 +57,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `new login waits for an in-flight sign out and keeps its own onboarding`() = runTest {
+    fun `새 로그인은 진행 중인 로그아웃을 기다리고 자기 온보딩 정보는 지우지 않는다`() = runTest {
         val onboardingCleanup = CompletableDeferred<Unit>()
         val cleanupStarted = CompletableDeferred<Unit>()
         coEvery { onboardingRepository.clear() } coAnswers {
@@ -81,7 +81,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `sign out finishes its local commit even when the caller is cancelled`() = runTest {
+    fun `호출자가 취소돼도 로그아웃의 로컬 정리를 끝까지 수행한다`() = runTest {
         val onboardingCleanup = CompletableDeferred<Unit>()
         val cleanupStarted = CompletableDeferred<Unit>()
         coEvery { onboardingRepository.clear() } coAnswers {
@@ -106,7 +106,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `login finishes its local commit even when the caller is cancelled`() = runTest {
+    fun `호출자가 취소돼도 로그인의 로컬 반영을 끝까지 수행한다`() = runTest {
         coordinator.expire(tokenStore.getTokens()!!)
         val practiceCleanup = CompletableDeferred<Unit>()
         val cleanupStarted = CompletableDeferred<Unit>()
@@ -131,7 +131,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `sign out ends the in-memory session when token persistence fails`() = runTest {
+    fun `토큰 영구 삭제가 실패해도 로그아웃은 메모리 세션을 끝낸다`() = runTest {
         coEvery { dataStore.clear(any()) } returns false
         val published = async { coordinator.observeSignOut().first() }
         runCurrent()
@@ -144,7 +144,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `sign out keeps going when a secondary store fails and reports it`() = runTest {
+    fun `부가 저장소 정리가 실패해도 로그아웃을 계속하고 실패를 보고한다`() = runTest {
         coEvery { practiceSessionRepository.clear() } throws IllegalStateException("datastore unavailable")
 
         val localCleanupSucceeded = coordinator.signOut(tokenStore.getTokens()!!)
@@ -156,7 +156,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `stale sign out neither clears nor announces the replacement session`() = runTest {
+    fun `이전 세션의 로그아웃은 교체된 세션을 지우거나 알리지 않는다`() = runTest {
         val oldSession = tokenStore.getTokens()!!
         coordinator.start("access-b", "refresh-b", false)
         var published = false
@@ -174,7 +174,7 @@ class AuthSessionCoordinatorTest {
     }
 
     @Test
-    fun `expiration keeps device onboarding for the next login`() = runTest {
+    fun `세션 만료는 다음 로그인을 위해 기기의 온보딩 정보를 유지한다`() = runTest {
         assertTrue(coordinator.expire(tokenStore.getTokens()!!))
 
         assertNull(tokenStore.getTokens())

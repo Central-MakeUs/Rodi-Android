@@ -17,10 +17,10 @@ class StartupBenchmark {
     val benchmarkRule = MacrobenchmarkRule()
 
     @Test
-    fun startupCompilationNone() = startup(CompilationMode.None())
+    fun `컴파일 최적화 없이 콜드 스타트 시간을 측정한다`() = startup(CompilationMode.None())
 
     @Test
-    fun startupWithBaselineProfile() = startup(
+    fun `Baseline Profile을 적용해 콜드 스타트 시간을 측정한다`() = startup(
         CompilationMode.Partial(
             baselineProfileMode = BaselineProfileMode.Require,
         ),

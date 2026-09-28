@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class DrivingNotificationStylePolicyTest {
     @Test
-    fun `android 16 uses the progress style and asks for promotion`() {
+    fun `Android 16에서는 진행 스타일을 쓰고 승격을 요청한다`() {
         assertEquals(
             DrivingNotificationStyle.PROGRESS_STYLE,
             DrivingNotificationStylePolicy.forApi(Build.VERSION_CODES.BAKLAVA),
@@ -17,7 +17,7 @@ class DrivingNotificationStylePolicyTest {
     }
 
     @Test
-    fun `below android 16 stays a standard notification`() {
+    fun `Android 16 미만에서는 일반 알림으로 표시한다`() {
         assertEquals(
             DrivingNotificationStyle.STANDARD,
             DrivingNotificationStylePolicy.forApi(Build.VERSION_CODES.VANILLA_ICE_CREAM),
@@ -26,7 +26,7 @@ class DrivingNotificationStylePolicyTest {
     }
 
     @Test
-    fun `turning the app setting off drops the progress style and the promotion request`() {
+    fun `앱 설정을 끄면 진행 스타일과 승격 요청을 쓰지 않는다`() {
         assertEquals(
             DrivingNotificationStyle.STANDARD,
             DrivingNotificationStylePolicy.forApi(Build.VERSION_CODES.BAKLAVA, liveUpdateEnabled = false),

@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Test
 
 class OnboardingMapperTest {
     @Test
-    fun `maps onboarding profile to server enum values`() {
+    fun `온보딩 프로필을 서버 enum 값으로 매핑한다`() {
         val request = OnboardingProfile(
             drivingPeriod = DrivingPeriod.MONTHS_1_2,
             recentFrequency = RecentDrivingFrequency.WEEKLY_2_TO_3,
@@ -37,7 +37,7 @@ class OnboardingMapperTest {
     }
 
     @Test
-    fun `maps every approved driving period to its exact wire value`() {
+    fun `모든 운전 경력 값을 서버 전송 값으로 정확히 매핑한다`() {
         val expected = mapOf(
             DrivingPeriod.UNDER_1_MONTH to "UNDER_1_MONTH",
             DrivingPeriod.MONTHS_1_2 to "MONTHS_1_2",

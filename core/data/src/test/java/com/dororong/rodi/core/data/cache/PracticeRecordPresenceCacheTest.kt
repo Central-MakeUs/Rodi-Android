@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class PracticeRecordPresenceCacheTest {
     @Test
-    fun `clear during a load prevents the stale result from being cached`() = runTest {
+    fun `로드 중 초기화하면 이전 응답을 캐시에 저장하지 않는다`() = runTest {
         val cache = PracticeRecordPresenceCache()
         val loaderStarted = CompletableDeferred<Unit>()
         val releaseLoader = CompletableDeferred<Unit>()
@@ -31,7 +31,7 @@ class PracticeRecordPresenceCacheTest {
     }
 
     @Test
-    fun `set during a load is not overwritten by the stale loader result`() = runTest {
+    fun `로드 중 설정한 값은 늦게 끝난 로드 결과로 덮어쓰지 않는다`() = runTest {
         val cache = PracticeRecordPresenceCache()
         val loaderStarted = CompletableDeferred<Unit>()
         val releaseLoader = CompletableDeferred<Unit>()

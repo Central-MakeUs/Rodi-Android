@@ -35,7 +35,7 @@ class ResponseContractTest {
     private val json = NetworkModule.provideJson()
 
     @Test
-    fun `my page parses a complete response and a null driving goal`() {
+    fun `마이페이지 응답은 모든 필드와 비어 있는 운전 목표를 파싱한다`() {
         val page = decode<MyPageResponse>(MY_PAGE)
 
         assertEquals("로디", page.nickname)
@@ -44,19 +44,19 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `my page rejects a missing nickname, level, count, or progress`() {
+    fun `마이페이지 응답에 닉네임이나 레벨이나 개수나 진행도가 없으면 파싱에 실패한다`() {
         listOf("nickname", "level", "savedPlaceCount", "recommendationTags", "levelProgress").forEach { field ->
             assertThrows<SerializationException>(field) { decode<MyPageResponse>(MY_PAGE.without(field)) }
         }
     }
 
     @Test
-    fun `level progress rejects missing distances but allows the top level to omit the next goal`() {
+    fun `레벨 진행도에 누적 거리가 없으면 파싱에 실패한다`() {
         assertThrows<SerializationException> { decode<MyPageResponse>(MY_PAGE.replace("\"totalDistanceKm\":12.5,", "")) }
     }
 
     @Test
-    fun `review summary rejects missing counts that drive the review header`() {
+    fun `후기 요약에 헤더를 그리는 개수가 없으면 파싱에 실패한다`() {
         listOf("totalReviewCount", "levelReviewCount", "recommendCount", "notRecommendCount", "difficultyCounts", "levelCounts")
             .forEach { field ->
                 assertThrows<SerializationException>(field) { decode<ReviewSummaryResponse>(SUMMARY.without(field)) }
@@ -64,14 +64,14 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `review summary tolerates the omitted top difficulty`() {
+    fun `후기 요약은 최다 난이도가 생략돼도 파싱한다`() {
         val summary = decode<ReviewSummaryResponse>(SUMMARY)
 
         assertEquals(3L, summary.totalReviewCount)
     }
 
     @Test
-    fun `cursor pages reject missing items or next flag instead of ending pagination`() {
+    fun `커서 페이지에 목록이나 다음 여부가 없으면 목록 끝으로 보지 않고 파싱에 실패한다`() {
         listOf("items", "hasNext").forEach { field ->
             assertThrows<SerializationException>(field) {
                 decode<CursorPagePracticeItemResponse>(PRACTICE_PAGE.without(field))
@@ -80,7 +80,7 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `response models declare only fields the server sends`() {
+    fun `응답 모델은 서버가 보내는 필드만 선언한다`() {
         assertAll(
             { assertDeclaresOnlyServerFields<PracticeItemResponse>(PRACTICE_PAGE.firstItem()) },
             { assertDeclaresOnlyServerFields<PracticeVisitResponse>(PRACTICE_VISIT_LEVEL_UP) },
@@ -90,14 +90,14 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `place detail rejects missing bookmark state and practice types`() {
+    fun `장소 상세에 북마크 상태나 연습 유형이 없으면 파싱에 실패한다`() {
         listOf("bookmarkCount", "isBookmarked", "practiceTypes").forEach { field ->
             assertThrows<SerializationException>(field) { decode<PlaceDetailResponse>(PLACE_DETAIL.without(field)) }
         }
     }
 
     @Test
-    fun `practice registration rejects a missing id instead of registering practice zero`() {
+    fun `연습 등록 응답에 id가 없으면 0번 연습으로 등록하지 않고 파싱에 실패한다`() {
         listOf("practiceId", "status", "visitCount", "requiredDistanceMeters").forEach { field ->
             assertThrows<SerializationException>(field) {
                 decode<PracticeRegisterResponse>(PRACTICE_REGISTER.without(field))
@@ -106,7 +106,7 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `practice visit rejects missing results but allows no new level`() {
+    fun `연습 방문 응답은 결과 값이 없으면 실패하지만 새 레벨은 생략할 수 있다`() {
         val visit = decode<PracticeVisitResponse>(PRACTICE_VISIT)
         assertNull(visit.newLevel)
 
@@ -116,13 +116,13 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `skip reason form rejects missing question or option fields`() {
+    fun `미방문 사유 폼에 문항이나 선택지 필드가 없으면 파싱에 실패한다`() {
         assertThrows<SerializationException> { decode<FormResponse>(FORM.without("options")) }
         assertThrows<SerializationException> { decode<FormResponse>(FORM.replace("\"code\":\"NO_TIME\",", "")) }
     }
 
     @Test
-    fun `live place list response still parses with unknown fields ignored`() {
+    fun `실제 장소 목록 응답은 모르는 필드를 무시하고 파싱한다`() {
         val page = decode<CursorPagePlaceResponse>(LIVE_PLACE_PAGE)
 
         assertEquals(2, page.items.size)
@@ -131,7 +131,7 @@ class ResponseContractTest {
     }
 
     @Test
-    fun `saved place list keeps the deleted flag and rejects it missing`() {
+    fun `저장 목록의 삭제 여부는 true 값을 유지하고 누락되면 파싱에 실패한다`() {
         val saved = LIVE_PLACE_PAGE.replaceFirst("\"isDeleted\":false", "\"isDeleted\":true")
 
         assertTrue(decode<CursorPagePlaceResponse>(saved).toDomain().items.first().isDeleted)

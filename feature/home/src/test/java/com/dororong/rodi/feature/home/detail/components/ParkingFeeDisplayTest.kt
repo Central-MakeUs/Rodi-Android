@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class ParkingFeeDisplayTest {
 
     @Test
-    fun `paid parking keeps only the base and additional rates`() {
+    fun `유료 주차장은 기본 요금과 추가 요금만 남긴다`() {
         val rows = parking(
             isFree = false,
             feeInfo = ParkingFeeInfo(
@@ -33,7 +33,7 @@ class ParkingFeeDisplayTest {
     }
 
     @Test
-    fun `free parking keeps two rows and marks the base rate free`() {
+    fun `무료 주차장은 두 줄을 유지하고 기본 요금을 무료로 표시한다`() {
         val rows = parking(isFree = true, feeInfo = null).toFeeDisplayRows()
 
         assertEquals(

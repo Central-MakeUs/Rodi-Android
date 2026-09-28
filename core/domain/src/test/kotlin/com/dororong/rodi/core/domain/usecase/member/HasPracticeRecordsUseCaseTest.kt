@@ -13,7 +13,7 @@ class HasPracticeRecordsUseCaseTest {
     private val useCase = HasPracticeRecordsUseCase(repository)
 
     @Test
-    fun `returns repository practice presence`() = runTest {
+    fun `저장소의 연습 기록 여부를 반환한다`() = runTest {
         coEvery { repository.hasPracticeRecords() } returns true
 
         assertTrue(useCase().getOrThrow())

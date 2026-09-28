@@ -21,7 +21,7 @@ import java.time.Instant
 
 class AccountAuthUseCasesTest {
     @Test
-    fun `reissue returns success when repository succeeds`() = runTest {
+    fun `저장소가 성공하면 재발급 결과가 성공이다`() = runTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.reissueToken() } returns Unit
 
@@ -32,7 +32,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restore wraps repository failure as Result`() = runTest {
+    fun `복구 실패를 Result로 감싼다`() = runTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.restoreWithKakao("credential") } throws AuthException.RecoveryExpired("기간 만료")
 
@@ -43,7 +43,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `logout returns success when repository ends the session`() = runTest {
+    fun `저장소가 세션을 끝내면 로그아웃이 성공한다`() = runTest {
         val repository = mockk<AuthRepository>()
         coEvery { repository.logout() } returns Unit
 
@@ -53,7 +53,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `logout propagates cancellation`() = runTest {
+    fun `로그아웃 중 취소를 그대로 전파한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val cancellation = CancellationException("cancelled")
         coEvery { repository.logout() } throws cancellation
@@ -68,7 +68,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restore returns domain result from repository`() = runTest {
+    fun `복구는 저장소의 도메인 결과를 그대로 반환한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val expected = AccountRestoreResult.WithdrawalPending(
             withdrawalRequestedAt = Instant.parse("2026-07-13T00:00:00Z"),
@@ -82,7 +82,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restoring an onboarded member persists entry completion`() = runTest {
+    fun `온보딩을 마친 회원을 복구하면 진입 완료를 저장한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val entry = entryRepository()
         val restored = AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디")
@@ -96,7 +96,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restoring a member who never finished onboarding sends them to onboarding`() = runTest {
+    fun `온보딩을 마치지 않은 회원을 복구하면 온보딩으로 보낸다`() = runTest {
         val repository = mockk<AuthRepository>()
         val entry = entryRepository()
         val restored = AccountRestoreResult.Restored(isOnboarded = false, nickname = "로디")
@@ -110,7 +110,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restoring a guest who never finished onboarding starts guest sign up`() = runTest {
+    fun `온보딩을 마치지 않은 둘러보기 사용자를 복구하면 둘러보기 가입을 시작한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val entry = entryRepository(hasGuestAccess = true)
         coEvery { repository.restoreWithKakao("credential") } returns
@@ -122,7 +122,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restore success is preserved when a local update fails`() = runTest {
+    fun `로컬 반영이 실패해도 복구 성공을 유지한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val entry = entryRepository()
@@ -139,7 +139,7 @@ class AccountAuthUseCasesTest {
     }
 
     @Test
-    fun `restore local synchronization propagates cancellation`() = runTest {
+    fun `복구 후 로컬 반영 중 취소를 그대로 전파한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val restored = AccountRestoreResult.Restored(isOnboarded = true, nickname = "로디")

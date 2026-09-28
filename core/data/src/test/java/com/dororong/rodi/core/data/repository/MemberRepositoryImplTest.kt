@@ -52,7 +52,7 @@ class MemberRepositoryImplTest {
     ) = AuthSessionCoordinator(tokenStore, practiceSessionRepository, cache, onboardingRepository, entryRepository)
 
     @Test
-    fun `course tutorial completion patches server then stores local flag`() = runTest {
+    fun `코스 등록 튜토리얼 완료는 서버에 반영한 뒤 로컬 플래그를 저장한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -72,7 +72,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `my page maps nullable goal and server profile fields`() = runTest {
+    fun `마이페이지는 비어 있을 수 있는 목표와 서버 프로필 값을 매핑한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -99,7 +99,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `blank driving goal is sent to delete the existing goal`() = runTest {
+    fun `빈 운전 목표는 기존 목표를 지우도록 그대로 보낸다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -114,7 +114,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `filter tags send every selected practice type as wire values`() = runTest {
+    fun `필터 태그는 선택한 연습 유형을 모두 서버 값으로 보낸다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -137,7 +137,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `block and unblock member send authenticated requests`() = runTest {
+    fun `회원 차단과 차단 해제 요청을 각각 보낸다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -163,7 +163,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `blocking self maps bad request to invalid request`() = runTest {
+    fun `자기 자신 차단의 잘못된 요청 응답을 InvalidRequest로 매핑한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -178,7 +178,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `driving goal longer than thirty characters is rejected before request`() = runTest {
+    fun `30자를 넘는 운전 목표는 요청 전에 거부한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
@@ -191,7 +191,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `withdraw sends bearer access token and clears session after success`() = runTest {
+    fun `탈퇴가 성공하면 연습 세션과 로그인 세션을 지운다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -212,7 +212,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `withdraw does not call api without a session`() = runTest {
+    fun `세션이 없으면 탈퇴 API를 호출하지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
@@ -225,7 +225,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `withdraw propagates cancellation`() = runTest {
+    fun `탈퇴 중 취소를 그대로 전파한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -236,7 +236,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete sends bearer access token and clears session after success`() = runTest {
+    fun `즉시 삭제가 성공하면 세션을 지우고 로컬 정리 성공을 보고한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -258,7 +258,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete reports local cleanup failure after remote deletion`() = runTest {
+    fun `서버 삭제 후 로컬 정리가 실패하면 실패를 보고한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -279,7 +279,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete reports local cleanup failure when course registration data survives`() = runTest {
+    fun `코스 등록 데이터가 남으면 로컬 정리 실패를 보고한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -299,7 +299,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete does not call api without a session`() = runTest {
+    fun `세션이 없으면 즉시 삭제 API를 호출하지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
@@ -312,7 +312,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete propagates cancellation`() = runTest {
+    fun `즉시 삭제 중 취소는 전파하고 로컬 데이터를 지우지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -326,7 +326,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `practice presence reuses the successful first page fetch`() = runTest {
+    fun `연습 기록 여부는 성공한 첫 페이지 조회 결과를 재사용한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache()
@@ -351,7 +351,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `practice presence is fetched once and then cached on a cache miss`() = runTest {
+    fun `캐시가 없으면 연습 기록 여부를 한 번만 조회하고 캐시한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache()
@@ -371,7 +371,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `planned records do not satisfy practice presence`() = runTest {
+    fun `방문 예정 기록만으로는 연습 기록이 있다고 보지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache()
@@ -395,7 +395,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `practice presence scans later pages when the first page has no visited record`() = runTest {
+    fun `첫 페이지에 방문 기록이 없으면 다음 페이지까지 확인한다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache()
@@ -428,7 +428,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `practice presence does not cache absence when the page scan reaches its safety limit`() = runTest {
+    fun `페이지 확인이 안전 한도에 닿으면 기록 없음을 캐시하지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -447,7 +447,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `a non-initial page without visits does not overwrite a true presence cache`() = runTest {
+    fun `첫 페이지가 아닌 페이지에 방문이 없어도 연습 기록 있음 캐시를 덮어쓰지 않는다`() = runTest {
         val memberApi = mockk<MemberApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache().apply { set(true) }
@@ -471,7 +471,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `withdraw response after a new login keeps the new session`() = runTest {
+    fun `새 로그인 뒤 도착한 탈퇴 응답은 새 세션을 유지한다`() = runTest {
         val tokenStore = realTokenStore()
         val memberApi = mockk<MemberApi>()
         val started = CompletableDeferred<Unit>()
@@ -494,7 +494,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `hard delete response after a new login keeps the new session`() = runTest {
+    fun `새 로그인 뒤 도착한 즉시 삭제 응답은 새 세션을 유지한다`() = runTest {
         val tokenStore = realTokenStore()
         val memberApi = mockk<MemberApi>()
         val started = CompletableDeferred<Unit>()
@@ -517,7 +517,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `withdraw clears the session even when practice cleanup fails after server success`() = runTest {
+    fun `서버 탈퇴 성공 후 연습 정리가 실패해도 세션을 지운다`() = runTest {
         val tokenStore = realTokenStore()
         val memberApi = mockk<MemberApi>()
         coEvery { memberApi.withdraw() } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
@@ -530,7 +530,7 @@ class MemberRepositoryImplTest {
     }
 
     @Test
-    fun `tutorial completion from an old session does not mark a new session`() = runTest {
+    fun `이전 세션의 튜토리얼 완료는 새 세션에 표시하지 않는다`() = runTest {
         val tokenStore = realTokenStore()
         val memberApi = mockk<MemberApi>()
         val started = CompletableDeferred<Unit>()

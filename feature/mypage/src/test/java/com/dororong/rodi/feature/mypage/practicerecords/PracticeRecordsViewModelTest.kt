@@ -35,7 +35,7 @@ class PracticeRecordsViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `initial load starts empty and idle`() = runTest(dispatcher) {
+    fun `처음에는 비어 있고 로딩 중이 아니다`() = runTest(dispatcher) {
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.records.isEmpty())
@@ -43,7 +43,7 @@ class PracticeRecordsViewModelTest {
     }
 
     @Test
-    fun `paging accumulates records and removes duplicate ids`() = runTest(dispatcher) {
+    fun `페이지를 이어 붙이고 중복 id를 뺀다`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } returns Result.success(
             CursorPage(listOf(first), true, "next", 2),
         )
@@ -59,7 +59,7 @@ class PracticeRecordsViewModelTest {
     }
 
     @Test
-    fun `initial load skips invisible statuses before reaching a visited record`() = runTest(dispatcher) {
+    fun `첫 로드는 방문 기록이 나올 때까지 보이지 않는 상태를 건너뛴다`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } returns Result.success(
             CursorPage(listOf(first.copy(status = PracticeStatus.PLANNED)), true, "next", 2),
         )
@@ -76,7 +76,7 @@ class PracticeRecordsViewModelTest {
     }
 
     @Test
-    fun `initial load errors are kept in state`() = runTest(dispatcher) {
+    fun `첫 로드 오류를 상태에 남긴다`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } returns Result.failure(IllegalStateException("처음 오류"))
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
         advanceUntilIdle()
@@ -84,7 +84,7 @@ class PracticeRecordsViewModelTest {
     }
 
     @Test
-    fun `cancellation during initial load is not exposed as an error`() = runTest(dispatcher) {
+    fun `첫 로드 중 취소는 오류로 보여주지 않는다`() = runTest(dispatcher) {
         coEvery { getPracticeRecords(null, 20) } coAnswers { throw CancellationException("취소") }
         val viewModel = PracticeRecordsViewModel(getPracticeRecords)
 

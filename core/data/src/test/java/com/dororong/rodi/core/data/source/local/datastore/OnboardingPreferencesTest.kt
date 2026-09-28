@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class OnboardingPreferencesTest {
     @Test
-    fun `reads legacy road experience string without a type cast`() {
+    fun `예전 문자열 형식의 도로 경험 값도 타입 변환 오류 없이 읽는다`() {
         val preferences = mutablePreferencesOf(
             stringPreferencesKey("road_experience") to "WITH_COMPANION",
         )
@@ -23,7 +23,7 @@ class OnboardingPreferencesTest {
     }
 
     @Test
-    fun `prefers the current set over a legacy string`() {
+    fun `예전 문자열보다 현재 집합 값을 우선한다`() {
         val preferences = mutablePreferencesOf(
             stringPreferencesKey("practice_situations") to "PARKING, U_TURN",
             stringSetPreferencesKey("practice_situation_set") to setOf("LANE_CHANGE"),

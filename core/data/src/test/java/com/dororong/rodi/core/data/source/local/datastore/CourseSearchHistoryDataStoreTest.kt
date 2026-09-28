@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 
 class CourseSearchHistoryDataStoreTest {
     @Test
-    fun `semantic duplicate from another source is moved to the front without growing history`() {
+    fun `다른 출처의 같은 검색어는 기록을 늘리지 않고 맨 앞으로 옮긴다`() {
         val current = (0 until CourseSearchHistoryDataStore.MAX_HISTORY_SIZE).map { index ->
             CourseLocationSuggestion(
                 id = "history-$index",
@@ -44,7 +44,7 @@ class CourseSearchHistoryDataStoreTest {
     }
 
     @Test
-    fun `previously stored server search history is hidden from recent searches`() {
+    fun `이전에 저장된 서버 검색 기록은 최근 검색어에서 숨긴다`() {
         val stored = listOf(
             suggestion("server-region-1", CourseLocationSuggestionSource.SERVER_REGION),
             suggestion("server-place-2", CourseLocationSuggestionSource.SERVER_PLACE),
@@ -72,7 +72,7 @@ class CourseSearchHistoryDataStoreTest {
     )
 
     @Test
-    fun `unresolved suggestions cannot enter search history`() {
+    fun `확정되지 않은 검색 결과는 검색 기록에 넣을 수 없다`() {
         val unresolved = CourseLocationSuggestion(
             id = "server-place-7",
             title = "장소",

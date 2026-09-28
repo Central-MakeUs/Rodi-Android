@@ -40,7 +40,7 @@ class ReviewActionsViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `selected standard reason submits the report and opens receipt`() = runTest(dispatcher) {
+    fun `일반 신고 사유를 고르면 신고를 제출하고 접수 화면을 연다`() = runTest(dispatcher) {
         coEvery { getReportForm() } returns Result.success(reportForm())
         coEvery {
             reportReview(
@@ -66,7 +66,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `other reason requires text before submitting`() = runTest(dispatcher) {
+    fun `기타 사유는 내용을 입력해야 제출할 수 있다`() = runTest(dispatcher) {
         coEvery { getReportForm() } returns Result.success(reportForm())
         coEvery {
             reportReview(
@@ -93,7 +93,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `block member reports a successful target`() = runTest(dispatcher) {
+    fun `회원 차단이 성공하면 차단한 대상을 알린다`() = runTest(dispatcher) {
         coEvery { blockMember(MEMBER_ID) } returns Result.success(Unit)
         val viewModel = viewModel()
 
@@ -108,7 +108,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `report form failure shows an error and finishes loading`() = runTest(dispatcher) {
+    fun `신고 폼을 불러오지 못하면 오류를 보여주고 로딩을 끝낸다`() = runTest(dispatcher) {
         coEvery { getReportForm() } returns Result.failure(IllegalStateException("신고 사유를 불러오지 못했어요."))
 
         val viewModel = viewModel()
@@ -120,7 +120,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `unapproved report form failure hides the exception detail`() = runTest(dispatcher) {
+    fun `사용자 문구가 없는 신고 폼 오류는 예외 내용을 숨긴다`() = runTest(dispatcher) {
         val detail = "Field 'totalCount' is required for type with serial name 'ReportFormResponse'"
         coEvery { getReportForm() } returns Result.failure(IllegalStateException(detail))
 
@@ -133,7 +133,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `report submission failure restores the submit state`() = runTest(dispatcher) {
+    fun `신고 제출이 실패하면 제출 상태를 되돌린다`() = runTest(dispatcher) {
         coEvery { getReportForm() } returns Result.success(reportForm())
         coEvery { reportReview(any(), any()) } returns Result.failure(IllegalStateException("신고하지 못했어요."))
 
@@ -150,7 +150,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `block failure leaves no blocked member and exposes an error`() = runTest(dispatcher) {
+    fun `차단이 실패하면 차단한 회원 없이 오류를 알린다`() = runTest(dispatcher) {
         coEvery { blockMember(MEMBER_ID) } returns Result.failure(IllegalStateException("차단하지 못했어요."))
         val viewModel = viewModel()
 
@@ -164,7 +164,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `delete review reports the deleted review`() = runTest(dispatcher) {
+    fun `후기를 삭제하면 삭제한 후기를 알린다`() = runTest(dispatcher) {
         coEvery { deleteReview(REVIEW_ID) } returns Result.success(Unit)
         val viewModel = viewModel()
 
@@ -178,7 +178,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `delete failure exposes a user message and finishes deleting`() = runTest(dispatcher) {
+    fun `후기 삭제가 실패하면 사용자 문구를 알리고 삭제 상태를 끝낸다`() = runTest(dispatcher) {
         coEvery { deleteReview(REVIEW_ID) } returns Result.failure(IllegalStateException("raw server detail"))
         val viewModel = viewModel()
 
@@ -192,7 +192,7 @@ class ReviewActionsViewModelTest {
     }
 
     @Test
-    fun `selecting a shorter text option truncates the previous detail`() = runTest(dispatcher) {
+    fun `더 짧은 입력 제한의 선택지를 고르면 이전 상세 내용을 자른다`() = runTest(dispatcher) {
         val form = reportForm()
         coEvery { getReportForm() } returns Result.success(form)
 

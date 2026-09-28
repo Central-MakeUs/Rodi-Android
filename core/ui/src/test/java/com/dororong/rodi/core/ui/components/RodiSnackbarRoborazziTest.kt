@@ -20,7 +20,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = "w360dp-h800dp")
 class RodiSnackbarRoborazziTest {
     @Test
-    fun `captures snackbar with an action`() {
+    fun `액션이 있는 스낵바를 캡처한다`() {
         captureRoboImage("RodiSnackbarRoborazziTest/action.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

@@ -9,12 +9,21 @@
 > 셋업, Roborazzi 설정 형태 등)만 담는다. 둘이 어긋나면 의도된 정책과 실제 task를 확인해
 > stale 설명을 정정하며 코드에 맞춰 규범을 자동 변경하지 않는다.
 
-## 파일은 `<대상>Test.kt`, 클래스는 파일당 하나, 함수는 영어 백틱 서술형
+## 파일은 `<대상>Test.kt`, 클래스는 파일당 하나, 함수는 한국어 백틱 서술형
 
 ```kotlin
 @Test
-fun `loads places when refresh succeeds`() = runTest { ... }
+fun `새 화면 영역 결과가 먼저 보낸 요청보다 우선한다`() = runTest { ... }
 ```
+
+- 조건과 기대 결과를 한 문장으로 쓴다. 부정·"만"·취소·늦은 응답(stale) 같은 의미는 이름에 남긴다.
+- 이름은 본문이 **실제로 검증하는 것만** 말한다. 순서("~한 뒤"), "~만", "~하지 않는다"를
+  assertion이 확인하지 않으면 이름에서 뺀다.
+- `ViewModel`, `cursor`, `snackbar`, `DataStore`처럼 코드와 맞춰 읽는 기술 용어는 영어로 둔다.
+- 백틱 이름에 `.` `;` `[` `]` `/` `<` `>` `:` `\` 를 쓰지 않는다(JVM·DEX가 메서드 이름으로 거부).
+- 계측 테스트(`androidTest`, `:benchmark`)도 같은 규칙을 따른다. 공백이 있는 메서드 이름은
+  DEX 040(API 30)부터 허용되고, 테스트 APK를 만드는 모듈의 minSdk가 모두 30이라 쓸 수 있다.
+- 클래스·helper·Roborazzi 스냅샷 파일 이름은 이 규칙 대상이 아니다.
 
 **왜**: 조건과 기대 결과가 IDE·CI 리포트에 문장으로 뜬다. 실패했을 때 코드를 열지 않고도
 무엇이 깨졌는지 읽힌다. 파일명=클래스명이어야 실패한 테스트에서 파일로 바로 간다.
@@ -26,6 +35,11 @@ fun `loads places when refresh succeeds`() = runTest { ... }
 rg -n 'class (\w+Test)\b' -r '$1' -o --no-heading -g '*.kt' . \
 | grep -E '/src/(test|androidTest)/' \
 | while IFS=: read -r f _ c; do [ "$(basename "$f" .kt)" != "$c" ] && echo "$c ← $f"; done
+```
+
+**재검증** (한글이 없는 테스트 함수명):
+```bash
+rg -U -n --pcre2 '@Test\b[^\n]*\n(\s*@[^\n]*\n)*\s*fun\s+(?!`[^`\n]*[가-힣])' -g '*.kt' -g '!**/build/**' .
 ```
 
 ## JVM 단위 테스트는 JUnit5 + Jupiter assertion + MockK

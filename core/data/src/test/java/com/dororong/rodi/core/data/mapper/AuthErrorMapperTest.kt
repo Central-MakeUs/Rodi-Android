@@ -22,7 +22,7 @@ class AuthErrorMapperTest {
         HttpException(Response.error<Any>(code, body.toResponseBody("application/json".toMediaType())))
 
     @Test
-    fun `maps AUTH_401_5 to InvalidCredential`() {
+    fun `AUTH_401_5는 InvalidCredential로 매핑한다`() {
         val exception = httpException(
             401,
             """{"isSuccess":false,"code":"AUTH_401_5","message":"카카오 토큰이 유효하지 않습니다."}""",
@@ -35,7 +35,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps COMMON_400 to InvalidRequest`() {
+    fun `COMMON_400은 InvalidRequest로 매핑한다`() {
         val exception = httpException(400, """{"isSuccess":false,"code":"COMMON_400","message":"입력값이 올바르지 않습니다."}""")
 
         val result = exception.toAuthException(json)
@@ -44,7 +44,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps AUTH_400_1 to InvalidRequest`() {
+    fun `AUTH_400_1은 InvalidRequest로 매핑한다`() {
         val exception = httpException(400, """{"isSuccess":false,"code":"AUTH_400_1","message":"지원하지 않는 provider입니다."}""")
 
         val result = exception.toAuthException(json)
@@ -54,7 +54,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps AUTH_401_4 to SessionRevoked`() {
+    fun `AUTH_401_4는 SessionRevoked로 매핑한다`() {
         val result = ApiEnvelope<Nothing>(
             isSuccess = false,
             code = "AUTH_401_4",
@@ -65,7 +65,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps recovery errors from envelope`() {
+    fun `응답 봉투의 복구 오류 코드를 복구 예외로 매핑한다`() {
         val expired = ApiEnvelope<Nothing>(false, "MEMBER_409_1", "복구 기한이 지났습니다.").toAuthException()
         val notFound = ApiEnvelope<Nothing>(false, "MEMBER_404_1", "복구 대상이 없습니다.").toAuthException()
 
@@ -74,7 +74,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps unknown error code to Unknown`() {
+    fun `알 수 없는 오류 코드는 Unknown으로 매핑한다`() {
         val exception = httpException(500, """{"isSuccess":false,"code":"COMMON_500","message":"서버 오류"}""")
 
         val result = exception.toAuthException(json)
@@ -83,7 +83,7 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `never leaks deserialization failure text to the user`() {
+    fun `역직렬화 실패 문구를 사용자에게 노출하지 않는다`() {
         val missingField = SerializationException(
             "Field 'nickname' is required for type with serial name 'MyPageResponse', but it was missing",
         )
@@ -95,14 +95,14 @@ class AuthErrorMapperTest {
     }
 
     @Test
-    fun `maps IOException to Network`() {
+    fun `IOException은 Network로 매핑한다`() {
         val result = IOException("연결 실패").toAuthException(json)
 
         assertTrue(result is AuthException.Network)
     }
 
     @Test
-    fun `rethrows CancellationException instead of mapping it`() {
+    fun `CancellationException은 매핑하지 않고 다시 던진다`() {
         assertThrows(CancellationException::class.java) {
             CancellationException("cancelled").toAuthException(json)
         }

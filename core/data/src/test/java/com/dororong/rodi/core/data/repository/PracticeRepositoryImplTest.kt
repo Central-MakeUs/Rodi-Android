@@ -21,7 +21,7 @@ import org.junit.jupiter.api.Test
 
 class PracticeRepositoryImplTest {
     @Test
-    fun `visit request omits certified distance in phase a`() = runTest {
+    fun `인정 거리 없이 방문을 기록하면 거리 없이 요청하고 연습 기록 있음으로 표시한다`() = runTest {
         val api = mockk<PracticeApi>()
         coEvery { api.recordVisit(7, PracticeVisitRequest(null)) } returns
             ApiEnvelope(true, "COMMON_200", "성공", practiceVisitResponse())
@@ -35,7 +35,7 @@ class PracticeRepositoryImplTest {
     }
 
     @Test
-    fun `registering a planned practice does not mark record presence`() = runTest {
+    fun `방문 예정 연습 등록은 연습 기록 있음으로 표시하지 않는다`() = runTest {
         val api = mockk<PracticeApi>()
         coEvery { api.register(7) } returns
             ApiEnvelope(true, "COMMON_200", "성공", PracticeRegisterResponse(practiceId = 11, status = "PLANNED", visitCount = 0, requiredDistanceMeters = 0))
@@ -48,7 +48,7 @@ class PracticeRepositoryImplTest {
     }
 
     @Test
-    fun `skip reason conflict maps to already submitted`() = runTest {
+    fun `미방문 사유 충돌 응답은 이미 제출됨으로 매핑한다`() = runTest {
         val api = mockk<PracticeApi>()
         coEvery { api.submitSkipReason(7, PracticeSkipReasonRequest("OTHER", "이유")) } returns
             failureEnvelope("PRACTICE_409")

@@ -18,7 +18,7 @@ class ReviewMapperTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `unknown difficulty count key is excluded`() {
+    fun `알 수 없는 난이도 집계 키는 제외한다`() {
         val response = ReviewSummaryResponse(
             level = "ALL",
             levelReviewCount = 3,
@@ -35,7 +35,7 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `totalReviewCount maps to domain totalCount`() {
+    fun `totalReviewCount를 도메인 totalCount로 매핑한다`() {
         // 서버 스키마가 totalCount에서 levelReviewCount·totalReviewCount로 갈렸다(2026-08-13).
         // totalReviewCount(전체 레벨 합산)를 놓치면 전체보기 링크가 후기가 있어도 안 뜬다.
         val response = ReviewSummaryResponse(
@@ -52,7 +52,7 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `review item payload does not require detail-only fields`() {
+    fun `후기 목록 항목은 상세 전용 필드 없이도 매핑한다`() {
         val response = json.decodeFromString<ReviewResponse>(
             """
             {
@@ -82,7 +82,7 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `report form options are sorted by order`() {
+    fun `신고 폼 선택지를 순서대로 정렬한다`() {
         val response = ReportFormResponse(
             questionId = "review-report",
             title = "신고 사유",
@@ -100,7 +100,7 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `accompanied practice method maps to server enum`() {
+    fun `동행 연습 방식을 서버 enum으로 매핑한다`() {
         val request = ReviewDraft(
             isRecommended = true,
             difficulty = ReviewDifficulty.EASY,
@@ -114,14 +114,14 @@ class ReviewMapperTest {
     }
 
     @Test
-    fun `accompanied practice method maps from server enum`() {
+    fun `서버 enum의 동행 연습 방식을 도메인으로 매핑한다`() {
         val result = checkNotNull(reviewResponse(practiceMethod = "ACCOMPANIED").toDomain())
 
         assertEquals(PracticeMethod.WITH_COMPANION, result.practiceMethod)
     }
 
     @Test
-    fun `unknown practice method maps to null`() {
+    fun `알 수 없는 연습 방식은 null로 매핑한다`() {
         val result = checkNotNull(reviewResponse(practiceMethod = "UNKNOWN").toDomain())
 
         assertNull(result.practiceMethod)
@@ -129,7 +129,7 @@ class ReviewMapperTest {
 
     /** 서버가 오프셋 없이 내려주는 값이 목록 전체를 날려버리던 회귀. */
     @Test
-    fun `offset-less createdAt does not break review mapping`() {
+    fun `오프셋 없는 작성 시각도 후기로 매핑한다`() {
         val result = checkNotNull(reviewResponse(createdAt = "2026-08-10T10:47:33.996642").toDomain())
 
         assertEquals(parseServerTimestamp("2026-08-10T10:47:33.996642"), result.createdAt)

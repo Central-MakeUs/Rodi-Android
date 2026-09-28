@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test
 class GetRouteUseCaseTest {
 
     @Test
-    fun `invoke returns success when repository returns route`() = runTest {
+    fun `저장소가 경로를 반환하면 성공 결과를 반환한다`() = runTest {
         val repository = mockk<CourseRepository>()
         val course = testCourse()
         val routeResult = RouteResult(points = listOf(GeoPoint(37.5665, 126.9780)), isRealRoute = true)
@@ -32,7 +32,7 @@ class GetRouteUseCaseTest {
     }
 
     @Test
-    fun `invoke wraps repository failure as Result failure`() = runTest {
+    fun `저장소 실패를 Result 실패로 감싼다`() = runTest {
         val repository = mockk<CourseRepository>()
         val course = testCourse()
         coEvery { repository.getRoute(course) } throws RuntimeException("boom")

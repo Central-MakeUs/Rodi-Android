@@ -18,7 +18,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = "w360dp-h800dp")
 class RodiRetryErrorRoborazziTest {
     @Test
-    fun `captures full screen retry error`() {
+    fun `전체 화면 재시도 오류를 캡처한다`() {
         captureRoboImage("RodiRetryErrorRoborazziTest/full_screen.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -29,7 +29,7 @@ class RodiRetryErrorRoborazziTest {
     }
 
     @Test
-    fun `captures inline retry error`() {
+    fun `인라인 재시도 오류를 캡처한다`() {
         captureRoboImage("RodiRetryErrorRoborazziTest/inline.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

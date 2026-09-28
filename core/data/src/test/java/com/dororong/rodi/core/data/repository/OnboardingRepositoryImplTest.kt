@@ -30,7 +30,7 @@ import java.io.IOException
 
 class OnboardingRepositoryImplTest {
     @Test
-    fun `clear delegates to local preferences`() = runTest {
+    fun `초기화는 로컬 저장소에 위임한다`() = runTest {
         val prefs = preferences()
         val repository = repository(mockk(), mockk(), prefs = prefs)
 
@@ -40,7 +40,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit sends bearer access token and onboarding request`() = runTest {
+    fun `온보딩을 제출하면 요청을 보내고 동기화 대기를 해제한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val prefs = preferences()
@@ -61,7 +61,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit skips api without a session and completes locally`() = runTest {
+    fun `세션이 없으면 API 없이 로컬에서 제출을 완료한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val prefs = preferences()
@@ -77,7 +77,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit treats already-onboarded conflict as completed`() = runTest {
+    fun `이미 온보딩한 회원의 충돌 응답은 완료로 처리한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -90,7 +90,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit maps unsuccessful response envelope by error code`() = runTest {
+    fun `실패 응답 봉투를 오류 코드별 결과로 매핑한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -107,7 +107,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit maps unsuccessful response envelope auth forbidden rate limit and unexpected errors`() = runTest {
+    fun `실패 응답 봉투의 인증 실패와 권한 없음과 요청 제한과 기타 오류를 각각 매핑한다`() = runTest {
         val cases = listOf(
             "COMMON_401" to OnboardingSubmissionResult.AuthenticationRequired,
             "COMMON_403" to OnboardingSubmissionResult.Forbidden,
@@ -131,7 +131,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit requires login when token refresh fails`() = runTest {
+    fun `토큰 재발급이 실패하면 로그인이 필요하다는 결과를 반환한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
@@ -147,7 +147,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit maps client server and rate limit errors`() = runTest {
+    fun `클라이언트 오류와 서버 오류와 요청 제한을 각각 매핑한다`() = runTest {
         val cases = listOf(
             400 to OnboardingSubmissionResult.InvalidProfile,
             403 to OnboardingSubmissionResult.Forbidden,
@@ -167,7 +167,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit maps network failure to retryable result`() = runTest {
+    fun `네트워크 오류는 재시도 가능한 결과로 매핑한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -180,7 +180,7 @@ class OnboardingRepositoryImplTest {
     }
 
     @Test
-    fun `submit propagates cancellation`() = runTest {
+    fun `온보딩 제출 중 취소를 그대로 전파한다`() = runTest {
         val onboardingApi = mockk<OnboardingApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()

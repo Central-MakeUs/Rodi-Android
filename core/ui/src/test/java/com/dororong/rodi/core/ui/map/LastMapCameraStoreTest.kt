@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 
 class LastMapCameraStoreTest {
     @Test
-    fun `valid camera values produce a snapshot`() {
+    fun `유효한 카메라 값이면 스냅샷을 만든다`() {
         assertEquals(
             MapCameraSnapshot(
                 center = GeoPoint(36.1195, 128.3446),
@@ -22,7 +22,7 @@ class LastMapCameraStoreTest {
     }
 
     @Test
-    fun `latitude outside the valid range returns null`() {
+    fun `위도가 범위를 벗어나면 null을 반환한다`() {
         assertNull(
             mapCameraSnapshotOrNull(
                 lat = 90.1,
@@ -33,7 +33,7 @@ class LastMapCameraStoreTest {
     }
 
     @Test
-    fun `longitude outside the valid range returns null`() {
+    fun `경도가 범위를 벗어나면 null을 반환한다`() {
         assertNull(
             mapCameraSnapshotOrNull(
                 lat = 36.1195,
@@ -44,7 +44,7 @@ class LastMapCameraStoreTest {
     }
 
     @Test
-    fun `non-positive zoom returns null`() {
+    fun `줌이 0 이하면 null을 반환한다`() {
         assertNull(
             mapCameraSnapshotOrNull(
                 lat = 36.1195,

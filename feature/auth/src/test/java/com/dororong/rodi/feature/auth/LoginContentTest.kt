@@ -21,7 +21,7 @@ class LoginContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `skip action is available when recent login is not shown`() {
+    fun `최근 로그인 안내가 없으면 둘러보기 버튼을 쓸 수 있다`() {
         var skipped = false
         composeRule.setContent {
             RodiTheme {
@@ -42,7 +42,7 @@ class LoginContentTest {
     }
 
     @Test
-    fun `recent login shows tooltip instead of skip action`() {
+    fun `최근 로그인이면 둘러보기 대신 말풍선을 보여준다`() {
         composeRule.setContent {
             RodiTheme {
                 LoginContent(

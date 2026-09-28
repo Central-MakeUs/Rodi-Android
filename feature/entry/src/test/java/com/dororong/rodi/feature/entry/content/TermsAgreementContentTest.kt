@@ -23,7 +23,7 @@ class TermsAgreementContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `selecting all terms enables the next action`() {
+    fun `약관을 모두 선택하면 다음 버튼이 활성화된다`() {
         var allChecked by mutableStateOf(false)
         var nextClicked = false
         composeRule.setContent {

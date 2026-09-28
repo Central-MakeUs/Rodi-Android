@@ -14,7 +14,7 @@ class KakaoMapLauncherTest {
     private val courseDetail = requireNotNull(course.course)
 
     @Test
-    fun `course puts start and via points into vp keys in order and destination into ep`() {
+    fun `코스는 출발지와 경유지를 순서대로 vp 키에 넣고 도착지를 ep에 넣는다`() {
         val result = KakaoMapLauncher.buildRouteUri(course)
 
         assertEquals(
@@ -25,7 +25,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `course orders waypoints by sequence regardless of list order`() {
+    fun `코스 경유지는 목록 순서와 관계없이 순번대로 정렬한다`() {
         val shuffled = course.copy(course = courseDetail.copy(waypoints = courseDetail.waypoints.reversed()))
 
         val result = KakaoMapLauncher.buildRouteUri(shuffled)
@@ -34,7 +34,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `course keeps only the first five via points`() {
+    fun `코스는 경유지를 처음 다섯 개까지만 넣는다`() {
         val waypoints = listOf(waypoint(PlaceWaypointType.START, 0, 37.0, 127.0)) +
             listOf(37.1, 37.2, 37.3, 37.4, 37.5, 37.6).mapIndexed { i, lat ->
                 waypoint(PlaceWaypointType.VIA, i + 1, lat, 127.0)
@@ -53,14 +53,14 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `parking sends its point as the only destination`() {
+    fun `주차장은 자기 좌표만 도착지로 보낸다`() {
         val result = KakaoMapLauncher.buildRouteUri(HomePreviewData.parkingDetail)
 
         assertEquals("kakaomap://route?ep=37.5568,126.919&by=car", result)
     }
 
     @Test
-    fun `parking ignores via points even when course waypoints are present`() {
+    fun `주차장은 코스 경유지가 있어도 무시한다`() {
         val startAndVia = courseDetail.waypoints.filter { it.type != PlaceWaypointType.DESTINATION }
         val parking = HomePreviewData.parkingDetail.copy(course = courseDetail.copy(waypoints = startAndVia))
 
@@ -70,7 +70,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `course without waypoints uses place point as destination`() {
+    fun `경유지가 없는 코스는 장소 좌표를 도착지로 쓴다`() {
         val noWaypoints = course.copy(course = courseDetail.copy(waypoints = emptyList()))
 
         val result = KakaoMapLauncher.buildRouteUri(noWaypoints)
@@ -79,7 +79,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `coordinate params are latitude first then longitude`() {
+    fun `좌표 파라미터는 위도 다음 경도 순서다`() {
         val point = GeoPoint(lat = 35.1, lng = 129.2)
         val place = course.copy(point = point, course = null)
 
@@ -90,7 +90,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `current location goes to sp before the course start in vp`() {
+    fun `현재 위치는 sp에 넣고 코스 출발지는 vp에 넣는다`() {
         val result = KakaoMapLauncher.buildRouteUri(course, origin = GeoPoint(lat = 37.5, lng = 127.0))
 
         assertEquals(
@@ -101,7 +101,7 @@ class KakaoMapLauncherTest {
     }
 
     @Test
-    fun `parking sends current location and destination only`() {
+    fun `주차장은 현재 위치와 도착지만 보낸다`() {
         val result = KakaoMapLauncher.buildRouteUri(HomePreviewData.parkingDetail, origin = GeoPoint(lat = 37.5, lng = 127.0))
 
         assertEquals("kakaomap://route?sp=37.5,127.0&ep=37.5568,126.919&by=car", result)

@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 class RodiSnackbarHostStateTest {
     @Test
-    fun `dismiss by id leaves an unrelated current snackbar visible`() {
+    fun `id로 닫으면 대기 중인 해당 스낵바만 지우고 현재 스낵바는 남긴다`() {
         val state = RodiSnackbarHostState()
         state.show(RodiSnackbarData(message = "일반 알림"))
         state.show(RodiSnackbarData(id = "network", message = "네트워크 알림"))
@@ -20,7 +20,7 @@ class RodiSnackbarHostStateTest {
     }
 
     @Test
-    fun `dismiss by id advances to an unrelated queued snackbar`() {
+    fun `id로 닫으면 관계없는 대기 스낵바로 넘어간다`() {
         val state = RodiSnackbarHostState()
         state.show(RodiSnackbarData(id = "network", message = "네트워크 알림"))
         state.show(RodiSnackbarData(message = "일반 알림"))

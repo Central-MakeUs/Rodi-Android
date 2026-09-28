@@ -82,7 +82,7 @@ class HomeViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `first viewport loads a page and duplicate viewport is ignored`() = runTest(dispatcher) {
+    fun `첫 화면 영역은 목록을 한 번 불러오고 같은 영역은 무시한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), hasNext = false, nextCursor = null, totalCount = 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
@@ -99,7 +99,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `region search opens partial list and retains the selected region`() = runTest(dispatcher) {
+    fun `지역 검색은 부분 목록을 열고 고른 지역을 유지한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
         val region = requireNotNull(RegionOfficeLocationResolver.find("서울 중구"))
 
@@ -117,7 +117,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `map detail keeps the search bar empty`() = runTest(dispatcher) {
+    fun `지도에서 연 상세는 검색창을 비워 둔다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 41L)
         coEvery { deps.getDetail(41L) } returns Result.success(place)
@@ -130,7 +130,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `map detail clears an existing search keyword before loading`() = runTest(dispatcher) {
+    fun `지도에서 상세를 열면 불러오기 전에 기존 검색어를 지운다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 43L)
         coEvery { deps.getDetail(43L) } returns Result.success(place)
@@ -145,7 +145,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `list detail keeps the selected place name in the search bar`() = runTest(dispatcher) {
+    fun `목록에서 연 상세는 검색창에 장소 이름을 둔다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 42L)
         coEvery { deps.getDetail(42L) } returns Result.success(place)
@@ -158,7 +158,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `next page removes duplicate ids`() = runTest(dispatcher) {
+    fun `다음 페이지는 중복 id를 뺀다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val firstPage = CursorPage(listOf(summary(1), summary(2)), true, "next", 3)
         val nextPage = CursorPage(listOf(summary(2), summary(3)), false, null, null)
@@ -177,7 +177,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `first page replacement advances the list generation but requesting and paging do not`() = runTest(dispatcher) {
+    fun `첫 페이지가 바뀔 때만 목록 세대를 올리고 요청과 페이지 추가는 올리지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val initialPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, 3)
         val cachedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
@@ -221,7 +221,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `new viewport result wins over an older in flight request`() = runTest(dispatcher) {
+    fun `새 화면 영역 결과가 먼저 보낸 요청보다 우선한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val older = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
         coEvery { deps.getPlaces(query(), null, 20) } coAnswers { older.await() }
@@ -242,7 +242,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `successful empty page is distinct from initial failure`() = runTest(dispatcher) {
+    fun `성공한 빈 목록과 첫 로드 실패를 구분한다`() = runTest(dispatcher) {
         val emptyDeps = Dependencies()
         val emptyPage = CursorPage<PlaceSummary>(emptyList(), false, null, 0)
         coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(emptyPage)
@@ -262,7 +262,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `programmatic search retries the same failed viewport`() = runTest(dispatcher) {
+    fun `검색을 다시 요청하면 실패한 같은 영역을 다시 조회한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
         coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
@@ -285,7 +285,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `failed refresh keeps previous success data`() = runTest(dispatcher) {
+    fun `갱신이 실패해도 이전 성공 데이터를 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(
             CursorPage(listOf(summary(1)), false, null, 1),
@@ -303,7 +303,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `map gesture stays dirty until explicit research refresh succeeds`() = runTest(dispatcher) {
+    fun `지도를 움직이면 다시 검색이 성공할 때까지 재검색 필요 상태를 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
@@ -324,7 +324,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `research opens the partial list from navigation`() = runTest(dispatcher) {
+    fun `지도 화면에서 재검색하면 부분 목록을 연다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
@@ -339,7 +339,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `surface transitions navigation partial full partial navigation`() {
+    fun `지도와 부분 목록과 전체 목록 사이를 순서대로 오간다`() {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.ListOpenClicked)
@@ -353,7 +353,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `review update sends a refresh effect each time`() = runTest(dispatcher) {
+    fun `후기가 바뀔 때마다 새로고침 효과를 보낸다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
         vm.effect.test {
@@ -366,7 +366,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `sheet dragged from full straight to hidden lands on navigation`() {
+    fun `전체 목록에서 곧바로 숨김으로 끌면 지도 상태가 된다`() {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.ListSheetSettled(HomeSurfaceState.FullList))
@@ -376,7 +376,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `late list sheet settle event does not override an open detail`() = runTest(dispatcher) {
+    fun `늦게 도착한 목록 시트 정착 이벤트는 열린 상세를 덮지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 40L)
         coEvery { deps.getDetail(40L) } returns Result.success(place)
@@ -393,7 +393,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `locked account login keeps browsing as a guest and never resumes the protected action`() = runTest(dispatcher) {
+    fun `재가입 대기 계정으로 로그인하면 둘러보기를 유지하고 보호된 동작을 재개하지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         val rejoinAt = Instant.parse("2026-09-20T03:00:00Z")
         coEvery { deps.loginWithKakao("credential") } returns
@@ -417,7 +417,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `restore that finds the grace period over closes recovery without resuming the action`() = runTest(dispatcher) {
+    fun `복구 중 유예 기간이 끝났으면 복구 창을 닫고 동작을 재개하지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         val rejoinAt = Instant.parse("2026-09-20T03:00:00Z")
         coEvery { deps.loginWithKakao("credential") } returns Result.success(
@@ -446,7 +446,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `locked account without a usable date shows the date-unavailable message`() = runTest(dispatcher) {
+    fun `재가입 대기 계정의 날짜를 쓸 수 없으면 날짜를 불러오지 못했다는 문구를 보여준다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns
             Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = null))
@@ -467,7 +467,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest detail action resumes exactly once after login`() = runTest(dispatcher) {
+    fun `로그인 후 둘러보기 중이던 상세 열기를 정확히 한 번 재개한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
@@ -492,7 +492,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `search opens login flow and navigates after existing member login`() = runTest(dispatcher) {
+    fun `검색은 로그인 흐름을 열고 기존 회원 로그인 후 검색으로 이동한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         val vm = deps.viewModel()
@@ -512,7 +512,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest registration action uses the existing login gate and resumes after login`() = runTest(dispatcher) {
+    fun `둘러보기 중 코스 등록은 기존 로그인 확인을 거쳐 로그인 후 재개한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.authSession() } returnsMany listOf(
@@ -535,7 +535,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest who has not finished onboarding navigates to sign up without resuming pending action`() = runTest(dispatcher) {
+    fun `온보딩을 마치지 않은 둘러보기 사용자는 대기 동작을 재개하지 않고 가입으로 이동한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns
             Result.success(LoginResult.Success(isOnboarded = false, nickname = "로디"))
@@ -555,7 +555,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `withdrawal pending credential stays private until account restore succeeds`() = runTest(dispatcher) {
+    fun `탈퇴 유예 계정은 복구를 누르면 보관한 인증 정보로 한 번 복구한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(
             LoginResult.WithdrawalPending(
@@ -583,7 +583,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `restoring an account that never finished onboarding navigates to sign up`() = runTest(dispatcher) {
+    fun `온보딩을 마치지 않은 계정을 복구하면 가입으로 이동한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(
             LoginResult.WithdrawalPending(withdrawalRequestedAt = null, recoverableUntil = null),
@@ -609,7 +609,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `drag dismiss from list clears course detail and always returns to navigation`() = runTest(dispatcher) {
+    fun `목록에서 끌어 닫으면 코스 상세를 지우고 항상 지도로 돌아간다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.courseDetail.copy(id = 30L)
         val route = RouteResult(
@@ -637,7 +637,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `drag dismiss cancels parking detail loading and clears selection`() = runTest(dispatcher) {
+    fun `끌어 닫으면 주차장 상세 로딩을 취소하고 선택을 지운다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val detailResult = CompletableDeferred<Result<PlaceDetail>>()
         var detailRequestCancelled = false
@@ -667,7 +667,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `drag dismiss clears parking bookmark update state`() = runTest(dispatcher) {
+    fun `끌어 닫으면 주차장 북마크 갱신 상태를 지운다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 32L, isBookmarked = false)
         val bookmarkResult = CompletableDeferred<Result<Unit>>()
@@ -694,7 +694,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `regular dismiss from list keeps partial list destination`() = runTest(dispatcher) {
+    fun `목록에서 일반적으로 닫으면 부분 목록으로 돌아간다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 33L)
         coEvery { deps.getDetail(33L) } returns Result.success(place)
@@ -711,7 +711,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `bookmark state changes only after server success`() = runTest(dispatcher) {
+    fun `북마크 상태는 서버가 성공한 뒤에만 바뀐다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 20L, isBookmarked = false, bookmarkCount = 4)
         coEvery { deps.getDetail(20L) } returns Result.success(place)
@@ -728,7 +728,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `bookmark failure preserves ui state`() = runTest(dispatcher) {
+    fun `북마크가 실패하면 화면 상태를 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val place = HomePreviewData.parkingDetail.copy(id = 20L, isBookmarked = false, bookmarkCount = 4)
         coEvery { deps.getDetail(20L) } returns Result.success(place)
@@ -745,7 +745,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `filter keeps mixed tags across categories and saves them together`() = runTest(dispatcher) {
+    fun `필터는 여러 카테고리의 태그를 함께 유지하고 한 번에 저장한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
@@ -784,7 +784,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `tapping an active category clears it without clearing selected practice types`() = runTest(dispatcher) {
+    fun `활성 카테고리를 다시 누르면 카테고리만 해제하고 고른 연습 유형은 유지한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
@@ -795,7 +795,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `tapping parking twice removes its tag and clears the active category`() = runTest(dispatcher) {
+    fun `주차를 두 번 누르면 태그를 빼고 활성 카테고리를 해제한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
@@ -809,7 +809,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `moving from parking keeps its tag but activates only the new category`() = runTest(dispatcher) {
+    fun `주차에서 다른 카테고리로 옮기면 태그는 유지하고 새 카테고리만 활성화한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
@@ -824,7 +824,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `reset activates basic driving and clears all filter tags`() = runTest(dispatcher) {
+    fun `초기화하면 기본 주행 카테고리를 활성화하고 필터 태그를 모두 지운다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
@@ -837,7 +837,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `reset is ignored while filter tags are saving`() = runTest(dispatcher) {
+    fun `필터 태그를 저장하는 중에는 초기화를 무시한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val saveResult = CompletableDeferred<Result<Unit>>()
         coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
@@ -853,7 +853,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `successful filter save reloads the current home viewport`() = runTest(dispatcher) {
+    fun `필터 저장에 성공하면 현재 홈 화면 영역을 다시 불러온다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
         val filteredPage = CursorPage(listOf(summary(2)), false, null, 1)
@@ -877,7 +877,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest filter save resumes after existing member login`() = runTest(dispatcher) {
+    fun `둘러보기 중 필터 저장은 기존 회원 로그인 후 재개한다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
@@ -898,7 +898,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `resuming before ten minutes shows continue dialog from local session`() = runTest(dispatcher) {
+    fun `10분이 지나기 전에 돌아오면 로컬 세션으로 이어하기 다이얼로그를 보여준다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:09:59Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
@@ -912,7 +912,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `GPS-confirmed arrival shows the visit prompt even before ten minutes`() = runTest(dispatcher) {
+    fun `GPS로 도착이 확인되면 10분 전이어도 방문 확인을 보여준다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:03:00Z"))
         val session = activeSession(
             startedAt = Instant.parse("2026-08-15T00:00:00Z"),
@@ -929,7 +929,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `unmeasured session shows nothing before ten minutes`() = runTest(dispatcher) {
+    fun `측정하지 않는 세션은 10분 전에는 아무것도 보여주지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(
             startedAt = Instant.parse("2026-08-15T00:00:00Z"),
@@ -946,7 +946,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `unmeasured session shows the visit prompt after ten minutes`() = runTest(dispatcher) {
+    fun `측정하지 않는 세션은 10분이 지나면 방문 확인을 보여준다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(
             startedAt = Instant.parse("2026-08-15T00:00:00Z"),
@@ -963,7 +963,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `visited flow sends the recognized driving distance only when arrival was GPS-confirmed`() = runTest(dispatcher) {
+    fun `GPS로 도착이 확인되면 다녀왔어요에 인정 거리를 함께 보낸다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(
             startedAt = Instant.parse("2026-08-15T00:00:00Z"),
@@ -996,7 +996,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `exactly ten minutes shows visited prompt`() = runTest(dispatcher) {
+    fun `정확히 10분이 지나면 방문 확인을 보여준다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1011,7 +1011,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `continue hides early dialog but keeps session for the next resume`() = runTest(dispatcher) {
+    fun `계속하기는 이른 다이얼로그를 숨기고 다음 복귀를 위해 세션을 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
@@ -1028,7 +1028,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `stop clears only local session and never calls practice APIs`() = runTest(dispatcher) {
+    fun `그만하기는 로컬 세션만 지우고 연습 API는 호출하지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
@@ -1050,7 +1050,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `navigating to a different place while a session is active shows continue dialog instead of switching`() =
+    fun `세션이 진행 중일 때 다른 장소로 길찾기하면 전환하지 않고 이어하기 다이얼로그를 보여준다`() =
         runTest(dispatcher) {
             val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
             val otherPlace = navigationPlace().copy(id = 20L, name = "다른 코스")
@@ -1073,7 +1073,7 @@ class HomeViewModelTest {
         }
 
     @Test
-    fun `ending measurement to switch places stops the old session and starts the new one`() = runTest(dispatcher) {
+    fun `측정을 끝내고 장소를 바꾸면 이전 세션을 멈추고 새 세션을 시작한다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:05:00Z"))
         val otherPlace = navigationPlace().copy(id = 20L, name = "다른 코스")
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
@@ -1101,7 +1101,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `dismissed practice prompt does not come back on the next resume`() = runTest(dispatcher) {
+    fun `닫은 연습 확인은 다음 복귀에 다시 나오지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         coEvery { deps.getActiveSession() } returns activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val vm = deps.viewModel()
@@ -1124,7 +1124,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `first navigation shows rationale before system permission and does not register`() = runTest(dispatcher) {
+    fun `첫 길찾기는 시스템 권한 전에 안내를 보여주고 연습을 등록하지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
         every { deps.notificationRequested() } returns flowOf(false)
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
@@ -1148,7 +1148,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `route only decision launches navigation and saves an unmeasured session for reentry`() = runTest(dispatcher) {
+    fun `경로만 보기를 고르면 길찾기를 열고 다시 들어올 수 있게 측정하지 않는 세션을 저장한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val notificationRequested = MutableStateFlow(false)
         every { deps.notificationRequested() } returns notificationRequested
@@ -1185,7 +1185,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `denying notification permission routes and still saves an unmeasured session`() = runTest(dispatcher) {
+    fun `알림 권한을 거부해도 길찾기를 열고 측정하지 않는 세션을 저장한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val notificationRequested = MutableStateFlow(false)
         every { deps.notificationRequested() } returns notificationRequested
@@ -1218,7 +1218,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `allowing notification permission starts local session after permission callback`() = runTest(dispatcher) {
+    fun `알림 권한을 허용하면 권한 콜백 뒤에 로컬 세션을 시작한다`() = runTest(dispatcher) {
         val start = Instant.parse("2026-08-15T00:00:00Z")
         val deps = Dependencies(Clock.fixed(start, ZoneOffset.UTC))
         val notificationRequested = MutableStateFlow(false)
@@ -1256,7 +1256,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `session save failure routes without starting a local measurement`() = runTest(dispatcher) {
+    fun `세션 저장이 실패하면 로컬 측정 없이 길찾기만 연다`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         coEvery { deps.saveActiveSession(any()) } throws IllegalStateException("저장 실패")
@@ -1285,7 +1285,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `successful visit registers then visits and opens review for a course`() = runTest(dispatcher) {
+    fun `다녀왔어요가 성공하면 코스를 등록하고 방문을 기록한 뒤 후기 화면을 연다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1315,7 +1315,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `session persistence failure after register does not abandon the immediate visit`() = runTest(dispatcher) {
+    fun `등록 후 세션 저장이 실패해도 바로 방문 기록을 이어간다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1337,7 +1337,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `registered id stays in memory when persistence and visit both fail`() = runTest(dispatcher) {
+    fun `세션 저장과 방문 기록이 모두 실패해도 등록한 id를 메모리에 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1366,7 +1366,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `transient clear failure is retried after a successful visit`() = runTest(dispatcher) {
+    fun `방문 성공 후 일시적인 세션 정리 실패는 다시 시도한다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         var clearCalls = 0
@@ -1391,7 +1391,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `completed marker prevents duplicate visit when local clear keeps failing`() = runTest(dispatcher) {
+    fun `로컬 세션 정리가 계속 실패해도 완료 표시로 중복 방문을 막는다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val originalSession = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns originalSession
@@ -1421,7 +1421,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `failed visit keeps registered id and retries without registering again`() = runTest(dispatcher) {
+    fun `방문 기록이 실패하면 등록한 id를 유지하고 다시 등록하지 않고 재시도한다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1448,7 +1448,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `parking visit clears session without opening review`() = runTest(dispatcher) {
+    fun `주차장 방문은 후기 화면 없이 세션을 지운다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(
             startedAt = Instant.parse("2026-08-15T00:00:00Z"),
@@ -1478,7 +1478,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `not visited registers the practice and opens skip reason`() = runTest(dispatcher) {
+    fun `안 갔어요는 연습을 등록하고 미방문 사유 화면을 연다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         coEvery { deps.getActiveSession() } returns session
@@ -1504,7 +1504,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `duplicate visited taps while request is in flight perform one request`() = runTest(dispatcher) {
+    fun `요청 중 다녀왔어요를 여러 번 눌러도 요청은 한 번만 보낸다`() = runTest(dispatcher) {
         val deps = Dependencies(clockAt("2026-08-15T00:10:00Z"))
         val session = activeSession(startedAt = Instant.parse("2026-08-15T00:00:00Z"))
         val pendingVisit = CompletableDeferred<Result<PracticeVisitResult>>()
@@ -1526,7 +1526,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `guest resume does not read an active session`() = runTest(dispatcher) {
+    fun `둘러보기 중 앱으로 돌아와도 진행 중 세션을 읽지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies(loggedIn = false)
         val vm = deps.viewModel()
 
@@ -1538,7 +1538,7 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `install picker does not start a local practice session`() = runTest(dispatcher) {
+    fun `설치 선택 화면은 로컬 연습 세션을 시작하지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
         coEvery { deps.getDetail(19L) } returns Result.success(navigationPlace())
         val vm = deps.viewModel()

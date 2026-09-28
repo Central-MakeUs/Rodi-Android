@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test
 
 class OnboardingPolicyTest {
     @Test
-    fun `all distance frequency and non navigator level combinations use policy copy`() {
+    fun `모든 거리와 빈도와 내비게이터가 아닌 레벨 조합이 정책 문구를 쓴다`() {
         val distanceProfiles = mapOf(
             "혼자서" to OnboardingProfile(roadExperiences = listOf(RoadExperience.WITH_COMPANION)),
             "집 근처" to soloProfile(SoloDrivingRange.NEAR_HOME),
@@ -39,7 +39,7 @@ class OnboardingPolicyTest {
     }
 
     @Test
-    fun `analysis copy combines distance frequency and level sentence`() {
+    fun `분석 문구는 거리와 빈도와 레벨 문장을 합쳐 만든다`() {
         val profile = OnboardingProfile(
             drivingPeriod = DrivingPeriod.MONTHS_1_2,
             recentFrequency = RecentDrivingFrequency.MONTHLY_1_TO_2,
@@ -54,7 +54,7 @@ class OnboardingPolicyTest {
     }
 
     @Test
-    fun `navigator uses fixed copy and activity recommendations`() {
+    fun `내비게이터는 고정 문구와 활동 추천을 쓴다`() {
         val copy = OnboardingProfile(drivingPeriod = DrivingPeriod.OVER_10_YEARS)
             .analysisCopy(OnboardingLevel.NAVIGATOR)
 
@@ -63,7 +63,7 @@ class OnboardingPolicyTest {
     }
 
     @Test
-    fun `recommendations follow canonical level policy`() {
+    fun `추천 항목은 레벨 정책을 따른다`() {
         assertEquals(listOf("직선주행", "좌우회전", "차선변경"), OnboardingLevel.SEED.recommendations)
         assertEquals(listOf("유턴", "교차로", "주차"), OnboardingLevel.ROOKIE.recommendations)
         assertEquals(listOf("고속진입", "합류", "다차로주행"), OnboardingLevel.OWNER.recommendations)
@@ -71,7 +71,7 @@ class OnboardingPolicyTest {
     }
 
     @Test
-    fun `initial filter tags follow canonical level policy`() {
+    fun `초기 필터 태그는 레벨 정책을 따른다`() {
         assertEquals(
             setOf(PracticeType.STRAIGHT, PracticeType.LEFT_RIGHT_TURN, PracticeType.LANE_CHANGE),
             OnboardingLevel.SEED.initialFilterTags,

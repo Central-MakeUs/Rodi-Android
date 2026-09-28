@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class ServerTimestampTest {
     @Test
-    fun `parses UTC instant with Z suffix`() {
+    fun `Z 접미사가 붙은 UTC 시각을 해석한다`() {
         assertEquals(
             Instant.parse("2026-08-10T10:47:33.996642Z"),
             parseServerTimestamp("2026-08-10T10:47:33.996642Z"),
@@ -17,7 +17,7 @@ class ServerTimestampTest {
     }
 
     @Test
-    fun `parses value with explicit offset`() {
+    fun `오프셋이 명시된 시각을 해석한다`() {
         assertEquals(
             Instant.parse("2026-08-10T01:47:33.996642Z"),
             parseServerTimestamp("2026-08-10T10:47:33.996642+09:00"),
@@ -29,7 +29,7 @@ class ServerTimestampTest {
      * 이 케이스가 예외를 던져 내 게시글·차단목록·코스 후기 목록이 통째로 비어 보였다.
      */
     @Test
-    fun `parses offset-less value as service timezone`() {
+    fun `오프셋 없는 시각은 서비스 시간대로 해석한다`() {
         val expected = ZonedDateTime.of(2026, 8, 10, 10, 47, 33, 996_642_000, ZoneId.of("Asia/Seoul"))
             .toInstant()
 
@@ -37,14 +37,14 @@ class ServerTimestampTest {
     }
 
     @Test
-    fun `parses offset-less value without fractional seconds`() {
+    fun `소수 초가 없는 오프셋 없는 시각도 해석한다`() {
         val expected = ZonedDateTime.of(2026, 8, 10, 10, 47, 33, 0, ZoneId.of("Asia/Seoul")).toInstant()
 
         assertEquals(expected, parseServerTimestamp("2026-08-10T10:47:33"))
     }
 
     @Test
-    fun `throws on unparseable value`() {
+    fun `해석할 수 없는 값이면 예외를 던진다`() {
         assertThrows(IllegalArgumentException::class.java) {
             parseServerTimestamp("not-a-timestamp")
         }

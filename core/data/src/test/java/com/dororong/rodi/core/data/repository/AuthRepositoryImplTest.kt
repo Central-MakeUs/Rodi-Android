@@ -56,7 +56,7 @@ class AuthRepositoryImplTest {
     ) = AuthSessionCoordinator(tokenStore, practiceSessionRepository, cache, onboardingRepository, entryRepository)
 
     @Test
-    fun `getSession maps atomic token snapshot`() = runTest {
+    fun `getSession은 한 번에 읽은 토큰 스냅샷으로 세션을 만든다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens(provider = "kakao")
@@ -69,7 +69,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `getSession keeps recent Kakao login after tokens are cleared`() = runTest {
+    fun `토큰이 지워져도 최근 카카오 로그인 기록은 유지한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
@@ -83,7 +83,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `loginWithKakao saves server tokens`() = runTest {
+    fun `카카오 로그인은 서버가 준 토큰을 저장한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(isOnboarded = false)
@@ -98,7 +98,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `login succeeds when stale practice session cleanup fails`() = runTest {
+    fun `이전 연습 세션 정리가 실패해도 로그인은 성공한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } returns loginEnvelope(isOnboarded = true)
@@ -112,7 +112,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken rotates current refresh token`() = runTest {
+    fun `재발급은 현재 refresh 토큰을 교체한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -127,7 +127,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken persists tutorial flag returned by server`() = runTest {
+    fun `재발급은 서버가 준 튜토리얼 완료 여부를 저장한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access-old", "refresh-old", "kakao")
@@ -144,7 +144,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken keeps practice presence cache for the same session`() = runTest {
+    fun `같은 세션의 재발급은 연습 기록 여부 캐시를 유지한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val cache = PracticeRecordPresenceCache().also { it.set(true) }
@@ -160,7 +160,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken does not call api without a session`() = runTest {
+    fun `세션이 없으면 재발급 API를 호출하지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns null
@@ -172,7 +172,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken clears local tokens when refresh token reuse is detected`() = runTest {
+    fun `refresh 토큰 재사용이 감지되면 로컬 토큰을 지운다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -192,7 +192,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken emits session expiration after an unauthorized refresh response`() = runTest {
+    fun `재발급 응답이 인증 실패면 세션 만료를 알린다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -216,7 +216,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken preserves session expiration for a late subscriber`() = runTest {
+    fun `재발급 인증 실패 뒤 늦게 구독해도 세션 만료를 받는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -235,7 +235,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken clears tokens and expires the session for an HTTP 401 response`() = runTest {
+    fun `재발급이 HTTP 401로 실패하면 토큰을 지우고 세션을 만료한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val httpException = mockk<HttpException>()
@@ -253,7 +253,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `reissueToken keeps the session for a network failure`() = runTest {
+    fun `재발급이 네트워크 오류로 실패하면 세션을 유지한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -266,7 +266,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `restoreWithKakao saves tokens for restored account`() = runTest {
+    fun `계정 복구가 성공하면 토큰을 저장한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.restore("kakao", SocialLoginRequest("kakao-token")) } returns ApiEnvelope(
@@ -294,7 +294,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `restoreWithKakao returns withdrawal pending without saving tokens`() = runTest {
+    fun `탈퇴 유예 응답이면 토큰을 저장하지 않고 탈퇴 유예 결과를 반환한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.restore("kakao", SocialLoginRequest("kakao-token")) } returns ApiEnvelope(
@@ -319,7 +319,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `logout clears tokens after server accepts refresh token`() = runTest {
+    fun `서버가 로그아웃을 받아들이면 토큰을 지운다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns tokens()
@@ -339,7 +339,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `loginWithKakao maps network failure`() = runTest {
+    fun `카카오 로그인 네트워크 오류를 Network 예외로 매핑한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws IOException("offline")
@@ -349,7 +349,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `loginWithKakao propagates cancellation`() = runTest {
+    fun `카카오 로그인 중 취소를 그대로 전파한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { authApi.oauthLogin("kakao", OAuthLoginRequest("kakao-token")) } throws CancellationException("cancelled")
@@ -359,7 +359,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `stale refresh success does not overwrite a new login`() = runTest {
+    fun `이전 세션의 refresh 성공은 새 로그인 세션을 덮어쓰지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val started = CompletableDeferred<Unit>()
@@ -382,7 +382,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `stale revoked refresh neither clears nor expires a new login`() = runTest {
+    fun `이전 세션의 refresh 폐기 응답은 새 로그인 세션을 지우거나 만료시키지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val started = CompletableDeferred<Unit>()
@@ -416,7 +416,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `stale refresh success does not revive a logged out session`() = runTest {
+    fun `이전 세션의 refresh 성공은 로그아웃한 세션을 되살리지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val started = CompletableDeferred<Unit>()
@@ -438,7 +438,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `concurrent refreshes rotate tokens only once within the same session`() = runTest {
+    fun `같은 세션에서 동시에 재발급해도 토큰은 한 번만 교체한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         var current = tokens()
@@ -465,7 +465,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `refresh is skipped if another request rotated before repository entry`() = runTest {
+    fun `저장소에 들어오기 전에 다른 요청이 토큰을 교체했으면 재발급을 건너뛴다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val current = tokens().copy(accessToken = "rotated", refreshToken = "rotated-refresh")
@@ -479,7 +479,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `refresh for an old request does not refresh a replacement session`() = runTest {
+    fun `이전 요청의 재발급은 교체된 새 세션을 재발급하지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val previous = tokenStore.getTokens()!!
@@ -493,7 +493,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `stale refresh success does not overwrite a restored login`() = runTest {
+    fun `이전 세션의 refresh 성공은 복구로 시작한 로그인을 덮어쓰지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val started = CompletableDeferred<Unit>()
@@ -515,7 +515,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `stale logout fails without clearing a new login`() = runTest {
+    fun `이전 세션의 로그아웃은 새 로그인을 지우지 않고 실패한다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val started = CompletableDeferred<Unit>()
@@ -542,7 +542,7 @@ class AuthRepositoryImplTest {
     }
 
     @Test
-    fun `refresh propagates the same cancellation without clearing the session`() = runTest {
+    fun `재발급 중 취소는 같은 취소를 전파하고 세션을 지우지 않는다`() = runTest {
         val authApi = mockk<AuthApi>()
         val tokenStore = realTokenStore()
         val cancellation = CancellationException("cancelled")

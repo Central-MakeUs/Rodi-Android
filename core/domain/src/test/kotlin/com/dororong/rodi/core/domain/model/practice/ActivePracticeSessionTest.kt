@@ -15,13 +15,13 @@ class ActivePracticeSessionTest {
     )
 
     @Test
-    fun `an unfinished measured session keeps tracking its own place`() {
+    fun `끝나지 않은 측정 세션은 자기 장소를 계속 추적한다`() {
         assertTrue(measured.isMeasuringAt(7L))
         assertTrue(measured.copy(isArrivalConfirmed = true).isMeasuringAt(7L))
     }
 
     @Test
-    fun `tracking ends when the practice is gone, finished, replaced, or route only`() {
+    fun `연습이 없거나 끝났거나 바뀌었거나 경로만 안내하면 추적을 끝낸다`() {
         assertFalse(null.isMeasuringAt(7L))
         assertFalse(measured.copy(isCompleted = true).isMeasuringAt(7L))
         assertFalse(measured.copy(placeId = 8L).isMeasuringAt(7L))

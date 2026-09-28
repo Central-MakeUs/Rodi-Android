@@ -48,7 +48,7 @@ class SearchViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `query uses related search after debounce and loads the next place page`() = runTest(dispatcher) {
+    fun `검색어는 지연 후 연관 검색을 하고 다음 장소 페이지를 불러온다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery {
             dependencies.placeRepository.relatedSearch("강남", null, 20)
@@ -75,7 +75,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `typing and ime search do not register recent search`() = runTest(dispatcher) {
+    fun `검색어 입력과 키보드 검색은 최근 검색어로 등록하지 않는다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } returns related()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
@@ -93,7 +93,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `search failure shows error state and retry runs the same request`() = runTest(dispatcher) {
+    fun `검색이 실패하면 오류 상태를 보여주고 다시 시도는 같은 요청을 보낸다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery {
             dependencies.placeRepository.relatedSearch("강남", null, 20)
@@ -118,7 +118,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `ime search cancellation does not emit error snackbar`() = runTest(dispatcher) {
+    fun `키보드 검색이 취소되면 오류 스낵바를 보내지 않는다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("강남", null, 20) } coAnswers {
             awaitCancellation()
@@ -139,7 +139,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `related search keeps the server region order instead of locally sorting it`() = runTest(dispatcher) {
+    fun `연관 검색은 지역을 로컬에서 정렬하지 않고 서버 순서를 유지한다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("중구", null, 20) } returns related(
             regions = listOf("부산 중구", "서울 중구"),
@@ -157,7 +157,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `successful recent search delete removes only that row`() = runTest(dispatcher) {
+    fun `최근 검색어 삭제에 성공하면 해당 행만 지운다`() = runTest(dispatcher) {
         val dependencies = Dependencies(
             recentSearches = listOf(RecentSearch(1, "서울 중구"), RecentSearch(2, "부산 중구")),
         )
@@ -174,7 +174,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `recent searches are capped at fifteen`() = runTest(dispatcher) {
+    fun `최근 검색어는 15개까지 보여준다`() = runTest(dispatcher) {
         val dependencies = Dependencies(
             recentSearches = List(16) { RecentSearch(it.toLong(), "검색어$it") },
         )
@@ -186,7 +186,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `region suggestion with places navigates to its map result`() = runTest(dispatcher) {
+    fun `장소가 있는 지역 추천을 고르면 지도 결과로 이동한다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         val origin = GeoPoint(37.5, 126.9)
         coEvery {
@@ -213,7 +213,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `region suggestion without places shows region empty state`() = runTest(dispatcher) {
+    fun `장소가 없는 지역 추천을 고르면 지역 결과 없음 상태를 보여준다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         val origin = GeoPoint(37.5, 126.9)
         coEvery {
@@ -238,7 +238,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `untyped recent search runs again without registering it as region`() = runTest(dispatcher) {
+    fun `종류가 없는 최근 검색어는 지역으로 등록하지 않고 다시 검색한다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.placeRepository.relatedSearch("알 수 없는 장소", null, 20) } returns related()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
@@ -258,7 +258,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `place suggestion registers place before navigating`() = runTest(dispatcher) {
+    fun `장소 추천을 고르면 최근 검색어로 등록하고 장소로 이동한다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         val viewModel = dependencies.viewModel()
@@ -276,7 +276,7 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `place navigation continues when recent search registration fails`() = runTest(dispatcher) {
+    fun `최근 검색어 등록이 실패해도 장소 이동은 계속한다`() = runTest(dispatcher) {
         val dependencies = Dependencies()
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } throws IllegalStateException()
         val viewModel = dependencies.viewModel()

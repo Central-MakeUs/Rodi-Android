@@ -25,7 +25,7 @@ class RodiPopupMenuTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `selecting an item invokes onSelect with its index and closes the menu`() {
+    fun `항목을 고르면 해당 인덱스로 onSelect를 호출하고 메뉴를 닫는다`() {
         var expanded by mutableStateOf(true)
         var selectedIndex by mutableStateOf(-1)
 
@@ -53,7 +53,7 @@ class RodiPopupMenuTest {
     }
 
     @Test
-    fun `menu is not shown when expanded is false`() {
+    fun `expanded가 false면 메뉴를 보여주지 않는다`() {
         composeRule.setContent {
             RodiTheme {
                 Box(Modifier.fillMaxSize()) {
@@ -71,7 +71,7 @@ class RodiPopupMenuTest {
     }
 
     @Test
-    fun `menu appears when expanded toggles from false to true`() {
+    fun `expanded가 false에서 true로 바뀌면 메뉴가 나타난다`() {
         var expanded by mutableStateOf(false)
 
         composeRule.setContent {

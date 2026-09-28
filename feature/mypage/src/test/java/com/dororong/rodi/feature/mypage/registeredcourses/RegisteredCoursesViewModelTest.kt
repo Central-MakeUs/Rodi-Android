@@ -36,7 +36,7 @@ class RegisteredCoursesViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `all filter sends null status and removes duplicates`() = runTest(dispatcher) {
+    fun `전체 필터는 상태를 null로 보내고 중복을 뺀다`() = runTest(dispatcher) {
         coEvery { getCourses(status = null, cursor = null, size = any()) } returns Result.success(
             CursorPage(listOf(approved, approved, pending), hasNext = false, nextCursor = null, totalCount = 2),
         )
@@ -48,7 +48,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `append uses cursor and keeps page items unique`() = runTest(dispatcher) {
+    fun `다음 페이지는 커서를 쓰고 항목을 중복 없이 유지한다`() = runTest(dispatcher) {
         val next = course(3, CourseApprovalStatus.APPROVED)
         coEvery { getCourses(status = null, cursor = null, size = any()) } returns Result.success(
             CursorPage(listOf(approved), hasNext = true, nextCursor = "cursor-1", totalCount = 2),
@@ -66,7 +66,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `selected status retap returns all null status and restores its cached page`() = runTest(dispatcher) {
+    fun `선택한 상태를 다시 누르면 전체로 돌아가고 저장된 전체 페이지를 복원한다`() = runTest(dispatcher) {
         coEvery { getCourses(status = null, cursor = null, size = any()) } returns Result.success(
             CursorPage(listOf(approved), false, null, 1),
         )
@@ -96,7 +96,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `filter menu can reach all four status selections`() {
+    fun `필터 메뉴로 네 가지 상태를 모두 고를 수 있다`() {
         assertEquals(
             RegisteredCourseFilter.ALL,
             resolveRegisteredCourseFilterSelection(
@@ -128,7 +128,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `filter menu includes all when a status filter is selected`() {
+    fun `상태 필터를 고른 뒤에도 필터 메뉴에 전체가 있다`() {
         assertEquals(
             listOf(
                 RegisteredCourseFilter.ALL,
@@ -140,7 +140,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `initial failure retries the first page`() = runTest(dispatcher) {
+    fun `첫 로드가 실패하면 첫 페이지를 다시 요청한다`() = runTest(dispatcher) {
         val failure = IllegalStateException("network")
         coEvery { getCourses(status = null, cursor = null, size = any()) } returnsMany listOf(
             Result.failure(failure),
@@ -162,7 +162,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `successful delete removes course from current list`() = runTest(dispatcher) {
+    fun `삭제에 성공하면 현재 목록에서 코스를 지운다`() = runTest(dispatcher) {
         coEvery { getCourses(status = null, cursor = null, size = any()) } returns Result.success(
             CursorPage(listOf(approved, pending), false, null, 2),
         )
@@ -176,7 +176,7 @@ class RegisteredCoursesViewModelTest {
     }
 
     @Test
-    fun `delete failure is surfaced without dropping the current list`() = runTest(dispatcher) {
+    fun `삭제가 실패해도 현재 목록을 유지하고 오류를 보여준다`() = runTest(dispatcher) {
         val failure = IllegalStateException("delete failed")
         coEvery { getCourses(status = null, cursor = null, size = any()) } returns Result.success(
             CursorPage(listOf(approved, pending), false, null, 2),

@@ -36,7 +36,7 @@ class MyPostsViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `successful deletion removes post`() = runTest(dispatcher) {
+    fun `삭제에 성공하면 게시글을 지운다`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } returns Result.success(Unit)
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { hasPracticeRecordsUseCase() } returns Result.success(false)
@@ -48,7 +48,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `failed deletion keeps post and exposes error`() = runTest(dispatcher) {
+    fun `삭제가 실패하면 게시글을 유지하고 오류를 보여준다`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } returns Result.failure(IllegalStateException("실패"))
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { hasPracticeRecordsUseCase() } returns Result.success(false)
@@ -61,7 +61,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `cancellation during deletion is not exposed as an error`() = runTest(dispatcher) {
+    fun `삭제 중 취소는 오류로 보여주지 않는다`() = runTest(dispatcher) {
         coEvery { deleteReview(1) } coAnswers { throw CancellationException("취소") }
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { hasPracticeRecordsUseCase() } returns Result.success(false)
@@ -78,7 +78,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `practice record CTA is enabled only when a practice record exists`() = runTest(dispatcher) {
+    fun `연습 기록이 있으면 연습 기록 버튼을 활성화한다`() = runTest(dispatcher) {
         coEvery { getMyReviews(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
         coEvery { hasPracticeRecordsUseCase() } returns Result.success(true)
 
@@ -89,7 +89,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `practice records are not fetched when a review exists`() = runTest(dispatcher) {
+    fun `후기가 있으면 연습 기록을 조회하지 않는다`() = runTest(dispatcher) {
         coEvery { getMyReviews(any(), any()) } returns Result.success(
             CursorPage(
                 listOf(MyReview(1, 1, "장소", "내용", true, false, false, Instant.EPOCH)),
@@ -107,7 +107,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `deleting the last review checks practice records for the empty state`() = runTest(dispatcher) {
+    fun `마지막 후기를 지우면 빈 화면을 위해 연습 기록을 확인한다`() = runTest(dispatcher) {
         coEvery { getMyReviews(any(), any()) } returns Result.success(
             CursorPage(
                 listOf(MyReview(1, 1, "장소", "내용", true, false, false, Instant.EPOCH)),
@@ -130,7 +130,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `deleting the last visible review loads the next page in place instead of restarting from page one`() = runTest(dispatcher) {
+    fun `보이는 마지막 후기를 지우면 첫 페이지부터 다시 불러오지 않고 다음 페이지를 이어서 불러온다`() = runTest(dispatcher) {
         coEvery { getMyReviews(null, 20) } returns Result.success(
             CursorPage(
                 listOf(MyReview(1, 1, "장소", "내용", true, false, false, Instant.EPOCH)),
@@ -161,7 +161,7 @@ class MyPostsViewModelTest {
     }
 
     @Test
-    fun `empty review pages stop when cursors cycle`() = runTest(dispatcher) {
+    fun `빈 후기 페이지의 커서가 순환하면 탐색을 멈춘다`() = runTest(dispatcher) {
         coEvery { getMyReviews(null, 20) } returns Result.success(
             CursorPage(emptyList(), true, "cursor-a", 0),
         )

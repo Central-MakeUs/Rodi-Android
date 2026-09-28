@@ -8,17 +8,17 @@ import org.junit.jupiter.api.Test
 
 class RegionOfficeLocationResolverTest {
     @Test
-    fun `normalizes metropolitan region names before resolving`() {
+    fun `광역 지역 이름을 정규화한 뒤 찾는다`() {
         assertEquals("서울 중구", RegionOfficeLocationResolver.find("서울특별시   중구")?.regionKey)
     }
 
     @Test
-    fun `returns null for an unresolvable region key`() {
+    fun `찾을 수 없는 지역 키면 null을 반환한다`() {
         assertNull(RegionOfficeLocationResolver.find("존재하지 않는 동네"))
     }
 
     @Test
-    fun `resolves every supplied regional name`() {
+    fun `제공된 모든 지역 이름을 찾는다`() {
         assertNotNull(RegionOfficeLocationResolver.find("서울 강남구"))
         assertNotNull(RegionOfficeLocationResolver.find("인천 검단구"))
         assertNotNull(RegionOfficeLocationResolver.find("전남광주통합특별시 신안군"))
@@ -26,7 +26,7 @@ class RegionOfficeLocationResolverTest {
     }
 
     @Test
-    fun `uses a distinct viewport point for each municipality`() {
+    fun `시군구마다 서로 다른 화면 중심 좌표를 쓴다`() {
         val jongno = RegionOfficeLocationResolver.find("서울 종로구")!!.point
         val gangnam = RegionOfficeLocationResolver.find("서울 강남구")!!.point
         val seongnam = RegionOfficeLocationResolver.find("경기도 성남시")!!.point
@@ -38,7 +38,7 @@ class RegionOfficeLocationResolverTest {
     }
 
     @Test
-    fun `uses a zoom level that fits each municipality extent`() {
+    fun `시군구 범위에 맞는 줌 레벨을 쓴다`() {
         val jongno = RegionOfficeLocationResolver.find("서울 종로구")!!
         val seongnam = RegionOfficeLocationResolver.find("경기도 성남시")!!
         val hongcheon = RegionOfficeLocationResolver.find("강원특별자치도 홍천군")!!

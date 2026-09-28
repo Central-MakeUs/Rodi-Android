@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test
 
 class HardDeleteAccountUseCaseTest {
     @Test
-    fun `keeps the local cleanup outcome reported by the repository`() = runTest {
+    fun `저장소가 보고한 로컬 정리 결과를 그대로 반환한다`() = runTest {
         val repository = mockk<MemberRepository>()
         coEvery { repository.hardDelete() } returns HardDeleteResult(localCleanupSucceeded = false)
 
@@ -23,7 +23,7 @@ class HardDeleteAccountUseCaseTest {
     }
 
     @Test
-    fun `returns failure when hard delete fails`() = runTest {
+    fun `즉시 삭제가 실패하면 실패를 반환한다`() = runTest {
         val repository = mockk<MemberRepository>()
         coEvery { repository.hardDelete() } throws IllegalStateException("server error")
 
@@ -33,7 +33,7 @@ class HardDeleteAccountUseCaseTest {
     }
 
     @Test
-    fun `propagates cancellation`() = runTest {
+    fun `즉시 삭제 중 취소를 그대로 전파한다`() = runTest {
         val repository = mockk<MemberRepository>()
         val cancellation = CancellationException("cancelled")
         coEvery { repository.hardDelete() } throws cancellation

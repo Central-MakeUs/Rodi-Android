@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class DrivingProgressAccumulatorTest {
     @Test
-    fun ignoresGpsJumpsAndInaccurateSamples() {
+    fun `GPS 노이즈와 튀는 값과 부정확한 위치는 거리에 더하지 않는다`() {
         val accumulator = DrivingProgressAccumulator()
 
         assertEquals(0.0, accumulator.add(sample(37.5, 1_000)))
@@ -24,7 +24,7 @@ class DrivingProgressAccumulatorTest {
     }
 
     @Test
-    fun outOfOrderSampleDoesNotReplaceTheBaseline() {
+    fun `순서가 뒤바뀐 위치는 기준점을 바꾸지 않는다`() {
         val accumulator = DrivingProgressAccumulator()
 
         accumulator.add(sample(37.5, 2_000))

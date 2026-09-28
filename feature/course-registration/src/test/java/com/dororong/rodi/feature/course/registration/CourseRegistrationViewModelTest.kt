@@ -93,7 +93,7 @@ class CourseRegistrationViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `tutorial completion opens map and loads registration form`() = runTest(dispatcher) {
+    fun `튜토리얼을 마치면 지도를 열고 등록 폼을 불러온다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
 
@@ -106,7 +106,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `tutorial completion failure still advances to the map instead of trapping the user`() = runTest(dispatcher) {
+    fun `튜토리얼 완료 저장이 실패해도 사용자를 가두지 않고 지도로 넘어간다`() = runTest(dispatcher) {
         coEvery { member.completeCourseTutorial() } throws IllegalStateException("network")
         val viewModel = viewModel()
         advanceUntilIdle()
@@ -127,7 +127,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `back from form returns to map while preserving the draft`() = runTest(dispatcher) {
+    fun `폼에서 뒤로 가면 임시 저장을 유지한 채 지도로 돌아간다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.MapReady(true))
@@ -157,7 +157,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `server maxWaypoints is the via limit in the sequential map flow`() = runTest(dispatcher) {
+    fun `서버의 maxWaypoints는 순차 지도 흐름의 경유지 수 제한이다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
 
@@ -182,7 +182,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting points keeps start via destination order and rejects straight fallback`() = runTest(dispatcher) {
+    fun `지점을 고르면 출발 경유 도착 순서를 지키고 직선 대체 경로는 거부한다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
@@ -207,7 +207,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `strict route snapped points replace submitted waypoint coordinates`() = runTest(dispatcher) {
+    fun `확정 경로의 보정 좌표로 제출할 경유지 좌표를 바꾼다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.MapReady(true))
@@ -232,7 +232,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `search waits for 300ms and selecting result moves map without changing waypoint`() = runTest(dispatcher) {
+    fun `검색은 300ms를 기다린 뒤 실행하고 결과를 고르면 경유지는 그대로 두고 지도만 옮긴다`() = runTest(dispatcher) {
         val suggestion = CourseLocationSuggestion("place-1", "강남역", "서울 강남구", GeoPoint(37.5, 127.0), CourseLocationKind.PLACE)
         coEvery { location.search("강남") } returns CourseLocationSearchResult(places = listOf(suggestion))
         val viewModel = viewModel()
@@ -252,7 +252,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `search selection resolves a region before moving map and saving history`() = runTest(dispatcher) {
+    fun `지역 검색 결과를 고르면 위치를 확정한 뒤 지도를 옮기고 기록을 저장한다`() = runTest(dispatcher) {
         val region = CourseLocationSuggestion(
             id = "region-1",
             title = "성북구",
@@ -279,7 +279,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `failed search selection preserves search and map state without saving history`() = runTest(dispatcher) {
+    fun `검색 결과 선택이 실패하면 검색과 지도 상태를 유지하고 기록을 저장하지 않는다`() = runTest(dispatcher) {
         val initialCenter = GeoPoint(37.5, 126.9)
         val suggestion = CourseLocationSuggestion(
             id = "place-unresolved",
@@ -305,7 +305,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `stale search selection cannot overwrite a newer selection`() = runTest(dispatcher) {
+    fun `이전 검색 결과 선택은 더 최근 선택을 덮어쓰지 않는다`() = runTest(dispatcher) {
         val first = CourseLocationSuggestion("first", "첫 장소", "서울", null, CourseLocationKind.PLACE)
         val second = CourseLocationSuggestion("second", "둘째 장소", "서울", null, CourseLocationKind.PLACE)
         val resolvedFirst = first.copy(point = GeoPoint(37.5, 126.9))
@@ -333,7 +333,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `closing search invalidates an in-flight selection resolution`() = runTest(dispatcher) {
+    fun `검색을 닫으면 진행 중인 결과 확정을 무효로 한다`() = runTest(dispatcher) {
         val initialCenter = GeoPoint(37.5, 126.9)
         val suggestion = CourseLocationSuggestion("pending", "대기 장소", "서울", null, CourseLocationKind.PLACE)
         val resolved = suggestion.copy(point = GeoPoint(37.6, 127.0))
@@ -358,7 +358,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `tapping map reverse geocodes and confirms the selected waypoint role`() = runTest(dispatcher) {
+    fun `지도를 누르면 주소를 찾고 선택한 경유지 역할로 확정한다`() = runTest(dispatcher) {
         val point = GeoPoint(37.51, 127.01)
         coEvery { location.reverseGeocode(point) } returns CourseLocationSuggestion(
             id = "map-point",
@@ -382,7 +382,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `pin edit reset and commit preserve original address`() = runTest(dispatcher) {
+    fun `핀 수정을 초기화하고 확정해도 원래 주소를 유지한다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
@@ -399,7 +399,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `camera movement does not select a temporary pin while editing`() = runTest(dispatcher) {
+    fun `핀 수정 중 카메라가 움직여도 임시 핀을 고르지 않는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         val original = GeoPoint(37.5, 126.9)
@@ -416,7 +416,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `current location only moves map and does not confirm a waypoint`() = runTest(dispatcher) {
+    fun `현재 위치는 지도만 옮기고 경유지를 확정하지 않는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         val point = GeoPoint(37.55, 126.98)
@@ -428,7 +428,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `practice type selection is capped by server form`() = runTest(dispatcher) {
+    fun `연습 유형 선택 수는 서버 폼 제한을 넘지 않는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.TutorialCompleted)
@@ -443,7 +443,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `explicit exit clears draft before reporting exit`() = runTest(dispatcher) {
+    fun `나가기를 확정하면 임시 저장을 지우고 다이얼로그를 닫는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
         viewModel.onIntent(CourseRegistrationIntent.WaypointRoleSelected(CourseWaypointRole.Start))
@@ -457,7 +457,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `course registration waits for draft clear before showing success`() = runTest(dispatcher) {
+    fun `코스 등록은 임시 저장 삭제가 끝난 뒤에 성공을 보여준다`() = runTest(dispatcher) {
         val startPoint = GeoPoint(37.5, 126.9)
         val destinationPoint = GeoPoint(37.6, 127.0)
         val routeResult = RouteResult(
@@ -541,7 +541,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `restoring draft with waypoints still requests current location before showing map`() = runTest {
+    fun `경유지가 있는 임시 저장을 복원해도 지도를 보여주기 전에 현재 위치를 요청한다`() = runTest {
         val startPoint = GeoPoint(37.5, 126.9)
         val sampleDraft = CourseDraft(
             waypoints = listOf(RegistrationWaypoint(RegistrationWaypointType.START, "출발", "주소", lat = startPoint.lat, lng = startPoint.lng)),
@@ -561,7 +561,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `tutorial completion triggers initial location request if no draft is present`() = runTest {
+    fun `임시 저장이 없으면 튜토리얼 완료 후 초기 위치를 요청한다`() = runTest {
         coEvery { auth.invoke() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true, isCourseTutorialCompleted = false)
         coEvery { draft.observe() } returns flowOf(null)
         coEvery { registration.getRegistrationForm() } returns sampleForm()
@@ -577,7 +577,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting destination at same coordinates as start is rejected with snackbar`() = runTest {
+    fun `출발지와 같은 좌표를 도착지로 고르면 스낵바로 거부한다`() = runTest {
         val startPoint = GeoPoint(37.5, 126.9)
         coEvery { auth.invoke() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true, isCourseTutorialCompleted = true)
         coEvery { draft.observe() } returns flowOf(null)
@@ -622,7 +622,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting destination at different coordinates is accepted`() = runTest {
+    fun `출발지와 다른 좌표를 도착지로 고르면 받아들인다`() = runTest {
         val startPoint = GeoPoint(37.5, 126.9)
         val destPoint = GeoPoint(37.6, 127.0)
         coEvery { auth.invoke() } returns AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true, isCourseTutorialCompleted = true)
@@ -658,7 +658,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting destination without a start moves the role back to start`() = runTest(dispatcher) {
+    fun `출발지 없이 도착지를 고르면 선택 역할을 출발지로 되돌린다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
 
@@ -671,7 +671,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting a start then a destination keeps the role at destination`() = runTest(dispatcher) {
+    fun `출발지 다음 도착지를 고르면 선택 역할이 도착지로 남는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()
 
@@ -685,7 +685,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `confirming a waypoint keeps the zoom level while search selection resets it`() = runTest(dispatcher) {
+    fun `경유지를 확정하면 줌을 유지하고 검색 결과를 고르면 줌을 초기화한다`() = runTest(dispatcher) {
         val suggestion = CourseLocationSuggestion("place-1", "강남역", "서울 강남구", GeoPoint(37.5, 127.0), CourseLocationKind.PLACE)
         coEvery { location.search("강남") } returns CourseLocationSearchResult(places = listOf(suggestion))
         val viewModel = viewModel()
@@ -705,7 +705,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `entering pin edit keeps the zoom level`() = runTest(dispatcher) {
+    fun `핀 수정에 들어가면 줌을 유지한다`() = runTest(dispatcher) {
         val suggestion = CourseLocationSuggestion("place-1", "강남역", "서울 강남구", GeoPoint(37.5, 127.0), CourseLocationKind.PLACE)
         coEvery { location.search("강남") } returns CourseLocationSearchResult(places = listOf(suggestion))
         val viewModel = viewModel()
@@ -728,7 +728,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `switching category keeps previously selected practice types`() = runTest(dispatcher) {
+    fun `카테고리를 바꿔도 이전에 고른 연습 유형을 유지한다`() = runTest(dispatcher) {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()
@@ -745,7 +745,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `selecting the same category again does not deselect it`() = runTest(dispatcher) {
+    fun `같은 카테고리를 다시 골라도 선택을 해제하지 않는다`() = runTest(dispatcher) {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()
@@ -760,7 +760,7 @@ class CourseRegistrationViewModelTest {
     }
 
     @Test
-    fun `form load always selects a category`() = runTest(dispatcher) {
+    fun `폼을 불러오면 항상 카테고리 하나를 선택한다`() = runTest(dispatcher) {
         coEvery { registration.getRegistrationForm() } returns twoCategoryForm()
         val viewModel = viewModel()
         advanceUntilIdle()

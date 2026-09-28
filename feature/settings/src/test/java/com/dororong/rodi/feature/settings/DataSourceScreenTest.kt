@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 
 class DataSourceScreenTest {
     @Test
-    fun `parking data source notice keeps the approved attribution`() {
+    fun `주차장 데이터 출처 문구는 승인된 표기를 유지한다`() {
         assertEquals(
             """
                 주차장 정보는 공공데이터포털에서 제공하는

@@ -17,7 +17,7 @@ class AuthHeaderInterceptorTest {
     private val tokenStore = mockk<AuthTokenStore>()
 
     @Test
-    fun `adds the access token as a bearer header`() {
+    fun `access 토큰을 Bearer 헤더로 붙인다`() {
         val tokens = AuthTokens("access", "refresh", "kakao")
         coEvery { tokenStore.getTokens() } returns tokens
         val chain = RecordingChain()
@@ -29,7 +29,7 @@ class AuthHeaderInterceptorTest {
     }
 
     @Test
-    fun `sends without the header when there is no session`() {
+    fun `세션이 없으면 인증 헤더 없이 보낸다`() {
         coEvery { tokenStore.getTokens() } returns null
         val chain = RecordingChain()
 
@@ -40,7 +40,7 @@ class AuthHeaderInterceptorTest {
     }
 
     @Test
-    fun `keeps a header the caller already set`() {
+    fun `호출자가 이미 넣은 인증 헤더는 유지한다`() {
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         val chain = RecordingChain(
             request = Request.Builder().url(URL).header("Authorization", "KakaoAK key").build(),

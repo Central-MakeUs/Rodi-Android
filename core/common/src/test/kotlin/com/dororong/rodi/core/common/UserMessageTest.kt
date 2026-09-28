@@ -6,12 +6,12 @@ import org.junit.jupiter.api.Test
 class UserMessageTest {
 
     @Test
-    fun `preserves a message from an approved provider`() {
+    fun `사용자 문구를 제공하는 예외의 메시지는 그대로 쓴다`() {
         assertEquals("다시 로그인해주세요.", ApprovedException("다시 로그인해주세요.").userMessage())
     }
 
     @Test
-    fun `hides a message from an unapproved throwable`() {
+    fun `사용자 문구를 제공하지 않는 예외의 메시지는 숨긴다`() {
         assertEquals(
             "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
             IllegalStateException("JSON field 'accessToken' is missing").userMessage(),
@@ -19,7 +19,7 @@ class UserMessageTest {
     }
 
     @Test
-    fun `uses the caller fallback for an unapproved throwable`() {
+    fun `사용자 문구를 제공하지 않는 예외에는 호출자가 준 대체 문구를 쓴다`() {
         assertEquals(
             "저장목록을 불러오지 못했어요.",
             IllegalStateException("JSON field 'totalCount' is missing")
@@ -28,12 +28,12 @@ class UserMessageTest {
     }
 
     @Test
-    fun `uses the caller fallback for a null throwable`() {
+    fun `예외가 없으면 호출자가 준 대체 문구를 쓴다`() {
         assertEquals("저장목록을 불러오지 못했어요.", null.userMessage("저장목록을 불러오지 못했어요."))
     }
 
     @Test
-    fun `falls back when an approved message is blank`() {
+    fun `제공된 사용자 문구가 비어 있으면 대체 문구를 쓴다`() {
         assertEquals(
             "요청을 처리하지 못했어요. 잠시 후 다시 시도해주세요.",
             ApprovedException(" ").userMessage(),

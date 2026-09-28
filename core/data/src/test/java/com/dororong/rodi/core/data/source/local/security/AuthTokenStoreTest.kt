@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 
 class AuthTokenStoreTest {
     @Test
-    fun `clear removes tokens while preserving the recent provider`() = runTest {
+    fun `초기화는 토큰을 지우고 최근 로그인 제공자는 유지한다`() = runTest {
         val context = mockk<Context>()
         val dataStore = mockk<AuthTokenDataStore>()
         val tokens = AuthTokens("access", "refresh", KAKAO_PROVIDER)
@@ -32,7 +32,7 @@ class AuthTokenStoreTest {
     }
 
     @Test
-    fun `rotation preserves login identity even when both tokens change`() = runTest {
+    fun `토큰이 모두 바뀌어도 교체 시 로그인 식별자는 유지한다`() = runTest {
         val store = storeWithTokens()
         val before = store.getTokens()!!
 
@@ -47,7 +47,7 @@ class AuthTokenStoreTest {
     }
 
     @Test
-    fun `a new login replaces identity even if token values are identical`() = runTest {
+    fun `토큰 값이 같아도 새 로그인은 식별자를 새로 만든다`() = runTest {
         val store = storeWithTokens()
         val before = store.getTokens()!!
 
@@ -61,7 +61,7 @@ class AuthTokenStoreTest {
     }
 
     @Test
-    fun `a cleared session cannot be restored by rotation`() = runTest {
+    fun `지워진 세션은 토큰 교체로 되살릴 수 없다`() = runTest {
         val store = storeWithTokens()
         val before = store.getTokens()!!
         store.clear()
@@ -73,7 +73,7 @@ class AuthTokenStoreTest {
     }
 
     @Test
-    fun `conditional clear leaves a replacement session intact`() = runTest {
+    fun `조건부 초기화는 교체된 세션을 건드리지 않는다`() = runTest {
         val store = storeWithTokens()
         val before = store.getTokens()!!
         store.save("replacement", "replacement-refresh")

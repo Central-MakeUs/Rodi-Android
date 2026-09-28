@@ -28,7 +28,7 @@ class HomeContentBackHandlerTest {
     private var outerBackCount = 0
 
     @Test
-    fun `system back on a detail sheet dismisses the detail`() {
+    fun `상세 시트에서 시스템 뒤로가기를 누르면 상세를 닫는다`() {
         setContent(HomeUiState(surfaceState = HomeSurfaceState.Detail, isDetailLoading = true))
 
         Espresso.pressBackUnconditionally()
@@ -40,7 +40,7 @@ class HomeContentBackHandlerTest {
     }
 
     @Test
-    fun `system back on the list collapses the list`() {
+    fun `목록에서 시스템 뒤로가기를 누르면 목록을 접는다`() {
         setContent(HomeUiState(surfaceState = HomeSurfaceState.PartialList))
 
         Espresso.pressBackUnconditionally()
@@ -52,7 +52,7 @@ class HomeContentBackHandlerTest {
     }
 
     @Test
-    fun `system back while the filter sheet is open dismisses the filter`() {
+    fun `필터 시트가 열려 있을 때 시스템 뒤로가기를 누르면 필터를 닫는다`() {
         setContent(
             HomeUiState(surfaceState = HomeSurfaceState.PartialList, isFilterSheetVisible = true),
         )
@@ -66,7 +66,7 @@ class HomeContentBackHandlerTest {
 
     /** 저장 중에는 시트를 닫지도, 바깥 핸들러로 넘기지도 않는다 — 뒤로가기를 그대로 삼킨다. */
     @Test
-    fun `system back while the filter is saving changes nothing`() {
+    fun `필터 저장 중 시스템 뒤로가기는 아무것도 바꾸지 않는다`() {
         setContent(
             HomeUiState(
                 surfaceState = HomeSurfaceState.PartialList,
@@ -84,7 +84,7 @@ class HomeContentBackHandlerTest {
     }
 
     @Test
-    fun `system back on the map surface is left to the enclosing screen`() {
+    fun `지도 화면의 시스템 뒤로가기는 바깥 화면에 맡긴다`() {
         setContent(HomeUiState(surfaceState = HomeSurfaceState.Navigation))
 
         Espresso.pressBackUnconditionally()

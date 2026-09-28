@@ -32,7 +32,7 @@ class DrivingGoalViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `empty goal deletes an existing server goal`() = runTest(dispatcher) {
+    fun `빈 목표는 기존 서버 목표를 지운다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val update = mockk<UpdateDrivingGoalUseCase>()
         coEvery { getMyPage() } returns Result.success(
@@ -59,7 +59,7 @@ class DrivingGoalViewModelTest {
     }
 
     @Test
-    fun `failed save stops saving and retains the sync error effect`() = runTest(dispatcher) {
+    fun `저장이 실패하면 저장 상태를 끝내고 동기화 오류 효과를 남긴다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val update = mockk<UpdateDrivingGoalUseCase>()
         coEvery { getMyPage() } returns Result.success(MyPage("로디", OnboardingLevel.SEED, emptyList(), "기존 목표", 0))
@@ -79,7 +79,7 @@ class DrivingGoalViewModelTest {
     }
 
     @Test
-    fun `unchanged goal is not saved`() = runTest(dispatcher) {
+    fun `목표가 바뀌지 않았으면 저장하지 않는다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val update = mockk<UpdateDrivingGoalUseCase>()
         coEvery { getMyPage() } returns Result.success(MyPage("로디", OnboardingLevel.SEED, emptyList(), "기존 목표", 0))
@@ -95,7 +95,7 @@ class DrivingGoalViewModelTest {
     }
 
     @Test
-    fun `duplicate saves are ignored while saving and after success`() = runTest(dispatcher) {
+    fun `저장 중이거나 저장에 성공한 뒤의 중복 저장은 무시한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val update = mockk<UpdateDrivingGoalUseCase>()
         val response = CompletableDeferred<Result<Unit>>()
@@ -124,7 +124,7 @@ class DrivingGoalViewModelTest {
     }
 
     @Test
-    fun `successful result remains available to a restarted collector`() = runTest(dispatcher) {
+    fun `저장 성공 결과는 다시 시작한 수집에서도 받을 수 있다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val update = mockk<UpdateDrivingGoalUseCase>()
         coEvery { getMyPage() } returns Result.success(MyPage("로디", OnboardingLevel.SEED, emptyList(), "기존 목표", 0))

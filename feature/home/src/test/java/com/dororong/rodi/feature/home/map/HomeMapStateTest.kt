@@ -17,7 +17,7 @@ class HomeMapStateTest {
     private val center = GeoPoint(37.0, 127.0)
 
     @Test
-    fun `moveWithSearch records the pending search before moving the camera`() {
+    fun `검색과 함께 이동하면 카메라를 옮기기 전에 대기 검색을 기록한다`() {
         val state = HomeMapState()
         var pendingWhenCameraMoved: PendingMapSearch? = null
 
@@ -33,7 +33,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `moveWithSearch clears the cluster scope unless member ids are given`() {
+    fun `검색과 함께 이동하면 회원 id를 주지 않는 한 클러스터 범위를 지운다`() {
         val state = HomeMapState()
         state.moveWithSearch(center, null, MapSearchMoveReason.CLUSTER, clusterMemberIds = setOf(1L, 2L)) {}
         assertEquals(setOf(1L, 2L), state.activeClusterMemberIds)
@@ -45,7 +45,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `user gesture cancels the pending search and marks the viewport as user chosen`() {
+    fun `사용자 제스처는 대기 검색을 취소하고 사용자가 고른 화면 영역으로 표시한다`() {
         val state = HomeMapState()
         state.moveWithSearch(center, 13, MapSearchMoveReason.CLUSTER, clusterMemberIds = setOf(1L)) {}
         state.isAtCurrentLocation = true
@@ -62,7 +62,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `camera arriving at the pending target dispatches a programmatic search`() {
+    fun `카메라가 대기 목표에 도착하면 프로그램 검색을 보낸다`() {
         val state = HomeMapState()
         state.isInitialLocationCameraMovePending = true
         state.moveWithSearch(center, 13, MapSearchMoveReason.INITIAL_LOCATION) {}
@@ -77,7 +77,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `camera stopping short of the pending target keeps waiting`() {
+    fun `카메라가 대기 목표에 못 미쳐 멈추면 계속 기다린다`() {
         val state = HomeMapState()
         state.moveWithSearch(GeoPoint(35.0, 129.0), 13, MapSearchMoveReason.REGION) {}
 
@@ -88,7 +88,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `settled viewport without a pending search dispatches only when the initial search is allowed`() {
+    fun `대기 검색 없이 멈춘 화면 영역은 초기 검색이 허용될 때만 보낸다`() {
         val waitingForLocation = HomeMapState()
         val centered = HomeMapState(hasCenteredInitialLocation = true)
 
@@ -100,7 +100,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `initial search stays blocked while the initial location camera move is in flight`() {
+    fun `초기 위치로 카메라를 옮기는 중에는 초기 검색을 막는다`() {
         val state = HomeMapState(hasCenteredInitialLocation = true)
         state.isInitialLocationCameraMovePending = true
 
@@ -110,7 +110,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `camera end without a measurable viewport only records the zoom level`() {
+    fun `측정 가능한 화면 영역 없이 카메라가 멈추면 줌 레벨만 기록한다`() {
         val state = HomeMapState(currentViewport = viewport)
         state.moveWithSearch(center, 13, MapSearchMoveReason.REGION) {}
 
@@ -122,7 +122,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `entering the screen again resets the centering flags`() {
+    fun `화면에 다시 들어오면 중심 맞춤 상태를 초기화한다`() {
         val state = HomeMapState(hasUserMovedMap = true, hasUserChosenMapViewport = true, hasCenteredInitialLocation = true)
 
         state.resetEntryFlags()
@@ -133,7 +133,7 @@ class HomeMapStateTest {
     }
 
     @Test
-    fun `saver restores the viewport and flags but not in-flight searches`() {
+    fun `상태 저장은 화면 영역과 상태 값을 복원하고 진행 중인 검색은 복원하지 않는다`() {
         val state = HomeMapState(zoomLevel = 11, currentViewport = viewport, hasUserChosenMapViewport = true)
         state.moveWithSearch(center, 13, MapSearchMoveReason.CLUSTER, clusterMemberIds = setOf(3L)) {}
 

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test
 
 class MapClustererTest {
     @Test
-    fun `uses screen clustering until zoom 10`() {
+    fun `줌 10까지는 화면 기준 클러스터링을 쓴다`() {
         (6..10).forEach { zoomLevel ->
             assertEquals(
                 MapClusterPolicy(
@@ -21,7 +21,7 @@ class MapClustererTest {
     }
 
     @Test
-    fun `uses 56dp regional clustering from zoom 11 until zoom 13`() {
+    fun `줌 11부터 13까지는 56dp 지역 클러스터링을 쓴다`() {
         (11..13).forEach { zoomLevel ->
             assertEquals(
                 MapClusterPolicy(
@@ -35,7 +35,7 @@ class MapClustererTest {
     }
 
     @Test
-    fun `does not grow a cluster beyond one radius from its screen center`() {
+    fun `클러스터는 화면 중심에서 반경 하나보다 넓게 커지지 않는다`() {
         val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
                 item(1, 37.50, 126.90, 0, 100),
@@ -55,7 +55,7 @@ class MapClustererTest {
     }
 
     @Test
-    fun `every visible unique place belongs to exactly one cluster`() {
+    fun `보이는 고유 장소는 모두 정확히 하나의 클러스터에 속한다`() {
         val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
                 item(1, 37.50, 126.90, 10, 10),
@@ -74,7 +74,7 @@ class MapClustererTest {
     }
 
     @Test
-    fun `uses the padded SDK viewport instead of the full map view`() {
+    fun `전체 지도 뷰가 아니라 여백을 반영한 SDK 화면 영역을 쓴다`() {
         val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
                 item(1, 37.50, 126.90, 15, 100),
@@ -91,7 +91,7 @@ class MapClustererTest {
     }
 
     @Test
-    fun `excludes markers covered by bottom navigation from the cluster`() {
+    fun `하단 내비게이션에 가려진 마커는 클러스터에서 뺀다`() {
         val clusters = MapClusterer.clusterByScreenDistance(
             items = listOf(
                 item(1, 37.50, 126.90, 180, 560),

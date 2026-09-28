@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 
 class CourseLocationRepositoryImplTest {
     @Test
-    fun `searches only Kakao so Rodi course names never show up`() = runTest {
+    fun `카카오만 검색해 Rodi 코스 이름이 결과에 나오지 않는다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)
@@ -46,7 +46,7 @@ class CourseLocationRepositoryImplTest {
     }
 
     @Test
-    fun `maps Kakao address results to regions with a resolved point`() = runTest {
+    fun `카카오 주소 결과를 좌표가 확정된 지역으로 매핑한다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)
@@ -71,7 +71,7 @@ class CourseLocationRepositoryImplTest {
     }
 
     @Test
-    fun `keeps keyword results when address search is unavailable`() = runTest {
+    fun `주소 검색이 안 돼도 키워드 결과는 유지한다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)
@@ -88,7 +88,7 @@ class CourseLocationRepositoryImplTest {
     }
 
     @Test
-    fun `prefers road address during reverse geocoding`() = runTest {
+    fun `역지오코딩에서는 도로명 주소를 우선한다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)
@@ -109,7 +109,7 @@ class CourseLocationRepositoryImplTest {
     }
 
     @Test
-    fun `does not swallow cancellation from any parallel search source`() = runTest {
+    fun `병렬 검색 중 어느 소스의 취소도 삼키지 않는다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)
@@ -121,7 +121,7 @@ class CourseLocationRepositoryImplTest {
     }
 
     @Test
-    fun `returns search error only when every source fails`() = runTest {
+    fun `모든 검색 소스가 실패할 때만 검색 오류를 반환한다`() = runTest {
         val places = mockk<PlaceRepository>()
         val api = mockk<KakaoLocalApi>()
         val history = mockk<CourseSearchHistoryDataStore>(relaxed = true)

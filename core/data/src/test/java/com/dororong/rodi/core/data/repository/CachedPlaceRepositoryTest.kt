@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 
 class CachedPlaceRepositoryTest {
     @Test
-    fun `coordinates purge legacy samples before returning server cache`() = runTest {
+    fun `좌표는 서버 캐시를 반환하기 전에 옛 샘플 데이터를 지운다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
         val coordinates = listOf(coordinate(1), coordinate(1), coordinate(2))
@@ -30,7 +30,7 @@ class CachedPlaceRepositoryTest {
     }
 
     @Test
-    fun `coordinate refresh atomically replaces cache with unique server rows`() = runTest {
+    fun `좌표 갱신은 중복을 뺀 서버 데이터로 캐시를 한 번에 교체한다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
         val server = listOf(coordinate(2), coordinate(2), coordinate(3))
@@ -44,7 +44,7 @@ class CachedPlaceRepositoryTest {
     }
 
     @Test
-    fun `cached viewport never returns a negative sample id`() = runTest {
+    fun `캐시된 화면 영역 조회는 음수 샘플 id를 반환하지 않는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
         val query = viewportQuery()
@@ -58,7 +58,7 @@ class CachedPlaceRepositoryTest {
     }
 
     @Test
-    fun `cached viewport limits the first page and does not replay it for a cursor`() = runTest {
+    fun `캐시된 화면 영역은 첫 페이지 크기를 제한하고 다음 커서에서 다시 보내지 않는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val cache = mockk<PlaceCacheLocalDataSource>()
         val query = viewportQuery()

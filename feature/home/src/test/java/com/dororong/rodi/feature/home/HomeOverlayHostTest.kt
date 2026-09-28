@@ -28,7 +28,7 @@ class HomeOverlayHostTest {
     private val deletedReviewIds = mutableListOf<Long>()
 
     @Test
-    fun `own review cannot be reported and shows a toast message instead`() {
+    fun `내 후기는 신고하거나 차단할 수 없고 대신 안내 문구를 보여준다`() {
         val overlay = HomeOverlayState()
 
         overlay.requestReport(review(isMine = true))
@@ -40,7 +40,7 @@ class HomeOverlayHostTest {
     }
 
     @Test
-    fun `delete dialog blocks confirmation while the review is being deleted`() {
+    fun `후기 삭제 중에는 삭제 다이얼로그 확인이 동작하지 않는다`() {
         val overlay = HomeOverlayState().apply { reviewToDelete = review(isMine = true) }
         setHost(overlay, isDeleting = true)
 
@@ -50,7 +50,7 @@ class HomeOverlayHostTest {
     }
 
     @Test
-    fun `delete dialog confirms the selected review`() {
+    fun `삭제 다이얼로그에서 확인하면 선택한 후기를 삭제한다`() {
         val overlay = HomeOverlayState().apply { reviewToDelete = review(isMine = true) }
         setHost(overlay, isDeleting = false)
 
@@ -60,7 +60,7 @@ class HomeOverlayHostTest {
     }
 
     @Test
-    fun `navi picker sends the chosen app with the current notification permission and closes`() {
+    fun `내비 선택에서 앱을 고르면 현재 알림 권한과 함께 보내고 닫는다`() {
         val overlay = HomeOverlayState().apply { naviPlaceId = 1L }
         setHost(overlay, isDeleting = false)
 
@@ -76,7 +76,7 @@ class HomeOverlayHostTest {
     }
 
     @Test
-    fun `locked account shows the server re-registration date with a single confirm`() {
+    fun `재가입 대기 계정은 서버의 재가입 가능 날짜와 확인 버튼 하나를 보여준다`() {
         // UTC 정오라 CI(UTC)와 기기 시간대(KST) 어디서도 같은 날짜로 표시된다.
         val state = HomeUiState(withdrawalLockedUntil = Instant.parse("2026-09-20T12:00:00Z"))
         setHost(HomeOverlayState(), isDeleting = false, state = state)
