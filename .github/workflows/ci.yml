@@ -102,3 +102,31 @@ jobs:
           name: lint-report
           path: app/build/reports/lint-results-debug.html
           retention-days: 7
+
+  # 벤치마크 variant는 debug·test 경로에서 빌드되지 않아 깨져도 알 수 없었다(#183 매니페스트, #184 서명·대상).
+  # 실행은 에뮬레이터가 필요해 하지 않고, 앱과 벤치마크 APK가 만들어지는지만 확인한다.
+  # R8이 도는 release 계열이라 오래 걸려 build job과 병렬로 둔다.
+  benchmark:
+    name: Benchmark Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
+        with:
+          cache-encryption-key: ${{ secrets.GRADLE_CACHE_KEY }}
+
+      - name: Write local.properties
+        run: |
+          echo "KAKAO_NATIVE_APP_KEY=${{ secrets.KAKAO_NATIVE_APP_KEY }}" >> local.properties
+          echo "KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}" >> local.properties
+
+      - name: Assemble Benchmark APKs
+        run: ./gradlew :app:assembleBenchmarkRelease :benchmark:assembleBenchmarkRelease --stacktrace
