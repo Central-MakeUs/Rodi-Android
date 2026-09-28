@@ -25,7 +25,7 @@ class RecentSearchRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `recent searches use bearer access token and map identifiers`() = runTest {
+    fun `최근 검색어의 키워드와 id를 매핑한다`() = runTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -44,7 +44,7 @@ class RecentSearchRepositoryImplTest {
     }
 
     @Test
-    fun `recent search registration sends the selected place id`() = runTest {
+    fun `최근 검색어 등록은 선택한 장소 id를 보낸다`() = runTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
@@ -72,7 +72,7 @@ class RecentSearchRepositoryImplTest {
     }
 
     @Test
-    fun `recent search request propagates cancellation without token refresh`() = runTest {
+    fun `최근 검색어 요청 중 취소는 토큰 재발급 없이 전파한다`() = runTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
@@ -86,7 +86,7 @@ class RecentSearchRepositoryImplTest {
     }
 
     @Test
-    fun `recent search request maps non authentication failure to domain exception`() = runTest {
+    fun `최근 검색어 요청의 인증 외 실패를 도메인 예외로 매핑한다`() = runTest {
         val api = mockk<RecentSearchApi>()
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")

@@ -26,7 +26,7 @@ class FilterBottomSheetDismissTest {
     private var dismissCount = 0
 
     @Test
-    fun `back press while saving keeps the sheet on screen`() {
+    fun `저장 중 뒤로가기를 누르면 시트가 닫히지 않는다`() {
         setSheet(isSaving = true)
 
         Espresso.pressBackUnconditionally()
@@ -38,7 +38,7 @@ class FilterBottomSheetDismissTest {
     }
 
     @Test
-    fun `swipe down while saving keeps the sheet on screen`() {
+    fun `저장 중 아래로 밀어도 시트가 닫히지 않는다`() {
         setSheet(isSaving = true)
 
         composeRule.onNodeWithText("필터").performTouchInput { swipeDown() }
@@ -50,7 +50,7 @@ class FilterBottomSheetDismissTest {
     }
 
     @Test
-    fun `back press dismisses the sheet once saving has finished`() {
+    fun `저장이 끝나면 뒤로가기로 시트가 닫힌다`() {
         var isSaving by mutableStateOf(true)
         setSheet(isSaving = { isSaving })
 
@@ -67,7 +67,7 @@ class FilterBottomSheetDismissTest {
     }
 
     @Test
-    fun `back press dismisses the sheet when not saving`() {
+    fun `저장 중이 아니면 뒤로가기로 시트가 닫힌다`() {
         setSheet(isSaving = false)
 
         Espresso.pressBackUnconditionally()

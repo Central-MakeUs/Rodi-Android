@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 
 class RouteProgressTrackerTest {
     @Test
-    fun `advances recognized distance while moving forward along the route`() {
+    fun `경로를 따라 앞으로 가면 인정 거리가 늘어난다`() {
         val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0050))
         val tracker = RouteProgressTracker(route, requiredDistanceMeters = 400)
 
@@ -21,7 +21,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `perpendicular detour that returns to the route does not reduce progress`() {
+    fun `경로 옆으로 벗어났다 돌아와도 인정 거리가 줄지 않는다`() {
         val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0050))
         val tracker = RouteProgressTracker(route, requiredDistanceMeters = 400)
 
@@ -36,7 +36,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `out-and-back course fills progress on both legs despite overlapping coordinates`() {
+    fun `왕복 코스는 좌표가 겹쳐도 가는 길과 오는 길의 진행도를 모두 채운다`() {
         // 왕복 코스: 출발 -> 회차 -> 출발(같은 물리 경로를 두 번 지남)
         val outbound = GeoPoint(37.5000, 127.0000)
         val turnaround = GeoPoint(37.5000, 127.0050)
@@ -62,7 +62,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `samples far from the route do not advance progress`() {
+    fun `경로에서 멀리 떨어진 위치는 진행도를 올리지 않는다`() {
         val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0050))
         val tracker = RouteProgressTracker(route, requiredDistanceMeters = 400)
 
@@ -74,7 +74,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `recovers a forward gps jump when elapsed time makes it plausible`() {
+    fun `경과 시간상 가능한 앞쪽 GPS 튐은 진행도로 복구한다`() {
         val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0200))
         val tracker = RouteProgressTracker(route, requiredDistanceMeters = 2_000)
 
@@ -86,7 +86,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `does not recover a forward gps jump that is physically implausible`() {
+    fun `물리적으로 불가능한 앞쪽 GPS 튐은 진행도로 복구하지 않는다`() {
         val route = listOf(GeoPoint(37.5000, 127.0000), GeoPoint(37.5000, 127.0200))
         val tracker = RouteProgressTracker(route, requiredDistanceMeters = 2_000)
 
@@ -98,7 +98,7 @@ class RouteProgressTrackerTest {
     }
 
     @Test
-    fun `required certified distance is forty percent of course length capped at five kilometers`() {
+    fun `인증 필요 거리는 코스 길이의 40퍼센트이고 최대 5킬로미터다`() {
         assertEquals(520, requiredCertifiedDistanceMeters(1_300))
         assertEquals(5_000, requiredCertifiedDistanceMeters(14_800))
         assertEquals(5_000, requiredCertifiedDistanceMeters(40_000))

@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test
 class GraphemeTextFieldStateTest {
 
     @Test
-    fun `initial value is normalized before the text field is displayed`() {
+    fun `초기 값은 입력창에 표시되기 전에 정규화한다`() {
         val normalized = normalizeGraphemeTextFieldValue("A😁B", maxGraphemes = 2)
 
         assertEquals("A😁", normalized.text)
@@ -17,7 +17,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `changing max graphemes normalizes the externally supplied value`() {
+    fun `최대 글자 수가 바뀌면 외부에서 준 값을 정규화한다`() {
         val normalized = normalizeGraphemeTextFieldValue("안녕😁", maxGraphemes = 2)
 
         assertEquals("안녕", normalized.text)
@@ -25,7 +25,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `surrogate pair is limited as one grapheme`() {
+    fun `서로게이트 쌍은 한 글자로 제한한다`() {
         val normalized = TextFieldValue("A😁B", selection = TextRange(4)).limitGraphemes(2)
 
         assertEquals("A😁", normalized.text)
@@ -33,14 +33,14 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `ZWJ emoji is limited as one grapheme`() {
+    fun `ZWJ 이모지는 한 글자로 제한한다`() {
         val family = "👨‍👩‍👧‍👦"
 
         assertEquals(family, TextFieldValue(family + "A").limitGraphemes(1).text)
     }
 
     @Test
-    fun `selection and composing region are clamped to the grapheme boundary`() {
+    fun `선택 영역과 조합 영역을 글자 경계에 맞춰 자른다`() {
         val value = TextFieldValue(
             text = "A😁B",
             selection = TextRange(1, 4),
@@ -55,7 +55,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `reversed selection keeps its direction when clamped`() {
+    fun `역방향 선택은 잘려도 방향을 유지한다`() {
         val value = TextFieldValue(
             text = "A😁B",
             selection = TextRange(4, 1),
@@ -67,7 +67,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `composing region is kept when input is under the limit`() {
+    fun `제한보다 짧은 입력은 조합 영역을 유지한다`() {
         val value = TextFieldValue(
             text = "안녕😁",
             selection = TextRange(4),
@@ -81,7 +81,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `external text sync preserves composition when the text is unchanged`() {
+    fun `외부 텍스트가 같으면 동기화해도 조합 상태를 유지한다`() {
         val value = TextFieldValue(
             text = "ㅂ",
             selection = TextRange(1),
@@ -94,7 +94,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `external text sync replaces the value when the text changes`() {
+    fun `외부 텍스트가 바뀌면 값을 교체한다`() {
         val value = TextFieldValue(
             text = "ㅂ",
             selection = TextRange(1),
@@ -109,7 +109,7 @@ class GraphemeTextFieldStateTest {
     }
 
     @Test
-    fun `composition is cleared when it is fully removed by the limit`() {
+    fun `조합 영역이 제한으로 모두 지워지면 조합 상태를 지운다`() {
         val value = TextFieldValue(
             text = "😁A",
             selection = TextRange(2),

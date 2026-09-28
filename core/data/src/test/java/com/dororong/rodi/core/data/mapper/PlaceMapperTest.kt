@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 
 class PlaceMapperTest {
     @Test
-    fun `detail mapper keeps long id and sorts waypoints`() {
+    fun `상세 매핑은 큰 id를 유지하고 경유지를 순서대로 정렬한다`() {
         val result = PlaceDetailResponse(
             id = 4_294_967_296,
             type = "COURSE",

@@ -50,7 +50,7 @@ class ReviewWriteViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `new review starts at basics with an untouched form`() {
+    fun `새 후기는 손대지 않은 기본 단계에서 시작한다`() {
         val viewModel = viewModel()
 
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -61,7 +61,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `basics can advance only after all required selections`() {
+    fun `기본 단계는 필수 항목을 모두 골라야 다음으로 갈 수 있다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         viewModel.selectRecommend(true)
@@ -76,7 +76,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `caution is optional and does not prevent continuing`() {
+    fun `주의사항은 선택이라 비워도 다음으로 갈 수 있다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         completeBasics(viewModel)
@@ -86,7 +86,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review fields limit emoji by grapheme count`() {
+    fun `후기 입력은 이모지를 글자 단위로 세어 제한한다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
 
@@ -98,7 +98,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `new form becomes dirty on a partial selection`() {
+    fun `새 폼은 일부만 골라도 수정된 상태가 된다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         viewModel.selectRecommend(true)
@@ -107,7 +107,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `new review submits the completed draft`() = runTest(dispatcher) {
+    fun `새 후기는 완성된 작성 내용을 제출한다`() = runTest(dispatcher) {
         val expected = draft()
         coEvery { createReview(PLACE_ID, expected) } returns Result.success(31L)
         val viewModel = viewModel()
@@ -131,7 +131,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `submitted result is consumed only once`() = runTest(dispatcher) {
+    fun `제출 결과는 한 번만 소비된다`() = runTest(dispatcher) {
         coEvery { createReview(any(), any()) } returns Result.success(31L)
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -147,7 +147,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `submitting after success does not create a second review`() = runTest(dispatcher) {
+    fun `제출에 성공한 뒤 다시 제출해도 후기를 두 번 만들지 않는다`() = runTest(dispatcher) {
         coEvery { createReview(any(), any()) } returns Result.success(31L)
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -162,7 +162,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `selecting recommend sends true to the server`() = runTest(dispatcher) {
+    fun `추천을 고르면 서버에 true를 보낸다`() = runTest(dispatcher) {
         val expected = draft().copy(caution = null)
         coEvery { createReview(PLACE_ID, expected) } returns Result.success(31L)
         val viewModel = viewModel()
@@ -181,7 +181,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `blank caution is sent as null`() = runTest(dispatcher) {
+    fun `빈 주의사항은 null로 보낸다`() = runTest(dispatcher) {
         val expected = ReviewDraft(
             isRecommended = true,
             difficulty = ReviewDifficulty.NORMAL,
@@ -205,7 +205,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `practice method is required before completing`() = runTest(dispatcher) {
+    fun `연습 방식을 골라야 완료할 수 있다`() = runTest(dispatcher) {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         completeBasics(viewModel)
@@ -224,7 +224,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `practice method can submit without review content`() = runTest(dispatcher) {
+    fun `연습 방식만 골라도 후기 내용 없이 제출할 수 있다`() = runTest(dispatcher) {
         val expected = draft().copy(
             practiceMethod = PracticeMethod.WITH_COMPANION,
             content = null,
@@ -245,7 +245,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `editing pre-fills the review and is not dirty`() {
+    fun `수정은 기존 후기로 채우고 수정된 상태로 보지 않는다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME, review())
 
@@ -256,7 +256,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review id restores the edit form from the review detail`() = runTest(dispatcher) {
+    fun `후기 id로 수정 폼을 후기 상세에서 복원한다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
         val viewModel = viewModel()
 
@@ -271,7 +271,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `missing review id exposes initialization error`() = runTest(dispatcher) {
+    fun `없는 후기 id면 초기화 오류를 보여준다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } returns Result.failure(ReviewException.NotFound("404"))
         val viewModel = viewModel()
 
@@ -284,7 +284,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review lookup failure exposes initialization error`() = runTest(dispatcher) {
+    fun `후기 조회가 실패하면 초기화 오류를 보여준다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } returns Result.failure(IllegalStateException("offline"))
         val viewModel = viewModel()
 
@@ -297,7 +297,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `review lookup cancellation preserves initialization state`() = runTest(dispatcher) {
+    fun `후기 조회가 취소되면 초기화 상태를 유지한다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } coAnswers { throw CancellationException("취소") }
         val viewModel = viewModel()
 
@@ -309,7 +309,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `editing keeps available fields when a nullable selection is absent`() {
+    fun `수정 시 비어 있는 선택 항목이 있어도 있는 값은 유지한다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME, review().copy(congestion = null))
 
@@ -322,7 +322,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `editing submits an update after a changed field`() = runTest(dispatcher) {
+    fun `수정은 바뀐 항목이 있으면 수정 요청을 보낸다`() = runTest(dispatcher) {
         val expected = draft().copy(content = "수정한 후기")
         coEvery { updateReview(REVIEW_ID, expected) } returns Result.success(Unit)
         val viewModel = viewModel()
@@ -339,7 +339,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `submission failure keeps form open and exposes an error`() = runTest(dispatcher) {
+    fun `제출이 실패하면 폼을 유지하고 오류를 보여준다`() = runTest(dispatcher) {
         coEvery { createReview(any(), any()) } returns Result.failure(IllegalStateException("offline"))
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -355,7 +355,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `level required uses its guided message`() = runTest(dispatcher) {
+    fun `레벨이 필요하면 안내 문구를 보여준다`() = runTest(dispatcher) {
         coEvery { createReview(any(), any()) } returns Result.failure(ReviewException.LevelRequired("409"))
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
@@ -368,7 +368,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `level changed uses its edit-specific message`() = runTest(dispatcher) {
+    fun `레벨이 바뀌었으면 수정 전용 문구를 보여준다`() = runTest(dispatcher) {
         coEvery { updateReview(any(), any()) } returns Result.failure(ReviewException.LevelChanged("409"))
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME, review())
@@ -381,7 +381,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `unsent review input survives view model recreation from saved state`() {
+    fun `보내지 않은 후기 입력은 저장된 상태로 ViewModel을 다시 만들어도 남는다`() {
         val handle = SavedStateHandle()
         val before = viewModel(handle)
         before.start(PLACE_ID, PLACE_NAME)
@@ -397,7 +397,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `saved input is not applied to a different place`() {
+    fun `저장된 입력은 다른 장소에 적용하지 않는다`() {
         val handle = SavedStateHandle()
         val before = viewModel(handle)
         before.start(PLACE_ID, PLACE_NAME)
@@ -411,7 +411,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `closing the form discards saved input`() {
+    fun `폼을 닫으면 저장된 입력을 버린다`() {
         val handle = SavedStateHandle()
         val before = viewModel(handle)
         before.start(PLACE_ID, PLACE_NAME)
@@ -425,7 +425,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `a submitted review is not restored as a new draft`() = runTest(dispatcher) {
+    fun `제출한 후기는 새 작성 내용으로 복원하지 않는다`() = runTest(dispatcher) {
         coEvery { createReview(PLACE_ID, draft()) } returns Result.success(31L)
         val handle = SavedStateHandle()
         val before = viewModel(handle)
@@ -441,7 +441,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `reopening in the same view model starts fresh as before`() {
+    fun `같은 ViewModel에서 다시 열면 전처럼 새로 시작한다`() {
         val viewModel = viewModel()
         viewModel.start(PLACE_ID, PLACE_NAME)
         fillForSubmit(viewModel)
@@ -452,7 +452,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `edited review restores unsent changes on top of the server original`() = runTest(dispatcher) {
+    fun `수정한 후기는 서버 원본 위에 보내지 않은 변경을 복원한다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
         val handle = SavedStateHandle()
         val before = viewModel(handle)
@@ -471,7 +471,7 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `closing while the edited review is loading does not save the draft again`() = runTest(dispatcher) {
+    fun `수정할 후기를 불러오는 중에 닫으면 작성 내용을 다시 저장하지 않는다`() = runTest(dispatcher) {
         coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
         val handle = SavedStateHandle()
         val before = viewModel(handle)

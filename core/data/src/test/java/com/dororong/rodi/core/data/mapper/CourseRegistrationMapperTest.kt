@@ -17,21 +17,21 @@ import org.junit.jupiter.api.Test
 
 class CourseRegistrationMapperTest {
     @Test
-    fun `uses the provided course name when present`() {
+    fun `코스 이름을 입력하면 그 이름을 쓴다`() {
         val data = registrationRequest(name = "우리 동네 연습 코스").toData()
 
         assertEquals("우리 동네 연습 코스", data.name)
     }
 
     @Test
-    fun `falls back to the start waypoint name when course name is blank`() {
+    fun `코스 이름이 비어 있으면 출발지 이름을 쓴다`() {
         val data = registrationRequest(name = "  ").toData()
 
         assertEquals("출발", data.name)
     }
 
     @Test
-    fun `sorts dynamic registration categories and practice types by server order`() {
+    fun `등록 폼의 카테고리와 연습 유형을 서버 순서대로 정렬한다`() {
         val result = form().toDomain()
 
         assertEquals(listOf("basic", "advanced"), result.categories.map { it.code })
@@ -41,7 +41,7 @@ class CourseRegistrationMapperTest {
     }
 
     @Test
-    fun `maps approval status strictly`() {
+    fun `승인 상태는 알려진 값만 매핑하고 모르는 값은 실패한다`() {
         assertEquals(CourseApprovalStatus.PENDING, "PENDING".toApprovalStatus())
         assertThrows(IllegalStateException::class.java) { "UNKNOWN".toApprovalStatus() }
     }

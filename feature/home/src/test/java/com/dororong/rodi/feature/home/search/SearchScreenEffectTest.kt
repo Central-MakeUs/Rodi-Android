@@ -32,7 +32,7 @@ class SearchScreenEffectTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `place tapped while an error snackbar is showing opens without waiting for the snackbar`() {
+    fun `오류 스낵바가 떠 있어도 장소를 누르면 스낵바를 기다리지 않고 연다`() {
         val recentRepository = mockk<RecentSearchRepository>(relaxed = true)
         coEvery { recentRepository.getRecentSearches() } returns listOf(
             RecentSearch(id = 1, keyword = UNKNOWN_REGION, type = SearchTargetType.REGION),

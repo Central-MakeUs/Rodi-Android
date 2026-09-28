@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test
 
 class WithdrawUseCaseTest {
     @Test
-    fun `returns success when repository withdraws account`() = runTest {
+    fun `저장소 탈퇴가 성공하면 성공을 반환한다`() = runTest {
         val repository = mockk<MemberRepository>()
         coEvery { repository.withdraw() } returns Unit
 
@@ -21,7 +21,7 @@ class WithdrawUseCaseTest {
     }
 
     @Test
-    fun `returns failure when repository withdraw fails`() = runTest {
+    fun `저장소 탈퇴가 실패하면 실패를 반환한다`() = runTest {
         val repository = mockk<MemberRepository>()
         coEvery { repository.withdraw() } throws IllegalStateException("server error")
 
@@ -31,7 +31,7 @@ class WithdrawUseCaseTest {
     }
 
     @Test
-    fun `propagates cancellation when repository withdraw is cancelled`() = runTest {
+    fun `저장소 탈퇴 중 취소를 그대로 전파한다`() = runTest {
         val repository = mockk<MemberRepository>()
         val cancellation = CancellationException("cancelled")
         coEvery { repository.withdraw() } throws cancellation

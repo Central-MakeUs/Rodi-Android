@@ -37,7 +37,7 @@ class DrivingTrackingServiceTest {
     }
 
     @Test
-    fun stopFollowedImmediatelyByStartTracksTheNewPlace() {
+    fun `중지 직후 다른 장소로 시작하면 새 장소를 추적한다`() {
         instrumentation.runOnMainSync { DrivingTrackingController.start(context, place(1L, "첫 번째 장소")).getOrThrow() }
         assertTrue(awaitCondition { ongoingSessionStartedAt() != null })
         val firstSessionStartedAt = requireNotNull(ongoingSessionStartedAt())
@@ -56,7 +56,7 @@ class DrivingTrackingServiceTest {
     }
 
     @Test
-    fun startForAnotherPlaceWithoutStopReplacesTheSession() {
+    fun `중지 없이 다른 장소로 시작하면 세션을 교체한다`() {
         instrumentation.runOnMainSync { DrivingTrackingController.start(context, place(1L, "첫 번째 장소")).getOrThrow() }
         assertTrue(awaitCondition { ongoingSessionStartedAt() != null })
         val firstSessionStartedAt = requireNotNull(ongoingSessionStartedAt())
@@ -71,7 +71,7 @@ class DrivingTrackingServiceTest {
     }
 
     @Test
-    fun repeatedStopEndsTrackingAndRemovesTheNotification() {
+    fun `중지를 두 번 보내면 추적 알림이 사라진다`() {
         instrumentation.runOnMainSync { DrivingTrackingController.start(context, place(1L, "첫 번째 장소")).getOrThrow() }
         assertTrue(awaitCondition { ongoingSessionStartedAt() != null })
 

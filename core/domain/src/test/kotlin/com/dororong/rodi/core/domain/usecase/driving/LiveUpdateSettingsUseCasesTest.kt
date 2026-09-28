@@ -16,14 +16,14 @@ class LiveUpdateSettingsUseCasesTest {
     private val repository = mockk<LiveUpdateRepository>(relaxUnitFun = true)
 
     @Test
-    fun `live updates are on until the user turns them off`() = runTest {
+    fun `실시간 업데이트는 사용자가 끄기 전까지 켜져 있다`() = runTest {
         every { repository.settings } returns flowOf(LiveUpdateSettings())
 
         assertTrue(ObserveLiveUpdateSettingsUseCase(repository)().first().isEnabled)
     }
 
     @Test
-    fun `the app setting is stored as the user left it`() = runTest {
+    fun `앱 설정은 사용자가 둔 값 그대로 저장한다`() = runTest {
         every { repository.settings } returns flowOf(LiveUpdateSettings(isEnabled = false))
 
         SetLiveUpdateEnabledUseCase(repository)(false)

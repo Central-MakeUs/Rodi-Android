@@ -20,7 +20,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = "w360dp-h800dp")
 class RodiSelectableChipRoborazziTest {
     @Test
-    fun `captures selected and unselected chips`() {
+    fun `선택 상태와 미선택 상태의 칩을 캡처한다`() {
         captureRoboImage("RodiSelectableChipRoborazziTest/chips.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

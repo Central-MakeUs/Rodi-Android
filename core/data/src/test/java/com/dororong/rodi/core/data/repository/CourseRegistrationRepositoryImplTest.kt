@@ -32,7 +32,7 @@ class CourseRegistrationRepositoryImplTest {
     private val json = Json { ignoreUnknownKeys = true }
 
     @Test
-    fun `registers with bearer token and maps response`() = runTest {
+    fun `코스를 등록하고 응답을 매핑한다`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
@@ -53,7 +53,7 @@ class CourseRegistrationRepositoryImplTest {
     }
 
     @Test
-    fun `sends the start waypoint name as course name when none is provided`() = runTest {
+    fun `코스 이름이 없으면 출발지 이름을 코스 이름으로 보낸다`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()
@@ -72,7 +72,7 @@ class CourseRegistrationRepositoryImplTest {
     }
 
     @Test
-    fun `clamps list size and sends selected status and cursor`() = runTest {
+    fun `내 코스 목록은 요청 크기를 제한하고 선택한 상태와 커서를 보낸다`() = runTest {
         val api = mockk<CourseApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val authRepository = mockk<AuthRepository>()

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test
 
 class GetAuthSessionUseCaseTest {
     @Test
-    fun `returns auth session from repository`() = runTest {
+    fun `저장소의 로그인 세션을 반환한다`() = runTest {
         val repository = mockk<AuthRepository>()
         val expected = AuthSession(isLoggedIn = true, hasRecentKakaoLogin = true)
         coEvery { repository.getSession() } returns expected

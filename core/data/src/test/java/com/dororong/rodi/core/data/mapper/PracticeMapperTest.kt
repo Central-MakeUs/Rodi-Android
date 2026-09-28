@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 
 class PracticeMapperTest {
     @Test
-    fun `register response maps practice fields`() {
+    fun `연습 등록 응답의 필드를 매핑한다`() {
         val result = PracticeRegisterResponse(7, "VISITED", 2, 800).toDomain()
 
         assertEquals(7L, result.practiceId)
@@ -25,14 +25,14 @@ class PracticeMapperTest {
     }
 
     @Test
-    fun `unknown practice status fails instead of pretending it is planned`() {
+    fun `알 수 없는 연습 상태는 방문 예정으로 취급하지 않고 실패한다`() {
         assertThrows(PracticeException.Unexpected::class.java) {
             PracticeRegisterResponse(practiceId = 1, status = "NEW_STATUS", visitCount = 0, requiredDistanceMeters = 0).toDomain()
         }
     }
 
     @Test
-    fun `visit response maps known level`() {
+    fun `방문 응답의 알려진 레벨을 매핑한다`() {
         val result = PracticeVisitResponse(visitCount = 1, addedCertifiedDistanceMeters = 0, requiredDistanceMeters = 0, isCertifiedNow = true, totalDistanceKm = 0.0, levelUp = true, newLevel = "NAVIGATOR").toDomain()
 
         assertEquals(true, result.levelUp)
@@ -40,14 +40,14 @@ class PracticeMapperTest {
     }
 
     @Test
-    fun `visit response maps unknown level to null`() {
+    fun `방문 응답의 알 수 없는 레벨은 null로 매핑한다`() {
         val result = PracticeVisitResponse(visitCount = 1, addedCertifiedDistanceMeters = 0, requiredDistanceMeters = 0, isCertifiedNow = true, totalDistanceKm = 0.0, levelUp = true, newLevel = "NEW_LEVEL").toDomain()
 
         assertNull(result.newLevel)
     }
 
     @Test
-    fun `skip reason options are sorted and offset-less timestamp helper remains usable`() {
+    fun `미방문 사유 선택지를 정렬하고 오프셋 없는 시각도 해석한다`() {
         val result = FormResponse(
             questionId = "practice-skip",
             type = "SINGLE_SELECT",

@@ -25,7 +25,7 @@ class CourseRegistrationTutorialContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun swipingAdvancesTutorialPageWithoutInventedButtons() {
+    fun `튜토리얼 페이저를 밀면 다음 페이지로 넘어간다`() {
         var page by mutableIntStateOf(0)
         composeRule.setContent {
             RodiTheme {
@@ -47,7 +47,7 @@ class CourseRegistrationTutorialContentTest {
     }
 
     @Test
-    fun consecutiveSwipesAdvanceThroughAllPagesWithoutSnappingBack() {
+    fun `튜토리얼 페이저를 두 번 밀면 세 번째 페이지로 넘어간다`() {
         var page by mutableIntStateOf(0)
         composeRule.setContent {
             RodiTheme {
@@ -70,7 +70,7 @@ class CourseRegistrationTutorialContentTest {
     }
 
     @Test
-    fun locationSelectionTooltipIsDisplayedOnSecondPage() {
+    fun `두 번째 페이지에 위치 선택 말풍선을 보여준다`() {
         composeRule.setContent {
             RodiTheme {
                 CourseRegistrationTutorialContent(

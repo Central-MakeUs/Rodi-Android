@@ -12,7 +12,7 @@ class MemberBlockUseCasesTest {
     private val repository = mockk<MemberRepository>()
 
     @Test
-    fun `block member delegates once`() = runTest {
+    fun `회원 차단을 저장소에 한 번 위임한다`() = runTest {
         coEvery { repository.blockMember(7) } returns Unit
 
         val result = BlockMemberUseCase(repository)(7)
@@ -22,7 +22,7 @@ class MemberBlockUseCasesTest {
     }
 
     @Test
-    fun `unblock member delegates once`() = runTest {
+    fun `회원 차단 해제를 저장소에 한 번 위임한다`() = runTest {
         coEvery { repository.unblockMember(7) } returns Unit
 
         val result = UnblockMemberUseCase(repository)(7)

@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test
 
 class CourseRepositoryImplTest {
     @Test
-    fun `maps injected directions result to domain route`() = runTest {
+    fun `경로 탐색 결과를 도메인 경로로 매핑한다`() = runTest {
         val directionsClient = mockk<KakaoDirectionsClient>()
         val course = testCourse()
         coEvery { directionsClient.getRoute(course) } returns KakaoDirectionsClient.RouteResult(

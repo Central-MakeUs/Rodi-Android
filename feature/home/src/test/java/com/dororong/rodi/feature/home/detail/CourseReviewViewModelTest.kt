@@ -62,7 +62,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `load reads recommend count from the ALL summary and difficulty from my level`() = runTest(dispatcher) {
+    fun `후기 불러오기는 추천 수는 전체 요약에서 난이도는 내 레벨에서 가져온다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.success(summary(level = null, total = 61, recommend = 15))
@@ -94,7 +94,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `selectLevel keeps the recommend count and does not refetch the ALL summary`() = runTest(dispatcher) {
+    fun `레벨을 바꿔도 추천 수를 유지하고 전체 요약을 다시 부르지 않는다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.success(summary(level = null, total = 61, recommend = 15))
@@ -130,7 +130,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `loadNextPage appends items and drops duplicates`() = runTest(dispatcher) {
+    fun `다음 페이지는 후기를 이어 붙이고 중복을 뺀다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, any()) } returns
             Result.success(summary(level = OnboardingLevel.SEED, total = 4, recommend = 1))
@@ -155,7 +155,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `guest skips every review request`() = runTest(dispatcher) {
+    fun `둘러보기 사용자는 후기 요청을 모두 건너뛴다`() = runTest(dispatcher) {
         coEvery { getAuthSession() } returns AuthSession(isLoggedIn = false, hasRecentKakaoLogin = false)
 
         val vm = viewModel()
@@ -168,7 +168,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `failure surfaces an error message without clearing the place`() = runTest(dispatcher) {
+    fun `실패하면 장소를 지우지 않고 오류 문구를 보여준다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.failure(IllegalStateException("후기를 불러오지 못했어요."))
@@ -187,7 +187,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `load can retry the same place after a failed request`() = runTest(dispatcher) {
+    fun `요청이 실패한 뒤 같은 장소를 다시 불러올 수 있다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.failure(IllegalStateException("후기를 불러오지 못했어요."))
@@ -207,7 +207,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `load clears loading state when auth session lookup throws`() = runTest(dispatcher) {
+    fun `로그인 세션 조회가 실패해도 로딩 상태를 끝낸다`() = runTest(dispatcher) {
         coEvery { getAuthSession() } throws IllegalStateException("세션을 불러오지 못했어요.")
 
         val vm = viewModel()
@@ -219,7 +219,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `selectLevelAndLoadReviews replaces the previous level page`() = runTest(dispatcher) {
+    fun `레벨을 바꿔 후기를 불러오면 이전 레벨 페이지를 교체한다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.success(summary(level = null, total = 2, recommend = 1))
@@ -251,7 +251,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `excludeMemberReviews removes the member from summary and full lists`() = runTest(dispatcher) {
+    fun `차단한 회원의 후기를 요약과 전체 목록에서 뺀다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, any()) } returns
             Result.success(summary(level = OnboardingLevel.SEED, total = 2, recommend = 1))
@@ -272,7 +272,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `submitted review stays visible when immediate refresh returns stale data`() = runTest(dispatcher) {
+    fun `바로 새로고침한 응답이 이전 데이터여도 방금 작성한 후기는 보인다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.success(summary(level = null, total = 5, recommend = 0))
@@ -299,7 +299,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `repeated submission notification does not duplicate or double count`() = runTest(dispatcher) {
+    fun `작성 완료 알림이 반복돼도 후기를 중복하거나 두 번 세지 않는다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, any()) } returns
             Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
@@ -321,7 +321,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `optimistic counts stay isolated when loading another place`() = runTest(dispatcher) {
+    fun `낙관적 개수는 다른 장소를 불러올 때 섞이지 않는다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returns
             Result.success(summary(level = null, total = 5, recommend = 0))
@@ -354,7 +354,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `removeReview decrements visible total and refreshes recommend count from the server`() = runTest(dispatcher) {
+    fun `후기를 지우면 보이는 전체 수를 줄이고 추천 수는 서버에서 다시 받는다`() = runTest(dispatcher) {
         // 목록 응답은 isRecommended를 안 주므로(서버 스키마 변경) 지운 후기가 추천이었는지
         // 로컬에서 알 수 없다 — removeReview는 항상 서버 요약을 다시 받아 recommendCount를 맞춘다.
         loggedIn()
@@ -380,7 +380,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `removeReview refreshes the summary when the network review has no recommendation value`() = runTest(dispatcher) {
+    fun `지운 후기의 추천 여부를 모르면 요약을 다시 받는다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(
             Result.success(summary(level = null, total = 1, recommend = 1)),
@@ -402,7 +402,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `optimistic review keeps the selected level when profile level differs`() = runTest(dispatcher) {
+    fun `낙관적 후기는 프로필 레벨이 달라도 작성 때 고른 레벨을 유지한다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, any()) } returns
             Result.success(summary(level = OnboardingLevel.SEED, total = 0, recommend = 0))
@@ -420,7 +420,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `network review replaces optimistic review without duplication`() = runTest(dispatcher) {
+    fun `서버 후기가 낙관적 후기를 중복 없이 대체한다`() = runTest(dispatcher) {
         loggedIn()
         coEvery { getReviewSummary(PLACE_ID, ReviewLevelFilter.All) } returnsMany listOf(
             Result.success(summary(level = null, total = 0, recommend = 0)),
@@ -450,7 +450,7 @@ class CourseReviewViewModelTest {
     }
 
     @Test
-    fun `late reported id lookup still hides an already merged review`() = runTest(dispatcher) {
+    fun `늦게 도착한 신고 목록도 이미 합쳐진 후기를 숨긴다`() = runTest(dispatcher) {
         loggedIn()
         // 신고 목록 조회가 load()보다 늦게 끝나는 순서를 재현한다 — 먼저 끝나면 애초에 병합 단계에서 걸러진다.
         coEvery { getReportedReviewIds() } coAnswers {

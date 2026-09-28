@@ -22,12 +22,12 @@ pure forwarding의 호출만 복제하는 테스트는 항상 추가할 필요�
 
 ## 네이밍
 - 파일명은 `<대상클래스>Test.kt`로 쓴다.
-- 테스트 함수명은 백틱으로 감싼 영어 서술형을 쓴다.
+- 테스트 함수명은 백틱으로 감싼 한국어 서술형을 쓴다(세부 규칙은 `conventions/testing.md`).
 - Given/When/Then 주석은 쓰지 않고 빈 줄로 구획한다.
 
 ```kotlin
 @Test
-fun `invoke returns success when repository returns route`() = runTest {
+fun `저장소가 경로를 반환하면 성공 결과를 반환한다`() = runTest {
     val repository = mockk<CourseRepository>()
     coEvery { repository.getRoute(course) } returns routeResult
     val useCase = GetRouteUseCase(repository)

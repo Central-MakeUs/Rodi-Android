@@ -29,7 +29,7 @@ class TokenAuthenticatorTest {
     private val authenticator = TokenAuthenticator(tokenStore) { authRepository }
 
     @Test
-    fun `retries the request with the refreshed token`() {
+    fun `재발급한 토큰으로 요청을 다시 보낸다`() {
         coEvery { tokenStore.getTokens() } returnsMany listOf(
             AuthTokens("old", "refresh", "kakao", sessionId = SESSION_ID),
             AuthTokens("new", "refresh-new", "kakao", sessionId = SESSION_ID),
@@ -43,7 +43,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `retries with the token another request already refreshed`() {
+    fun `다른 요청이 이미 재발급한 토큰으로 다시 보낸다`() {
         coEvery { tokenStore.getTokens() } returns AuthTokens("new", "refresh", "kakao", sessionId = SESSION_ID)
 
         val retry = authenticator.authenticate(null, unauthorized("Bearer old"))
@@ -53,7 +53,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `lets cancellation propagate`() {
+    fun `재발급 중 취소를 그대로 전파한다`() {
         coEvery { tokenStore.getTokens() } returns AuthTokens("old", "refresh", "kakao", sessionId = SESSION_ID)
         val cancellation = CancellationException("cancelled")
         coEvery { authRepository.reissueToken(any(), any()) } throws cancellation
@@ -65,7 +65,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `gives up when the refresh fails`() {
+    fun `재발급이 실패하면 다시 시도하지 않는다`() {
         coEvery { tokenStore.getTokens() } returns AuthTokens("old", "refresh", "kakao", sessionId = SESSION_ID)
         coEvery { authRepository.reissueToken(any(), any()) } throws AuthException.SessionRevoked("세션이 만료되었습니다.")
 
@@ -73,7 +73,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `gives up when the token did not change`() {
+    fun `토큰이 바뀌지 않았으면 다시 시도하지 않는다`() {
         coEvery { authRepository.reissueToken(any(), any()) } returns Unit
         coEvery { tokenStore.getTokens() } returns AuthTokens("old", "refresh", "kakao", sessionId = SESSION_ID)
 
@@ -81,7 +81,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `does not retry more than once for the same request`() {
+    fun `같은 요청은 한 번보다 많이 다시 시도하지 않는다`() {
         coEvery { authRepository.reissueToken(any(), any()) } returns Unit
         coEvery { tokenStore.getTokens() } returns AuthTokens("other", "refresh", "kakao", sessionId = SESSION_ID)
         val second = unauthorized("Bearer new", priorResponse = unauthorized("Bearer old"))
@@ -90,7 +90,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `old session request is not retried with a new login credential`() = runTest {
+    fun `이전 세션의 요청은 새 로그인 토큰으로 다시 보내지 않는다`() = runTest {
         val context = mockk<Context>()
         val dataStore = mockk<AuthTokenDataStore>()
         every { context.deleteSharedPreferences(any()) } returns true
@@ -119,7 +119,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `does not retry if a new login completes during refresh`() {
+    fun `재발급 중 새 로그인이 끝나면 다시 시도하지 않는다`() {
         coEvery { tokenStore.getTokens() } returnsMany listOf(
             AuthTokens("old", "refresh", "kakao", sessionId = SESSION_ID),
             AuthTokens("session-b", "refresh-b", "kakao", sessionId = "session-b"),
@@ -132,7 +132,7 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `does not retry an unowned request after login`() {
+    fun `로그인 뒤 소유 세션이 없는 요청은 다시 시도하지 않는다`() {
         val response = unauthorized("Bearer old").let {
             it.newBuilder().request(it.request.newBuilder().tag(AuthRequestSession::class.java, null).build()).build()
         }

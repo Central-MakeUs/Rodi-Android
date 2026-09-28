@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test
 
 class MainScreenNavigationTest {
     @Test
-    fun `driving goal completion only pops its own destination once`() {
+    fun `운전 목표 완료는 자기 화면만 한 번 닫는다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, MyPageRoute, DrivingGoalRoute)
 
         backStack.popDrivingGoal()
@@ -17,7 +17,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `driving goal completion leaves another top destination unchanged`() {
+    fun `운전 목표 완료는 맨 위가 다른 화면이면 그대로 둔다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, DrivingGoalRoute, SettingsRoute)
 
         backStack.popDrivingGoal()
@@ -26,7 +26,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `my page is pushed without replacing home and popped back to home`() {
+    fun `마이페이지는 홈을 대체하지 않고 쌓였다가 닫으면 홈으로 돌아간다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute)
 
         backStack.pushMyPage()
@@ -37,7 +37,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `pop my page leaves unrelated top route unchanged`() {
+    fun `마이페이지 닫기는 맨 위가 관계없는 화면이면 그대로 둔다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, SearchRoute(37.0, 127.0))
 
         backStack.popMyPage()
@@ -46,7 +46,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `registration route is pushed from my page and popped back to the source`() {
+    fun `마이페이지에서 연 코스 등록은 닫으면 마이페이지로 돌아간다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, MyPageRoute)
 
         backStack.openCourseRegistration()
@@ -57,7 +57,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `registration route is pushed from home and popped back to home`() {
+    fun `홈에서 연 코스 등록은 닫으면 홈으로 돌아간다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute)
 
         backStack.openCourseRegistration()
@@ -68,7 +68,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `registration route is not duplicated`() {
+    fun `코스 등록 화면을 중복으로 쌓지 않는다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, CourseRegistrationFlowRoute)
 
         backStack.openCourseRegistration()
@@ -77,7 +77,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `completed registration returns to home`() {
+    fun `코스 등록을 완료하면 홈으로 돌아간다`() {
         val backStack = mutableListOf<NavKey>(HomeRoute, MyPageRoute, CourseRegistrationFlowRoute)
 
         backStack.completeCourseRegistration()
@@ -86,7 +86,7 @@ class MainScreenNavigationTest {
     }
 
     @Test
-    fun `bottom navigation is owned by home and my page but hidden in registration flow`() {
+    fun `하단 내비게이션은 홈과 마이페이지에서 보이고 코스 등록 흐름에서는 숨긴다`() {
         assertEquals(true, HomeRoute.shouldShowMainBottomNavigation())
         assertEquals(true, MyPageRoute.shouldShowMainBottomNavigation())
         assertEquals(false, CourseRegistrationFlowRoute.shouldShowMainBottomNavigation())

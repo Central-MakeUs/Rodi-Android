@@ -33,7 +33,7 @@ class SavedCoursesViewModelTest {
     @AfterEach fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `saved places append cursor pages and deduplicate by type and id`() = runTest(dispatcher) {
+    fun `저장 목록은 커서 페이지를 이어 붙이고 종류와 id로 중복을 뺀다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 2),
@@ -58,7 +58,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `unapproved initial failure hides the exception detail`() = runTest(dispatcher) {
+    fun `첫 로드 실패는 예외 내용을 숨기고 기본 문구를 보여준다`() = runTest(dispatcher) {
         val detail = "Field 'totalCount' is required for type with serial name 'SavedPlacesResponse'"
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.failure(IllegalStateException(detail))
@@ -71,7 +71,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `loadNextPage sends no request when hasNext is false`() = runTest(dispatcher) {
+    fun `다음 페이지가 없으면 요청을 보내지 않는다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), false, "next", 1),
@@ -87,7 +87,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `loadNextPage returns early when nextCursor is null`() = runTest(dispatcher) {
+    fun `다음 커서가 없으면 다음 페이지를 요청하지 않는다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, null, 1),
@@ -103,7 +103,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `loadNextPage does not send a duplicate request while the previous one is active`() = runTest(dispatcher) {
+    fun `이전 요청이 진행 중이면 다음 페이지 요청을 중복으로 보내지 않는다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 2),
@@ -123,7 +123,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `next page failure keeps loaded places and sets only nextPageError`() = runTest(dispatcher) {
+    fun `다음 페이지가 실패하면 불러온 장소를 유지하고 다음 페이지 오류만 표시한다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 2),
@@ -145,7 +145,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `retry reloads the first page when places are empty`() = runTest(dispatcher) {
+    fun `장소가 없으면 다시 시도는 첫 페이지를 다시 불러온다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returnsMany listOf(
             Result.failure(IllegalStateException("network")),
@@ -163,7 +163,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `retry loads the next page when places already exist`() = runTest(dispatcher) {
+    fun `장소가 있으면 다시 시도는 다음 페이지를 불러온다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 2),
@@ -187,7 +187,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `reloading cancels the in-flight request so its late failure does not overwrite the new state`() = runTest(dispatcher) {
+    fun `다시 불러오면 먼저 보낸 요청의 늦은 실패가 새 상태를 덮지 않는다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         val staleResponse = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
         var calls = 0
@@ -214,7 +214,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `courses deleted by their author are hidden from the saved list and its count`() = runTest(dispatcher) {
+    fun `등록자가 삭제한 코스는 저장 목록과 개수에서 뺀다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE, isDeleted = true), place(2, PlaceType.PARKING)), false, null, 2),
@@ -228,7 +228,7 @@ class SavedCoursesViewModelTest {
     }
 
     @Test
-    fun `a first page of only deleted courses continues to the next page instead of showing empty`() =
+    fun `첫 페이지가 모두 삭제된 코스면 빈 화면 대신 다음 페이지를 이어서 불러온다`() =
         runTest(dispatcher) {
             val getSaved = mockk<GetSavedPlacesUseCase>()
             coEvery { getSaved(null, 20) } returns Result.success(
@@ -248,7 +248,7 @@ class SavedCoursesViewModelTest {
         }
 
     @Test
-    fun `deleted courses found on later pages also lower the count`() = runTest(dispatcher) {
+    fun `다음 페이지에서 찾은 삭제된 코스도 개수에서 뺀다`() = runTest(dispatcher) {
         val getSaved = mockk<GetSavedPlacesUseCase>()
         coEvery { getSaved(null, 20) } returns Result.success(
             CursorPage(listOf(place(1, PlaceType.COURSE)), true, "next", 3),

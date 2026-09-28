@@ -34,7 +34,7 @@ class LoginViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `successful login navigates next`() = runTest(testDispatcher) {
+    fun `로그인에 성공하면 다음 화면으로 이동한다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
         val viewModel = viewModel(login = login)
@@ -48,7 +48,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `login of a member who has not finished onboarding navigates to onboarding`() = runTest(testDispatcher) {
+    fun `온보딩을 마치지 않은 회원이 로그인하면 온보딩으로 이동한다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(LoginResult.Success(isOnboarded = false, nickname = "로디"))
         val viewModel = viewModel(login = login)
@@ -62,7 +62,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `withdrawal pending opens recovery and confirmation navigates after restore`() = runTest(testDispatcher) {
+    fun `탈퇴 유예면 복구 다이얼로그를 열고 복구 후 다음 화면으로 이동한다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         val restore = mockk<RestoreWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(
@@ -84,7 +84,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `recovery of a member who has not finished onboarding navigates to onboarding`() = runTest(testDispatcher) {
+    fun `온보딩을 마치지 않은 회원을 복구하면 온보딩으로 이동한다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         val restore = mockk<RestoreWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(
@@ -105,7 +105,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `login failure emits snackbar and returns idle`() = runTest(testDispatcher) {
+    fun `로그인이 실패하면 스낵바를 보내고 대기 상태로 돌아간다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.failure(
             AuthException.InvalidCredential("카카오 인증에 실패했습니다."),
@@ -122,7 +122,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `skip grants guest access and navigates`() = runTest(testDispatcher) {
+    fun `둘러보기를 누르면 둘러보기 권한을 주고 이동한다`() = runTest(testDispatcher) {
         val grant = mockk<GrantGuestAccessUseCase>()
         coEvery { grant() } returns Unit
         val login = mockk<LoginWithKakaoUseCase>()
@@ -138,7 +138,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `locked account shows the re-registration date instead of recovery`() = runTest(testDispatcher) {
+    fun `재가입 대기 계정은 복구 대신 재가입 가능 날짜를 보여준다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         val restore = mockk<RestoreWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = REJOIN_AT))
@@ -157,7 +157,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `locked account without a usable date falls back to the date-unavailable message`() = runTest(testDispatcher) {
+    fun `재가입 대기 계정의 날짜를 쓸 수 없으면 날짜를 불러오지 못했다는 문구를 보여준다`() = runTest(testDispatcher) {
         val login = mockk<LoginWithKakaoUseCase>()
         coEvery { login("access-token") } returns Result.success(LoginResult.WithdrawalLocked(reRegisterableAt = null))
         val viewModel = viewModel(login = login)
@@ -172,7 +172,7 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `recovery that finds the grace period over shows the re-registration date and drops the credential`() =
+    fun `복구 중 유예 기간이 끝났으면 재가입 가능 날짜를 보여주고 인증 정보를 버린다`() =
         runTest(testDispatcher) {
             val login = mockk<LoginWithKakaoUseCase>()
             val restore = mockk<RestoreWithKakaoUseCase>()

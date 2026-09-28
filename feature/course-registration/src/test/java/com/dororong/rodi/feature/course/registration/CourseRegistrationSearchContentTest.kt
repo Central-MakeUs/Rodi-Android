@@ -25,7 +25,7 @@ class CourseRegistrationSearchContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun searchBackButtonUsesAccessibleChevronHitTarget() {
+    fun `검색 닫기 버튼을 접근성 설명으로 찾아 누를 수 있다`() {
         var backPressed = false
         composeRule.setContent {
             RodiTheme {
@@ -53,7 +53,7 @@ class CourseRegistrationSearchContentTest {
     }
 
     @Test
-    fun searchRowsPreservePlaceAddressInAccessibleDescription() {
+    fun `검색 결과 행의 접근성 설명에 장소 주소를 포함한다`() {
         composeRule.setContent {
             RodiTheme {
                 CourseRegistrationSearchContent(

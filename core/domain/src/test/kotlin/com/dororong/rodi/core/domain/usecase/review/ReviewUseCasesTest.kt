@@ -25,7 +25,7 @@ class ReviewUseCasesTest {
     private val repository = mockk<ReviewRepository>()
 
     @Test
-    fun `get place reviews delegates once`() = runTest {
+    fun `장소 후기 조회를 저장소에 한 번 위임한다`() = runTest {
         val page = CursorPage(listOf(review()), true, "next", 2)
         coEvery { repository.getReviews(7, ReviewLevelFilter.All, "cursor", 20) } returns page
 
@@ -36,7 +36,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `get review summary delegates once`() = runTest {
+    fun `후기 요약 조회를 저장소에 한 번 위임한다`() = runTest {
         val summary = ReviewSummary(null, 1, 1, 0, emptyMap(), emptyMap())
         coEvery { repository.getSummary(7, ReviewLevelFilter.Mine) } returns summary
 
@@ -47,7 +47,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `create review delegates once`() = runTest {
+    fun `후기 작성을 저장소에 한 번 위임한다`() = runTest {
         val draft = draft()
         coEvery { repository.createReview(7, draft) } returns 3
 
@@ -58,7 +58,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `update review delegates once`() = runTest {
+    fun `후기 수정을 저장소에 한 번 위임한다`() = runTest {
         val draft = draft()
         coEvery { repository.updateReview(3, draft) } returns Unit
 
@@ -69,7 +69,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `delete review delegates once`() = runTest {
+    fun `후기 삭제를 저장소에 한 번 위임한다`() = runTest {
         coEvery { repository.deleteReview(3) } returns Unit
 
         val result = DeleteReviewUseCase(repository)(3)
@@ -79,7 +79,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `report review delegates once`() = runTest {
+    fun `후기 신고를 저장소에 한 번 위임한다`() = runTest {
         val submission = ReportSubmission("SPAM", null, true)
         coEvery { repository.reportReview(3, submission) } returns Unit
 
@@ -90,7 +90,7 @@ class ReviewUseCasesTest {
     }
 
     @Test
-    fun `get report form delegates once`() = runTest {
+    fun `신고 폼 조회를 저장소에 한 번 위임한다`() = runTest {
         val form = ReportForm("review-report", "신고 사유", null, true, emptyList())
         coEvery { repository.getReportForm() } returns form
 

@@ -18,7 +18,7 @@ class GetPracticeRecordsUseCaseTest {
     private val useCase = GetPracticeRecordsUseCase(repository)
 
     @Test
-    fun `practice pages contain only visited records and skip invisible pages`() = kotlinx.coroutines.test.runTest {
+    fun `연습 기록 페이지는 방문 기록만 담고 보이는 기록이 없는 페이지는 건너뛴다`() = kotlinx.coroutines.test.runTest {
         coEvery { repository.getPracticeRecords(null, 1) } returns CursorPage(
             items = listOf(record(1L, PracticeStatus.PLANNED)),
             hasNext = true,
@@ -41,7 +41,7 @@ class GetPracticeRecordsUseCaseTest {
     }
 
     @Test
-    fun `page traversal is bounded when no visible record is found`() = kotlinx.coroutines.test.runTest {
+    fun `보이는 기록이 없으면 페이지 탐색을 정해진 횟수까지만 한다`() = kotlinx.coroutines.test.runTest {
         coEvery { repository.getPracticeRecords(null, 1) } returns pageFor(null, "cursor-1")
         coEvery { repository.getPracticeRecords("cursor-1", 1) } returns pageFor("cursor-1", "cursor-2")
         coEvery { repository.getPracticeRecords("cursor-2", 1) } returns pageFor("cursor-2", "cursor-3")

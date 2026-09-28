@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalRoborazziApi::class)
 class CourseDetailSheetRoborazziTest {
     @Test
-    fun `captures collapsed state`() {
+    fun `접힌 상태를 캡처한다`() {
         captureRoboImage("CourseDetailSheetRoborazziTest/collapsed.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -50,7 +50,7 @@ class CourseDetailSheetRoborazziTest {
     }
 
     @Test
-    fun `captures bookmarked collapsed state`() {
+    fun `북마크된 접힌 상태를 캡처한다`() {
         captureRoboImage("CourseDetailSheetRoborazziTest/bookmarked.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -69,7 +69,7 @@ class CourseDetailSheetRoborazziTest {
     }
 
     @Test
-    fun `captures expanded state`() {
+    fun `펼친 상태를 캡처한다`() {
         var collapsedHeightPx = 0
         val expandSheet = ExpandSheetBeforeCapture { collapsedHeightPx }
         val composeOptions = RoborazziComposeOptions {

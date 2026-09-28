@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 
 class ReviewRepositoryImplTest {
     @Test
-    fun `reviews map items and cursor metadata`() = runTest {
+    fun `후기 목록 항목과 커서 정보를 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         val tokenStore = tokenStore()
         coEvery { api.getReviews(7, null, 10, null) } returns ApiEnvelope(
@@ -52,7 +52,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `unexpected transport error uses generic review message`() = runTest {
+    fun `예상하지 못한 전송 오류는 후기 공통 문구로 알린다`() = runTest {
         val api = mockk<ReviewApi>()
         val cause = IllegalStateException("Field 'totalCount' is required")
         coEvery { api.getReviews(7, null, 10, null) } throws cause
@@ -67,7 +67,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `create conflict maps to level required`() = runTest {
+    fun `후기 작성 충돌은 레벨 필요로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         coEvery { api.createReview(7, reviewRequest()) } returns failureEnvelope("COMMON_409")
         val repository = repository(api)
@@ -76,7 +76,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `update conflict maps to level changed`() = runTest {
+    fun `후기 수정 충돌은 레벨 변경으로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         coEvery { api.updateReview(1, reviewRequest()) } returns failureEnvelope("COMMON_409")
         val repository = repository(api)
@@ -85,7 +85,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `update forbidden maps to forbidden`() = runTest {
+    fun `후기 수정 권한 없음은 Forbidden으로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         coEvery { api.updateReview(1, reviewRequest()) } returns failureEnvelope("COMMON_403")
         val repository = repository(api)
@@ -94,7 +94,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `delete forbidden maps to forbidden`() = runTest {
+    fun `후기 삭제 권한 없음은 Forbidden으로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         coEvery { api.deleteReview(1) } returns failureEnvelope("COMMON_403")
         val repository = repository(api)
@@ -103,7 +103,7 @@ class ReviewRepositoryImplTest {
     }
 
     @Test
-    fun `report bad request maps to invalid request`() = runTest {
+    fun `후기 신고의 잘못된 요청은 InvalidRequest로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
         val request = ReportRequest("SELF", null, true)
         coEvery { api.reportReview(1, request) } returns failureEnvelope("COMMON_400")

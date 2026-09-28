@@ -34,7 +34,7 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `leaves navigation to the app session owner after logout succeeds`() = runTest(testDispatcher) {
+    fun `로그아웃이 성공하면 화면 이동은 앱 세션 담당에게 맡긴다`() = runTest(testDispatcher) {
         val logout = mockk<LogoutUseCase>()
         val withdraw = mockk<WithdrawUseCase>()
         coEvery { logout() } returns Result.success(Unit)
@@ -52,7 +52,7 @@ class AccountSettingsViewModelTest {
     }
 
     @Test
-    fun `keeps session and shows error after withdrawal fails`() = runTest(testDispatcher) {
+    fun `탈퇴가 실패하면 세션을 유지하고 오류를 보여준다`() = runTest(testDispatcher) {
         val logout = mockk<LogoutUseCase>()
         val withdraw = mockk<WithdrawUseCase>()
         coEvery { withdraw() } returns Result.failure(IllegalStateException("탈퇴에 실패했습니다."))

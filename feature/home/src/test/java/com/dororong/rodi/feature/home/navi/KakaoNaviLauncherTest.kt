@@ -14,7 +14,7 @@ class KakaoNaviLauncherTest {
     }
 
     @Test
-    fun `toNaviCoordinate always formats with dot decimal separator`() {
+    fun `toNaviCoordinate는 항상 소수점을 점으로 표기한다`() {
         Locale.setDefault(Locale.GERMANY)
 
         val result = 126.922.toNaviCoordinate()

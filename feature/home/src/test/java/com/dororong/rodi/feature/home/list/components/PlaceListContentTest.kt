@@ -30,7 +30,7 @@ class PlaceListContentTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun firstPageGenerationStartsFromTheNewFirstItem() {
+    fun `첫 페이지가 바뀌면 새 첫 항목부터 보여준다`() {
         val generation = mutableLongStateOf(0L)
         val places = mutableStateOf((1L..6L).map(::summary))
 

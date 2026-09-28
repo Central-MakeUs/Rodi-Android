@@ -28,7 +28,7 @@ class NaviAppInstallTest {
     }
 
     @Test
-    fun `opens the market app when it can handle the store link`() {
+    fun `스토어 링크를 처리할 수 있는 마켓 앱이 있으면 마켓 앱을 연다`() {
         registerViewHandler(scheme = "market")
         registerViewHandler(scheme = "https")
 
@@ -41,7 +41,7 @@ class NaviAppInstallTest {
     }
 
     @Test
-    fun `falls back to the web store when no market app is installed`() {
+    fun `마켓 앱이 없으면 웹 스토어로 대신 연다`() {
         registerViewHandler(scheme = "https")
 
         application.openPlayStore("net.daum.android.map")
@@ -53,7 +53,7 @@ class NaviAppInstallTest {
     }
 
     @Test
-    fun `reports whether a package is installed`() {
+    fun `패키지가 설치돼 있는지 알려준다`() {
         shadowOf(application.packageManager).installPackage(
             PackageInfo().apply { packageName = "net.daum.android.map" },
         )

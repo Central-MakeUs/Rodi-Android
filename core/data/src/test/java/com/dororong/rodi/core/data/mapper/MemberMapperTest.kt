@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test
  */
 class MemberMapperTest {
     @Test
-    fun `offset-less createdAt does not break my review mapping`() {
+    fun `오프셋 없는 작성 시각도 내 후기로 매핑한다`() {
         val result = MyReviewItemResponse(
             reviewId = 1,
             placeId = 10,
@@ -35,7 +35,7 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `offset-less blockedAt does not break blocked member mapping`() {
+    fun `오프셋 없는 차단 시각도 차단 회원으로 매핑한다`() {
         val result = BlockedMemberItemResponse(
             memberId = 2,
             nickname = "로디",
@@ -46,19 +46,19 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `offset-less lastActivityAt does not break practice mapping`() {
+    fun `오프셋 없는 마지막 활동 시각도 연습 기록으로 매핑한다`() {
         val result = practiceItem(lastActivityAt = OFFSET_LESS).toDomain()
 
         assertEquals(parseServerTimestamp(OFFSET_LESS), result.visitedAt)
     }
 
     @Test
-    fun `absent lastActivityAt stays null`() {
+    fun `마지막 활동 시각이 없으면 null로 둔다`() {
         assertNull(practiceItem(lastActivityAt = null).toDomain().visitedAt)
     }
 
     @Test
-    fun `lastActivityAt from the member practices response becomes the record date`() {
+    fun `연습 목록 응답의 마지막 활동 시각을 기록 날짜로 쓴다`() {
         val response = Json.decodeFromString<PracticeItemResponse>(
             """
             {
@@ -78,7 +78,7 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `known practice status maps to domain status`() {
+    fun `알려진 연습 상태를 도메인 상태로 매핑한다`() {
         assertEquals(
             com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
             practiceItem(lastActivityAt = null, status = "VISITED").toDomain().status,
@@ -86,7 +86,7 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `unknown practice status fails instead of pretending it is planned`() {
+    fun `알 수 없는 연습 상태는 방문 예정으로 취급하지 않고 실패한다`() {
         assertThrows(AuthException.Unknown::class.java) {
             practiceItem(lastActivityAt = null, status = "UNKNOWN_STATUS").toDomain()
         }
@@ -116,14 +116,14 @@ class MemberMapperTest {
     }
 
     @Test
-    fun `known member level maps to the domain level`() {
+    fun `알려진 회원 레벨을 도메인 레벨로 매핑한다`() {
         val result = myPage(level = "NAVIGATOR").toDomain()
 
         assertEquals(OnboardingLevel.NAVIGATOR, result.level)
     }
 
     @Test
-    fun `unknown member level fails instead of showing the lowest level`() {
+    fun `알 수 없는 회원 레벨은 최저 레벨로 보여주지 않고 실패한다`() {
         assertThrows(AuthException.Unknown::class.java) {
             myPage(level = "NEW_LEVEL").toDomain()
         }

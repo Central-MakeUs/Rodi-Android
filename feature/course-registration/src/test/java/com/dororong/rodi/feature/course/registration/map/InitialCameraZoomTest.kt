@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test
 
 class InitialCameraZoomTest {
     @Test
-    fun `saved zoom is used for the initial camera restore`() {
+    fun `초기 카메라 복원에는 저장된 줌을 쓴다`() {
         assertEquals(
             9,
             initialOrDefaultZoom(
@@ -18,7 +18,7 @@ class InitialCameraZoomTest {
     }
 
     @Test
-    fun `default zoom is used when an explicit center was already provided`() {
+    fun `중심이 이미 지정됐으면 기본 줌을 쓴다`() {
         assertEquals(
             13,
             initialOrDefaultZoom(
@@ -31,7 +31,7 @@ class InitialCameraZoomTest {
     }
 
     @Test
-    fun `default zoom is used for a later recenter such as a search jump`() {
+    fun `검색 이동처럼 나중에 다시 중심을 잡으면 기본 줌을 쓴다`() {
         assertEquals(
             13,
             initialOrDefaultZoom(
@@ -44,7 +44,7 @@ class InitialCameraZoomTest {
     }
 
     @Test
-    fun `default zoom is used when there is no saved zoom`() {
+    fun `저장된 줌이 없으면 기본 줌을 쓴다`() {
         assertEquals(
             13,
             initialOrDefaultZoom(

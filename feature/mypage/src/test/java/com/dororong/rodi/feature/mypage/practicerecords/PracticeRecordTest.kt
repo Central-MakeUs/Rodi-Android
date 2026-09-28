@@ -10,7 +10,7 @@ import java.time.Instant
 
 class PracticeRecordTest {
     @Test
-    fun `course without a review can open review writing`() {
+    fun `후기가 없는 코스는 후기 작성을 열 수 있다`() {
         val action = courseRecord().reviewAction
 
         assertEquals(PracticeRecordReviewAction.WRITE_REVIEW, action)
@@ -19,7 +19,7 @@ class PracticeRecordTest {
     }
 
     @Test
-    fun `course with a review is marked completed and cannot open review writing`() {
+    fun `후기가 있는 코스는 작성 완료로 표시하고 후기 작성을 열 수 없다`() {
         val action = courseRecord().copy(hasReview = true).reviewAction
 
         assertEquals(PracticeRecordReviewAction.REVIEW_COMPLETED, action)
@@ -28,7 +28,7 @@ class PracticeRecordTest {
     }
 
     @Test
-    fun `parking record is not writable even without a review`() {
+    fun `주차장 기록은 후기가 없어도 작성할 수 없다`() {
         val action = courseRecord()
             .copy(practiceTypes = listOf(PracticeType.PARKING))
             .reviewAction
@@ -39,7 +39,7 @@ class PracticeRecordTest {
     }
 
     @Test
-    fun `visited record exposes the driving date when it has one`() {
+    fun `방문 기록에 날짜가 있으면 운전 날짜를 보여준다`() {
         val dateLabel = courseRecord()
             .copy(visitedAt = Instant.parse("2026-05-10T12:00:00Z"))
             .visitedDateLabel()
@@ -48,14 +48,14 @@ class PracticeRecordTest {
     }
 
     @Test
-    fun `visited record without a timestamp falls back to visit status`() {
+    fun `방문 기록에 시각이 없으면 방문 상태로 대신한다`() {
         val dateLabel = courseRecord().copy(visitedAt = null).visitedDateLabel()
 
         assertEquals("방문 완료", dateLabel)
     }
 
     @Test
-    fun `non-visited record without a timestamp shows nothing`() {
+    fun `방문하지 않은 기록에 시각이 없으면 아무것도 보여주지 않는다`() {
         val dateLabel = courseRecord()
             .copy(visitedAt = null, status = PracticeStatus.NOT_VISITED)
             .visitedDateLabel()

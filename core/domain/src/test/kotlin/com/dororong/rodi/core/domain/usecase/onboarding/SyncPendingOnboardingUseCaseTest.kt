@@ -16,7 +16,7 @@ import org.junit.jupiter.api.Test
 
 class SyncPendingOnboardingUseCaseTest {
     @Test
-    fun `pending complete profile is submitted with calculated level`() = runTest {
+    fun `대기 중인 완성된 프로필을 계산한 레벨로 제출한다`() = runTest {
         val profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9)
         val repository = repository(profile, isPending = true, isAuthorized = true)
         coEvery { repository.submit(profile, OnboardingLevel.NAVIGATOR) } returns
@@ -29,7 +29,7 @@ class SyncPendingOnboardingUseCaseTest {
     }
 
     @Test
-    fun `non pending profile does not call server`() = runTest {
+    fun `대기 중이 아닌 프로필은 서버를 호출하지 않는다`() = runTest {
         val repository = repository(OnboardingProfile(), isPending = false, isAuthorized = false)
 
         assertNull(SyncPendingOnboardingUseCase(repository)())
@@ -38,7 +38,7 @@ class SyncPendingOnboardingUseCaseTest {
     }
 
     @Test
-    fun `guest pending profile waits until a new member login authorizes sync`() = runTest {
+    fun `둘러보기에서 저장한 프로필은 신규 회원 로그인이 동기화를 허용할 때까지 기다린다`() = runTest {
         val repository = repository(
             OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9),
             isPending = true,
@@ -51,7 +51,7 @@ class SyncPendingOnboardingUseCaseTest {
     }
 
     @Test
-    fun `incomplete pending profile remains pending without request`() = runTest {
+    fun `완성되지 않은 대기 프로필은 요청 없이 대기 상태로 남긴다`() = runTest {
         val repository = repository(OnboardingProfile(), isPending = true, isAuthorized = true)
 
         assertEquals(

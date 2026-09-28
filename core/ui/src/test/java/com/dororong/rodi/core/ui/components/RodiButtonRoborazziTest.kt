@@ -23,7 +23,7 @@ import org.robolectric.annotation.GraphicsMode
 @Config(sdk = [36], qualifiers = "w360dp-h800dp")
 class RodiButtonRoborazziTest {
     @Test
-    fun `captures primary and secondary button states`() {
+    fun `기본과 보조 버튼 상태를 캡처한다`() {
         captureRoboImage("RodiButtonRoborazziTest/buttons.png") {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {

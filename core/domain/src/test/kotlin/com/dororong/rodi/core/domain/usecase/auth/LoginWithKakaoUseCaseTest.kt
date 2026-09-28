@@ -23,7 +23,7 @@ import org.junit.jupiter.api.Test
 
 class LoginWithKakaoUseCaseTest {
     @Test
-    fun `successful login persists server nickname`() = runTest {
+    fun `로그인에 성공하면 서버 닉네임을 저장한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(OnboardingProfile(nickname = "로컬"))
         val entry = entryRepository()
@@ -41,7 +41,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `guest new member clears legacy onboarding and starts guest sign up`() = runTest {
+    fun `신규 둘러보기 회원은 이전 온보딩 정보를 지우고 둘러보기 가입을 시작한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val profile = OnboardingProfile(
             nickname = "로컬",
@@ -65,7 +65,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `onboarding sync failure does not turn successful login into failure`() = runTest {
+    fun `온보딩 동기화가 실패해도 로그인 성공을 실패로 바꾸지 않는다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9))
         val entry = entryRepository(isCompleted = true, hasGuestAccess = false)
@@ -82,7 +82,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `authorized pending sync retries for an onboarded member`() = runTest {
+    fun `온보딩을 마친 회원은 허용된 대기 동기화를 다시 시도한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(
             profile = OnboardingProfile(drivingPeriod = DrivingPeriod.YEARS_3_9),
@@ -99,7 +99,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `member who left onboarding after sign up is sent back to onboarding`() = runTest {
+    fun `가입 후 온보딩을 이탈한 회원은 다시 온보딩으로 이동한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val entry = entryRepository(isCompleted = false, hasGuestAccess = false)
@@ -115,7 +115,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `onboarding finished on this device is delivered instead of starting over`() = runTest {
+    fun `이 기기에서 마친 온보딩은 처음부터 다시 하지 않고 제출한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(isSyncPending = true, isSyncAuthorized = true)
         val entry = entryRepository(isCompleted = true)
@@ -131,7 +131,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `onboarding finished on this device goes back to onboarding when the server still rejects it`() = runTest {
+    fun `이 기기에서 마친 온보딩을 서버가 받지 않으면 다시 온보딩으로 이동한다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository(isSyncPending = true, isSyncAuthorized = true)
         val entry = entryRepository(isCompleted = true)
@@ -148,7 +148,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `withdrawal pending does not persist a nickname`() = runTest {
+    fun `탈퇴 유예 상태에서는 닉네임을 저장하지 않는다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val entry = entryRepository()
@@ -164,7 +164,7 @@ class LoginWithKakaoUseCaseTest {
     }
 
     @Test
-    fun `invoke wraps failure and rethrows cancellation`() = runTest {
+    fun `실패는 Result로 감싸고 취소는 다시 던진다`() = runTest {
         val auth = mockk<AuthRepository>()
         val onboarding = onboardingRepository()
         val entry = entryRepository()

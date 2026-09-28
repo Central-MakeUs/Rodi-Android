@@ -17,7 +17,7 @@ class AccountRestoreMapperTest {
     private val json = NetworkModule.provideJson()
 
     @Test
-    fun `locked account is a login and restore result instead of an unknown error`() {
+    fun `재가입 대기 계정은 알 수 없는 오류가 아니라 로그인과 복구 결과로 매핑한다`() {
         val response = json.decodeFromString<SocialLoginResponse>(LOCKED_RESPONSE)
 
         assertDoesNotThrow { response.toLoginResult() }
@@ -25,7 +25,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `locked account carries the server re-registration time as the only date`() {
+    fun `재가입 대기 계정은 서버의 재가입 가능 시각만 날짜로 전달한다`() {
         val response = json.decodeFromString<SocialLoginResponse>(LOCKED_RESPONSE)
         // 오프셋 없는 서버 시각은 서비스 시간대(KST)로 해석한다.
         val expected = Instant.parse("2026-09-20T03:00:00Z")
@@ -35,7 +35,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `locked account keeps an offset re-registration time`() {
+    fun `재가입 대기 계정은 오프셋이 있는 재가입 가능 시각을 그대로 해석한다`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_LOCKED",
             isOnboarded = false,
@@ -50,7 +50,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `locked account stays locked when the re-registration time is missing or unusable`() {
+    fun `재가입 가능 시각이 없거나 해석할 수 없어도 재가입 대기 상태를 유지한다`() {
         listOf(null, "invalid").forEach { value ->
             val response = SocialLoginResponse(
                 status = "WITHDRAWAL_LOCKED",
@@ -65,7 +65,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `maps success status to restored result`() {
+    fun `성공 상태를 복구 완료 결과로 매핑한다`() {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             isNewMember = false,
@@ -80,7 +80,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `maps server onboarding state instead of whether the member is new`() {
+    fun `신규 회원 여부가 아니라 서버의 온보딩 완료 여부를 매핑한다`() {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             accessToken = "access",
@@ -96,7 +96,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `maps withdrawal pending timestamps to domain result`() {
+    fun `탈퇴 유예 시각을 도메인 결과로 매핑한다`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,
@@ -117,7 +117,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `rejects success response without required tokens`() {
+    fun `토큰이 없는 성공 응답은 거부한다`() {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             isNewMember = false,
@@ -132,7 +132,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `rejects successful token response without tutorial flag`() {
+    fun `튜토리얼 완료 여부가 없는 토큰 응답은 거부한다`() {
         val response = SocialLoginResponse(
             status = "SUCCESS",
             accessToken = "access",
@@ -149,7 +149,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `rejects unsupported restore status`() {
+    fun `지원하지 않는 복구 상태는 거부한다`() {
         val response = SocialLoginResponse(status = "LOCKED", isOnboarded = false, isCourseTutorialCompleted = false)
 
         val exception = assertThrows(AuthException.Unknown::class.java) { response.toAccountRestoreResult() }
@@ -158,7 +158,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `maps offset-less withdrawal timestamps so recovery stays reachable`() {
+    fun `오프셋 없는 탈퇴 시각도 매핑해 복구 화면에 진입할 수 있다`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,
@@ -179,7 +179,7 @@ class AccountRestoreMapperTest {
     }
 
     @Test
-    fun `keeps withdrawal pending result when timestamps are unusable`() {
+    fun `탈퇴 시각을 해석할 수 없어도 탈퇴 유예 결과를 유지한다`() {
         val response = SocialLoginResponse(
             status = "WITHDRAWAL_PENDING",
             isCourseTutorialCompleted = false,

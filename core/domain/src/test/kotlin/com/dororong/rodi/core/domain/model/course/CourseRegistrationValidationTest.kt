@@ -6,19 +6,19 @@ import org.junit.jupiter.api.Test
 
 class CourseRegistrationValidationTest {
     @Test
-    fun `validates ordered real route request`() {
+    fun `순서가 맞는 실제 경로 요청은 검증을 통과한다`() {
         assertDoesNotThrow { validRequest().validateForSubmission() }
     }
 
     @Test
-    fun `rejects requests without a real route`() {
+    fun `실제 경로가 없는 요청은 거부한다`() {
         assertThrows(IllegalArgumentException::class.java) {
             validRequest().copy(distanceMeters = 0).validateForSubmission()
         }
     }
 
     @Test
-    fun `rejects unordered waypoints and duplicate practice types`() {
+    fun `경유지 순서가 어긋나거나 연습 유형이 중복되면 거부한다`() {
         assertThrows(IllegalArgumentException::class.java) {
             validRequest().copy(
                 waypoints = validRequest().waypoints.reversed(),

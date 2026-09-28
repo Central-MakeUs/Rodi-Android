@@ -17,13 +17,13 @@ class MapLoadStatusTest {
         MapLoadStatus(isOnline, hasLoadedMapBefore, clock = { now })
 
     @Test
-    fun `starts ready when the map loaded before and loading otherwise`() {
+    fun `지도를 불러온 적이 있으면 준비 상태로 없으면 로딩 상태로 시작한다`() {
         assertEquals(MapScreenState.Ready, status(hasLoadedMapBefore = true).screenState)
         assertEquals(MapScreenState.Loading, status(hasLoadedMapBefore = false).screenState)
     }
 
     @Test
-    fun `offline start shows the snackbar but does not cover the map yet`() {
+    fun `오프라인으로 시작하면 스낵바를 보여주지만 아직 지도를 가리지 않는다`() {
         val offline = status(isOnline = false)
 
         assertTrue(offline.showNetworkSnackbar)
@@ -31,7 +31,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `network error screen appears only after the offline grace period`() = runTest {
+    fun `오프라인 유예 시간이 지난 뒤에만 네트워크 오류 화면을 보여준다`() = runTest {
         val status = status(isOnline = false, hasLoadedMapBefore = true)
 
         launch { status.awaitOfflineGrace() }
@@ -47,7 +47,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `reconnecting within the grace period keeps the map visible`() = runTest {
+    fun `유예 시간 안에 다시 연결되면 지도를 계속 보여준다`() = runTest {
         val status = status(isOnline = false, hasLoadedMapBefore = true)
 
         val grace = launch { status.awaitOfflineGrace() }
@@ -60,7 +60,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `retry recreates the map view and ignores repeats within the debounce window`() {
+    fun `다시 시도는 지도 뷰를 새로 만들고 짧은 시간 안의 반복은 무시한다`() {
         val status = status()
 
         assertTrue(status.retry())
@@ -74,7 +74,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `retry keeps a ready map on screen while reloading`() {
+    fun `다시 시도하는 동안 준비된 지도를 화면에 둔다`() {
         val status = status(hasLoadedMapBefore = true)
 
         status.retry()
@@ -83,7 +83,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `retry while offline shows the network error without recreating the map`() {
+    fun `오프라인에서 다시 시도하면 지도를 새로 만들지 않고 네트워크 오류를 보여준다`() {
         val status = status(isOnline = false)
 
         assertFalse(status.retry())
@@ -93,7 +93,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `map error while online is reported as an sdk error instead of a network error`() {
+    fun `온라인에서 지도 오류가 나면 네트워크 오류가 아니라 SDK 오류로 알린다`() {
         val status = status(isOnline = true)
 
         status.onMapError()
@@ -103,7 +103,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `map error while offline only shows the snackbar and leaves the screen to the grace period`() {
+    fun `오프라인에서 지도 오류가 나면 스낵바만 보여주고 화면은 유예 시간에 맡긴다`() {
         val status = status(isOnline = true, hasLoadedMapBefore = true)
         status.isOnline = false
 
@@ -114,7 +114,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `reconnect retries only when an error was being shown`() {
+    fun `다시 연결되면 오류를 보여주던 경우에만 다시 시도한다`() {
         val healthy = status(hasLoadedMapBefore = true)
         val recovering = status(isOnline = false, hasLoadedMapBefore = true)
         recovering.isOnline = true
@@ -124,7 +124,7 @@ class MapLoadStatusTest {
     }
 
     @Test
-    fun `rendering counts as loaded only while online`() {
+    fun `렌더링은 온라인일 때만 로드 완료로 본다`() {
         val online = status()
         val offline = status(isOnline = false)
 

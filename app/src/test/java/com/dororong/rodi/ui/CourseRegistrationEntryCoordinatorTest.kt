@@ -39,7 +39,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `missing or empty draft opens registration immediately`() {
+    fun `임시 저장이 없거나 비어 있으면 코스 등록을 바로 연다`() {
         val noDraft: CourseDraft? = null
 
         assertEquals(
@@ -53,7 +53,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `meaningful draft shows home resume dialog`() {
+    fun `내용이 있는 임시 저장이 있으면 홈에서 이어하기 다이얼로그를 띄운다`() {
         val draft = CourseDraft(description = "퇴근길 연습")
 
         assertEquals(
@@ -63,7 +63,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `continue and fresh entry modes consume the flow resume dialog`() {
+    fun `이어하기와 새로 시작 진입은 등록 흐름의 이어하기 다이얼로그를 소비한다`() {
         assertEquals(
             CourseRegistrationIntent.DraftContinueClicked,
             courseRegistrationIntentForEntry(
@@ -81,7 +81,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `normal entry safely continues a stale flow draft without a second dialog`() {
+    fun `일반 진입은 남아 있던 등록 흐름 임시 저장을 다이얼로그를 다시 띄우지 않고 이어간다`() {
         assertEquals(
             CourseRegistrationIntent.DraftContinueClicked,
             courseRegistrationIntentForEntry(
@@ -99,7 +99,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `non-resume dialogs do not consume an entry intent`() {
+    fun `이어하기가 아닌 다이얼로그는 진입 의도를 소비하지 않는다`() {
         assertEquals(
             null,
             courseRegistrationIntentForEntry(
@@ -114,7 +114,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `clear draft returns failure so the resume dialog can stay open`() = runTest(dispatcher) {
+    fun `임시 저장 삭제가 실패하면 이어하기 다이얼로그를 유지할 수 있게 실패를 반환한다`() = runTest(dispatcher) {
         val observeDraft = mockk<ObserveCourseDraftUseCase>()
         val clearDraft = mockk<ClearCourseDraftUseCase>()
         every { observeDraft() } returns flowOf(null)
@@ -129,7 +129,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `clear draft rethrows cancellation instead of converting it to a failure`() = runTest(dispatcher) {
+    fun `임시 저장 삭제 중 취소는 실패로 바꾸지 않고 그대로 전파한다`() = runTest(dispatcher) {
         val observeDraft = mockk<ObserveCourseDraftUseCase>()
         val clearDraft = mockk<ClearCourseDraftUseCase>()
         every { observeDraft() } returns flowOf(null)
@@ -145,7 +145,7 @@ class CourseRegistrationEntryCoordinatorTest {
     }
 
     @Test
-    fun `clear draft failure keeps the error for the snackbar`() {
+    fun `임시 저장 삭제가 실패하면 스낵바에 보여줄 오류를 남긴다`() {
         assertEquals(
             "disk",
             courseRegistrationClearDraftFailureMessage(IllegalStateException("disk")),

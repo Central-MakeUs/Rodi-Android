@@ -19,7 +19,7 @@ class CoreUiComponentsTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun `clicking a button invokes its callback`() {
+    fun `버튼을 누르면 콜백을 호출한다`() {
         var clicked = false
         composeRule.setContent {
             RodiTheme {
@@ -33,7 +33,7 @@ class CoreUiComponentsTest {
     }
 
     @Test
-    fun `clicking a selectable chip invokes its callback`() {
+    fun `선택 칩을 누르면 콜백을 호출한다`() {
         var clicked = false
         composeRule.setContent {
             RodiTheme {
