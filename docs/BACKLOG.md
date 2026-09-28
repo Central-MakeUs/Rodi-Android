@@ -2,472 +2,199 @@
 
 > Codex는 Claude의 개인 메모리를 볼 수 없다. **두 에이전트가 공유해야 할 후속 항목은 여기에** 둔다.
 > 한 줄씩 누적하고, 착수 시 `docs/handoff/HANDOFF.md`로 옮겨 작업한다.
-
-## 열린 항목
-
-### **실시간 업데이트가 Android 16 이상 일부 기기에서 안 뜬다** (2026-09-17 내부 테스트에서 발견)
-- [ ] 테스터 기기에서 마이페이지 > 테스트 > 라이브 업데이트 > 진단 정보 스크린샷을 모아 막힌 조건을 확정한다.
-  표시 조건은 셋이다 — ① 알림 형태(코드상 충족) ② OS 36.1(Android 16 QPR1) 이상 ③ 사용자·제조사 허용.
-  **Samsung One UI 8은 서드파티 앱을 기본 차단하고 개발자 옵션 "모든 앱의 실시간 알림"이나 삼성 허용 목록으로만
-  표시한다.** 삼성 전용 확장(`com.samsung.android.support.ongoing_activity` 메타데이터 +
-  `android.ongoingActivityNoti.*`)도 허용 목록에 들어야 동작하므로 코드만으로는 해결되지 않는다 — 제휴 신청 여부는
-  기획 판단. 승격이 안 되는 기기에서도 일반 진행 알림으로 갱신되는지는 유지한다.
-  **2026-09-18 실기기 실측(SM-M446K, One UI 8.0, API 36.0)**: 36.0에서도 개발자 옵션을 켜면 표시되므로 "36.1 미만이라
-  안 뜬다"가 아니다. `adb shell dumpsys notification --noredact`의 `AppSettings: <패키지> ... allowOngoingActivity=1`이
-  삼성의 앱별 허용값이다 — 카카오T·카카오내비·네이버지도·당근·스타벅스는 1, Rodi는 값 자체가 없다. 정책 버전이
-  `Notification Policies SCPM Version`으로 찍혀 있어 서버에서 내려오는 목록으로 보인다. `canPostPromotedNotifications()`는
-  이 기기에서 false라 판단 근거가 못 된다.
-  근거: developer.android.com/develop/ui/views/notifications/live-update, OneSignal Android Live Notifications 문서
-
-### **권한 설정 화면 문구 재검토** (2026-09-16 실기기 확인에서 발견)
-- [ ] `PermissionSettingsScreen`의 행 문구가 사용자가 무엇을 얻는지 설명하지 못한다.
-  "위치"와 "주행 상태 알림"은 허용/미허용만 보여 줄 뿐, 거부하면 무엇이 안 되는지 알려주지 않는다.
-  "실시간 업데이트"만 이번에 설명을 붙였다. **기획과 함께 세 행의 문구를 함께 다시 쓴다.**
-- 배경: One UI 8 실기기에서 "실시간 업데이트"가 항상 "미허용"으로 보이는데 삼성 설정에는 켤
-  스위치가 없어 사용자가 할 수 있는 일이 없었다. 지금은 시스템 값을 비추지 않고 **Android 16 이상에서
-  앱 내 토글**을 노출한다 — 끄면 우리 알림만 승격 요청과 진행바를 빼고 일반 알림으로 띄운다.
-  승격되지 않아도 진행 알림은 "실시간 정보" 영역에 정상으로 뜬다(실측).
-
-### ~~코스 상세 시트, 손가락으로 천천히 위로 드래그 시 버벅임~~ (2026-08-17 발견, 2026-09-01 해결 확인)
-- [x] 사용자가 실기기에서 재검증해 해결을 확인함(2026-09-01). 마지막 유력 원인으로 지목했던
-  "운전 추적 서비스가 백그라운드에서 종료되지 않고 계속 돌던 버그(#81)"가 실제 원인이었던
-  것으로 보인다 — 그 수정 이후 버벅임이 재현되지 않음.
-
-### ~~홈 필터 저장 중 시스템 뒤로가기 UI Test 보강~~ (2026-09-07 추가, 2026-09-17 해결)
-- [x] **전제가 틀렸다.** 필터 시트는 Material3 `ModalBottomSheet`라 별도 창(ComponentDialog)으로 뜨고,
-  시스템 뒤로가기는 그 창이 먼저 소비한다. 시트가 떠 있는 동안 `HomeScreen`의 `BackHandler` 필터 분기는
-  실행되지 않는다(에뮬레이터 API 36.1 계측 확인). 저장 중 닫힘을 막는 실제 경로는 `FilterBottomSheet`다.
-- [x] 확인 과정에서 실제 버그를 찾아 고쳤다. `ModalBottomSheet`는 뒤로가기·드래그에서 시트를 먼저 내린 뒤
-  `onDismissRequest`를 부르므로, `onDismissRequest`에서만 막으면 저장 중에 시트가 화면에서만 사라졌다.
-  저장이 실패하면 상태는 "시트 열림"으로 남고 보이지 않는 시트 창이 홈 화면 터치를 가로챘다.
-  `rememberModalBottomSheetState(confirmValueChange)`로 저장 중 Hidden 전환을 거부한다.
-  회귀 테스트: `FilterBottomSheetDismissTest`(Robolectric, CI에서 실행).
-- 주의: `ModalBottomSheetProperties(shouldDismissOnBackPress = !isSaving)`로 막으면 안 된다. Material3 1.4.0은
-  창을 만들 때의 값으로만 뒤로가기 콜백을 등록해서, 저장이 끝난 뒤에도 뒤로가기로 시트가 닫히지 않는다.
-- AVD에서 저장 중 상태를 만들 수 없다는 기존 실측(네트워크 지연 무시, 비행기 모드는 오류 화면 전환)은 그대로 유효하다.
-
-### ★ 최우선 — UI 회귀 안전망 (2026-08-14 추가, 2026-08-24 1차 도입 완료)
-> 배경: 이 리포는 단위 테스트 574개(2026-08-24 기준) 대비 계측(androidTest)이 사실상 없었고
-> 스크린샷 테스트는 0개였다. 마커 겹침·시트 드래그 잼·리플 클리핑·드롭다운처럼 실제로 터지는
-> 버그는 전부 **단위 테스트가 볼 수 없는 영역**이었다. `./gradlew test` 통과가 "검증됨"의
-> 근거로 계속 오용됐고, 같은 QA 라운드에서 회귀가 반복됐다.
-
-- [x] **Roborazzi 스크린샷 테스트 도입** — `test/ui-regression-safety-net` 브랜치에서 완료
-  (2026-08-24). `core:ui`(`RodiButton`/`RodiSelectableChip`/`RodiSnackbar`)와
-  `feature:home`(`LevelReviewSection` 빈 상태/요약)에 Roborazzi 1.68.0 + Robolectric 4.16.1로
-  스크린샷 5장 커밋. AGP 9.2.1/Kotlin 2.2.10 호환성 확인 후 `./gradlew test` 전체 통과 유지한
-  채로 도입 완료. `CourseDetailSheet`(접힘/펼침)는 이번엔 다루지 않음 — 후속으로 남김.
-- [x] **Roborazzi 스냅샷 비교를 CI 게이트로 연결** (2026-09-15 완료) — 그전까지 CI는 `./gradlew test`만
-  돌렸고, 이 태스크는 기준 이미지와 비교하지 않아 UI가 깨져도 통과했다. `ci.yml`에
-  `verifyRoborazziDebug` 스텝을 추가하고, 실패하면 `roborazzi-diff` 아티팩트를 올리게 했다.
-- [x] **Kover 커버리지 리포트 도입** (2026-09-15 완료) — `dororong.rodi.kover` Convention Plugin으로 11개 모듈을
-  측정하고, CI는 `kover-report` 아티팩트를 올린다. 임계값은 걸지 않았다. 첫 측정 결과는
-  `audits/2026-09-15-coverage.md`에 있다. `core:data` 수치는 `SampleCourses.kt`(앱 미사용 샘플 데이터)
-  때문에 부풀려져 있다는 점에 주의한다.
-- [x] **`MockResponseRegistry`를 계측 테스트 픽스처로 승격** — `withMocks(responses, block)`
-  suspend 헬퍼 추가 완료(2026-08-24, 상태 복원 포함). 아직 실제 androidTest에서 쓰인 곳은 없음 —
-  진입점만 마련된 상태.
-- [x] **`CourseDetailSheet` 접힘/펼침 Roborazzi 스크린샷 추가** (2026-08-25 완료) — 접힌 상태의
-  기본/저장됨 2종을 `CourseDetailSheetRoborazziTest`로 추가했다. 펼침 상태는 이번 범위에서
-  다루지 않고 후속으로 남긴다.
-- [ ] **Compose UI Test — 제스처/드롭다운/리플 클리핑 커버리지** (2026-08-24 후속, 리뷰에서
-  발견) — 1차 도입에서 `feature:auth`/`feature:entry`/`core:ui`에 추가한 androidTest 3개는
-  전부 클릭/토글 기반 상태 전환 검증이다(`LoginContentTest`/`TermsAgreementContentTest`/
-  `CoreUiComponentsTest` 참고 — HANDOFF는 로컬 전용이라 원문은 리뷰 시점 세션에만 있음).
-  정작 이 백로그가 처음에 지목했던 실제 회귀 유형 — 드래그/스와이프, 리플 클리핑 — 은
-  스크린샷 diff와 이번 androidTest 어느 쪽으로도 아직 안 잡힌다. `feature:mypage`/
-  `feature:settings`도 여전히 androidTest 0개.
-  드롭다운은 `RodiPopupMenuTest`로 커버됨(2026-08-25). 드래그/스와이프도
-  `CourseDetailSheetInteractionTest`로 커버됨(2026-08-25, 실제 swipe로 "닫기"→"접기" 아이콘
-  전환 + "경로 정보" 노드 상대 위치 역전까지 검증). 리플 클리핑은 여전히 이번 범위 밖이고,
-  `feature:mypage`/`feature:settings`의 androidTest 0개도 그대로 남아있다.
-  **범위 아님**: 시트 드래그의 *프레임 잼(버벅임)* 자체는 이 항목이 다루지 않는다 — Compose UI
-  Test는 드래그가 올바른 상태 전환을 만드는지만 검증하고, 실제 janky frame 비율 측정은 아래
-  FrameTimingMetric 항목의 몫이다. 둘을 같은 것으로 착각하지 말 것. 리플 클리핑도 본질적으로
-  시각적 결함이라 semantics 기반 Compose UI Test로는 검증 불가 — Roborazzi 스크린샷 쪽 소관.
-- [x] **androidTest Compose UI 테스트를 Robolectric(`src/test`)으로 이전** (2026-09-15 완료) — CI에
-  에뮬레이터가 없어 한 번도 실행되지 않던 androidTest 8개 파일 중 7개(12개 테스트)를 옮겼다. 이제
-  `./gradlew test`와 CI에서 돈다. `CourseRegistrationSearchContentTest`는 `430fd08a`(2026-08-18)에서
-  빠진 `onClear` 인자를 계속 넘기고 있어 컴파일조차 되지 않았고, 인자만 지웠다(단언은 그대로).
-- [ ] **`CourseRegistrationTutorialContentTest` Robolectric 이전 보류** — 3개 중 스와이프 테스트 2개가
-  Robolectric에서 실패한다. `HorizontalPager`에서 `swipeLeft` 후 다음 페이지 문구가 표시되지 않는다
-  (문구 자체는 코드와 일치). 기기(AVD)에서도 실제로 통과하는지 먼저 확인하고, 통과하면 원인을
-  Robolectric의 pager fling/애니메이션 처리 쪽에서 찾는다. 확인 전까지 `src/androidTest`에 남겨 두며, 이 파일은 CI에서 돌지 않는다.
-- [x] **`docs/TESTING.md`에 Roborazzi 예외 명시** (2026-08-25 완료) — `TESTING.md`의 JUnit5
-  규칙 뒤에 Roborazzi/Robolectric의 JUnit4 예외와 적용 범위를 문서화했다.
-- [ ] **시트 드래그 잼 회귀 감시 (FrameTimingMetric)** — `:benchmark` 모듈에 Macrobenchmark와
-  uiautomator가 이미 붙어 있으므로(`StartupBenchmark.kt` 참고) 테스트만 추가하면 된다.
-  **선결 과제: 로그인 우회 수단이 없다.** 코스 상세까지 가려면 카카오 로그인 → 위치 → 목록
-  선택을 거쳐야 해서 벤치마크가 안정적으로 화면에 도달하지 못한다. 디버그 빌드 전용 진입점
-  (예: 특정 화면으로 바로 가는 deep link, 또는 테스트용 토큰 주입)이 먼저 필요하다 — 이 진입점
-  자체가 보안·스펙 판단이 필요해 2026-08-24 배치에서도 그대로 남겼다.
-  그때까지는 수동으로 `adb shell dumpsys gfxinfo com.dororong.rodi`의 janky frame 비율을
-  수정 전/후 비교하는 방식으로 대체한다.
-
-- [x] **후기 등록 성공 후 코스 상세 목록·요약에 노출되지 않음 (백엔드 확인 필요)** — `placeId 106`
-  (영덕 해안도로 코스)에 `POST /places/{placeId}/reviews`가 200으로 성공한 뒤에도
-  `GET /places/{placeId}/reviews/summary`·`?level=ALL`·`GET /places/{placeId}/reviews?size=1`이
-  전부 200을 반환하지만 방금 만든 후기가 응답에 없다. 클라이언트 재조회 배선(`CourseReviewViewModel.refresh()`)은
-  3라운드에 걸쳐 정상 동작을 확인했다 — `ReviewLevelFilter.Mine`이 `level` 쿼리를 생략하는데,
-  서버가 이를 "내 레벨 코호트"로 해석하는지 "필터 없음"으로 해석하는지 확인 필요. 개발 서버
-  `placeId 106`에 테스트 계정 후기 2건("행", "그드팥지")이 남아 정리 필요.
-
-  **2026-08-12 기기 검증 — 백엔드 이슈가 맞다.** 한때 이 항목을 "클라이언트 타임스탬프 파싱
-  버그"로 재진단했으나 틀렸다. 에뮬레이터에서 같은 계정으로 확인한 결과:
-  - `GET /members/me/reviews` → 그 후기 2건이 **정상 렌더링**된다(내 게시글, 26.08.10 "ㄱㄷ팥ㅈ" /
-    26.08.09 "행"). 즉 서버에 후기가 실재하고 클라이언트 파싱도 정상이다.
-  - 같은 시점에 `/places/106/reviews*`는 200 + 0건 → 코스 상세는 빈 상태.
-  - `HomeScreen`에 후기 조회 실패 스낵바를 붙여둔 상태에서 **스낵바가 뜨지 않았다.** 매퍼 예외가
-    아니라 서버가 실제로 빈 응답을 준다는 뜻이다.
-
-  타임스탬프 파싱 버그(`1193e8bf`)는 별개로 실재했고 고쳐졌다 — 그게 막고 있던 건 내 게시글·
-  차단목록·연습기록이지 이 항목이 아니었다.
-  **2026-08-12 재검증 — 원인을 찾았다. 서버 스키마 자체가 바뀌었고 클라이언트가 못 쫓아갔다.**
-  코스 상세를 열 때 스낵바에 원문 예외가 그대로 떴다: `Field 'totalCount' is required for type
-  with serial name '...ReviewSummaryResponse'`. Swagger를 다시 받아 대조하니
-  `ReviewSummaryResponse`가 통째로 바뀌어 있었다 — `totalCount`가 없어지고
-  `levelReviewCount`·`totalReviewCount`·`topDifficulty`(신규)로 갈렸다. 클라이언트 DTO
-  (`core/data/.../model/review/ReviewResponses.kt`)는 옛 스키마 그대로라 역직렬화가 항상
-  실패한다. `/places/106/reviews*`가 200에 0건처럼 보인 건 실제로 빈 응답이 아니라
-  **파싱이 매번 터져서 조회 자체가 실패**했기 때문이다("빈 상태"와 "실패"가 UI에서 구분이
-  안 됐을 뿐, 스낵바가 뜬 지금은 원인이 보인다).
-
-  범위가 크다 — 새 필드 3개 반영, `ReviewSummaryResponse`/도메인 모델/매퍼/`CourseReviewViewModel`/
-  UI(`topDifficulty` 노출 여부 등) 전부 손대야 해서 이번엔 고치지 않고 여기 남긴다. 최신 Swagger
-  원문(`GET /places/{placeId}/reviews/summary` description): "난이도 분포와 최다 난이도
-  (topDifficulty)는 **선택한 레벨** 기준, 추천/비추천 수는 **전체 레벨 합산**이라 모수가
-  levelReviewCount·totalReviewCount로 나뉜다. 동률이면 더 어려운 난이도를 고르고, 후기가 없으면
-  topDifficulty 키 자체가 빠진다."
-  같은 else 분기 문제(`ReviewRepositoryImpl.toReviewException`가 `message ?: "..."`로 예외 원문을
-  그대로 실어 보냄)는 2026-09-01에 사용자 메시지를 고정하고 회귀 테스트를 추가해 해결했다.
-
-  **2026-08-13 부분 해결.** 지난 QA 라운드에서 "totalCount 오류 토스트"를 크래시만 막고 넘어갔다가
-  (기본값 0L만 채움), 이번에 Swagger를 다시 대조해 진짜 원인을 잡았다. `ReviewSummaryResponse`를
-  `levelReviewCount`/`totalReviewCount`에 맞추고 도메인 `totalCount`를 `totalReviewCount`에서
-  옮기도록 매퍼를 고쳤다 — 이제 파싱은 항상 성공하고 "전체보기" 링크도 실제 후기 수를 반영한다.
-  **남은 범위**: `topDifficulty`(서버가 동률까지 계산해 내려주는 신규 필드)는 매핑하지 않았다 —
-  클라이언트가 `difficultyCounts`로 이미 같은 규칙을 계산 중이라 당장 필요하지 않았다. `levelReviewCount`도
-  아직 UI에서 안 쓴다. `ReviewRepositoryImpl.toReviewException`의 미분류 예외 원문 노출은 해결됐다.
-  `placeId 106`의 테스트 후기 2건 정리는 여전히 미확인.
-
-  **남은 작업**
-  - [ ] `topDifficulty` 서버 필드 매핑·노출 여부 결정
-  - [ ] `levelReviewCount` UI 사용 여부 검토
-  - [x] `ReviewRepositoryImpl.toReviewException`의 예외 원문 fallback 제거 — 사용자 메시지를 고정하고
-    회귀 테스트 추가(2026-09-01)
-  - [ ] 관련 후기 테스트의 성공·실패·취소 경로 검토 및 정리
-- [x] 주차장도 연습 목록에 담을지 기획 확인 필요 — 2026-08-13. Swagger 원문("코스·주차장 모두
-  가능")을 재확인해 코스만 등록하던 클라이언트 분기를 제거했다(`HomeViewModel.launchPractice`).
-- [ ] 순환 코스 마커 앵커 Y 값 재평가 — 출발·도착 겹침 조건에서 앵커 Y 기준을 동일 조건으로 비교하고, 검증 결과를 반영한다.
-- [ ] **남은 Dialog/Sheet 프리뷰에 `LocalInspectionMode` 분기 적용 및 이름 없는 `@Preview`에 이름 부여**
-
-- [x] **차단목록 빈 상태 문구 부재** — `BlockedMembersEmpty()`로 반영 완료(`b0ebd754`, QA
-  라운드). Figma("차단한 사람 없을 때", node 3659:67282)와 문구·스타일 일치 확인(2026-08-13).
-
-- [ ] **손수 만든 다이얼로그 3개를 `RodiAlertDialog`로 이관** — 후기 등록 플로우 작업에서
-  `core/ui/components/dialog/RodiDialog.kt`(`RodiDialog` + `RodiAlertDialog`)를 새로 만들었다.
-  같은 구조를 이미 복사해 쓰고 있는 `core/ui/.../AccountRecoveryDialog.kt`,
-  `feature/home/.../reviewactions/ReviewReportScreen.kt`의 `BlockMemberDialog`·`ReportSubmittedDialog`를
-  이관하고, 거기 있는 사설 `DialogButton`(116×42)을 제거한다. 당시엔 diff를 작게 유지하려고 미뤘다.
-- [x] **`Throwable.userMessage()` `core:common` 승격** — `core/common/.../UserMessage.kt`로
-  올리고 `HomeViewModel`·`SearchViewModel`의 동일 복사본을 제거했다. `ReviewWriteViewModel`은
-  도메인 예외 분기가 있어 `reviewErrorMessage()`로 이름을 바꾸고 else만 공용 함수에 위임한다.
-  `MyPageViewModel`의 `userMessage(fallback)`은 화면별 대체 문구를 받는 다른 계약이라 남겼다.
-  원문 누출 차단은 `AuthErrorMapper`가 맡는다(`876f3142`) — 리포지토리가 모든 예외를
-  `AuthException`으로 감싸므로 화면 단 필터로는 못 막는다.
-
-- [x] **재가입 가능 시각 서버 필드** (`rejoinableAt`으로 요청 → 서버는 `reRegisterableAt`으로 제공, 2026-09-27 완료) — 탈퇴 정책은
-  유예 3일(복구 가능) → 이후 총 10일까지 재가입 불가 → 그 뒤 재가입 가능, 3구간이다.
-  가운데 구간(탈퇴+3일 ~ +10일)에서 서버는 `MEMBER_409_1`을 주는데 본문이 `code`/`message`뿐이라
-  **안내에 쓸 기준 날짜가 오지 않는다.** 그래서 MY-06-R "0월 0일 이후 재가입 가능해요." 다이얼로그를
-  구현할 수 없다. 주의: `recoverableUntil`은 탈퇴+3일이라 이 문구에 쓰면 7일 어긋난다.
-  서버가 `rejoinableAt`을 `200 WITHDRAWAL_PENDING`과 `MEMBER_409_1` 양쪽에 실어주면
-  앱이 정책 상수를 하드코딩하지 않아도 된다(`ApiEnvelope`에 `data` 필드가 이미 있다).
-  그때까지 이 구간은 디자인의 "재가입 가능 날짜를 불러오지 못했어요." 토스트 + 새로고침으로 폴백.
-  요청은 넣어둔 상태(2026-08-12).
-
-  **2026-08-13 재확인 — 여전히 대기 중.** 현재 로그인 응답 Swagger엔 `rejoinableAt`이 없고
-  `withdrawalRequestedAt`/`recoverableUntil`만 있다(`SocialLoginResponse.kt`). 로컬은
-  `recoverableUntil`까지는 이미 받고 있지만 화면에 날짜를 표시하는 곳은 없다 — 연결 누락이
-  아니라 애초에 서버 필드가 없어서 못 붙인 상태. 백엔드가 "`recoverableUntil`을 재가입 기준으로
-  쓴다"고 확정하면 새 필드 없이도 바로 연결 가능하니, 필드 추가 대신 그 방향으로 정리될 수도 있다.
-
-  **2026-09-27 완료(#177).** 서버는 요청한 `rejoinableAt` 대신 로그인·복구 모두
-  `200 status=WITHDRAWAL_LOCKED` + `reRegisterableAt`으로 이 구간을 내려준다(`MEMBER_409_1` 경로는
-  명세에서 사라졌다). 앱은 이를 복구 가능 상태와 별도 결과(`WithdrawalLocked`)로 받아 MY-06-R
-  "M월 d일 이후 재가입 가능해요." 다이얼로그를 띄우고, 날짜는 서버 값만 쓴다(정책 날짜 재계산 없음).
-  날짜를 해석하지 못하면 "재가입 가능 날짜를 불러오지 못했어요."만 띄운다 — 날짜가 응답에 함께 오므로
-  다시 요청해도 결과가 같아 디자인의 "새로고침"은 넣지 않았다. 남은 것: 해당 상태의 계정이 없어
-  기기 확인은 못 했고, 다이얼로그는 공용 팝업 규격이라 시안보다 간격이 좁다(높이 약 40dp 차이).
-- [x] **미방문 사유 제출 API 연동** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/skip-reason`이
-  최신 Swagger에 있고 `PracticeApi.submitSkipReason` → `PracticeRepositoryImpl` →
-  `SubmitSkipReasonUseCase` → `PracticeSkipReasonViewModel.submit()`까지 전부 실제 API를
-  호출하도록 배선돼 있다(스텁 아님). 이 항목을 작성한 시점 이후 API가 나와서 바로 연동된 것으로
-  보인다.
-- [ ] **연습 방문 감지를 서버/지오펜싱 기반으로 교체** — 현재 RV-01 트리거는 "내비 실행 시각을
-  로컬에 저장(`PracticeSessionPreference`) → 앱 재진입 시 10분 경과 판정" 휴리스틱이다.
-  내비를 띄우고 실제로는 안 갔거나, 앱을 아예 안 열면 감지되지 않는다.
-  서버 방문 인증 API 또는 Geofencing+WorkManager가 준비되면 교체한다.
-  (목록 API에 `isVerifiedVisit`가 생기면 후기 카드의 방문인증 칩도 함께.)
-- [x] **장소 상세 조회 실패 시 에러 피드백 부재** — 재확인(2026-08-14) 결과 이미 해결돼 있다.
-  `HomeViewModel.openPlace()`의 `onFailure`가 `_effect.send(HomeEffect.ShowSnackbar(error.userMessage()))`를
-  호출 중.
-- [x] **보호 API 인증 중앙화 및 session 경합 방어** — 현재 `NetworkModule`의 인증 전용 client에
-  `AuthHeaderInterceptor`/`TokenAuthenticator`가 연결되어 있고 공개 Auth/Kakao client와 분리되어 있다.
-  #166(`eeb60466`)에서 새 login/logout 이후 stale refresh commit과 old-request retry를 방어했다.
-  일부 `authenticatedRequest` helper는 로그인 확인·오류 mapping 용도로 남아 있다. helper 이름의
-  검색 결과를 Repository별 refresh/retry 중복으로 해석하지 않는다.
-  `audits/2026-09-17-auth-header.md`는 중앙화 이전 snapshot이며 당시 수치를 현재 상태로 사용하지 않는다.
-- [x] **인증 workflow 후처리 ownership 추가 검토** — 로그아웃·탈퇴·삭제의 로컬 정리를
-  `AuthSessionCoordinator`의 세션 소유권 확인 commit으로 모으고 root가 종료를 관찰하게 했다(ADR 0002).
-  남은 것: 이전 세션 workflow가 새 로그인 뒤 처음 보내는 요청의 세션 고정(재현 경로 미확인),
-  로그아웃 온보딩 정리가 실패해 남은 초안이 다음 계정의 보류 동기화로 전송될 가능성.
-- [x] **이전 계정의 보류 온보딩 답변이 새 계정으로 제출될 수 있음 — 위험 수용 (2026-09-25)** —
-  A의 온보딩 제출이 실패해 보류로 남은 상태에서 A의 세션이 만료되거나(만료는 온보딩을 일부러 남긴다)
-  로그아웃 정리가 실패하고, 같은 기기에서 게스트 이력 없는 새 회원 B가 가입하면
-  `LoginWithKakaoUseCase`가 A의 답변을 B의 닉네임으로 B 계정에 제출한다(통제된 테스트로 클라이언트 경로 재현,
-  서버 수락 여부는 미확인).
-  수용 이유: 세 조건이 동시에 겹쳐야 하고 기기 공유가 드문 앱이다. 클라이언트는 회원 식별자가 없어
-  "같은 사용자의 만료 후 재로그인"(자기 초안을 이어 써야 함)과 다른 계정을 구분하지 못하며, 이 한 경우를
-  위해 서버에 식별자를 추가하는 것은 과하다.
-  다시 볼 때: 새 회원 로그인에서는 보류 초안을 자동 제출하지 않고 버리는 클라이언트 완화책이 가장 작다.
-  적용 전에 Entry 온보딩이 새 회원에게 설문을 다시 받는지(이어 쓰는지)부터 확인한다.
-- [x] **로그아웃 중 연습 세션 정리가 실패하면 운전 추적이 남음 — 위험 수용 (2026-09-25)** —
-  운전 추적 서비스는 저장된 연습 세션을 보고 스스로 종료하므로(#170) 정상 로그아웃에서는 추적도 끝난다.
-  `AuthSessionCoordinator`의 연습 세션 정리는 best-effort라, 이 쓰기가 실패하면 추적과 알림이 남는다.
-  수용 이유: 로그아웃 순간의 DataStore 쓰기 실패가 전제라 드물고, 남더라도 알림의 "운전 종료" 버튼, 도착,
-  알림을 끄면 서비스가 스스로 종료하는 경로로 끝난다. 프로세스가 종료되면 `START_NOT_STICKY`라 다시 시작되지
-  않는다. 완전히 막으려면 서비스가 인증 종료를 직접 관찰해야 해 결합에 비해 얻는 것이 작다.
-  다시 볼 때: 로그아웃 뒤 추적 알림이 남는 제보나 로그가 실제로 확인되면.
-- [ ] **`androidx.baselineprofile` Gradle 플러그인 stable로 교체** — stable(1.4.1)이 AGP 9.2.1을
-  지원하지 않아 `1.5.0-alpha07`로 임시 고정(`feature/baseline-profile` 작업, `gradle/libs.versions.toml`의
-  `baselineProfilePlugin`). 빌드 툴체인에만 영향(런타임 코드 무관)이지만 alpha 의존이므로 stable
-  릴리스가 나오면 버전 교체.
-- [ ] **닉네임 마이페이지 수정 기능** — 온보딩에서 서버가 배정한 닉네임(로그인 응답 `nickname`,
-  게스트는 로컬 `NicknameGenerator` 폴백)은 이번 스코프에서 수정 UI가 없다(사용자 확인: "닉네임
-  수정은 나중에 마이페이지에서"). 마이페이지 화면 작업 시 함께 고려.
-- [ ] **`NicknameGenerator` 단어 리스트 PM 검수** — 형용사구/동물 각 10개씩 임시로 채워 넣었다
-  (`core/common/.../NicknameGenerator.kt`). 로그인 계정은 서버 닉네임을 쓰므로 이 목록은 게스트
-  전용 폴백에만 쓰인다. 실제 서비스에 쓸 최종 리스트는 PM 검수 필요.
-- [ ] **`PracticeSituation`(온보딩 선호 상황) ↔ `PracticeTag`(Course 특징) 통합 검토** — 두 enum이
-  라벨 상당수 겹치지만(유턴/좌우회전/주차/차선변경/교차로/회전교차로/고속진입/직선주행 등) 완전히
-  같지 않아 이번엔 별도 enum으로 분리했다. 코스 추천 매칭 로직을 설계할 때 두 개념을 어떻게
-  연결할지(혹은 통합할지) 재검토할 것.
-- [ ] **Kotlin 2.2.10 → 2.4.0 / AGP 버전 업그레이드** — Google Maven 기준 Kotlin 최신 안정은 2.4.0,
-  AGP는 현재 프로젝트(9.2.1)가 이미 공개 릴리스 노트보다 앞서 있음. 컴파일러 호환성(compose
-  compiler, KSP 등) 검증이 필요해 Java 21 통일 작업(2026-07-01)에서 범위 밖으로 뺌.
-- [ ] **Kakao Map/Navi SDK 버전 업그레이드 검토** — `kakaoMap`(2.11.9)/`kakaoSdk`(2.20.6) 최신 여부
-  미확인. 지도·내비 핵심 기능 회귀 위험이 있어 별도 검증 후 진행.
-- [x] **Nav3 도입** — 현재 app은 Navigation3 `NavDisplay`와 typed route를 사용한다.
-  최신 result API 사용 가능성은 `libs.versions.toml`의 실제 버전과 공식 도입 버전을 별도로 확인한다.
-- [ ] **테마 시스템 고도화** — 마찬가지로 `dnd-14th-2-android`의 `designsystem/theme/`
-  (Theme.kt/Color.kt/Typography.kt/Dimensions.kt)를 참고해 `RodiTheme`을 확장.
-  **목표: Rodi의 제품 요구와 유지보수에 맞는 디자인 시스템을 갖추는 것. 다른 프로젝트의
-  전역 규범으로 이 구조를 강제하지 않는다.** 참고 프로젝트 구조:
-  - `PickleTheme.colors` / `.semantic` / `.typography` 3개의 `CompositionLocal`을
-    `ReadOnlyComposable`로 노출하는 패턴 (색상 토큰과 "의미 있는" 색상 매핑을 분리)
-  - `SemanticColors`: 카카오/구글 로그인 브랜드색, 도메인 상태색(예: guilty/innocent) 등
-    화면 의미 단위로 색을 매핑 — Rodi라면 코스/주차장/경로 상태 등에 적용 가능
-  - `Dimensions.kt` 단일 객체로 버튼/입력필드/아이콘/앱바/보더라디우스 등 수치 상수 중앙화
-    (현재 `RodiTheme.spacing`/`radius`와 통합 또는 대체 검토)
-  - 컴포넌트 네이밍은 프로젝트 프리픽스 통일(`Pickle*` → Rodi라면 `Rodi*`), `components/<종류>/model/`
-    하위에 Type/Size 등 sealed 모델 분리
-  - 디자인시스템 Button 작업(`feat/design-system-buttons`)과 결과물 정합성 확인.
-- [x] **`CourseRepository`/`SampleCourses`/`GetCoursesUseCase` 죽은 코드 정리 (2026-08-14 발견, 2026-09-15 제거)** —
-  `GetCoursesUseCase`/`ObserveSavedCourseIdsUseCase`/`ToggleSavedCourseUseCase`가 app·feature에서
-  참조 0건임을 재확인하고 제거했다. 함께 `CourseRepository`의 `getCourses`/`observeSavedCourseIds`/
-  `toggleSavedCourse`, `SampleCourses`(하드코딩 샘플 데이터 4,090줄), 그 두 메서드만 쓰던
-  `SavedCourseLocalDataSource`를 삭제했다. `CourseRepository`는 살아 있는 `getRoute` 두 개만 남는다.
-  기기에 남은 DataStore 파일 `saved_courses`는 더 이상 읽지 않는다(삭제 마이그레이션은 두지 않음).
-  재검증: `rg -n 'SampleCourses|SavedCourseLocalDataSource|GetCoursesUseCase|ObserveSavedCourseIdsUseCase|ToggleSavedCourseUseCase|observeSavedCourseIds|toggleSavedCourse|getCourses\(\)' --glob '*.kt' --glob '!**/build/**' .` → 0건
-  (`getCourses\(\)`는 인자 없는 호출만 잡는다. `feature:mypage`의 `getCourses(status, cursor, size)`는 등록 코스 조회용 다른 API라 대상이 아니다.)
-- [x] **`DrivingTrackingService` 시작/종료 명령 직렬화 (2026-08-16 CodeRabbit 발견)** — PR #113에서
-  해결. `onStartCommand()`가 명령을 `Channel`로만 넘기고 `onCreate()`의 단일 소비자 코루틴이
-  도착 순서대로 처리하도록 재구성해 START/STOP 저장 순서를 구조적으로 보장했다.
-- [x] **운전 도착 알림 탭 시 도착 흐름 미연결 (2026-08-16 CodeRabbit 발견)** — PR #113에서 해결.
-  `MainActivity`가 `ACTION_OPEN_ARRIVAL`을 받아 도착 화면으로 라우팅하고, config change 재생성
-  시 같은 이벤트가 재처리되지 않도록 처리 후 `intent.action`을 비운다.
-- [ ] **운전 알림 색상의 Compose 외부 테마 브릿지 검토 (2026-08-16 CodeRabbit 발견)** — `DrivingNotificationFactory`가
-  `RodiTheme.colors`(CompositionLocal)를 쓸 수 없는 비-Compose 컨텍스트라 `LightRodiColors`를 직접
-  참조 중. 다크 모드 알림 색상이 필요해지면 전용 브릿지(예: Application 시작 시 현재 테마를
-  구독해 정적 필드에 반영)를 검토할 것.
-- [x] **GitHub Actions 외부 액션을 커밋 SHA로 고정 (2026-09-15 CodeRabbit 발견, PR #120 · 2026-09-17 고정)** — 워크플로가
-  `actions/checkout@v4`, `upload-artifact@v4`, `setup-java@v4`, `setup-python@v5`, `gradle/actions/setup-gradle@v4`,
-  `softprops/action-gh-release@v2`를 태그로 참조한다. 태그는 가리키는 커밋이 바뀔 수 있다. `build` job은 시크릿으로
-  `local.properties`(Kakao 키)를 만든 뒤 이 액션들을 실행하므로, 태그가 악성 커밋으로 옮겨지면 키가 노출될 수 있다.
-  `ci.yml`, `release.yml`, `playstore-watch.yml`의 모든 외부 액션을 `@<sha> # vX` 형태로 한꺼번에 고정하고,
-  갱신은 Renovate/Dependabot에 맡기는 방안을 검토한다. 워크플로에 `permissions:` 블록이 없는 점(zizmor 경고)도 함께 본다.
-  재검증: `rg -n 'uses: [^@]+@v[0-9]' .github/workflows`
--  해결(2026-09-17): 세 워크플로의 외부 액션을 `@<sha> # vX.Y.Z`로 고정하고 `ci.yml`에 최상위 `permissions: contents: read`를 선언했다.
-  자동 갱신(Renovate/Dependabot)은 아직 붙이지 않았다 — 액션을 올릴 때는 태그가 가리키는 커밋 SHA를 다시 확인해 교체한다.
-
-### **응답 DTO의 기본값이 누락 필드를 가린다** (2026-09-18 enum 수정 중 발견)
-- [ ] `MyPageResponse`처럼 응답 DTO가 `nickname: String = ""`, `level: String = ""` 같은 기본값을 갖고 있어
-  서버가 필드를 빼먹어도 파싱이 성공한다. PROJECT.md "기본값만 채워 덮지 말 것"과 어긋난다.
-  필수 필드는 기본값을 없애 역직렬화에서 실패시키거나 `requireField`로 명시적으로 실패시킨다.
-  재검증: `rg -n ': String = ""' -g '*Response.kt' core/data/src/main`
-
-## 코드 관용구 정합성 (2026-09-06 전수 조사)
-
-> `app`/`core`/`feature` 전 소스에서 관용구를 추출하다 나온 **Rodi 내부 불일치**만 모은다.
-> Rodi 규범은 `conventions/`, Global 판단 절차는 `android-development`가 소유하며, 여기엔
-> "Rodi가 그 규범과 어긋난 지점"만 남긴다 — 규범과 할 일을 한 문서에 섞지 않는다.
 >
-> **수치는 전부 `91799c57` 기준 실측이며 재검증 명령을 함께 적는다.** 시간이 지나면 수치를
-> 믿지 말고 명령을 다시 돌릴 것. (조사 원본의 수치 4건이 이미 실측과 달랐다.)
+> **운영 원칙 (2026-09-28 전수 감사 후)**: 선제적인 구조 정리는 여기서 끝낸다. 새 구조 작업은 기능 개발이나
+> QA에서 구체적인 문제가 확인됐을 때만 만든다. 항목은 **누가 다음 행동을 해야 하는지**로 나눈다.
+> 상태가 바뀌면 해당 절로 옮기고, 완료는 맨 아래 "완료 (이력)"에 한두 줄로 남긴다. 긴 경위는 git 이력에 있다.
 
-### MVI 계약이 화면마다 갈린다
-- [x] **상태 property가 `state`/`uiState`로 양분** (2026-09-18 전부 `_uiState`/`uiState`로 통일, check-conventions BLOCK) — `_state` 8개, `_uiState` 9개. 상태 타입이
-  전부 `*UiState`이므로 `_uiState`/`uiState`로 통일한다.
-  재검증: `rg -l 'private val _state\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
-- [x] **Effect 전달·소비 방식 불일치** (2026-09-17 Channel + `effect` + `CollectEffect`로 통일, check-conventions BLOCK 3종으로 고정) — 전달은 `Channel<T>(Channel.BUFFERED)` 8개 대
-  `MutableSharedFlow` 1개(`CourseRegistrationViewModel`), 소비는 `CollectEffect` 7개 화면 대
-  직접 `LaunchedEffect { collect }` 2개(`CourseRegistration`, `AccountSettings`), 노출명도
-  `AccountSettingsViewModel`만 `effects`(복수)다. 전부 일회성 UI 명령이라는 성격은 같으므로
-  당시 Channel + `effect` + `CollectEffect`로 정리했다. 현재 신규 output 정책은
-  `conventions/mvi.md`의 의미·수명 판단을 따른다. 모든 화면에 Effect/Channel을 생성하지 않는다.
-  재검증: 이유 주석 없는 선언만 세는 명령은 `docs/conventions/mvi.md` 참고 (CI가 같은 기준으로 판정)
-- [x] **Intent 자식 이름이 `OnXxx`와 동작형으로 갈림** (2026-09-18 전부 이벤트형으로 통일, check-conventions BLOCK) — `HomeContract`/`SearchViewModel`은
-  `OnQueryChange`류, `CourseRegistrationContract`는 `Retry`/`Submit`류. Contract 타입 자체가
-  이미 "입력"을 뜻한다. 현재 typed Intent는 `RetryClicked` 등 이벤트형으로 통일하며
-  명령형을 권장하던 이전 설명을 정정한다(`conventions/naming.md`, `mvi.md`).
-- [x] **Contract 선언 위치가 컨벤션과 절반만 맞다** (2026-09-17 "화면마다 ViewModel 옆 Contract"로 규칙을 고치고 10개 화면 이동, CI BLOCK) — 루트 `*Contract.kt` 8개 대 UiState를
-  ViewModel 파일에 내장한 것 9개(`SavedCourses`/`MyPage`/`PracticeRecords`/`DrivingGoal`/
-  `AccountSettings`/`BlockedMembers`/`Search`/`RodiApp`/`ReviewActions`). PROJECT.md는 "Contract는
-  feature 루트에 하나"인데 지켜지지 않는다. **컨벤션대로 옮기거나, 하위 화면별 Contract를
-  허용하도록 컨벤션을 고치거나 — 둘 중 하나로 먼저 정할 것.** 지금은 근거 없이 갈려 있다.
-  재검증: `rg -l 'data class \w+UiState' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
+## 개발 대기
 
-- [x] **컴포넌트에 남아 있던 색 리터럴 4건** (2026-09-18 `semantic` 토큰으로 이관, check-conventions BLOCK) —
-  카카오 브랜드색 2건은 `brandKakao`/`onBrandKakao`, 지도 로딩 그라데이션 1건은 `mapLoadingHighlight`로
-  올리고, 나머지 1건은 값이 같은 `primary100`으로 교체했다.
+### 테스트 공백 (2026-09-28 감사)
+- [ ] **테스트가 없는 ViewModel** — `PracticeSkipReasonViewModel`(미방문 사유를 서버에 제출)과
+  `PermissionSettingsViewModel`. 전자는 서버 쓰기가 있는 흐름이라 우선한다.
+  재검증: ViewModel 이름으로 `*Test.kt`를 검색해 참조가 0건인 것을 찾는다.
+- [ ] **이름보다 좁게 검증하던 테스트의 assertion 보강** — #185에서 이름을 실제 검증 범위로 좁힌 19개 중
+  사용자 흐름에 닿는 것만 보강한다. 인증 헤더 주장 7건은 `AuthHeaderInterceptorTest`·`TokenAuthenticatorTest`가
+  이미 검증하므로 대상이 아니다.
+  - `HomeViewModelTest`: GPS로 확인되지 **않은** 도착이면 인정 거리를 보내지 않는다
+  - `MyPostsViewModelTest`: 연습 기록이 **없으면** 연습 기록 버튼이 비활성이다
+  - `EntryViewModelTest`: `setAllTermsChecked`가 약관 외 항목을 바꾸지 않는다(미리 false로 두고 확인)
+  - `SearchViewModelTest`: 장소 추천은 최근 검색어 등록이 끝난 **뒤** 이동한다
+  - `CourseRegistrationTutorialContentTest`: 연속 스와이프 뒤 이전 페이지로 되돌아가지 않는다(#180에서 수정 코드를 빼도 통과)
 
-### 파일·패키지 배치가 다수 관용구에서 벗어난 지점
-- [x] **ViewModel이 다른 파일에 내장된 2건** — `PracticeSkipReasonViewModel`(2026-09-17)과
-  `CourseRegistrationEntryViewModel`(2026-09-18)을 각각 선언명과 같은 파일로 분리했다.
-  "app 레벨 coordinator가 ViewModel을 소유한다"는 예외는 두지 않기로 했다.
-  재검증: check-conventions WARN "ViewModel 선언명 ≠ 파일명" 0건
-- [x] **`SearchScreen`만 상태와 화면이 다른 패키지에 있다** (2026-09-17 `search/`로 이동) — `SearchViewModel`/`SearchUiState`는
-  `feature.home.search`인데 `SearchScreen.kt`는 `feature.home` 루트다. 화면 파일도 `search/`로
-  내린다.
-- [x] **`component`(단수) 패키지 1개** (2026-09-17 `components`로 변경) — `feature/entry/.../entry/component`만 단수고 나머지
-  8개는 `components`. `components`로 통일.
-- [x] **`HomeSheetAnchorsTest.kt` 한 파일에 클래스 2개** (2026-09-17 분리) — `ListSheetAnchorPolicyTest`와
-  `HomeSheetValueMappingTest`. 나머지 테스트는 전부 파일명=클래스명이므로 분리한다.
+## 외부 대기 (서버·제조사)
 
-### 에러 처리 경계
-- [x] **`ReviewWriteViewModel`이 취소를 실패로 표시한다 (2026-09-06 발견)** — 후기 수정 초기
-  로드의 `catch (error: CancellationException)`이 `throw error`로 재전파는 하지만, **그 전에**
-  `initializationErrorMessage = error.message ?: "수정할 후기를 불러오지 못했어요."`를 상태에
-  쓴다. 취소는 사용자가 화면을 벗어났거나 재시도가 이전 작업을 대체한 정상 흐름인데 에러로
-  표시되고, `error.message`는 취소 예외의 내부 문구("... was cancelled")라 사용자에게 그대로
-  노출될 수 있다. **취소 경로에서는 상태를 건드리지 말고 바로 재전파해야 한다.**
-  같은 함수의 `.onFailure`도 `error.message`를 그대로 쓰고 있어 아래 사용자 메시지 통일
-  항목과 함께 고치면 된다.
-  정본: `feature/home/.../review/ReviewWriteViewModel.kt` — 앵커 `catch (error: CancellationException)`
-  재검증: `rg -U -P -n 'catch \([^)]*CancellationException\)\s*\{\s*\n(?!\s*throw)' --glob '**/*.kt' --glob '!**/build/**' --glob '!**/src/test/**'`
--  해결(2026-09-07): `CancellationException` catch에서 상태를 갱신하지 않고 즉시 코루틴 취소를 전파하도록 정리했다.
-- [x] **사용자 메시지 변환 경계가 통일되지 않음** — 공통 `Throwable.userMessage()`를 쓰는
-  ViewModel은 3개(`Home`/`Search`/`CourseReview`)뿐이고, 9개가 `error.message`를 화면에 그대로
-  쓴다(`RegisteredCourses`/`MyPosts`/`SavedCourses`/`CourseRegistration`/`Login`/`BlockedMembers`/
-  `AccountSettings`/`ReviewWrite`/`ReviewActions`). `UserMessageProvider`를 구현한 예외도 4개
-  (`Place`/`Review`/`Practice`/`Auth`)뿐이라 `CourseRegistrationException`은 빠져 있다.
-  **서버 JSON·개발자용 예외 원문이 사용자에게 노출되는 경로다** — 2026-09-01에 후기 쪽 한 건을
-  이미 같은 이유로 고쳤다. 승인된 도메인 예외가 `UserMessageProvider`를 구현하고 모든 ViewModel이
-  공통 `userMessage()`만 호출하도록 통일한다.
-  재검증: `rg -l '\.message\b' --glob '**/*ViewModel.kt' --glob '!**/build/**'`
--  해결(2026-09-07): 승인된 도메인 예외와 맥락별 fallback을 공통 nullable `userMessage(fallback)`으로 변환하고 ViewModel의 예외 원문 노출을 차단했다.
-- [x] **DTO enum의 알 수 없는 값 처리가 3방식으로 갈림** (2026-09-18 임의값 대체 2건 제거 — 모르는 레벨·연습 상태는 도메인 예외로 실패) — 필수 값 명시적 실패(3개 파일),
-  임의 정상값으로 대체(2개), 선택 값 null/drop(5개). `MemberMapper`가 알 수 없는 레벨을
-  `OnboardingLevel.SEED`로, `PracticeMapper`가 `PLANNED`로 바꾸는 두 건이 특히 위험하다 —
-  **파싱은 성공하는데 값이 조용히 틀린다.** PROJECT.md의 "기본값만 채워 덮지 말 것" 규칙과
-  정면으로 어긋나므로 우선 수정 대상. 필수·제어 값은 도메인 예외로 실패시키고 화면에서 생략
-  가능한 선택 값만 null/drop한다.
+- [ ] **실시간 업데이트가 Samsung 기기에서 안 뜬다** (2026-09-17 내부 테스트에서 발견) — 코드만으로는 해결되지 않는다.
+  표시 조건은 셋이다: ① 알림 형태(코드상 충족), ② Android 16 이상, ③ 사용자·제조사 허용.
+  **Samsung One UI 8은 서드파티 앱을 기본 차단하고 삼성 허용 목록에 있는 앱만 표시한다.**
+  - 2026-09-18 실측(SM-M446K, One UI 8.0, API 36.0): 개발자 옵션 "모든 앱의 실시간 알림"을 켜면 표시된다.
+  - `adb shell dumpsys notification --noredact`의 `AppSettings: <패키지> ... allowOngoingActivity=1`이 삼성의 앱별 허용값이다.
+    카카오T·카카오내비·네이버지도는 1이고 Rodi는 값이 없다. `Notification Policies SCPM Version`으로 보아 서버에서 내려오는 목록이다.
+  - `canPostPromotedNotifications()`는 이 기기에서 false라 판단 근거가 못 된다.
+  - 삼성 전용 확장(`com.samsung.android.support.ongoing_activity` 메타데이터)도 허용 목록에 들어야 동작한다.
+  - 승격되지 않는 기기에서도 일반 진행 알림으로 갱신되는 것은 유지한다.
+  - 다음 행동: 삼성 제휴 신청 여부(기획 판단, 아래 "기획·디자인 대기")
+  - 근거: developer.android.com/develop/ui/views/notifications/live-update
+- [ ] **닉네임 수정** — `PATCH /members/me`는 `drivingGoal`만 받는다(2026-09-28 Swagger 확인).
+  서버가 닉네임 수정을 지원하면 마이페이지에 붙인다.
+- [ ] **개발 서버 `placeId 106`의 테스트 후기 2건 정리** — 2026-08 QA에서 테스트 계정으로 남긴 후기("행", "그드팥지").
 
-### Gradle 설정이 Convention Plugin 밖에 남은 지점
-- [ ] **`app`이 `AndroidApplicationConventionPlugin`을 쓰지 않는다** — `build-logic`에 등록은
-  돼 있는데 `app/build.gradle.kts`는 `dororong.rodi.android.hilt`만 쓰고 compileSdk/minSdk/
-  Java 21/Compose/Compose BOM·activity-compose를 직접 반복 선언한다. PR #117이 feature 6개를
-  정리했지만 app은 그대로다.
-- [x] **`core:data`만 `useJUnitPlatform()`을 직접 선언** (2026-09-17 library convention으로 이동) — `AndroidLibraryComposeConventionPlugin`엔
-  들어 있는데 `AndroidLibraryConventionPlugin`엔 없어서 Compose를 안 쓰는 모듈이 각자 선언해야
-  한다. library convention이 JVM 단위 테스트 엔진을 책임지도록 옮긴다.
-  재검증: `rg -ln 'useJUnitPlatform' --glob '**/build.gradle.kts' --glob '!**/build/**'`
+## 기획·디자인 대기
 
-### 문서와 코드가 어긋난 곳
-- [x] **`docs/TESTING.md`의 JUnit4 예외 서술이 사실과 다르다** (2026-09-17 `app` 테스트 JUnit5 이전·모듈 목록 보강으로 완료) — 문서는 "JUnit4 예외는
-  `*RoborazziTest.kt`에만 적용하고 나머지는 JUnit5"라고 하는데, 실제로는 `app`의 JVM 테스트
-  4개(`MainScreenNavigationTest`, `CourseRegistrationEntryCoordinatorTest`, `RodiAppViewModelTest`,
-  `RodiAppRouteTest`)가 `org.junit.Test`를 쓴다. 문서를 실제에 맞게 고치고(계측·Roborazzi는
-  JUnit4, 일반 JVM은 JUnit5) `app`의 낡은 JUnit4 테스트는 JUnit5로 이전한다. "파일 위치"
-  절의 모듈 목록에도 실제 테스트가 있는 `app`/`core:ui`/`feature:auth`/`feature:course-registration`/
-  `feature:mypage`/`feature:settings`가 빠져 있다.
-  **2026-09-15 부분 반영**: `TESTING.md`의 예외 서술은 "Robolectric(`@RunWith(AndroidJUnit4)`) 테스트는 JUnit4"로
-  고쳤다. 남은 일은 `app` 테스트 4개를 JUnit5로 옮기는 것과 "파일 위치" 절의 모듈 목록을 보강하는 것이다.
-  재검증: `docs/conventions/testing.md`의 JUnit4 재검증 명령 (check-conventions INFO에서도 같은 조건으로 잡힌다)
+- [ ] **권한 설정 화면 문구** (2026-09-16 실기기 확인) — "위치"와 "주행 상태 알림" 행이 허용/미허용만 보여주고,
+  거부하면 무엇이 안 되는지 알려주지 않는다. "실시간 업데이트"만 설명이 있다. 세 행의 문구를 함께 다시 쓴다.
+  배경: One UI 8에서 "실시간 업데이트"를 켤 시스템 스위치가 없어, 지금은 Android 16 이상에서 앱 내 토글을 노출한다.
+- [ ] **Samsung 실시간 업데이트 제휴 신청 여부** — 위 "외부 대기" 항목의 선행 판단.
+- [ ] **후기 요약 `topDifficulty`·`levelReviewCount` 노출 여부** — 서버가 두 필드를 내려준다.
+  `topDifficulty`는 클라이언트가 `difficultyCounts`로 같은 규칙(동률이면 어려운 쪽)을 이미 계산하고,
+  `levelReviewCount`는 UI에서 쓰지 않는다. 화면에 새로 보여줄 것이 있을 때만 연결한다.
+- [ ] **`NicknameGenerator` 단어 목록 검수** — 형용사구·동물 각 10개가 임시 값이다(`core/common/.../NicknameGenerator.kt`).
+  로그인 회원은 서버 닉네임을 쓰므로 게스트 폴백에만 쓰인다.
+- [ ] **후기 "좋아요" 안내 문구** — 후기 수정 안내가 좋아요 초기화를 언급하지만 앱과 서버에 좋아요 기능이 없다.
+  기능을 만들지, 문구를 뺄지 정한다.
+- [ ] **설정 `데이터 출처` 항목 존치** — 최신 디자인에는 없지만 공공데이터 출처 표기 의무 가능성이 있어 유지 중이다.
+- [ ] **크래시 모니터링 도입 여부** — 크래시 리포팅 SDK가 없다. 지금은 Clarity 세션 기록과 Play Console vitals뿐이다.
 
-### 죽은 코드
-- [x] **`safeApiCall`/`NetworkResult`/`DataError` 전부 미사용 (2026-09-15 제거)** — PR #16에서 공통 뼈대로 넣었지만
-  정의 파일(`core/data/.../source/remote/network/`) 밖에서의 참조가 **0건**임을 재확인하고 세 파일을 삭제했다.
-  실제 Repository는 `ApiEnvelope` + 도메인별 예외를 쓰며 `ApiEnvelope`는 그대로 남는다 — 새 프로젝트의
-  표준으로 옮기지 말 것. (같은 성격의 `CourseRepository`/`SampleCourses` 죽은 코드는 2026-09-15에
-  제거했다. 위 항목 참고.)
-  재검증: `rg -l 'safeApiCall|NetworkResult|DataError' --glob '**/*.kt' --glob '!**/build/**'` → 0건
+## QA 대기
 
-## 마이페이지 개편 후속
-- [x] **연습기록 조회 API 연동** — `GET /members/me/practices`를 마이페이지 섹션·전체보기 화면에 커서 페이징으로 연결했다.
-- [x] **내 후기 목록 API 연동** — `GET /members/me/reviews`를 내 게시글 화면에 커서 페이징으로 연결했다.
-- [x] **차단 목록 조회 API 연동** — `GET /members/me/blocks`를 차단목록 화면에 커서 페이징으로 연결했다.
-- [x] **레벨 진행률(누적 주행거리) 필드 연동** — `MyPageResponse.levelProgress`를 프로필 카드 진행바와 거리 텍스트에 연결했다.
-- [x] **레벨업 감지 트리거 연결** — 완료 확인(2026-08-13). `POST /practices/{practiceId}/visits`
-  응답의 `levelUp`/`newLevel`을 `HomeViewModel.recordPracticeVisit()`이 `state.levelUp`으로
-  넘기고, `HomeScreen.kt`가 이 값으로 `LevelUpDialog`를 띄운다. 실제 승급은 서버가 누적 거리
-  기준으로 `levelUp: true`를 내려줄 때만 발생한다(GPS 인증 거리는 Phase A라 항상 생략).
-- [ ] **후기 "좋아요" 기능 유무 확인** — 후기 수정 안내 문구가 좋아요 초기화를 언급하지만 현재 앱에는 좋아요 기능이 없다.
-- [ ] **설정 `데이터 출처` 항목 존치 여부** — 최신 디자인에는 빠졌으나 공공데이터 출처 표기 의무 가능성이 있어 유지했다.
+- [ ] **순환 코스 마커 겹침** — 출발·도착이 겹치면 지금은 X 앵커(0.25/0.75)로 좌우로 벌린다
+  (`feature/home/.../map/CourseRouteRenderer.kt`). 원래 항목의 "앵커 Y 재평가"는 재현 조건이 적혀 있지 않았다.
+  순환 코스를 기기에서 열어 겹침이 여전히 문제인지 확인한 뒤 개발 항목으로 올리거나 닫는다.
+- [ ] **재가입 대기(`WITHDRAWAL_LOCKED`) 다이얼로그 기기 확인** — #177에서 구현했지만 해당 상태의 계정이 없어
+  기기에서 보지 못했다. 다이얼로그는 공용 팝업 규격이라 시안보다 높이가 약 40dp 작다.
+
+## 보류
+
+- [ ] **`RodiAlertDialog`로 수제 다이얼로그 이관** — `AccountRecoveryDialog`, `BlockMemberDialog`,
+  `ReportSubmittedDialog`, 계정 설정 확인 다이얼로그가 같은 구조를 따로 구현하고 사설 `DialogButton`(116×42)을 쓴다.
+  버튼 규격이 공용 팝업과 달라 시안 확인이 먼저다. 해당 화면을 고칠 일이 생길 때 함께 한다.
+- [ ] **Baseline Profile 재생성** — 커밋된 `baseline-prof.txt`가 현재 코드와 크게 다르다(2026-09-28 에뮬레이터
+  생성본과 비교해 약 2,600줄 추가·2,200줄 삭제). 다음 릴리스 전에 실기기로 다시 생성한다.
+- [ ] **시트 드래그 잼 감시 (FrameTimingMetric)** — `:benchmark` 모듈은 이제 정상 동작한다(#184).
+  하지만 코스 상세까지 가려면 카카오 로그인이 필요해 벤치마크가 화면에 도달하지 못한다.
+  디버그 전용 진입점(deep link나 테스트 토큰 주입)이 먼저 필요하고, 그 자체가 보안 판단 대상이다.
+  그때까지는 `adb shell dumpsys gfxinfo com.dororong.rodi`의 janky frame 비율을 수정 전후로 비교한다.
+  주의: Compose UI Test는 드래그의 상태 전환만 검증하고 프레임 잼은 측정하지 않는다.
+- [ ] **의존성 업그레이드 묶음** — 한 번에 하나씩, 별도 작업으로 공식 호환성과 실제 동작을 확인한다.
+  - `androidx.baselineprofile` 플러그인: 지금 `1.5.0-alpha07`로 정상 동작한다. stable 여부와 AGP 9.2.1 호환을 먼저 확인한다.
+  - Kotlin `2.2.10`: Compose 컴파일러·KSP 호환 검증이 필요하다.
+  - Kakao Map `2.11.9`·Kakao SDK `2.20.6`: 지도·내비·로그인 회귀 QA가 필요하다.
+  - 재검증: `gradle/libs.versions.toml`
+- [ ] **`PracticeSituation`(온보딩 선호) ↔ `PracticeTag`(코스 특징) 통합** — 라벨이 상당수 겹치지만 같지 않다.
+  코스 추천 매칭을 설계할 때 함께 정한다.
+- [ ] **운전 알림 색의 다크 모드** — `DrivingNotificationFactory`는 Compose 밖이라 `LightRodiColors`를 직접 쓴다.
+  앱에 다크 테마가 생기면 테마 브릿지를 검토한다.
+- [ ] **`RodiAppViewModel`의 `ReissueAuthTokenUseCase(authRepository)` 직접 생성** — `conventions/structure.md`에
+  적힌 legacy debt다. 같은 ViewModel의 `observeSessionExpiration()` 구독은 문서화된 제한 예외라 대상이 아니다.
+- [ ] **이전 세션 workflow가 새 로그인 뒤 첫 요청의 세션을 고정할 가능성** — ADR 0002 작업에서 남긴 의문이다.
+  재현 경로가 확인되지 않았다. 증상이 보고되면 다시 본다.
+
+## 코드 관용구 정합성 (보류)
+
+> 규칙과 코드가 어긋난 채 남은 지점이다. `check-conventions.sh`의 WARN이 이 절을 가리킨다.
+
+- [ ] **`app`이 Compose BOM을 직접 선언** (check-conventions WARN) — `app`은 `AndroidApplicationConventionPlugin`을
+  쓰지만(#182) 이 플러그인은 Compose 의존성을 넣지 않는다. application 플러그인에 Compose BOM과 JUnit Platform까지
+  맡길지는 플러그인 책임을 넓히는 결정이라 하지 않았다. 지우면 안 된다 — app의 BOM은 중복이 아니라 별도 공급 경로다
+  (`conventions/gradle.md`).
+
+## 위험 수용
+
+- [x] **이전 계정의 보류 온보딩 답변이 새 계정으로 제출될 수 있음** (2026-09-25) —
+  A의 온보딩 제출이 실패해 보류로 남은 상태에서 A의 세션이 만료되거나 로그아웃 정리가 실패하고,
+  같은 기기에서 게스트 이력 없는 새 회원 B가 가입하면 `LoginWithKakaoUseCase`가 A의 답변을 B 계정에 제출한다
+  (클라이언트 경로 재현, 서버 수락 여부는 미확인).
+  수용 이유: 세 조건이 동시에 겹쳐야 하고 기기 공유가 드물다. 클라이언트는 회원 식별자가 없어
+  "같은 사용자의 만료 후 재로그인"과 다른 계정을 구분하지 못한다.
+  다시 볼 때: 새 회원 로그인에서 보류 초안을 버리는 클라이언트 완화책이 가장 작다. 먼저 Entry 온보딩이
+  새 회원에게 설문을 다시 받는지 확인한다.
+- [x] **로그아웃 중 연습 세션 정리가 실패하면 운전 추적이 남음** (2026-09-25) —
+  `AuthSessionCoordinator`의 연습 세션 정리는 best-effort라, 로그아웃 순간 DataStore 쓰기가 실패하면 추적과 알림이 남는다.
+  수용 이유: 드물고, 남더라도 알림의 "운전 종료"·도착·알림 끄기로 서비스가 스스로 끝난다(`START_NOT_STICKY`).
+  다시 볼 때: 로그아웃 뒤 추적 알림이 남는 제보나 로그가 실제로 확인되면.
+
+## 폐기
+
+- **테마 시스템 고도화** (2026-09-28) — `RodiTheme`이 이미 colors·semantic·typography·dimens를 갖췄다.
+  다른 프로젝트의 테마 구조를 따라가는 목표라 현재 방향과 맞지 않는다.
+- **후기 테스트의 성공·실패·취소 경로 검토** (2026-09-28) — 범위가 정해지지 않은 항목이다.
+  구체적인 누락은 "테스트 공백"에 따로 적는다.
+- **이름 없는 `@Preview`에 이름 부여** (2026-09-28) — 요구하는 규칙이 없다(`conventions/preview.md`).
+- **Compose UI Test 제스처·드롭다운·리플 커버리지** (2026-09-28) — 드롭다운(`RodiPopupMenuTest`)과
+  드래그(`CourseDetailSheetInteractionTest`)는 커버됐다. 리플은 Robolectric이 `RippleDrawable`을 그리지 않아
+  semantics 테스트로 검증할 수 없고(#181에서 확인), 기기 확인 대상이다.
+  마이페이지·설정 화면의 UI 테스트 부재는 구체적인 회귀가 생길 때 그 화면에 추가한다.
 
 ## 완료 (이력)
-- [x] **코스 등록 ViewModel의 Repository 직접 주입 제거** — `CourseRegistrationViewModel`이
-  Repository 5개 대신 코스 등록 UseCase 14개(선택 확정용 `ResolveCourseLocationSelectionUseCase` 신규)를
-  거치도록 연결. 한 번도 쓰이지 않던 UseCase 11개가 살아났고, VM의 초안 저장 분기 중복과
-  `CourseRegistrationRepositoryImpl`의 제출 검증 중복을 제거했다(검증은 `RegisterCourseUseCase`만).
-  규칙은 `conventions/structure.md` "화면은 UseCase를 거쳐 domain에 접근한다"로 명문화. 2026-09-15.
-- [x] **온보딩 서버 API 연동 + 점수 배점** — `OnboardingApi.submit()`이 `/members/me/onboarding`에
-  실제 연동됐고(`OnboardingRepositoryImpl`), 요청 페이로드가 최신 서버 스펙(2026-08-08 확인,
-  OpenAPI)과 필드·enum 값까지 정확히 일치함(`OnboardingMapper.toApiValue()` 전수 대조 완료).
-  점수 계산도 `core:domain`의 `OnboardingProfile.calculateAssessment()`로 이미 구현되어 있고,
-  스펙대로 점수는 서버에 보내지 않고 클라이언트가 변환한 `level`만 전송한다. 닉네임은 로그인
-  응답의 `nickname`(서버 값)을 그대로 저장하고, `NicknameGenerator`는 게스트(로그인 없는 둘러보기)
-  전용 로컬 폴백으로만 쓰여 원래 설계대로 동작 중.
-- [x] **레거시 `OAuthOnboardingProfileRequest` 죽은 코드 제거** — 온보딩 데이터를 로그인 요청에
-  같이 보내던 구 설계의 잔재(`AuthMapper.toOAuthRequest()` 포함, 호출부 없음)를 삭제.
-  `fix/typography-and-onboarding-cleanup` 브랜치, 2026-08-08.
-- [x] **Pretendard ExtraBold 폰트 적용** — ttf는 이미 확보돼 있었으나 `RodiTypography.price2`가
-  여전히 `FontWeight.Bold`로 남아있던 것을 `FontWeight.ExtraBold`로 교체하고 `RodiFontFamily`에
-  등록. `fix/typography-and-onboarding-cleanup` 브랜치, 2026-08-08.
-- [x] **로그아웃 API(`POST /auth/logout`) 연동** — `LogoutUseCase`/`AuthRepositoryImpl`이
-  `AccountSettingsViewModel`에 연결되어 동작 중.
-- [x] **로그인 후 온보딩 분기** — 2026-09-27(#176)부터 `isNewMember`가 아니라 서버 `isOnboarded`로
-  판단한다. 가입 후 온보딩 중 이탈한 회원은 재로그인 시 `isNewMember=false`·`isOnboarded=false`라
-  예전 분기로는 온보딩을 건너뛰고 레벨 없이 홈에 들어갔다. 로그인·복구·홈 로그인이 모두 같은 기준으로
-  온보딩(Entry)에 보낸다. 이 기기에서 온보딩을 끝냈는데 서버 제출만 남은 경우는 다시 시키지 않고
-  남은 제출을 한 번 보낸 뒤, 서버가 받으면 완료로 본다.
-- [x] **EntryRepository/NaviPreferenceRepository UseCase 래핑** (커밋 `290fdd4f`) —
-  `EntryViewModel`/`HomeViewModel`이 Repository 대신 UseCase(`GetEntryProgressUseCase` 등)를 주입받음.
-- [x] **커스텀 스낵바 도입 (PR #18)** — `core:ui/components/snackbar/`에 `RodiSnackbar`/
-  `RodiSnackbarHost`/`RodiSnackbarHostState`/`RodiSnackbarData` 구현·병합 완료(`ArrayDeque` 큐잉,
-  `RodiSnackbarDuration`, `AnimatedVisibility` 전환 포함). 참고 프로젝트의 `SnackbarPosition` enum·
-  `toastSuccess()/toastError()` 헬퍼는 이식하지 않았음(필요해지면 별도 항목으로 재검토).
-- [x] Routi → Rodi 브랜드 식별자 정리 (PR #8)
-- [x] 단위 테스트 + 테스트 자동화/CI 검증 (PR #17) — JUnit5 + MockK로 UseCase/ViewModel 핵심
-  로직 테스트 작성, GitHub Actions에 테스트 게이트 추가. `docs/TESTING.md`에 컨벤션 정리.
-- [x] 네트워크/로컬DB/DataStore 공통 뼈대 구축 (PR #16) — Retrofit/OkHttp + Room + 에러 매핑
-  공용 규약(`DataError`/`NetworkResult`/`safeApiCall`) 추가. 실제 API/스키마는 아직 없음(뼈대만).
-- [x] Repository 인터페이스 domain 이동 (PR #15) — `CourseRepository`가 `core:domain`으로 이동,
-  Kakao `LatLng` 의존 없는 도메인 전용 `RouteResult`/`GeoPoint` 도입 완료.
-- [x] 시스템 바 화면별 동적 컬러 (PR #9, `ec36a8d fix(entry): 약관 WebView 시스템 바 아이콘 동적 전환`) —
-  앱 내 유일한 어두운 배경 화면인 `TermsWebView`가 진입 시 `WindowInsetsControllerCompat
-  .isAppearanceLightStatusBars`/`.isAppearanceLightNavigationBars`를 `false`로 전환하고 이탈 시
-  이전 값으로 복원. 나머지 화면은 전부 흰 배경이라 `MainActivity`의 기본 라이트 스타일이 맞음.
-  이 항목이 "완료 처리" 커밋만 남긴 채 미머지 상태로 로컬에 방치돼 계속 노출됐던 것 —
-  `feat/system-bar-dynamic-color` 브랜치/워크트리 삭제로 정리.
+
+### 2026-09-28 전수 감사 사이클
+- [x] Compose Foundation을 `libs.bundles.compose`로 옮겨 `:core:ui` 단일 출처(ADR 0001)에 맞춤 (#186)
+- [x] 차단·계정 확인 다이얼로그와 `RodiPopupMenu`에 `LocalInspectionMode` 분기 (#187) — 프리뷰가 실제 창을 띄우던 곳만 고쳤다.
+  `ReportSubmittedDialog`, `NaviPickerSheet`, `FilterBottomSheet`는 분기가 없지만 프리뷰가 내용 Composable을 직접 그린다.
+- [x] 벤치마크 앱·테스트 APK 빌드를 PR CI에서 확인 (#188)
+- [x] 테스트 함수명 774개를 한국어 설명형으로 통일하고 `conventions/testing.md`에 규칙 기록 (#185)
+- [x] 벤치마크 실행 variant의 Clarity·서명과 벤치마크 대상 패키지 수정, 쓰지 않는 `benchmark` 빌드 타입 제거 (#183, #184)
+- [x] `app`에 `AndroidApplicationConventionPlugin` 적용 (#182)
+- [x] 필터 시트·계정 확인 다이얼로그 버튼의 리플이 모서리 밖으로 번지던 문제 (#181)
+- [x] `CourseRegistrationTutorialContentTest`를 Robolectric으로 옮겨 CI에서 실행 (#180)
+- [x] 삭제된 코스를 저장 목록에서 숨기고 상세 실패를 "삭제된 코스예요."로 표시 (#179)
+- [x] 재가입 대기 계정(`WITHDRAWAL_LOCKED` + `reRegisterableAt`)에 재가입 가능 날짜 안내 (#177) — 서버는 요청한
+  `rejoinableAt` 대신 이 형태로 내려준다. 날짜는 서버 값만 쓰고 정책 날짜를 재계산하지 않는다.
+- [x] 로그인 후 온보딩 분기를 `isNewMember`가 아니라 서버 `isOnboarded`로 판단 (#176)
+- [x] 서버가 보내지 않는 응답 필드 제거(`isVerified`×2, `congestionCounts`, `regionKey`) (#175)
+- [x] 응답 DTO 기본값이 누락 필드를 가리던 문제 — 필수 필드는 파싱 실패로 처리 (#174, `0d7b42bd`).
+  남은 기본값은 Kakao 외부 응답의 선택 필드와 Request 1건이다.
+  재검증: `rg -n ': String = ""' -g '*Response*.kt' core/data/src/main`
+
+### 인증·세션
+- [x] 보호 API 인증 중앙화와 session 경합 방어 — `AuthHeaderInterceptor`/`TokenAuthenticator`를 인증 전용 client에 연결,
+  새 login/logout 이후 stale refresh commit과 old-request retry 방어 (#166). 남은 `authenticatedRequest` helper는
+  로그인 확인·오류 mapping 용도다. `audits/2026-09-17-auth-header.md`는 중앙화 이전 스냅샷이다.
+- [x] 로그아웃·탈퇴·삭제의 로컬 정리를 `AuthSessionCoordinator`의 세션 소유권 확인 commit으로 모음 (ADR 0002)
+- [x] 운전 추적 종료를 화면 대신 연습 세션이 소유 (#170)
+- [x] 로그아웃 API(`POST /auth/logout`) 연동
+
+### 코드 관용구 정합성 (2026-09-06 조사, 2026-09-18까지 정리)
+- [x] 상태 property를 `_uiState`/`uiState`로 통일 (check-conventions BLOCK)
+- [x] Effect 전달·소비를 Channel + `effect` + `CollectEffect`로 통일 (BLOCK). 신규 output 정책은 `conventions/mvi.md`
+- [x] Intent 자식 이름을 이벤트형으로 통일 (BLOCK)
+- [x] Contract를 화면마다 ViewModel 옆 `XxxContract.kt`로 이동 (BLOCK)
+- [x] 컴포넌트의 색 리터럴 4건을 `semantic` 토큰으로 이관 (BLOCK)
+- [x] 다른 파일에 내장된 ViewModel 2건 분리, `SearchScreen` 패키지 이동, `component`→`components`, 테스트 파일당 클래스 하나
+- [x] `ReviewWriteViewModel`이 취소를 실패로 표시하던 문제 (2026-09-07)
+- [x] ViewModel의 예외 원문 노출 차단 — 공통 `userMessage(fallback)`으로 변환 (2026-09-07)
+- [x] DTO enum의 알 수 없는 값을 임의 정상값으로 대체하던 2건 제거 (2026-09-18)
+- [x] `useJUnitPlatform()`을 library convention으로 이동, `app` JVM 테스트 JUnit5 이전 (2026-09-17)
+- [x] 죽은 코드 제거: `safeApiCall`/`NetworkResult`/`DataError`, `CourseRepository`의 샘플 경로와 `SampleCourses`(2026-09-15)
+
+### 테스트·CI
+- [x] Roborazzi 스크린샷 테스트 도입(2026-08-24)과 `verifyRoborazziDebug` CI 게이트(2026-09-15).
+  `CourseDetailSheet` 접힘·저장됨·펼침 스크린샷 포함
+- [x] Kover 커버리지 리포트(2026-09-15, 임계값 없음). 첫 측정은 `audits/2026-09-15-coverage.md`
+- [x] androidTest Compose UI 테스트를 Robolectric(`src/test`)으로 이전해 CI에서 실행 (2026-09-15)
+- [x] `MockResponseRegistry.withMocks` 계측 테스트 픽스처 (2026-08-24)
+- [x] GitHub Actions 외부 액션을 커밋 SHA로 고정하고 `ci.yml`에 `permissions: contents: read` (2026-09-17).
+  자동 갱신은 붙이지 않았다 — 액션을 올릴 때 태그가 가리키는 SHA를 다시 확인한다.
+  재검증: `rg -n 'uses: [^@]+@v[0-9]' .github/workflows`
+
+### 기능·버그
+- [x] 홈 필터 저장 중 시트가 화면에서만 사라지던 버그 (2026-09-17, `FilterBottomSheetDismissTest`).
+  주의: `ModalBottomSheetProperties(shouldDismissOnBackPress = !isSaving)`로 막으면 안 된다. Material3 1.4.0은
+  창을 만들 때의 값으로만 뒤로가기 콜백을 등록해, 저장이 끝난 뒤에도 뒤로가기로 닫히지 않는다.
+- [x] 코스 상세 시트 드래그 버벅임 — 운전 추적 서비스가 계속 돌던 버그(#81) 수정 후 재현되지 않음 (2026-09-01)
+- [x] 연습 방문 감지 교체 — 내비 실행 시각 휴리스틱(`PracticeSessionPreference`)을 연습 추적 API(#75)와
+  운전 추적 서비스의 GPS 도착 판정(`RadiusArrivalPolicy`)으로 교체
+- [x] 후기 요약 스키마 변경 대응(`totalCount` → `levelReviewCount`/`totalReviewCount`, 2026-08-13)과
+  `ReviewRepositoryImpl` 예외 원문 fallback 제거 (2026-09-01)
+- [x] `DrivingTrackingService` 시작/종료 명령 직렬화, 도착 알림 탭 라우팅 (#113)
+- [x] 미방문 사유 제출 API, 연습기록·내 후기·차단 목록 API, 레벨 진행률, 레벨업 다이얼로그 연동 (2026-08)
+- [x] 주차장도 연습 목록에 담기 (2026-08-13), 장소 상세 조회 실패 스낵바, 차단목록 빈 상태
+- [x] `Throwable.userMessage()`를 `core:common`으로 승격
+- [x] Nav3 도입 — app은 Navigation3 `NavDisplay`와 typed route를 쓴다
+
+### 초기 구축 (2026-07 ~ 08)
+- [x] 코스 등록 ViewModel이 Repository 대신 UseCase를 거치도록 연결 (`conventions/structure.md`, 2026-09-15)
+- [x] 온보딩 서버 API 연동과 점수 배점, 레거시 `OAuthOnboardingProfileRequest` 제거 (2026-08-08)
+- [x] Pretendard ExtraBold 적용, 커스텀 스낵바(PR #18), 시스템 바 화면별 동적 컬러(PR #9)
+- [x] EntryRepository/NaviPreferenceRepository UseCase 래핑, Repository 인터페이스 domain 이동(PR #15)
+- [x] Routi → Rodi 브랜드 식별자 정리(PR #8), 단위 테스트와 CI 게이트(PR #17), 네트워크·DB 공통 뼈대(PR #16)

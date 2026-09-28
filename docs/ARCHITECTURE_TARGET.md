@@ -18,11 +18,13 @@ feature:* -> core:ui/core:common
 
 ```text
 core/domain/.../domain/
-  model/{auth,course,entry,navi,onboarding}/
+  model/<기능>/
   repository/
-  usecase/{auth,course,entry,navi,onboarding}/
+  usecase/<기능>/
 ```
 
+- `<기능>`은 `auth`, `course`, `driving`, `entry`, `member`, `navi`, `onboarding`, `place`, `practice`, `review`, `search`처럼
+  기능 단위로 나눈다. 새 기능은 같은 이름으로 `model`과 `usecase`에 함께 만든다.
 - 모델은 aggregate 기준으로 묶는다. aggregate를 이루는 enum/value type은 같은 파일에 둘 수 있다.
 - repository interface는 모두 `repository`에 둔다.
 - usecase와 테스트는 기능 하위 패키지를 미러링한다.

@@ -66,7 +66,7 @@ main과 androidTest에 각각 필요한데, **Compose library 모듈**(`:core:ui
 
 **`app`은 이 범위 밖이다.** 이 플러그인은 `com.android.library`를 적용하므로 application 모듈에는
 걸리지 않는다. `app`이 BOM을 직접 선언하는 건 **중복이 아니라 별도 공급 경로**이므로 지우면 안 된다.
-app까지 Convention Plugin으로 들이는 건 별도 작업이다 → `../BACKLOG.md`
+`app`이 쓰는 `AndroidApplicationConventionPlugin`은 Compose 의존성을 넣지 않는다 → `../BACKLOG.md` "코드 관용구 정합성"
 
 **정본**: `build-logic/src/main/kotlin/AndroidLibraryComposeConventionPlugin.kt` —
 앵커 `androidTestImplementation`
@@ -77,7 +77,7 @@ rg -n '(implementation|androidTestImplementation)\(platform\(libs\.androidx\.com
   -g 'build.gradle.kts' core feature app
 ```
 > `core/ui`의 `api(platform(...))`은 **유일 출처 그 자체**라 걸리면 안 된다 — 그래서 `api`를
-> 패턴에서 뺐다. 걸리는 건 아직 Convention Plugin 밖에 있는 `app`뿐이다 → `../BACKLOG.md`.
+> 패턴에서 뺐다. 걸리는 건 BOM을 따로 공급하는 `app`뿐이다 → `../BACKLOG.md` "코드 관용구 정합성".
 > (건수는 여기 적지 않는다 — 명령을 돌리거나 `../audits/`를 본다.)
 
 ## 커버리지(Kover)는 `dororong.rodi.kover` 하나가 설정한다
