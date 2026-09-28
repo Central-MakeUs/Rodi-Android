@@ -12,7 +12,6 @@ android {
 dependencies {
     implementation(project(":core:common"))
     implementation(project(":core:domain"))
-    implementation(libs.androidx.compose.foundation)
     implementation(libs.bundles.kakao.navigation)
     implementation(libs.play.services.location)
     implementation(libs.kotlinx.coroutines.android)

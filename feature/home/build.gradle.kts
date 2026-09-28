@@ -31,7 +31,6 @@ android {
 dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:common"))
-    implementation(libs.androidx.compose.foundation)
     implementation(libs.bundles.kakao.navigation)
     implementation(libs.play.services.location)
     testImplementation(libs.bundles.unit.test)
