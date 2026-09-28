@@ -81,13 +81,18 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("String", "CLARITY_PROJECT_ID", "\"xuepsqfoyk\"")
         }
-        create("benchmark") {
-            initWith(getByName("release"))
-            signingConfig = signingConfigs.getByName("debug")
-            matchingFallbacks += listOf("release")
-            isDebuggable = false
-            // release의 prod Clarity ID를 그대로 물려받으면 자동화된 벤치마크 실행까지 prod 세션으로 잡힌다.
-            buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
+        // Baseline Profile 플러그인이 release를 바탕으로 만드는 빌드 타입이다. benchmarkRelease는
+        // Macrobenchmark 측정, nonMinifiedRelease는 Baseline Profile 생성에 쓰인다. 여기서 먼저 만들면
+        // 플러그인이 release를 복사하지 않고 자기 강제 속성(debuggable·profileable 등)만 덮으므로,
+        // release를 직접 복사한 뒤 release에서 물려받으면 안 되는 두 가지만 바꾼다.
+        // - prod Clarity ID를 물려받으면 자동화된 실행까지 prod 세션으로 잡힌다.
+        // - release 키 없이도 로컬·에뮬레이터에서 설치할 수 있도록 debug 키로 서명한다.
+        listOf("benchmarkRelease", "nonMinifiedRelease").forEach { name ->
+            create(name) {
+                initWith(getByName("release"))
+                signingConfig = signingConfigs.getByName("debug")
+                buildConfigField("String", "CLARITY_PROJECT_ID", "\"\"")
+            }
         }
     }
     buildFeatures {
