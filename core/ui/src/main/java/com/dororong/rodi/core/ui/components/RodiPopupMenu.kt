@@ -19,6 +19,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -59,34 +60,48 @@ fun RodiPopupMenu(
 
     if (!expanded) return
 
+    if (LocalInspectionMode.current) {
+        RodiPopupMenuContent(items, onSelect, modifier, menuWidth)
+        return
+    }
     val positionProvider = remember { BelowAnchorEndAlignedPositionProvider() }
     Popup(
         popupPositionProvider = positionProvider,
         onDismissRequest = onDismissRequest,
     ) {
-        Column(
-            modifier = modifier
-                .width(menuWidth)
-                .clip(MenuShape)
-                .background(RodiTheme.colors.white, MenuShape)
-                .border(1.dp, RodiTheme.colors.gray300, MenuShape),
-        ) {
-            items.forEachIndexed { index, item ->
-                Text(
-                    text = item,
-                    style = RodiTheme.typography.body2Medium,
-                    color = RodiTheme.colors.gray700,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    softWrap = false,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(index) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                )
-                if (index != items.lastIndex) {
-                    HorizontalDivider(color = RodiTheme.colors.gray300)
-                }
+        RodiPopupMenuContent(items, onSelect, modifier, menuWidth)
+    }
+}
+
+@Composable
+private fun RodiPopupMenuContent(
+    items: List<String>,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier,
+    menuWidth: Dp,
+) {
+    Column(
+        modifier = modifier
+            .width(menuWidth)
+            .clip(MenuShape)
+            .background(RodiTheme.colors.white, MenuShape)
+            .border(1.dp, RodiTheme.colors.gray300, MenuShape),
+    ) {
+        items.forEachIndexed { index, item ->
+            Text(
+                text = item,
+                style = RodiTheme.typography.body2Medium,
+                color = RodiTheme.colors.gray700,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelect(index) }
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            if (index != items.lastIndex) {
+                HorizontalDivider(color = RodiTheme.colors.gray300)
             }
         }
     }
@@ -123,7 +138,10 @@ private fun RodiPopupMenuLevelPreview() {
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Box(Modifier.align(Alignment.TopEnd)) {
+            Column(
+                modifier = Modifier.align(Alignment.TopEnd),
+                horizontalAlignment = Alignment.End,
+            ) {
                 Text(
                     text = "Rookie  ▾",
                     style = RodiTheme.typography.body3Medium,
@@ -150,7 +168,10 @@ private fun RodiPopupMenuReviewPreview() {
                 .fillMaxWidth()
                 .padding(16.dp),
         ) {
-            Box(Modifier.align(Alignment.TopEnd)) {
+            Column(
+                modifier = Modifier.align(Alignment.TopEnd),
+                horizontalAlignment = Alignment.End,
+            ) {
                 Text(
                     text = "···",
                     style = RodiTheme.typography.body1SemiBold,
