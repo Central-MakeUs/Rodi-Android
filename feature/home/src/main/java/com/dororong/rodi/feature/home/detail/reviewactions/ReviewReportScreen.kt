@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -123,6 +124,10 @@ fun BlockMemberDialog(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    if (LocalInspectionMode.current) {
+        BlockMemberDialogContent(isBlocking, onConfirm, onDismiss)
+        return
+    }
     Dialog(
         onDismissRequest = { if (!isBlocking) onDismiss() },
         properties = DialogProperties(
@@ -132,51 +137,60 @@ fun BlockMemberDialog(
     ) {
         val dialogWindowProvider = LocalView.current.parent as? DialogWindowProvider
         SideEffect { dialogWindowProvider?.window?.setDimAmount(0.5f) }
-        Surface(
-            modifier = Modifier
-                .width(280.dp)
-                .height(226.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = RodiTheme.colors.white,
+        BlockMemberDialogContent(isBlocking, onConfirm, onDismiss)
+    }
+}
+
+@Composable
+private fun BlockMemberDialogContent(
+    isBlocking: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .width(280.dp)
+            .height(226.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = RodiTheme.colors.white,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+            Text(
+                text = "사용자를 차단하겠습니까?",
+                style = RodiTheme.typography.price1,
+                color = RodiTheme.colors.black,
+            )
+            Spacer(Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "사용자를 차단하겠습니까?",
-                    style = RodiTheme.typography.price1,
+                    text = "이 사용자의 모든 리뷰를 보지 않습니다.",
+                    style = RodiTheme.typography.caption1Medium,
                     color = RodiTheme.colors.black,
+                    textAlign = TextAlign.Center,
                 )
-                Spacer(Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = "이 사용자의 모든 리뷰를 보지 않습니다.",
-                        style = RodiTheme.typography.caption1Medium,
-                        color = RodiTheme.colors.black,
-                        textAlign = TextAlign.Center,
-                    )
-                }
-                Spacer(Modifier.height(24.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    DialogButton(
-                        text = "취소",
-                        isPrimary = false,
-                        enabled = !isBlocking,
-                        onClick = onDismiss,
-                    )
-                    DialogButton(
-                        text = if (isBlocking) "차단 중" else "차단",
-                        isPrimary = true,
-                        enabled = !isBlocking,
-                        onClick = onConfirm,
-                    )
-                }
+            }
+            Spacer(Modifier.height(24.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DialogButton(
+                    text = "취소",
+                    isPrimary = false,
+                    enabled = !isBlocking,
+                    onClick = onDismiss,
+                )
+                DialogButton(
+                    text = if (isBlocking) "차단 중" else "차단",
+                    isPrimary = true,
+                    enabled = !isBlocking,
+                    onClick = onConfirm,
+                )
             }
         }
     }
