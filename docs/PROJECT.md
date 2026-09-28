@@ -22,8 +22,14 @@
 - 테스트 컨벤션: `docs/TESTING.md` 참고
 
 ## `:app`에 남은 것
-`MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK 초기화), `ui/RodiApp`(Navigation3 `NavDisplay` 기반 게이트→홈 라우팅).
-화면·기능 코드는 전부 `core:*`/`feature:*`로 이관 완료.
+- `MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK·Clarity 초기화)
+- `ui/`: `RodiApp`(Navigation3 `NavDisplay` 기반 게이트→홈 라우팅), `MainScreen`(feature 간 back stack 조정),
+  코스 등록 진입 조정(`CourseRegistrationEntry*` — 임시 저장 이어쓰기 판단)
+- `spike/driving/`: 운전 추적 foreground service(`DrivingTrackingService`)·컨트롤러·알림.
+  패키지 이름은 spike지만 **운영 중인 기능**이다.
+- 테스트 메뉴 도구(`ui/testmenu/`, `spike/driving/LiveUpdateTestTools`)
+
+화면 코드는 `feature:*`에 있다. app에는 feature를 잇는 라우팅·조정과 앱 전역 서비스만 둔다.
 
 ## 모듈 맵
 | 모듈 | 역할 |

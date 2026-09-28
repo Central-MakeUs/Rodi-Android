@@ -28,8 +28,6 @@ rg -B1 '^\s*(private |internal |public )?fun [a-z]' -g '*.kt' . | rg -A1 '@Compo
 
 **정본**: `feature/home/.../home/HomeViewModel.kt` — 앵커 `class HomeViewModel @Inject constructor`
 
-**Rodi 예외 2건**은 규범이 아니라 수정 대상이다 → `../BACKLOG.md`.
-
 **재검증** (선언명 ≠ 파일명):
 ```bash
 rg -n 'class (\w+ViewModel)\b' -r '$1' -o --no-heading -g '*.kt' . \
