@@ -255,6 +255,12 @@ check BLOCK "Intent·Effect 이름에 On 접두사 (이벤트형으로)" \
 check BLOCK "하드코딩 색 (Color(0xFF...))" \
   "rg -n -g '*.kt' 'Color\(0xFF' . | grep -v '/theme/'"
 
+# 서명키·시크릿 파일이 추적 대상에 들어오면 public 리포에 그대로 공개된다. .gitignore는 이미
+# 막고 있지만, `git add -f`나 ignore 규칙 변경으로 한 번 들어가면 되돌려도 히스토리에 남는다.
+# debug.keystore는 예외다 — 팀이 공유하는 고정 디버그 서명 키(카카오 키해시 등록용)라 의도적으로 커밋한다.
+check BLOCK "서명키·시크릿 파일 커밋" \
+  "git ls-files | grep -E '(^|/)(keystore\.properties|local\.properties|google-services\.json)\$|\.(jks|keystore|p12|pem|key)\$' | grep -v '^debug\.keystore\$' | grep -v '\.example\$'"
+
 echo
 echo "== WARN — 기존 부채 (docs/BACKLOG.md '코드 관용구 정합성') =="
 

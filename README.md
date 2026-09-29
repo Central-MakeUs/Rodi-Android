@@ -14,7 +14,7 @@
 ![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4?logo=jetpackcompose&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-Multi--module%20%2B%20Clean-black)
 
-<sub>Current version: 1.5.0-alpha01 · minSdk 30 · targetSdk 36</sub>
+<sub>minSdk 30 · targetSdk 36</sub>
 
 [![Google Play](https://img.shields.io/badge/Google%20Play-Rodi-414141?logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=com.dororong.rodi)
 </div>
@@ -85,7 +85,7 @@ Domain / Data
 
 # Engineering Highlights
 
-기능 구현 자체보다 **실제 사용자가 마주치는 경계 상황을 명확한 상태와 책임으로 표현하는 것**을 중요하게 생각했습니다.
+기능 구현 자체보다 실제 사용 중 발생하는 경계 상황을 상태와 책임으로 명확하게 표현하려고 했습니다.
 
 ## 01. `null` 하나로 표현할 수 없었던 위치 상태
 
@@ -279,13 +279,61 @@ Server contract
 
 ---
 
+## More Engineering Cases
+
+<details>
+<summary><strong>GPS 좌표를 실제 코스 진행 상태로 변환하기</strong></summary>
+
+주행 중 GPS 좌표만으로는 사용자가 코스의 어디까지 이동했는지 바로 알 수 없습니다.
+
+Rodi에서는 현재 위치에서 경로상 가장 가까운 진행 지점을 찾고, 이를 기준으로 진행 거리와 전체 진행률, 도착 상태를 계산합니다.
+
+```mermaid
+flowchart LR
+    A["Current Location"]
+    B["Nearest Route Progress"]
+    C["Accumulated Distance"]
+    D["Progress"]
+    E["Arrival"]
+
+    A --> B --> C --> D --> E
+```
+
+이 계산은 지도 화면에 직접 두지 않고 Domain의 `RouteProgressTracker`로 분리해 주행 UI와 독립적으로 사용할 수 있도록 했습니다.
+
+</details>
+
+<details>
+<summary><strong>화면이 아니라 실제 Practice Session이 tracking을 소유하도록 변경</strong></summary>
+
+초기에는 화면 lifecycle을 기준으로 위치 tracking을 시작하고 종료했습니다.
+
+하지만 외부 내비게이션 이동이나 화면 전환이 발생해도 실제 운전 연습은 계속될 수 있기 때문에 화면과 tracking lifecycle을 동일하게 볼 수 없었습니다.
+
+```text
+Before
+
+Screen
+└── Tracking
+
+
+After
+
+Practice Session
+└── Tracking
+```
+
+tracking lifecycle의 소유권을 화면에서 실제 Practice Session으로 옮겨 navigation과 주행 추적의 생명주기를 분리했습니다.
+
+- Related: [PR #170](https://github.com/Central-MakeUs/Rodi-Android/pull/170)
+
+</details>
+
+---
+
 # Architecture
 
 Rodi는 **Multi-module + Clean Architecture**를 기반으로 외부 기술과 비즈니스 정책의 변경 경계를 나눕니다.
-
-핵심 규칙은 다음과 같습니다.
-
-> UI와 외부 시스템의 구현이 바뀌어도 Domain의 정책 계약은 직접 영향을 받지 않아야 합니다.
 
 ```mermaid
 flowchart TB
@@ -320,7 +368,6 @@ flowchart TB
     HOME --> DOMAIN
     COURSE --> DOMAIN
     MYPAGE --> DOMAIN
-
     SETTINGS --> DOMAIN
 
     AUTH --> UI
@@ -345,7 +392,7 @@ feature:* → core:ui / core:common
 
 `core:domain`은 Android, Compose, Retrofit, Room, Kakao SDK를 직접 참조하지 않습니다.
 
-또한 Feature끼리 직접 의존하지 않고 화면 전환은 `app`의 route가 조정합니다.
+Feature끼리 직접 의존하지 않고 화면 전환은 `app`의 route가 조정합니다.
 
 ## Module Responsibility
 
@@ -370,7 +417,7 @@ feature:* → core:ui / core:common
 
 # UI State Flow
 
-Rodi의 화면은 strict reducer 기반 MVI를 강제하기보다, Android SDK와 Compose lifecycle을 함께 다룰 수 있도록 **Contract 기반 UDF / MVI-style 구조**를 사용합니다.
+화면의 지속 상태는 `UiState`, Navigation·Snackbar·외부 앱 실행처럼 한 번만 처리해야 하는 사건은 `Effect`로 분리합니다.
 
 ```mermaid
 flowchart LR
@@ -388,16 +435,14 @@ flowchart LR
 ```
 
 - 화면의 지속 상태는 `StateFlow<UiState>`로 전달합니다.
-- Navigation, Snackbar, 외부 앱 실행처럼 한 번 소비해야 하는 사건은 별도 Effect로 전달합니다.
+- Navigation, Snackbar, 외부 앱 실행은 별도 Effect로 전달합니다.
 - Map SDK나 gesture처럼 lifecycle이 다른 플랫폼 상태는 Screen-local state와 ViewModel state의 소유권을 구분합니다.
-
-즉, **화면의 모습과 한 번 발생하는 사건을 같은 상태에 섞지 않는 것**을 기본 원칙으로 둡니다.
 
 ---
 
 # Reliability
 
-실서비스에서는 Happy Path보다 **실패한 뒤 앱이 어떤 상태로 남는지**가 중요합니다.
+실제 사용 중 발생할 수 있는 실패가 앱 전체 흐름을 불필요하게 막지 않도록 상황별 복구 방법을 다르게 둡니다.
 
 | Situation | Strategy |
 | --- | --- |
@@ -405,15 +450,14 @@ flowchart LR
 | 지도/검색 요청 경합 | Job 취소 + generation 검증으로 stale response 폐기 |
 | 다음 페이지 조회 실패 | 이미 로드한 목록은 유지하고 추가 조회 실패만 별도 처리 |
 | 외부 내비 후 앱 복귀 | 저장된 Practice Session을 다시 확인 |
+| 화면 전환 중 주행 추적 | Screen이 아닌 Practice Session이 tracking lifecycle을 소유 |
 | 서버 schema drift | 기본값으로 덮기 전에 Swagger와 DTO/Mapper 계약 재대조 |
 | 알 수 없는 서버 enum | 계약에 따라 명시적 mapping 또는 안전한 fallback |
 | Coroutine cancellation | 일반 실패로 삼키지 않고 cancellation 의미 보존 |
 | Tutorial 완료 저장 실패 | 사용자의 핵심 진행은 허용하고 이후 다시 동기화 가능 |
 | Offline | 짧은 유예 후 안내하고 재연결 시 복구 |
 
-## Failure severity follows user impact
-
-모든 오류를 동일하게 blocking하지 않습니다.
+### Failure severity follows user impact
 
 ```text
 반드시 현재 흐름을 중단해야 하는 실패
@@ -431,7 +475,7 @@ flowchart LR
 
 # Verification Strategy
 
-**코드가 존재하는 것, 빌드가 성공하는 것, 기능이 실제로 동작하는 것은 서로 다른 증거**로 취급합니다.
+코드가 존재하는 것, 빌드가 성공하는 것, 기능이 실제로 동작하는 것은 서로 다른 단계로 확인합니다.
 
 ```mermaid
 flowchart LR
@@ -444,8 +488,6 @@ flowchart LR
     U --> B --> I --> E --> D
 ```
 
-필요한 검증 수준은 문제의 경계에 맞춥니다.
-
 | Boundary | Preferred verification |
 | --- | --- |
 | Pure policy / mapper / state transition | JVM Unit Test |
@@ -454,50 +496,30 @@ flowchart LR
 | Gesture / lifecycle / MapView | Instrumented Test, Emulator |
 | Permission / 외부 SDK / 실제 앱 복귀 | Real Device QA when needed |
 
-특히 UI interaction 로직이라도 계산 가능한 정책은 순수 함수로 분리해 빠르게 회귀 테스트하고, 실제 gesture와 Android lifecycle이 필요한 부분만 Android 환경에서 검증합니다.
+UI interaction이라도 계산 가능한 정책은 순수 함수로 분리해 JVM에서 빠르게 검증하고, 실제 gesture와 Android lifecycle이 필요한 부분만 Android 환경에서 확인합니다.
 
-CI에서는 Pull Request와 `develop` push에 대해 다음을 다시 실행합니다.
+Pull Request와 `develop` push에서는 GitHub Actions를 통해 주요 검증을 다시 수행합니다.
 
-```bash
-./gradlew assembleDebug
-./gradlew test
-./gradlew lint
+```mermaid
+flowchart LR
+    PR["Pull Request"]
+    C["Convention"]
+    T["Unit Test"]
+    R["Roborazzi"]
+    K["Kover"]
+    L["Lint"]
+    B["Assemble"]
+
+    PR --> C --> T --> R --> K --> L --> B
 ```
 
 테스트 작성 규칙은 [`TESTING.md`](docs/TESTING.md)에 정리되어 있습니다.
 
 ---
 
-# Engineering Workflow
-
-구현을 시작하기 전에 자연어 요구사항을 **검증 가능한 범위와 Acceptance Criteria**로 바꾸고, 구현 결과는 독립적인 검토와 실행 증거를 거쳐 확인합니다.
-
-```mermaid
-flowchart LR
-    R["Requirement"]
-    S["Specification<br/>Scope · Acceptance"]
-    I["Implementation"]
-    V["Independent Review"]
-    T["Build · Test"]
-    Q["Runtime QA"]
-    M["Merge"]
-
-    R --> S --> I --> V --> T --> Q --> M
-```
-
-이 과정에서 중요하게 보는 원칙은 다음과 같습니다.
-
-- 구현자가 만든 코드가 있다는 사실만으로 완료를 판단하지 않습니다.
-- 검증하지 못한 항목은 성공으로 표현하지 않습니다.
-- 특정 화면 문제를 해결하기 위해 전역 컴포넌트를 불필요하게 변경하지 않습니다.
-- 외부 API 계약이 부족하면 클라이언트에서 값을 추측해 만들어내지 않습니다.
-- 실패한 시도는 다음 작업에서 반복되지 않도록 프로젝트 규칙과 회귀 테스트로 남깁니다.
-
----
-
 # Performance
 
-지도와 BottomSheet처럼 프레임 단위 업데이트가 많은 화면에서는 **상태를 어디에서 읽느냐**도 설계의 일부로 봅니다.
+지도와 BottomSheet처럼 프레임 단위 업데이트가 많은 화면에서는 상태를 어느 Compose phase에서 읽는지도 함께 고려합니다.
 
 ```text
 Composition
@@ -507,7 +529,7 @@ Layout
 Draw
 ```
 
-모든 프레임 의존 값을 Composition에서 읽기보다, 위치·크기·투명도처럼 렌더링 단계에서만 필요한 값은 가능한 경우 `Modifier.layout { ... }`, `Modifier.graphicsLayer { ... }`처럼 더 뒤쪽 phase에서 처리합니다.
+위치·크기·투명도처럼 렌더링 단계에서만 필요한 값은 가능한 경우 `Modifier.layout { ... }`, `Modifier.graphicsLayer { ... }`처럼 뒤쪽 phase에서 처리합니다.
 
 ## Cold Start Performance
 
@@ -550,7 +572,7 @@ RodiTheme.spacing
 RodiTheme.radius
 ```
 
-공용 UI 컴포넌트는 주요 상태와 variant를 Preview로 확인할 수 있도록 관리하고, Feature는 제품 고유의 business rule에 집중합니다.
+공용 UI 컴포넌트는 주요 상태와 variant를 Preview로 확인할 수 있도록 관리하고, Feature에서는 제품 고유의 business rule에 집중합니다.
 
 ---
 
@@ -572,34 +594,9 @@ RodiTheme.radius
 | Auth | Kakao Login |
 | External Navigation | Kakao Navi |
 | Analytics | Microsoft Clarity |
-| Test | JUnit 5 · MockK · Turbine · Coroutines Test · Compose UI Test |
+| Test | JUnit 5 · MockK · Turbine · Coroutines Test · Compose UI Test · Roborazzi |
 | Performance | Macrobenchmark · Baseline Profile |
 | Automation | GitHub Actions |
-
----
-
-# Development Principles
-
-1. **상태를 의미 없이 Boolean으로 압축하지 않습니다.**  
-   가능한 상태가 세 개 이상이라면 이름을 가진 상태 모델이 더 정확한지 먼저 검토합니다.
-
-2. **Framework보다 Domain의 정책 계약이 오래 살아남게 합니다.**  
-   Android나 Retrofit 타입을 몰라도 핵심 규칙을 이해할 수 있는 경계를 지향합니다.
-
-3. **최신 사용자 의도를 오래된 비동기 응답이 덮지 않게 합니다.**  
-   cancellation만 믿지 않고 필요하면 generation, key, id를 함께 검증합니다.
-
-4. **실패는 사용자 영향도에 따라 다르게 처리합니다.**  
-   blocking, fallback, retryable failure를 구분합니다.
-
-5. **UI 문제도 상태와 렌더링 단계까지 추적합니다.**  
-   픽셀 조정보다 gesture ownership, recomposition, layout/draw phase의 원인을 먼저 확인합니다.
-
-6. **서버 계약을 추측하지 않습니다.**  
-   파싱 오류나 enum 불일치가 발생하면 기본값으로 숨기기 전에 실제 API schema와 대조합니다.
-
-7. **검증하지 않은 것을 완료라고 부르지 않습니다.**  
-   Unit Test, Build, Emulator, Real Device는 각각 다른 수준의 증거입니다.
 
 ---
 
