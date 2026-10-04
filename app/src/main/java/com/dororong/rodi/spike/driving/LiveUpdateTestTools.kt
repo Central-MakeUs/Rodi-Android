@@ -35,6 +35,7 @@ internal interface LiveUpdateTestEntryPoint {
 internal object LiveUpdateTestTools {
     private const val PREVIEW_NOTIFICATION_ID = DrivingNotificationFactory.NOTIFICATION_ID + 1
     private const val PREVIEW_PLANNED_DISTANCE_METERS = 5_000
+    private const val PREVIEW_REQUIRED_DISTANCE_METERS = 2_000
     private const val SETTINGS_READ_TIMEOUT_MILLIS = 500L
 
     fun section(context: Context): TestMenuSection {
@@ -62,7 +63,7 @@ internal object LiveUpdateTestTools {
             DrivingNotificationFactory.ongoing(
                 context = context,
                 session = session,
-                traveledDistanceMeters = PREVIEW_PLANNED_DISTANCE_METERS * traveledRatio,
+                traveledDistanceMeters = PREVIEW_REQUIRED_DISTANCE_METERS * traveledRatio,
                 liveUpdateEnabled = isLiveUpdateEnabled(context),
             ),
         )
@@ -122,7 +123,7 @@ internal object LiveUpdateTestTools {
         val notification = DrivingNotificationFactory.ongoing(
             context = context,
             session = previewSession(),
-            traveledDistanceMeters = PREVIEW_PLANNED_DISTANCE_METERS * 0.5,
+            traveledDistanceMeters = PREVIEW_REQUIRED_DISTANCE_METERS * 0.5,
             liveUpdateEnabled = true,
         )
         return NotificationCompat.hasPromotableCharacteristics(notification)
@@ -161,6 +162,7 @@ internal object LiveUpdateTestTools {
         placeName = "북악스카이웨이 드라이브",
         destination = GeoPoint(lat = 37.5925, lng = 126.9820),
         plannedDistanceMeters = PREVIEW_PLANNED_DISTANCE_METERS,
+        requiredDistanceMeters = PREVIEW_REQUIRED_DISTANCE_METERS,
         startedAtEpochMillis = System.currentTimeMillis(),
         arrivedAtEpochMillis = null,
         traveledDistanceMeters = 0.0,

@@ -77,13 +77,7 @@ internal object DrivingNotificationFactory {
         traveledDistanceMeters: Double,
         liveUpdateEnabled: Boolean = true,
     ): Notification {
-        val progress = session.plannedDistanceMeters
-            ?.takeIf { it > 0 }
-            ?.let { planned ->
-                ((traveledDistanceMeters / planned) * PROGRESS_MAX)
-                    .toInt()
-                    .coerceIn(0, 99)
-            }
+        val progress = session.notificationProgressPercent(traveledDistanceMeters)
         val isOnTheWayToCourse = traveledDistanceMeters <= 0.0
         val title = if (isOnTheWayToCourse) {
             "연습 코스로 이동하고 있어요"
@@ -219,6 +213,15 @@ internal object DrivingNotificationFactory {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 }
+
+/**
+ * 진행 바는 방문 인증에 필요한 거리를 100%로 본다. 코스 전체 거리를 기준으로 하면 인증이 약 40%에서
+ * 끝나 바가 차지 않은 채 완료된다. 100은 완료 알림으로 바뀔 때만 쓰므로 주행 중에는 99로 막는다.
+ * 경로 없이 시작된 세션은 필요 거리가 없어 코스 전체 거리를 기준으로 한다.
+ */
+internal fun DrivingSession.notificationProgressPercent(traveledDistanceMeters: Double): Int? =
+    (requiredDistanceMeters?.takeIf { it > 0 } ?: plannedDistanceMeters?.takeIf { it > 0 })
+        ?.let { base -> ((traveledDistanceMeters / base) * 100).toInt().coerceIn(0, 99) }
 
 private fun Double.toDistanceText(): String =
     if (this >= 1_000) {
