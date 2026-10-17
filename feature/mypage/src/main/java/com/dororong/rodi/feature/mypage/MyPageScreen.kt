@@ -79,6 +79,7 @@ fun MyPageScreen(
     onPracticeRecordsClick: () -> Unit,
     onMyPostsClick: () -> Unit,
     onWriteReviewClick: (Long, String) -> Unit,
+    onNicknameClick: () -> Unit = {},
     testMenuSections: List<TestMenuSection> = emptyList(),
     modifier: Modifier = Modifier,
     viewModel: MyPageViewModel = hiltViewModel(),
@@ -148,6 +149,7 @@ fun MyPageScreen(
                 profile = uiState.profile,
                 onSettingsClick = onSettingsClick,
                 onGoalClick = onGoalClick,
+                onNicknameClick = onNicknameClick,
                 onSavedCoursesClick = onSavedCoursesClick,
                 onPracticeRecordsClick = onPracticeRecordsClick,
                 onMyPostsClick = onMyPostsClick,
@@ -356,6 +358,7 @@ private fun MyPageContent(
     practiceRecords: List<PracticeRecord> = emptyList(),
     practiceRecordsErrorMessage: String? = null,
     onPracticeRecordsRetry: () -> Unit,
+    onNicknameClick: () -> Unit = {},
     showTestMenu: Boolean = false,
     onTestMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -368,7 +371,7 @@ private fun MyPageContent(
             .verticalScroll(rememberScrollState()),
     ) {
         MyPageTopBar(onSettingsClick = onSettingsClick)
-        ProfileCard(profile = profile, onGoalClick = onGoalClick)
+        ProfileCard(profile = profile, onGoalClick = onGoalClick, onNicknameClick = onNicknameClick)
         Spacer(Modifier.height(20.dp))
         HorizontalDivider(color = RodiTheme.colors.gray100)
         PracticeRecordSection(
