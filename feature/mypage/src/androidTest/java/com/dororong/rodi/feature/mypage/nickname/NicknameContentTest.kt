@@ -81,6 +81,66 @@ class NicknameContentTest {
     }
 
     @Test
+    fun `변경 제한 안내가 검증 결과보다 우선하고 완료와 검증 요청을 막으며 뒤로갈 수 있다`() {
+        val state = mutableStateOf(
+            NicknameUiState(
+                initialNickname = "운전하는_고양이",
+                nickname = "산뜻한_기린",
+                validatedNickname = "산뜻한_기린",
+                normalizedNickname = "산뜻한_기린",
+                isLoading = false,
+                isChangeRestricted = true,
+            ),
+        )
+        var checks = 0
+        var saves = 0
+        var backs = 0
+        rule.setContent {
+            RodiTheme {
+                NicknameContent(
+                    uiState = state.value,
+                    onBack = { backs++ },
+                    onNicknameChange = { state.value = state.value.copy(nickname = it) },
+                    onValidate = { checks++ },
+                    onSave = { saves++ },
+                    onRetry = {},
+                )
+            }
+        }
+        val restrictedHint = "닉네임은 30일 후에 다시 바꿀 수 있어요."
+        rule.onNodeWithText(restrictedHint).assertIsDisplayed()
+        rule.onNodeWithText("사용 가능한 닉네임이에요.").assertDoesNotExist()
+        rule.onNodeWithContentDescription("완료").assertIsNotEnabled()
+            .performTouchInput { click() }
+        capture("restricted")
+        rule.runOnIdle { state.value = state.value.copy(isChecking = true, rejection = NicknameRejection.DUPLICATE) }
+        rule.onNodeWithText(restrictedHint).assertIsDisplayed()
+        rule.onNodeWithText("닉네임을 확인하고 있어요.").assertDoesNotExist()
+        rule.onNodeWithText("이미 사용 중인 닉네임이에요.").assertDoesNotExist()
+        rule.onNode(hasSetTextAction()).performTextReplacement("교체_닉네임")
+        rule.onNode(hasSetTextAction()).performImeAction()
+        rule.onNodeWithContentDescription("뒤로가기").performClick()
+        rule.runOnIdle {
+            assertEquals("교체_닉네임", state.value.nickname)
+            assertEquals(0, checks)
+            assertEquals(0, saves)
+            assertEquals(1, backs)
+            state.value = state.value.copy(
+                isChangeRestricted = false,
+                isChecking = false,
+                rejection = null,
+                validatedNickname = state.value.nickname,
+                normalizedNickname = state.value.nickname,
+            )
+        }
+        rule.onNodeWithText("사용 가능한 닉네임이에요.").assertIsDisplayed()
+        rule.onNodeWithContentDescription("완료").assertIsEnabled()
+        rule.runOnIdle { state.value = state.value.copy(isChangeRestricted = true) }
+        rule.onNodeWithText(restrictedHint).assertIsDisplayed()
+        rule.onNodeWithContentDescription("완료").assertIsNotEnabled()
+    }
+
+    @Test
     fun `프로필 닉네임 텍스트와 화살표와 행 여백이 모두 수정 콜백을 호출한다`() {
         var clicks = 0
         rule.setContent {
