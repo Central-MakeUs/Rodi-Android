@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -36,7 +38,9 @@ fun RodiFieldLabel(
                 }
             }
         },
-        modifier = modifier,
+        modifier = modifier.semantics {
+            if (required) stateDescription = "필수"
+        },
         style = RodiTheme.typography.body1SemiBold,
         color = RodiTheme.colors.black,
     )
