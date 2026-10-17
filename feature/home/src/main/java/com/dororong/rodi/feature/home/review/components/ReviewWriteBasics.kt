@@ -2,7 +2,6 @@ package com.dororong.rodi.feature.home.review.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.feature.home.detail.components.label
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState
 
@@ -61,7 +61,7 @@ private fun <T> ReviewScale(
     onSelect: (T) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(label, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel(label, required = true)
         ScalePicker(values, selected, display, onSelect)
     }
 }
@@ -72,12 +72,7 @@ private fun ReviewChoiceBlock(
     onSelect: (Boolean) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "이 코스를 다른 초보 운전자에게 추천하시겠어요?",
-            modifier = Modifier.height(25.dp),
-            style = RodiTheme.typography.body1SemiBold,
-            color = RodiTheme.colors.black,
-        )
+        RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true)
         ChoicePairRow("별로예요", "추천해요", selected, onSelect)
     }
 }
@@ -88,7 +83,7 @@ private fun CautionBlock(
     onCaution: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("주의사항", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel("주의사항", required = false)
         ReviewTextField(
             value = caution,
             onValueChange = onCaution,
