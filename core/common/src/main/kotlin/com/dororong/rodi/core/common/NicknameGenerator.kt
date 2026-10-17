@@ -29,5 +29,5 @@ object NicknameGenerator {
         "토끼",
     )
 
-    fun generate(): String = "${adjectives.random()} ${animals.random()}"
+    fun generate(): String = "${adjectives.random()}_${animals.random()}"
 }
