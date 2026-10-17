@@ -131,10 +131,17 @@ internal fun NicknameContent(
                     color = RodiTheme.colors.black,
                 )
                 Spacer(Modifier.height(12.dp))
-                NicknameInput(uiState.nickname, onNicknameChange, onValidate, focusRequester, !uiState.isSaving)
+                NicknameInput(
+                    nickname = uiState.nickname,
+                    onNicknameChange = onNicknameChange,
+                    onValidate = { if (!uiState.isChangeRestricted) onValidate() },
+                    focusRequester = focusRequester,
+                    enabled = !uiState.isSaving,
+                )
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = when {
+                        uiState.isChangeRestricted -> "닉네임은 30일 후에 다시 바꿀 수 있어요."
                         uiState.isChecking -> "닉네임을 확인하고 있어요."
                         uiState.rejection != null -> uiState.rejection.guidance()
                         uiState.validatedNickname != null -> "사용 가능한 닉네임이에요."
@@ -142,6 +149,7 @@ internal fun NicknameContent(
                     },
                     style = RodiTheme.typography.caption1SemiBold,
                     color = when {
+                        uiState.isChangeRestricted -> RodiTheme.colors.gray500
                         uiState.rejection != null -> RodiTheme.colors.infoCancel
                         uiState.validatedNickname != null -> RodiTheme.colors.infoApproval
                         else -> RodiTheme.colors.gray500
@@ -235,5 +243,16 @@ private fun NicknameDefaultPreview() {
 private fun NicknameAvailablePreview() {
     RodiTheme {
         NicknameContent(NicknameUiState(nickname = "운전하는_고양이", validatedNickname = "운전하는_고양이", normalizedNickname = "운전하는_고양이", isLoading = false), {}, {}, {}, {}, {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 375, heightDp = 812)
+@Composable
+private fun NicknameRestrictedPreview() {
+    RodiTheme {
+        NicknameContent(
+            NicknameUiState(nickname = "운전하는_고양이", isLoading = false, isChangeRestricted = true),
+            {}, {}, {}, {}, {},
+        )
     }
 }

@@ -61,7 +61,8 @@ class NicknameViewModel @Inject constructor(
 
     fun validate() {
         val current = _uiState.value
-        if (current.isLoading || current.loadFailed || current.isSaving || current.saveSucceeded || current.isChecking ||
+        if (current.isChangeRestricted || current.isLoading || current.loadFailed ||
+            current.isSaving || current.saveSucceeded || current.isChecking ||
             current.validatedNickname == current.nickname || current.nickname == current.initialNickname
         ) return
         val requestRevision = revision
