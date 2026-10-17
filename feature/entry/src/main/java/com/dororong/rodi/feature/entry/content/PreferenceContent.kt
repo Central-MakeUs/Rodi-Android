@@ -34,6 +34,7 @@ import com.dororong.rodi.core.ui.components.button.RodiButtonVariant
 import com.dororong.rodi.core.ui.components.RodiOrderBadge
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
+import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.core.ui.components.input.rodiInputBorderColor
 import com.dororong.rodi.core.ui.theme.RodiRadius
 import com.dororong.rodi.core.ui.theme.RodiSpacing
@@ -120,11 +121,7 @@ private fun PracticeSituationQuestion(
     onToggle: (PracticeSituation) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("더 연습해보고 싶은 상황이 있나요?", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
-            Spacer(Modifier.width(RodiSpacing.sm))
-            Text("최대 3개", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
-        }
+        RodiFieldLabel("더 연습해보고 싶은 상황이 있나요?", required = false, assistiveText = "최대 3개")
         Spacer(Modifier.height(10.dp))
         Text("1순위부터 순서대로 선택해주세요.", style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
         Spacer(Modifier.height(RodiSpacing.sm))
@@ -162,7 +159,7 @@ private fun VehicleTypeQuestion(
     onSelect: (VehicleType) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        Text("주로 타는 차종은 무엇인가요?", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel("주로 타는 차종은 무엇인가요?", required = false)
         Spacer(Modifier.height(RodiSpacing.sm))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,7 +183,7 @@ private fun GoalQuestion(
 ) {
     val textFieldState = rememberGraphemeTextFieldState(goal, MAX_GOAL_LENGTH, onGoalChange)
     Column(Modifier.fillMaxWidth()) {
-        Text("이루고 싶은 운전 목표를 입력해주세요.", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel("이루고 싶은 운전 목표를 입력해주세요.", required = false)
         Spacer(Modifier.height(RodiSpacing.sm))
         OutlinedTextField(
             value = textFieldState.value,

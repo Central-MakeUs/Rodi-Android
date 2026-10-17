@@ -5,16 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,6 +22,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.ui.components.RodiSelectableChip
+import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.core.ui.theme.RodiSpacing
 import com.dororong.rodi.core.ui.theme.RodiTheme
 
@@ -133,7 +131,7 @@ private fun <T> SingleChoiceQuestion(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel(title, required = true)
         Spacer(Modifier.height(RodiSpacing.sm))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -162,11 +160,7 @@ private fun <T> MultiChoiceQuestion(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(title, style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
-            Spacer(Modifier.width(4.dp))
-            Text(assistiveText, style = RodiTheme.typography.body3Medium, color = RodiTheme.colors.gray600)
-        }
+        RodiFieldLabel(title, required = true, assistiveText = assistiveText)
         Spacer(Modifier.height(RodiSpacing.sm))
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
