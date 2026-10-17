@@ -3,6 +3,10 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.data.mapper.toNicknameRejection
+import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
+import com.dororong.rodi.core.domain.model.member.NicknameAvailability
+import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
@@ -22,6 +26,7 @@ import com.dororong.rodi.core.domain.repository.MemberRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import retrofit2.HttpException
 
 class MemberRepositoryImpl @Inject constructor(
@@ -31,6 +36,33 @@ class MemberRepositoryImpl @Inject constructor(
     private val practiceRecordPresenceCache: PracticeRecordPresenceCache,
     private val sessionCoordinator: AuthSessionCoordinator,
 ) : MemberRepository {
+    override suspend fun checkNicknameAvailability(nickname: String): NicknameAvailability = authenticatedRequest {
+        val response = memberApi.checkNicknameAvailability(nickname).requireData()
+        val rejection = response.reason?.toNicknameRejection()
+        check(response.available || rejection != null) { "Unknown nickname rejection" }
+        NicknameAvailability(response.nickname, response.available, rejection)
+    }
+
+    override suspend fun updateNickname(nickname: String) {
+        authenticatedRequest {
+            try {
+                val response = memberApi.updateNickname(NicknameUpdateRequest(nickname))
+                if (!response.isSuccess) {
+                    response.code.toNicknameRejection()?.let { throw NicknameRejectedException(it) }
+                }
+                response.requireSuccess()
+            } catch (error: HttpException) {
+                if (error.code() !in setOf(400, 409)) throw error
+                val body = error.response()?.errorBody()?.string()
+                val envelope = runCatching {
+                    body?.let { json.decodeFromString<ApiEnvelope<JsonObject>>(it) }
+                }.getOrNull()
+                envelope?.code?.toNicknameRejection()?.let { throw NicknameRejectedException(it) }
+                throw error.toAuthException(json, body)
+            }
+        }
+    }
+
     override suspend fun completeCourseTutorial() {
         val tokens = currentSession()
         authenticatedRequest {
@@ -153,7 +185,7 @@ class MemberRepositoryImpl @Inject constructor(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            throw if (error is AuthException) error else error.toAuthException(json)
+            throw if (error is AuthException || error is NicknameRejectedException) error else error.toAuthException(json)
         }
     }
 

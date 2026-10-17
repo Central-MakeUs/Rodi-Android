@@ -49,6 +49,7 @@ import com.dororong.rodi.feature.course.registration.CourseRegistrationFlow
 import com.dororong.rodi.feature.course.registration.CourseRegistrationLoadingIndicator
 import com.dororong.rodi.feature.course.registration.CourseRegistrationViewModel
 import com.dororong.rodi.feature.mypage.MyPageScreen
+import com.dororong.rodi.feature.mypage.nickname.NicknameScreen
 import com.dororong.rodi.feature.mypage.drivinggoal.DrivingGoalScreen
 import com.dororong.rodi.feature.mypage.savedcourses.SavedCoursesScreen
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecordsScreen
@@ -250,6 +251,7 @@ fun MainScreen(
                         MyPageScreen(
                             onSettingsClick = { backStack.add(SettingsRoute) },
                             onGoalClick = { backStack.add(DrivingGoalRoute) },
+                            onNicknameClick = { backStack.add(NicknameRoute) },
                             onSavedCoursesClick = { backStack.add(SavedCoursesRoute) },
                             onPracticeRecordsClick = { backStack.add(PracticeRecordsRoute) },
                             onMyPostsClick = { backStack.add(MyPostsRoute) },
@@ -339,6 +341,13 @@ fun MainScreen(
                             onCompleted = {
                                 homeViewModel.onIntent(HomeIntent.ReviewUpdated)
                                 backStack.removeAt(backStack.lastIndex)
+                            },
+                        )
+                    }
+                    NicknameRoute -> NavEntry(key) {
+                        NicknameScreen(
+                            onBack = {
+                                if (backStack.lastOrNull() == NicknameRoute) backStack.removeAt(backStack.lastIndex)
                             },
                         )
                     }

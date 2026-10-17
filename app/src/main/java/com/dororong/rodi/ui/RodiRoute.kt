@@ -28,6 +28,9 @@ data class SearchRoute(
 data object MyPageRoute : NavKey
 
 @Serializable
+data object NicknameRoute : NavKey
+
+@Serializable
 data object DrivingGoalRoute : NavKey
 
 @Serializable
@@ -44,6 +47,7 @@ internal fun NavKey.toClarityScreenName(): String? = when (this) {
     CourseRegistrationFlowRoute -> "CourseRegistration"
     is SearchRoute -> "Search"
     MyPageRoute -> "MyPage"
+    NicknameRoute -> "Nickname"
     DrivingGoalRoute -> "DrivingGoal"
     SavedCoursesRoute -> "SavedCourses"
     SettingsRoute -> "Settings"

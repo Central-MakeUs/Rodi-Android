@@ -3,6 +3,8 @@ package com.dororong.rodi.feature.entry.content
 import com.dororong.rodi.feature.entry.components.EntryScaffold
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +56,13 @@ fun NicknameContent(
                     text = "로 시작해요.",
                     style = RodiTheme.typography.headline1,
                     color = RodiTheme.colors.black,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "닉네임은 ‘마이페이지’에서 수정 가능해요.",
+                    style = RodiTheme.typography.body3Medium,
+                    color = RodiTheme.colors.gray500,
                     textAlign = TextAlign.Center,
                 )
             }

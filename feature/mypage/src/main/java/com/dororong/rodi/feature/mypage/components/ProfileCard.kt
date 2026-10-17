@@ -79,7 +79,7 @@ private val CubicEaseOut = CubicBezierEasing(0.33f, 1f, 0.68f, 1f)
 private val QuadraticEaseOut = Easing { fraction -> 1f - (1f - fraction) * (1f - fraction) }
 
 @Composable
-internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
+internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit, onNicknameClick: () -> Unit = {}) {
     val colors = RodiTheme.colors
     val practiceTitle = if (profile.level == OnboardingLevel.NAVIGATOR) "추천 활동" else "추천 연습 유형"
     val drivingGoal = profile.drivingGoal.ifBlank { "나만의 운전 목표를 입력해보세요 !" }
@@ -227,14 +227,25 @@ internal fun ProfileCard(profile: MyPageProfile, onGoalClick: () -> Unit) {
                             .weight(1f)
                             .padding(start = 15.dp, top = 12.dp)
                     ) {
-                        Text(
-                            text = profile.nickname,
-                            modifier = Modifier.clarityMask(),
-                            style = RodiTheme.typography.body1SemiBold,
-                            color = RodiTheme.colors.black,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().clickable(onClick = onNicknameClick),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = profile.nickname,
+                                modifier = Modifier.weight(1f).clarityMask(),
+                                style = RodiTheme.typography.body1SemiBold,
+                                color = RodiTheme.colors.black,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Icon(
+                                painter = painterResource(CoreUiR.drawable.ic_chevron_right),
+                                contentDescription = "닉네임 수정",
+                                tint = RodiTheme.colors.gray600,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                         Spacer(Modifier.height(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(

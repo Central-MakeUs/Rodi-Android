@@ -1,5 +1,7 @@
 package com.dororong.rodi.core.data.source.remote.api
 
+import com.dororong.rodi.core.data.source.remote.model.member.NicknameAvailabilityResponse
+import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
@@ -19,6 +21,16 @@ import retrofit2.http.PUT
 import retrofit2.http.Query
 
 interface MemberApi {
+    @GET("members/nickname/availability")
+    suspend fun checkNicknameAvailability(
+        @Query("nickname") nickname: String,
+    ): ApiEnvelope<NicknameAvailabilityResponse>
+
+    @PATCH("members/me")
+    suspend fun updateNickname(
+        @Body request: NicknameUpdateRequest,
+    ): ApiEnvelope<JsonObject>
+
     @PATCH("members/me/course-tutorial")
     suspend fun completeCourseTutorial(
     ): ApiEnvelope<CourseTutorialCompletionResponse>

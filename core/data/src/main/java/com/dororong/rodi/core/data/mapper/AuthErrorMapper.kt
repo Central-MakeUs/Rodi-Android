@@ -14,15 +14,7 @@ private data class AuthErrorBody(val code: String = "", val message: String = ""
 
 fun Throwable.toAuthException(json: Json): AuthException = when (this) {
     is CancellationException -> throw this
-    is HttpException -> {
-        val parsed = runCatching {
-            response()?.errorBody()?.string()?.let { json.decodeFromString<AuthErrorBody>(it) }
-        }.getOrNull()
-        (parsed?.code ?: "").toAuthException(
-            message = parsed?.message,
-            fallbackMessage = "인증 요청이 거부되었습니다.",
-        )
-    }
+    is HttpException -> toAuthException(json, runCatching { response()?.errorBody()?.string() }.getOrNull())
     is IOException -> AuthException.Network("네트워크 연결을 확인해주세요.")
     // 여기까지 온 건 서버가 준 메시지가 아니라 역직렬화·매핑 실패 같은 로컬 예외다.
     // 그 message에는 JSON 필드명이 그대로 박혀 있어 화면에 내보내면 안 된다.
@@ -30,6 +22,16 @@ fun Throwable.toAuthException(json: Json): AuthException = when (this) {
         Timber.w(this, "Unmapped error surfaced as AuthException.Unknown")
         AuthException.Unknown("알 수 없는 오류가 발생했습니다.")
     }
+}
+
+internal fun HttpException.toAuthException(json: Json, errorBody: String?): AuthException {
+    val parsed = runCatching {
+        errorBody?.let { json.decodeFromString<AuthErrorBody>(it) }
+    }.getOrNull()
+    return (parsed?.code ?: "").toAuthException(
+        message = parsed?.message,
+        fallbackMessage = "인증 요청이 거부되었습니다.",
+    )
 }
 
 suspend fun <T> Json.authRequest(block: suspend () -> T): T = try {
