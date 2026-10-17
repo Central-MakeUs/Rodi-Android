@@ -39,6 +39,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
+import retrofit2.HttpException
+import retrofit2.Response
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -101,6 +105,58 @@ class MemberRepositoryImplTest {
             repository.updateNickname("새_닉네임")
         }
         assertEquals(NicknameRejection.DUPLICATE, exception.rejection)
+    }
+
+    @Test
+    fun `닉네임 저장의 HTTP 중복 오류를 도메인 거절 사유로 전달한다`() = runTest {
+        val repository = nicknameRepositoryWithHttpError(409, """
+            {"isSuccess":false,"code":"MEMBER_409_3","message":"중복","data":null}
+        """.trimIndent())
+
+        val exception = assertThrowsSuspend<NicknameRejectedException> { repository.updateNickname("새_닉네임") }
+
+        assertEquals(NicknameRejection.DUPLICATE, exception.rejection)
+    }
+
+    @Test
+    fun `닉네임 저장의 일반 HTTP 오류는 서버 분류와 메시지를 보존한다`() = runTest {
+        val repository = nicknameRepositoryWithHttpError(400, """
+            {"isSuccess":false,"code":"COMMON_400","message":"잘못된 요청입니다.","data":null}
+        """.trimIndent())
+
+        val exception = assertThrowsSuspend<AuthException.InvalidRequest> { repository.updateNickname("새_닉네임") }
+
+        assertEquals("잘못된 요청입니다.", exception.message)
+    }
+
+    @Test
+    fun `닉네임 저장의 알 수 없는 HTTP 오류도 서버 메시지를 보존한다`() = runTest {
+        val repository = nicknameRepositoryWithHttpError(409, """
+            {"isSuccess":false,"code":"MEMBER_409_99","message":"변경할 수 없습니다.","data":null}
+        """.trimIndent())
+
+        val exception = assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
+
+        assertEquals("변경할 수 없습니다.", exception.message)
+    }
+
+    @Test
+    fun `닉네임 저장의 HTTP 오류 본문 형식이 잘못되면 안전한 HTTP 기본 문구를 전달한다`() = runTest {
+        val repository = nicknameRepositoryWithHttpError(400, "<html>Bad Request</html>")
+
+        val exception = assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
+
+        assertEquals("인증 요청이 거부되었습니다.", exception.message)
+    }
+
+    private fun nicknameRepositoryWithHttpError(status: Int, body: String): MemberRepositoryImpl {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(any()) } throws HttpException(
+            Response.error<JsonObject>(status, body.toResponseBody("application/json".toMediaType())),
+        )
+        return MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
     }
 
     @Test

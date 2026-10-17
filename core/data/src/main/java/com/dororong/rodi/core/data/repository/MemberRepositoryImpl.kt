@@ -53,11 +53,12 @@ class MemberRepositoryImpl @Inject constructor(
                 response.requireSuccess()
             } catch (error: HttpException) {
                 if (error.code() !in setOf(400, 409)) throw error
-                val envelope = error.response()?.errorBody()?.string()?.let {
-                    json.decodeFromString<ApiEnvelope<JsonObject>>(it)
-                }
+                val body = error.response()?.errorBody()?.string()
+                val envelope = runCatching {
+                    body?.let { json.decodeFromString<ApiEnvelope<JsonObject>>(it) }
+                }.getOrNull()
                 envelope?.code?.toNicknameRejection()?.let { throw NicknameRejectedException(it) }
-                throw error
+                throw error.toAuthException(json, body)
             }
         }
     }
