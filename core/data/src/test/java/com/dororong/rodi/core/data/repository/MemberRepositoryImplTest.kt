@@ -1,6 +1,10 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
+import com.dororong.rodi.core.data.source.remote.model.member.NicknameAvailabilityResponse
+import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
+import com.dororong.rodi.core.domain.model.member.NicknameRejection
+import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
 import android.content.Context
 import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokenMutationResult
@@ -32,6 +36,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -50,6 +55,53 @@ class MemberRepositoryImplTest {
         tokenStore: AuthTokenStore,
         cache: PracticeRecordPresenceCache = PracticeRecordPresenceCache(),
     ) = AuthSessionCoordinator(tokenStore, practiceSessionRepository, cache, onboardingRepository, entryRepository)
+
+    @Test
+    fun `닉네임 검증은 서버 정규화 값과 거절 사유를 보존한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+        coEvery { memberApi.checkNicknameAvailability(" 새_닉네임 ") } returns ApiEnvelope(
+            true, "COMMON_200", "성공",
+            NicknameAvailabilityResponse("새_닉네임", true),
+        )
+        val available = repository.checkNicknameAvailability(" 새_닉네임 ")
+        assertEquals("새_닉네임", available.nickname)
+        assertTrue(available.isAvailable)
+        val rejections = mapOf(
+            "MEMBER_400_2" to NicknameRejection.LENGTH,
+            "MEMBER_400_3" to NicknameRejection.CHARACTERS,
+            "MEMBER_400_4" to NicknameRejection.PROHIBITED_WORD,
+            "MEMBER_409_3" to NicknameRejection.DUPLICATE,
+        )
+        for ((code, expected) in rejections) {
+            coEvery { memberApi.checkNicknameAvailability("거절") } returns ApiEnvelope(
+                true, "COMMON_200", "성공",
+                NicknameAvailabilityResponse("거절", false, code),
+            )
+            assertEquals(expected, repository.checkNicknameAvailability("거절").rejection)
+        }
+    }
+
+    @Test
+    fun `닉네임 수정 요청은 운전 목표 필드를 보내지 않는다`() {
+        val request = NicknameUpdateRequest("새_닉네임")
+        assertEquals("{\"nickname\":\"새_닉네임\"}", json.encodeToString(request))
+    }
+
+    @Test
+    fun `닉네임 저장의 중복 오류를 도메인 거절 사유로 전달한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+        coEvery { memberApi.updateNickname(any()) } returns ApiEnvelope(false, "MEMBER_409_3", "중복")
+        val exception = org.junit.jupiter.api.assertThrows<NicknameRejectedException> {
+            repository.updateNickname("새_닉네임")
+        }
+        assertEquals(NicknameRejection.DUPLICATE, exception.rejection)
+    }
 
     @Test
     fun `코스 등록 튜토리얼 완료는 서버에 반영한 뒤 로컬 플래그를 저장한다`() = runTest {
