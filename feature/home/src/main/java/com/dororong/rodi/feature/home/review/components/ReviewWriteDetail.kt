@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
 import com.dororong.rodi.core.ui.theme.RodiTheme
+import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState
 
 @Composable
@@ -40,12 +40,7 @@ private fun PracticeMethodBlock(
     onPracticeMethod: (PracticeMethod) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            text = "연습 방법",
-            modifier = Modifier.height(25.dp),
-            style = RodiTheme.typography.body1SemiBold,
-            color = RodiTheme.colors.black,
-        )
+        RodiFieldLabel("연습 방법", required = true)
         ChoicePairRow(
             startLabel = "혼자 연습",
             endLabel = "동승자와 연습",
@@ -68,7 +63,7 @@ private fun ReviewContentBlock(
     isEditing: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("후기 작성", style = RodiTheme.typography.body1SemiBold, color = RodiTheme.colors.black)
+        RodiFieldLabel("후기 작성", required = false)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
