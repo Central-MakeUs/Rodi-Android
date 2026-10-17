@@ -13,9 +13,10 @@ data class NicknameUiState(
     val isChecking: Boolean = false,
     val isSaving: Boolean = false,
     val saveSucceeded: Boolean = false,
+    val isChangeRestricted: Boolean = false,
 ) {
     val canSave: Boolean
-        get() = validatedNickname == nickname && normalizedNickname != null && rejection == null &&
+        get() = !isChangeRestricted && validatedNickname == nickname && normalizedNickname != null && rejection == null &&
             normalizedNickname != initialNickname && !isLoading && !loadFailed && !isChecking && !isSaving && !saveSucceeded
 }
 
