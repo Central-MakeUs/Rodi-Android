@@ -100,5 +100,4 @@ data class ReportFormOption(
 data class ReportSubmission(
     val reason: String,
     val detail: String?,
-    val detailConsistent: Boolean,
 )

@@ -105,12 +105,12 @@ class ReviewRepositoryImplTest {
     @Test
     fun `후기 신고의 잘못된 요청은 InvalidRequest로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
-        val request = ReportRequest("SELF", null, true)
+        val request = ReportRequest("SELF", null)
         coEvery { api.reportReview(1, request) } returns failureEnvelope("COMMON_400")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.InvalidRequest> {
-            repository.reportReview(1, ReportSubmission("SELF", null, true))
+            repository.reportReview(1, ReportSubmission("SELF", null))
         }
     }
 

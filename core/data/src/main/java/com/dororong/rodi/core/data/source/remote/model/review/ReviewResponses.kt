@@ -16,7 +16,6 @@ data class ReviewRequest(
 data class ReportRequest(
     val reason: String,
     val detail: String? = null,
-    val detailConsistent: Boolean,
 )
 
 @Serializable
