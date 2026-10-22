@@ -4,13 +4,15 @@ import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.entry.EntryMode
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingAnalysisCopy
-import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 import com.dororong.rodi.core.domain.model.onboarding.RecentDrivingFrequency
 import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
 import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingForm
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
+import com.dororong.rodi.core.domain.model.onboarding.localOnboardingForm
 
 enum class EntryStep { TERMS, NICKNAME, CAREER, PREFERENCE, PRECAUTIONS, LOCATION, TERMS_WEBVIEW }
 
@@ -37,22 +39,39 @@ data class EntryUiState(
     val practiceSituations: List<PracticeSituation> = emptyList(),
     val vehicleType: VehicleType? = null,
     val goal: String = "",
+    val onboardingForm: OnboardingForm = localOnboardingForm(),
+    val isOnboardingFormLoading: Boolean = false,
+    val hasOnboardingFormError: Boolean = false,
+    val isServerFormLoaded: Boolean = false,
     val onboardingLevel: OnboardingLevel? = null,
     val onboardingAnalysisCopy: OnboardingAnalysisCopy? = null,
     val onboardingAnalysisState: OnboardingAnalysisState? = null,
 ) {
+    val profile: OnboardingProfile
+        get() = OnboardingProfile(nickname, drivingPeriod, recentFrequency, roadExperiences,
+            soloDrivingRange, soloParkingLevel, practiceSituations, vehicleType, goal)
+
     val isCareerStepValid: Boolean
-        get() {
-            val period = drivingPeriod ?: return false
-            if (period.isNavigatorLevel) return true
-            if (recentFrequency == null || roadExperiences.isEmpty()) return false
-            return !roadExperiences.contains(RoadExperience.SOLO) ||
-                (soloDrivingRange != null && soloParkingLevel != null)
-        }
+        get() = !isOnboardingFormLoading && !hasOnboardingFormError &&
+            onboardingForm.isStepValid(onboardingForm.steps.first(), profile)
 
     val isPreferenceNextEnabled: Boolean
-        get() = practiceSituations.isNotEmpty()
+        get() = !isOnboardingFormLoading && !hasOnboardingFormError &&
+            onboardingForm.isStepValid(onboardingForm.steps.last(), profile) &&
+            (isServerFormLoaded || practiceSituations.isNotEmpty())
 }
+
+fun EntryUiState.withProfile(profile: OnboardingProfile): EntryUiState = copy(
+    nickname = profile.nickname,
+    drivingPeriod = profile.drivingPeriod,
+    recentFrequency = profile.recentFrequency,
+    roadExperiences = profile.roadExperiences,
+    soloDrivingRange = profile.soloDrivingRange,
+    soloParkingLevel = profile.soloParkingLevel,
+    practiceSituations = profile.practiceSituations,
+    vehicleType = profile.vehicleType,
+    goal = profile.goal,
+)
 
 sealed interface EntryEffect {
     data object CompleteEntry : EntryEffect

@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
 
 class OnboardingPreferencesTest {
     @Test
@@ -37,4 +38,22 @@ class OnboardingPreferencesTest {
             ),
         )
     }
+    @Test
+    fun `선호 연습유형은 집합 순서보다 저장한 우선순위를 먼저 복원한다`() {
+        val preferences = mutablePreferencesOf(
+            stringSetPreferencesKey("practice_situation_set") to setOf("U_TURN", "PARKING", "TURN"),
+            stringPreferencesKey("practice_situation_order") to "PARKING,TURN,U_TURN",
+        )
+        assertEquals(listOf(PracticeSituation.PARKING, PracticeSituation.TURN, PracticeSituation.U_TURN),
+            preferences.readPracticeSituations())
+    }
+
+    @Test
+    fun `선호 우선순위가 없던 기존 저장값도 읽는다`() {
+        val preferences = mutablePreferencesOf(
+            stringSetPreferencesKey("practice_situation_set") to setOf("PARKING", "U_TURN"),
+        )
+        assertEquals(listOf(PracticeSituation.U_TURN, PracticeSituation.PARKING), preferences.readPracticeSituations())
+    }
+
 }
