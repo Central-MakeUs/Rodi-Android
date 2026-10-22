@@ -4,7 +4,7 @@ import com.dororong.rodi.core.data.source.remote.model.member.NicknameAvailabili
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
-import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.SortTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.MyPageResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPageMyReviewItemResponse
@@ -60,9 +60,9 @@ interface MemberApi {
         @Body request: MemberUpdateRequest,
     ): ApiEnvelope<JsonObject>
 
-    @PUT("members/me/filter-tags")
-    suspend fun updateFilterTags(
-        @Body request: FilterTagsRequest,
+    @PUT("members/me/sort-tags")
+    suspend fun updateSortTags(
+        @Body request: SortTagsRequest,
     ): ApiEnvelope<JsonObject>
 
     @POST("members/{memberId}/block")

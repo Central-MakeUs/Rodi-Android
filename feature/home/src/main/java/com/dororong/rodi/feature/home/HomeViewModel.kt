@@ -21,11 +21,11 @@ import com.dororong.rodi.core.domain.usecase.auth.LoginWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.auth.RestoreWithKakaoUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
-import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
-import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceFilterUseCase
+import com.dororong.rodi.core.domain.usecase.place.SetPlaceFilterUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
-import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceClustersUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
@@ -47,6 +47,8 @@ import java.time.Instant
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,8 +63,9 @@ private const val PLACE_PAGE_SIZE = 20
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getPlaceCoordinatesUseCase: GetPlaceCoordinatesUseCase,
-    private val refreshPlaceCoordinatesUseCase: RefreshPlaceCoordinatesUseCase,
+    private val getPlaceFilterUseCase: GetPlaceFilterUseCase,
+    private val setPlaceFilterUseCase: SetPlaceFilterUseCase,
+    private val refreshPlaceClustersUseCase: RefreshPlaceClustersUseCase,
     private val getPlacesUseCase: GetPlacesUseCase,
     private val refreshPlacesUseCase: RefreshPlacesUseCase,
     private val getPlaceDetailUseCase: GetPlaceDetailUseCase,
@@ -73,7 +76,6 @@ class HomeViewModel @Inject constructor(
     private val restoreWithKakaoUseCase: RestoreWithKakaoUseCase,
     private val getNaviAlwaysUseCase: GetNaviAlwaysUseCase,
     private val setNaviAlwaysUseCase: SetNaviAlwaysUseCase,
-    private val updateFilterTagsUseCase: UpdateFilterTagsUseCase,
     private val registerPracticeUseCase: RegisterPracticeUseCase,
     private val recordPracticeVisitUseCase: RecordPracticeVisitUseCase,
     private val getActivePracticeSessionUseCase: GetActivePracticeSessionUseCase,
@@ -105,8 +107,29 @@ class HomeViewModel @Inject constructor(
     private var mapMovementGeneration = 0L
     private var lastFirstPageKey: PlaceRequestKey? = null
     private var pendingRestoreCredential: String? = null
+    private var filterLoadJob: Job? = null
+    private var filterDraftEdited = false
+    private var filtersLoaded = false
+    private var latestViewportQuery: PlaceViewportQuery? = null
+    private var pendingClearMapMovementGeneration: Long? = null
+
     init {
-        loadCoordinates()
+        filterLoadJob = viewModelScope.launch {
+            getPlaceFilterUseCase()
+                .onSuccess { practiceTypes ->
+                    _uiState.update {
+                        it.copy(
+                            appliedFilterPracticeTypes = practiceTypes,
+                            selectedFilterPracticeTypes = if (filterDraftEdited) it.selectedFilterPracticeTypes else practiceTypes,
+                        )
+                    }
+                }
+                .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
+            filtersLoaded = true
+            latestViewportQuery?.let {
+                loadFirstPage(it, force = true, clearMapMovementGeneration = pendingClearMapMovementGeneration)
+            }
+        }
     }
 
     fun onIntent(intent: HomeIntent) {
@@ -160,10 +183,16 @@ class HomeViewModel @Inject constructor(
             HomeIntent.RegisterClicked -> openCourseRegistration()
             is HomeIntent.SearchClicked -> openSearch(intent.origin)
             is HomeIntent.RegionSearchRequested -> prepareRegionSearch(intent.region, intent.initialPlaces)
-            HomeIntent.FilterOpened -> _uiState.update { it.copy(isFilterSheetVisible = true) }
+            HomeIntent.FilterOpened -> {
+                filterDraftEdited = false
+                _uiState.update {
+                    it.copy(isFilterSheetVisible = true, selectedFilterPracticeTypes = it.appliedFilterPracticeTypes)
+                }
+            }
             is HomeIntent.FilterCategorySelected -> selectFilterCategory(intent.category)
             is HomeIntent.FilterPracticeOptionToggled -> toggleFilterPracticeOption(intent.option)
             HomeIntent.FilterResetClicked -> if (!_uiState.value.isFilterSaving) {
+                filterDraftEdited = true
                 _uiState.update {
                     it.copy(
                         activeFilterCategory = FilterCategory.BASIC_DRIVING,
@@ -192,16 +221,6 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.NavigateClicked -> onNavigateClick(intent)
             is HomeIntent.NaviAppSelected -> onNaviAppSelected(intent)
             is HomeIntent.NaviAppInstallSelected -> onInstallNaviAppSelected(intent)
-        }
-    }
-
-    private fun loadCoordinates() {
-        viewModelScope.launch {
-            getPlaceCoordinatesUseCase()
-                .onSuccess { coordinates -> _uiState.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
-                .onFailure { _effect.send(HomeEffect.ShowSnackbar(it.userMessage())) }
-            refreshPlaceCoordinatesUseCase()
-                .onSuccess { coordinates -> _uiState.update { it.copy(coordinates = coordinates.distinctBy { item -> item.id }) } }
         }
     }
 
@@ -236,7 +255,7 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun loadInitialViewport(query: PlaceViewportQuery) {
-        if (_uiState.value.searchedQuery == null) loadFirstPage(query, force = false)
+        if (lastFirstPageKey == null) loadFirstPage(query, force = false)
     }
 
     private fun loadFirstPage(
@@ -244,7 +263,13 @@ class HomeViewModel @Inject constructor(
         force: Boolean,
         clearMapMovementGeneration: Long? = null,
     ) {
-        val key = PlaceRequestKey(query, cursor = null)
+        latestViewportQuery = query
+        if (!filtersLoaded) {
+            pendingClearMapMovementGeneration = clearMapMovementGeneration
+            return
+        }
+        val filteredQuery = query.copy(practiceTypes = _uiState.value.appliedFilterPracticeTypes)
+        val key = PlaceRequestKey(filteredQuery, cursor = null)
         if (!force && key == lastFirstPageKey) return
         if (key == lastFirstPageKey && firstPageJob?.isActive == true) return
         lastFirstPageKey = key
@@ -252,54 +277,63 @@ class HomeViewModel @Inject constructor(
         val generation = requestGeneration
         firstPageJob?.cancel()
         nextPageJob?.cancel()
-        firstPageJob = viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    listState = if (it.places.isEmpty()) HomeListState.Loading else it.listState,
-                    isNextPageLoading = false,
-                )
-            }
-            getPlacesUseCase(query, cursor = null, size = PLACE_PAGE_SIZE)
-                .onSuccess { page ->
-                    if (generation != requestGeneration) return@onSuccess
-                    applyFirstPage(query, page)
-                    refreshFirstPage(query, generation, clearMapMovementGeneration)
-                }
-                .onFailure { error ->
-                    if (generation != requestGeneration) return@onFailure
-                    _uiState.update { current ->
-                        current.copy(
-                            listState = if (current.places.isEmpty()) HomeListState.InitialError else current.listState,
-                        )
-                    }
-                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
-                }
+        _uiState.update {
+            it.copy(
+                places = if (it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) emptyList() else it.places,
+                listState = if (it.places.isEmpty() || it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) {
+                    HomeListState.Loading
+                } else {
+                    it.listState
+                },
+                isNextPageLoading = false,
+                hasNextPage = false,
+                nextCursor = null,
+                totalCount = null,
+                markerClusters = if (it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) null else it.markerClusters,
+                coordinates = if (it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) emptyList() else it.coordinates,
+                isMarkersLoading = true,
+            )
         }
-    }
-
-    private suspend fun refreshFirstPage(
-        query: PlaceViewportQuery,
-        generation: Long,
-        clearMapMovementGeneration: Long?,
-    ) {
-        refreshPlacesUseCase(query, cursor = null, size = PLACE_PAGE_SIZE)
-            .onSuccess { page ->
-                if (generation == requestGeneration) {
-                    applyFirstPage(query, page)
-                    if (
-                        clearMapMovementGeneration != null &&
-                        clearMapMovementGeneration == mapMovementGeneration
-                    ) {
-                        _uiState.update { it.copy(isMapSearchDirty = false) }
+        firstPageJob = viewModelScope.launch {
+            coroutineScope {
+                val markerResult = async { refreshPlaceClustersUseCase(filteredQuery) }
+                val pageResult = getPlacesUseCase(filteredQuery, cursor = null, size = PLACE_PAGE_SIZE)
+                pageResult
+                    .onSuccess { page ->
+                        if (generation == requestGeneration) applyFirstPage(filteredQuery, page)
                     }
+                    .onFailure { error ->
+                        if (generation != requestGeneration) return@onFailure
+                        _uiState.update {
+                            it.copy(listState = if (it.places.isEmpty()) HomeListState.InitialError else it.listState)
+                        }
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    }
+                val markers = markerResult.await()
+                markers
+                    .onSuccess { clusters ->
+                        if (generation != requestGeneration) return@onSuccess
+                        _uiState.update {
+                            it.copy(
+                                coordinates = clusters.places,
+                                markerClusters = clusters,
+                                isMarkersLoading = false,
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        if (generation != requestGeneration) return@onFailure
+                        _uiState.update { it.copy(isMarkersLoading = false, isMapSearchDirty = true) }
+                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                    }
+                if (
+                    generation == requestGeneration && pageResult.isSuccess && markers.isSuccess &&
+                    clearMapMovementGeneration != null && clearMapMovementGeneration == mapMovementGeneration
+                ) {
+                    _uiState.update { it.copy(isMapSearchDirty = false) }
                 }
             }
-            .onFailure { error ->
-                if (generation == requestGeneration && _uiState.value.places.isEmpty()) {
-                    _uiState.update { it.copy(listState = HomeListState.InitialError) }
-                    _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
-                }
-            }
+        }
     }
 
     private fun applyFirstPage(
@@ -418,7 +452,6 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateCourseRegistration)
             }
             is PendingHomeAction.OpenSearch -> viewModelScope.launch { _effect.send(HomeEffect.NavigateSearch(action.origin)) }
-            is PendingHomeAction.SaveFilterTags -> saveFilterTags(action.filterTags)
         }
     }
 
@@ -541,6 +574,7 @@ class HomeViewModel @Inject constructor(
 
     private fun selectFilterCategory(category: FilterCategory) {
         if (_uiState.value.isFilterSaving) return
+        filterDraftEdited = true
         _uiState.update { current ->
             if (current.activeFilterCategory == category) {
                 current.copy(
@@ -566,6 +600,7 @@ class HomeViewModel @Inject constructor(
 
     private fun toggleFilterPracticeOption(option: FilterPracticeOption) {
         if (_uiState.value.isFilterSaving) return
+        filterDraftEdited = true
         _uiState.update { current ->
             val activeCategory = current.activeFilterCategory ?: return@update current
             val targetTypes = when (option) {
@@ -582,30 +617,22 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun applyFilter() {
-        val filterTags = _uiState.value.selectedFilterPracticeTypes
-        if (_uiState.value.isFilterSaving) return
+        val current = _uiState.value
+        if (current.isFilterSaving) return
+        _uiState.update { it.copy(isFilterSaving = true) }
         viewModelScope.launch {
-            if (isLoggedIn()) {
-                saveFilterTags(filterTags)
-            } else {
-                requireLogin(PendingHomeAction.SaveFilterTags(filterTags))
-            }
-        }
-    }
-
-    private fun saveFilterTags(filterTags: Set<PracticeType>) {
-        if (_uiState.value.isFilterSaving) return
-        viewModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    selectedFilterPracticeTypes = filterTags,
-                    isFilterSaving = true,
-                )
-            }
-            updateFilterTagsUseCase(filterTags)
+            filterLoadJob?.join()
+            val practiceTypes = _uiState.value.selectedFilterPracticeTypes.toSet()
+            setPlaceFilterUseCase(practiceTypes)
                 .onSuccess {
-                    _uiState.update { it.copy(isFilterSheetVisible = false, isFilterSaving = false) }
-                    _uiState.value.searchedQuery?.let { query ->
+                    _uiState.update {
+                        it.copy(
+                            appliedFilterPracticeTypes = practiceTypes,
+                            isFilterSheetVisible = false,
+                            isFilterSaving = false,
+                        )
+                    }
+                    (latestViewportQuery ?: _uiState.value.searchedQuery)?.let { query ->
                         loadFirstPage(query, force = true)
                     }
                 }
@@ -618,7 +645,9 @@ class HomeViewModel @Inject constructor(
 
     private fun dismissFilter() {
         if (!_uiState.value.isFilterSaving) {
-            _uiState.update { it.copy(isFilterSheetVisible = false) }
+            _uiState.update {
+                it.copy(isFilterSheetVisible = false, selectedFilterPracticeTypes = it.appliedFilterPracticeTypes)
+            }
         }
     }
 

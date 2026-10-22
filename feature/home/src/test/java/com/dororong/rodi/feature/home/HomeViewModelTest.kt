@@ -11,6 +11,8 @@ import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
+import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
@@ -26,11 +28,11 @@ import com.dororong.rodi.core.domain.usecase.course.GetRouteUseCase
 import com.dororong.rodi.core.domain.usecase.driving.ObserveDrivingSessionUseCase
 import com.dororong.rodi.core.domain.usecase.navi.GetNaviAlwaysUseCase
 import com.dororong.rodi.core.domain.usecase.navi.SetNaviAlwaysUseCase
-import com.dororong.rodi.core.domain.usecase.member.UpdateFilterTagsUseCase
-import com.dororong.rodi.core.domain.usecase.place.GetPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceFilterUseCase
+import com.dororong.rodi.core.domain.usecase.place.SetPlaceFilterUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlaceDetailUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetPlacesUseCase
-import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceCoordinatesUseCase
+import com.dororong.rodi.core.domain.usecase.place.RefreshPlaceClustersUseCase
 import com.dororong.rodi.core.domain.usecase.place.RefreshPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.place.SetPlaceBookmarkUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetNotificationPermissionRequestedUseCase
@@ -49,6 +51,8 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,7 +90,6 @@ class HomeViewModelTest {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), hasNext = false, nextCursor = null, totalCount = 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
-        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.ViewportSettled(query()))
@@ -163,7 +166,6 @@ class HomeViewModelTest {
         val firstPage = CursorPage(listOf(summary(1), summary(2)), true, "next", 3)
         val nextPage = CursorPage(listOf(summary(2), summary(3)), false, null, null)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(firstPage)
-        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(firstPage)
         coEvery { deps.refreshPlaces(query(), "next", 20) } returns Result.success(nextPage)
         val vm = deps.viewModel()
 
@@ -177,18 +179,14 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `첫 페이지가 바뀔 때만 목록 세대를 올리고 요청과 페이지 추가는 올리지 않는다`() = runTest(dispatcher) {
+    fun `첫 페이지 응답만 목록 세대를 올리고 조회 중과 페이지 추가는 올리지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
-        val initialPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, 3)
-        val cachedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
-        val refreshedResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
-        val cachedPage = CursorPage(listOf(summary(1), summary(2), summary(3)), false, null, null)
-        val refreshedPage = CursorPage(listOf(summary(10), summary(11), summary(2)), true, "next", 4)
+        val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
+        val response = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val changedPage = CursorPage(listOf(summary(10), summary(11)), true, "next", 3)
         val nextPage = CursorPage(listOf(summary(12)), false, null, null)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(initialPage)
-        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(initialPage)
-        coEvery { deps.getPlaces(query(2.0), null, 20) } coAnswers { cachedResult.await() }
-        coEvery { deps.refreshPlaces(query(2.0), null, 20) } coAnswers { refreshedResult.await() }
+        coEvery { deps.getPlaces(query(2.0), null, 20) } coAnswers { response.await() }
         coEvery { deps.refreshPlaces(query(2.0), "next", 20) } returns Result.success(nextPage)
         val vm = deps.viewModel()
 
@@ -198,39 +196,33 @@ class HomeViewModelTest {
 
         vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
         runCurrent()
-
         assertEquals(initialGeneration, vm.uiState.value.placeListGeneration)
 
-        cachedResult.complete(Result.success(cachedPage))
-        runCurrent()
-
-        assertEquals(initialGeneration + 1, vm.uiState.value.placeListGeneration)
-        assertEquals(cachedPage.items, vm.uiState.value.places)
-
-        refreshedResult.complete(Result.success(refreshedPage))
+        response.complete(Result.success(changedPage))
         advanceUntilIdle()
-
-        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
-        assertEquals(refreshedPage.items, vm.uiState.value.places)
+        assertEquals(initialGeneration + 1, vm.uiState.value.placeListGeneration)
+        assertEquals(changedPage.items, vm.uiState.value.places)
 
         vm.onIntent(HomeIntent.ListEndReached)
         advanceUntilIdle()
-
-        assertEquals(initialGeneration + 2, vm.uiState.value.placeListGeneration)
-        assertEquals(listOf(10L, 11L, 2L, 12L), vm.uiState.value.places.map(PlaceSummary::id))
+        assertEquals(initialGeneration + 1, vm.uiState.value.placeListGeneration)
+        assertEquals(listOf(10L, 11L, 12L), vm.uiState.value.places.map(PlaceSummary::id))
+        coVerify(exactly = 1) { deps.getPlaces(query(2.0), null, 20) }
+        coVerify(exactly = 0) { deps.refreshPlaces(any(), null, any()) }
     }
 
     @Test
     fun `새 화면 영역 결과가 먼저 보낸 요청보다 우선한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val older = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
-        coEvery { deps.getPlaces(query(), null, 20) } coAnswers { older.await() }
+        coEvery { deps.getPlaces(query(), null, 20) } coAnswers { withContext(NonCancellable) { older.await() } }
         coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.success(
             CursorPage(listOf(summary(2)), false, null, 1),
         )
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.ViewportSettled(query()))
+        runCurrent()
         vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
         advanceUntilIdle()
         older.complete(Result.success(CursorPage(listOf(summary(1)), false, null, 1)))
@@ -242,11 +234,38 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `이전 영역의 늦은 다음 페이지는 새 첫 페이지에 섞이지 않는다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val olderPage = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), true, "next", 2))
+        coEvery { deps.refreshPlaces(query(), "next", 20) } coAnswers {
+            withContext(NonCancellable) { olderPage.await() }
+        }
+        coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.success(CursorPage(listOf(summary(2)), false, null, 1))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        advanceUntilIdle()
+        vm.onIntent(HomeIntent.ListEndReached)
+        runCurrent()
+
+        vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
+        runCurrent()
+        olderPage.complete(Result.success(CursorPage(listOf(summary(3)), true, "stale", null)))
+        advanceUntilIdle()
+
+        assertEquals(listOf(2L), vm.uiState.value.places.map(PlaceSummary::id))
+        assertEquals(query(2.0), vm.uiState.value.searchedQuery)
+        assertFalse(vm.uiState.value.hasNextPage)
+        assertFalse(vm.uiState.value.isNextPageLoading)
+        assertNull(vm.uiState.value.nextCursor)
+        coVerify(exactly = 1) { deps.refreshPlaces(query(), "next", 20) }
+    }
+
+    @Test
     fun `성공한 빈 목록과 첫 로드 실패를 구분한다`() = runTest(dispatcher) {
         val emptyDeps = Dependencies()
         val emptyPage = CursorPage<PlaceSummary>(emptyList(), false, null, 0)
         coEvery { emptyDeps.getPlaces(query(), null, 20) } returns Result.success(emptyPage)
-        coEvery { emptyDeps.refreshPlaces(query(), null, 20) } returns Result.success(emptyPage)
         val emptyVm = emptyDeps.viewModel()
         emptyVm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
@@ -269,7 +288,6 @@ class HomeViewModelTest {
             Result.failure(IllegalStateException("failure")),
             Result.success(page),
         )
-        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.ViewportSettled(query()))
@@ -306,8 +324,7 @@ class HomeViewModelTest {
     fun `지도를 움직이면 다시 검색이 성공할 때까지 재검색 필요 상태를 유지한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
-        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
-        coEvery { deps.refreshPlaces(query(), null, 20) } returnsMany listOf(
+        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
             Result.failure(IllegalStateException("offline")),
             Result.success(page),
         )
@@ -328,7 +345,6 @@ class HomeViewModelTest {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
-        coEvery { deps.refreshPlaces(query(), null, 20) } returns Result.success(page)
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.ResearchClicked(query()))
@@ -747,8 +763,9 @@ class HomeViewModelTest {
     @Test
     fun `필터는 여러 카테고리의 태그를 함께 유지하고 한 번에 저장한다`() = runTest(dispatcher) {
         val deps = Dependencies()
-        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+        coEvery { deps.setPlaceFilter(any()) } returns Result.success(Unit)
         val vm = deps.viewModel()
+        advanceUntilIdle()
 
         vm.onIntent(HomeIntent.FilterOpened)
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.ALL))
@@ -771,7 +788,7 @@ class HomeViewModelTest {
         )
         assertFalse(vm.uiState.value.isFilterSheetVisible)
         coVerify {
-            deps.updateFilterTags(
+            deps.setPlaceFilter(
                 setOf(
                     PracticeType.STRAIGHT,
                     PracticeType.LEFT_RIGHT_TURN,
@@ -786,6 +803,7 @@ class HomeViewModelTest {
     @Test
     fun `활성 카테고리를 다시 누르면 카테고리만 해제하고 고른 연습 유형은 유지한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
+        advanceUntilIdle()
 
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.BASIC_DRIVING))
@@ -797,6 +815,7 @@ class HomeViewModelTest {
     @Test
     fun `주차를 두 번 누르면 태그를 빼고 활성 카테고리를 해제한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
+        advanceUntilIdle()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
         assertEquals(FilterCategory.PARKING, vm.uiState.value.activeFilterCategory)
@@ -811,6 +830,7 @@ class HomeViewModelTest {
     @Test
     fun `주차에서 다른 카테고리로 옮기면 태그는 유지하고 새 카테고리만 활성화한다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
+        advanceUntilIdle()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.ROAD_FLOW))
@@ -826,6 +846,7 @@ class HomeViewModelTest {
     @Test
     fun `초기화하면 기본 주행 카테고리를 활성화하고 필터 태그를 모두 지운다`() = runTest(dispatcher) {
         val vm = Dependencies().viewModel()
+        advanceUntilIdle()
 
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.PARKING))
         vm.onIntent(HomeIntent.FilterCategorySelected(FilterCategory.ROAD_FLOW))
@@ -837,64 +858,210 @@ class HomeViewModelTest {
     }
 
     @Test
-    fun `필터 태그를 저장하는 중에는 초기화를 무시한다`() = runTest(dispatcher) {
+    fun `필터 저장 중에는 중복 적용과 초기화와 닫기를 무시한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val saveResult = CompletableDeferred<Result<Unit>>()
-        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
+        coEvery { deps.setPlaceFilter(setOf(PracticeType.STRAIGHT)) } coAnswers { saveResult.await() }
         val vm = deps.viewModel()
+        advanceUntilIdle()
 
+        vm.onIntent(HomeIntent.FilterOpened)
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
         vm.onIntent(HomeIntent.FilterApplyClicked)
         runCurrent()
+        vm.onIntent(HomeIntent.FilterApplyClicked)
         vm.onIntent(HomeIntent.FilterResetClicked)
+        vm.onIntent(HomeIntent.FilterDismissed)
 
         assertTrue(vm.uiState.value.isFilterSaving)
+        assertTrue(vm.uiState.value.isFilterSheetVisible)
         assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.selectedFilterPracticeTypes)
+        assertTrue(vm.uiState.value.appliedFilterPracticeTypes.isEmpty())
+        coVerify(exactly = 1) { deps.setPlaceFilter(setOf(PracticeType.STRAIGHT)) }
+
+        saveResult.complete(Result.success(Unit))
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isFilterSaving)
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.appliedFilterPracticeTypes)
     }
 
     @Test
-    fun `필터 저장에 성공하면 현재 홈 화면 영역을 다시 불러온다`() = runTest(dispatcher) {
+    fun `필터 시트를 닫으면 저장하지 않은 변경을 버리고 적용 필터를 복원한다`() = runTest(dispatcher) {
         val deps = Dependencies()
-        val initialPage = CursorPage(listOf(summary(1)), false, null, 1)
-        val filteredPage = CursorPage(listOf(summary(2)), false, null, 1)
-        coEvery { deps.getPlaces(query(), null, 20) } returnsMany listOf(
-            Result.success(initialPage),
-            Result.success(filteredPage),
+        val saved = setOf(PracticeType.PARKING)
+        coEvery { deps.getPlaceFilter() } returns Result.success(saved)
+        val vm = deps.viewModel()
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.FilterOpened)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        assertEquals(saved + PracticeType.STRAIGHT, vm.uiState.value.selectedFilterPracticeTypes)
+        assertEquals(saved, vm.uiState.value.appliedFilterPracticeTypes)
+        vm.onIntent(HomeIntent.FilterDismissed)
+
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(saved, vm.uiState.value.selectedFilterPracticeTypes)
+        vm.onIntent(HomeIntent.FilterOpened)
+        assertEquals(saved, vm.uiState.value.selectedFilterPracticeTypes)
+        coVerify(exactly = 0) { deps.setPlaceFilter(any()) }
+    }
+
+    @Test
+    fun `필터 저장이 실패하면 적용 상태를 유지하고 같은 선택을 재시도한다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val selected = setOf(PracticeType.STRAIGHT)
+        coEvery { deps.setPlaceFilter(selected) } returnsMany listOf(
+            Result.failure(IllegalStateException("저장 실패")),
+            Result.success(Unit),
         )
-        coEvery { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) } returns Result.success(Unit)
+        val vm = deps.viewModel()
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.FilterOpened)
+            vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+            vm.onIntent(HomeIntent.FilterApplyClicked)
+            advanceUntilIdle()
+
+            assertTrue(awaitItem() is HomeEffect.ShowSnackbar)
+            assertTrue(vm.uiState.value.isFilterSheetVisible)
+            assertFalse(vm.uiState.value.isFilterSaving)
+            assertTrue(vm.uiState.value.appliedFilterPracticeTypes.isEmpty())
+            assertEquals(selected, vm.uiState.value.selectedFilterPracticeTypes)
+
+            vm.onIntent(HomeIntent.FilterApplyClicked)
+            advanceUntilIdle()
+
+            expectNoEvents()
+        }
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(selected, vm.uiState.value.appliedFilterPracticeTypes)
+        coVerify(exactly = 2) { deps.setPlaceFilter(selected) }
+    }
+
+    @Test
+    fun `저장 필터를 복원한 뒤 처음 목록과 클러스터를 같은 조건으로 조회한다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val saved = setOf(PracticeType.PARKING, PracticeType.MERGING)
+        val restoredQuery = query().copy(practiceTypes = saved)
+        val filters = CompletableDeferred<Result<Set<PracticeType>>>()
+        coEvery { deps.getPlaceFilter() } coAnswers { filters.await() }
+        coEvery { deps.getPlaces(restoredQuery, null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
         val vm = deps.viewModel()
 
         vm.onIntent(HomeIntent.ViewportSettled(query()))
+        runCurrent()
+        coVerify(exactly = 0) { deps.getPlaces(any(), any(), any()) }
+        coVerify(exactly = 0) { deps.refreshClusters(any()) }
+
+        filters.complete(Result.success(saved))
         advanceUntilIdle()
+
+        assertEquals(saved, vm.uiState.value.appliedFilterPracticeTypes)
+        assertEquals(saved, vm.uiState.value.selectedFilterPracticeTypes)
+        assertEquals(restoredQuery, vm.uiState.value.searchedQuery)
+        coVerify(exactly = 1) { deps.getPlaces(restoredQuery, null, 20) }
+        coVerify(exactly = 1) { deps.refreshClusters(restoredQuery) }
+    }
+
+    @Test
+    fun `새 필터 조회가 실패하면 이전 필터의 목록을 대신 보여주지 않는다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val filtered = query().copy(practiceTypes = setOf(PracticeType.STRAIGHT))
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
+        coEvery { deps.getPlaces(filtered, null, 20) } returns Result.failure(IllegalStateException("오프라인"))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        advanceUntilIdle()
+
         vm.onIntent(HomeIntent.FilterOpened)
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
         vm.onIntent(HomeIntent.FilterApplyClicked)
         advanceUntilIdle()
 
-        assertFalse(vm.uiState.value.isFilterSheetVisible)
-        assertEquals(listOf(2L), vm.uiState.value.places.map { it.id })
-        coVerify(exactly = 2) { deps.getPlaces(query(), null, 20) }
+        assertTrue(vm.uiState.value.places.isEmpty())
+        assertEquals(HomeListState.InitialError, vm.uiState.value.listState)
+        assertEquals(filtered.practiceTypes, vm.uiState.value.appliedFilterPracticeTypes)
+        assertFalse(vm.uiState.value.hasNextPage)
+        assertNull(vm.uiState.value.nextCursor)
+        coVerify(exactly = 1) { deps.getPlaces(filtered, null, 20) }
+        coVerify(exactly = 1) { deps.refreshClusters(filtered) }
     }
 
     @Test
-    fun `둘러보기 중 필터 저장은 기존 회원 로그인 후 재개한다`() = runTest(dispatcher) {
-        val deps = Dependencies(loggedIn = false)
-        coEvery { deps.loginWithKakao("credential") } returns Result.success(LoginResult.Success(isOnboarded = true, nickname = "로디"))
-        coEvery { deps.updateFilterTags(any()) } returns Result.success(Unit)
+    fun `이전 지도 영역의 늦은 클러스터 응답은 새 영역 마커를 덮지 않는다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val older = CompletableDeferred<Result<PlaceMarkerClusters>>()
+        val recentMarkers = PlaceMarkerClusters(listOf(coordinate(2)), emptyList())
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
+        coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.success(CursorPage(listOf(summary(2)), false, null, 1))
+        coEvery { deps.refreshClusters(query()) } coAnswers { withContext(NonCancellable) { older.await() } }
+        coEvery { deps.refreshClusters(query(2.0)) } returns Result.success(recentMarkers)
         val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        runCurrent()
 
+        vm.onIntent(HomeIntent.ResearchClicked(query(2.0)))
+        runCurrent()
+        assertEquals(recentMarkers, vm.uiState.value.markerClusters)
+        older.complete(Result.success(PlaceMarkerClusters(listOf(coordinate(1)), emptyList())))
+        advanceUntilIdle()
+
+        assertEquals(recentMarkers, vm.uiState.value.markerClusters)
+        assertEquals(listOf(2L), vm.uiState.value.coordinates.map(PlaceCoordinate::id))
+        assertFalse(vm.uiState.value.isMarkersLoading)
+        assertEquals(query(2.0), vm.uiState.value.searchedQuery)
+    }
+
+    @Test
+    fun `필터를 적용하면 목록과 클러스터와 다음 페이지에 같은 연습 유형을 보낸다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val filtered = query().copy(practiceTypes = setOf(PracticeType.STRAIGHT))
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
+        coEvery { deps.getPlaces(filtered, null, 20) } returns Result.success(CursorPage(listOf(summary(2)), true, "next", 2))
+        coEvery { deps.refreshPlaces(filtered, "next", 20) } returns Result.success(CursorPage(listOf(summary(3)), false, null, null))
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.FilterOpened)
         vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
         vm.onIntent(HomeIntent.FilterApplyClicked)
         advanceUntilIdle()
-        assertEquals(
-            PendingHomeAction.SaveFilterTags(setOf(PracticeType.STRAIGHT)),
-            vm.uiState.value.pendingAction,
-        )
-
-        vm.onIntent(HomeIntent.KakaoLoginSucceeded("credential"))
+        vm.onIntent(HomeIntent.ListEndReached)
         advanceUntilIdle()
 
-        coVerify { deps.updateFilterTags(setOf(PracticeType.STRAIGHT)) }
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.appliedFilterPracticeTypes)
+        assertEquals(filtered, vm.uiState.value.searchedQuery)
+        assertEquals(listOf(2L, 3L), vm.uiState.value.places.map { it.id })
+        coVerify(exactly = 1) { deps.getPlaces(filtered, null, 20) }
+        coVerify(exactly = 1) { deps.refreshClusters(filtered) }
+        coVerify(exactly = 1) { deps.refreshPlaces(filtered, "next", 20) }
+        coVerify(exactly = 0) { deps.refreshPlaces(any(), null, any()) }
+    }
+
+    @Test
+    fun `둘러보기 사용자도 로그인 없이 필터를 저장하고 적용한다`() = runTest(dispatcher) {
+        val deps = Dependencies(loggedIn = false)
+        val vm = deps.viewModel()
+        advanceUntilIdle()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.FilterOpened)
+            vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+            vm.onIntent(HomeIntent.FilterApplyClicked)
+            advanceUntilIdle()
+
+            expectNoEvents()
+        }
+        assertNull(vm.uiState.value.pendingAction)
+        assertEquals(setOf(PracticeType.STRAIGHT), vm.uiState.value.appliedFilterPracticeTypes)
+        assertFalse(vm.uiState.value.isFilterSheetVisible)
+        coVerify(exactly = 1) { deps.setPlaceFilter(setOf(PracticeType.STRAIGHT)) }
+        coVerify(exactly = 0) { deps.loginWithKakao(any()) }
+        coVerify(exactly = 0) { deps.authSession() }
     }
 
     @Test
@@ -1557,8 +1724,9 @@ private class Dependencies(
     val clock: Clock = Clock.fixed(Instant.parse("2026-08-15T00:00:00Z"), ZoneOffset.UTC),
     loggedIn: Boolean = true,
 ) {
-    val coordinates = mockk<GetPlaceCoordinatesUseCase>()
-    val refreshCoordinates = mockk<RefreshPlaceCoordinatesUseCase>()
+    val getPlaceFilter = mockk<GetPlaceFilterUseCase>()
+    val setPlaceFilter = mockk<SetPlaceFilterUseCase>()
+    val refreshClusters = mockk<RefreshPlaceClustersUseCase>()
     val getPlaces = mockk<GetPlacesUseCase>()
     val refreshPlaces = mockk<RefreshPlacesUseCase>()
     val getDetail = mockk<GetPlaceDetailUseCase>()
@@ -1569,7 +1737,6 @@ private class Dependencies(
     val restoreWithKakao = mockk<RestoreWithKakaoUseCase>()
     val getNaviAlways = mockk<GetNaviAlwaysUseCase>()
     val setNaviAlways = mockk<SetNaviAlwaysUseCase>()
-    val updateFilterTags = mockk<UpdateFilterTagsUseCase>()
     val registerPractice = mockk<RegisterPracticeUseCase>()
     val recordPracticeVisit = mockk<RecordPracticeVisitUseCase>()
     val getActiveSession = mockk<GetActivePracticeSessionUseCase>()
@@ -1580,8 +1747,9 @@ private class Dependencies(
     val markNotificationRequested = mockk<MarkNotificationPermissionRequestedUseCase>()
 
     init {
-        coEvery { coordinates() } returns Result.success(emptyList())
-        coEvery { refreshCoordinates() } returns Result.success(emptyList())
+        coEvery { getPlaceFilter() } returns Result.success(emptySet())
+        coEvery { setPlaceFilter(any()) } returns Result.success(Unit)
+        coEvery { refreshClusters(any()) } returns Result.success(PlaceMarkerClusters(emptyList(), emptyList()))
         coEvery { refreshPlaces(any(), any(), any()) } returns Result.failure(IllegalStateException("offline"))
         coEvery { authSession() } returns AuthSession(loggedIn, false)
         coEvery { getNaviAlways() } returns null
@@ -1604,8 +1772,9 @@ private class Dependencies(
     }
 
     fun viewModel() = HomeViewModel(
-        getPlaceCoordinatesUseCase = coordinates,
-        refreshPlaceCoordinatesUseCase = refreshCoordinates,
+        getPlaceFilterUseCase = getPlaceFilter,
+        setPlaceFilterUseCase = setPlaceFilter,
+        refreshPlaceClustersUseCase = refreshClusters,
         getPlacesUseCase = getPlaces,
         refreshPlacesUseCase = refreshPlaces,
         getPlaceDetailUseCase = getDetail,
@@ -1616,7 +1785,6 @@ private class Dependencies(
         restoreWithKakaoUseCase = restoreWithKakao,
         getNaviAlwaysUseCase = getNaviAlways,
         setNaviAlwaysUseCase = setNaviAlways,
-        updateFilterTagsUseCase = updateFilterTags,
         registerPracticeUseCase = registerPractice,
         recordPracticeVisitUseCase = recordPracticeVisit,
         getActivePracticeSessionUseCase = getActiveSession,
@@ -1663,6 +1831,14 @@ private fun visitResult(
     totalDistanceKm = 0.0,
     levelUp = levelUp,
     newLevel = newLevel,
+)
+
+private fun coordinate(id: Long) = PlaceCoordinate(
+    id = id,
+    type = PlaceType.COURSE,
+    name = "코스$id",
+    address = "서울",
+    point = GeoPoint(37.5, 126.5),
 )
 
 private fun summary(id: Long) = PlaceSummary(

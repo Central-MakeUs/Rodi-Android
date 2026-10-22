@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.home
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -38,6 +39,8 @@ enum class HomeListState {
 
 data class HomeUiState(
     val coordinates: List<PlaceCoordinate> = emptyList(),
+    val markerClusters: PlaceMarkerClusters? = null,
+    val isMarkersLoading: Boolean = false,
     val places: List<PlaceSummary> = emptyList(),
     val listState: HomeListState = HomeListState.Idle,
     val surfaceState: HomeSurfaceState = HomeSurfaceState.Navigation,
@@ -64,6 +67,7 @@ data class HomeUiState(
     val isFilterSheetVisible: Boolean = false,
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
+    val appliedFilterPracticeTypes: Set<PracticeType> = emptySet(),
     val isFilterSaving: Boolean = false,
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
@@ -188,5 +192,4 @@ sealed interface PendingHomeAction {
     data object OpenMyPage : PendingHomeAction
     data object OpenCourseRegistration : PendingHomeAction
     data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
-    data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }

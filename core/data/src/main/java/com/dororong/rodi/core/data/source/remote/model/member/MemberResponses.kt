@@ -82,8 +82,8 @@ data class MemberUpdateRequest(
 )
 
 @Serializable
-data class FilterTagsRequest(
-    val filterTags: List<String>,
+data class SortTagsRequest(
+    val sortTags: List<String>,
 )
 
 @Serializable

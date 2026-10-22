@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.data.mapper.toApiValue
 import com.dororong.rodi.core.data.mapper.toNicknameRejection
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
 import com.dororong.rodi.core.domain.model.member.NicknameAvailability
@@ -11,7 +12,7 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
-import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.SortTagsRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
@@ -143,10 +144,10 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateFilterTags(filterTags: List<PracticeType>) {
+    override suspend fun updateSortTags(sortTags: List<PracticeType>) {
         authenticatedRequest {
-            memberApi.updateFilterTags(
-                request = FilterTagsRequest(filterTags.map(PracticeType::name)),
+            memberApi.updateSortTags(
+                request = SortTagsRequest(sortTags.map(PracticeType::toApiValue)),
             ).requireSuccess()
         }
     }
