@@ -444,7 +444,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
                 totalCount = 1,
             ),
@@ -489,7 +489,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -513,7 +513,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = true,
                 nextCursor = "next",
             ),
@@ -523,7 +523,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(2, 2, "방문 장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(2, 2, "방문 장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -565,7 +565,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(3, 3, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(3, 3, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -682,7 +682,7 @@ class MemberRepositoryImplTest {
         code = "COMMON_200",
         message = "성공",
         data = CursorPagePracticeItemResponse(
-            items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+            items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
             hasNext = true,
             nextCursor = nextCursor,
         ),

@@ -38,6 +38,7 @@ data class PracticeItemResponse(
     val visitCount: Int,
     val lastActivityAt: String? = null,
     val hasReview: Boolean,
+    val isDeleted: Boolean,
 )
 
 @Serializable
