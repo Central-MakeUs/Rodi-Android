@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.course.RouteResult
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
+import com.dororong.rodi.core.domain.model.place.PlaceException
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -318,6 +319,58 @@ class HomeViewModelTest {
 
         assertEquals(listOf(1L), vm.uiState.value.places.map { it.id })
         assertEquals(HomeListState.Content, vm.uiState.value.listState)
+    }
+
+    @Test
+    fun `목록과 클러스터 조회가 함께 실패하면 오류를 한 번 알리고 지도 재검색을 허용한다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val pageResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
+        val clusterResult = CompletableDeferred<Result<PlaceMarkerClusters>>()
+        coEvery { deps.getPlaces(query(), null, 20) } coAnswers { pageResult.await() }
+        coEvery { deps.refreshClusters(query()) } coAnswers { clusterResult.await() }
+        val vm = deps.viewModel()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.ViewportSettled(query()))
+            runCurrent()
+            coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
+            coVerify(exactly = 1) { deps.refreshClusters(query()) }
+            assertTrue(vm.uiState.value.isMarkersLoading)
+
+            pageResult.complete(Result.failure(PlaceException.Network("목록을 불러오지 못했어요.")))
+            clusterResult.complete(Result.failure(PlaceException.Network("지도를 불러오지 못했어요.")))
+            advanceUntilIdle()
+
+            assertEquals(HomeListState.InitialError, vm.uiState.value.listState)
+            assertFalse(vm.uiState.value.isMarkersLoading)
+            assertTrue(vm.uiState.value.isMapSearchDirty)
+            assertEquals(HomeEffect.ShowSnackbar("목록을 불러오지 못했어요."), awaitItem())
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `목록은 성공하고 클러스터만 실패하면 목록을 유지하고 지도 오류를 한 번 알린다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val page = CursorPage(listOf(summary(1)), false, null, 1)
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
+        coEvery { deps.refreshClusters(query()) } returns Result.failure(PlaceException.Network("지도를 불러오지 못했어요."))
+        val vm = deps.viewModel()
+
+        vm.effect.test {
+            vm.onIntent(HomeIntent.ViewportSettled(query()))
+            advanceUntilIdle()
+
+            assertEquals(HomeEffect.ShowSnackbar("지도를 불러오지 못했어요."), awaitItem())
+            expectNoEvents()
+        }
+
+        assertEquals(page.items, vm.uiState.value.places)
+        assertEquals(HomeListState.Content, vm.uiState.value.listState)
+        assertFalse(vm.uiState.value.isMarkersLoading)
+        assertTrue(vm.uiState.value.isMapSearchDirty)
+        coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
+        coVerify(exactly = 1) { deps.refreshClusters(query()) }
     }
 
     @Test

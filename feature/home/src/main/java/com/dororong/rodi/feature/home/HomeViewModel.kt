@@ -324,7 +324,9 @@ class HomeViewModel @Inject constructor(
                     .onFailure { error ->
                         if (generation != requestGeneration) return@onFailure
                         _uiState.update { it.copy(isMarkersLoading = false, isMapSearchDirty = true) }
-                        _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                        if (pageResult.isSuccess) {
+                            _effect.send(HomeEffect.ShowSnackbar(error.userMessage()))
+                        }
                     }
                 if (
                     generation == requestGeneration && pageResult.isSuccess && markers.isSuccess &&
