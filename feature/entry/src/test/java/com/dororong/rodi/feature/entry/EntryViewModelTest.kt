@@ -27,11 +27,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -842,8 +846,10 @@ class EntryViewModelTest {
         coVerify(exactly = 0) { save.submit(any(), any()) }
 
         viewModel.retryOnboardingForm()
+        viewModel.retryOnboardingForm()
         advanceUntilIdle()
 
+        coVerify(exactly = 2) { getForm() }
         assertFalse(viewModel.uiState.value.hasOnboardingFormError)
         assertTrue(viewModel.uiState.value.isServerFormLoaded)
         assertTrue(viewModel.isCareerStepValid)
@@ -911,6 +917,93 @@ class EntryViewModelTest {
         viewModel.updateGoal("😁😁😁")
 
         assertEquals("😁😁", viewModel.goal)
+    }
+
+    @Test
+    fun `서버 폼 응답을 기다려도 저장된 약관 화면 복원은 완료한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            savedProgress = EntryProgress(
+                serviceTermsChecked = true,
+                privacyTermsChecked = true,
+                locationTermsChecked = false,
+            ),
+        )
+        try {
+            runCurrent()
+
+            assertTrue(viewModel.isRestored)
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            assertTrue(viewModel.serviceTermsChecked)
+            assertTrue(viewModel.privacyTermsChecked)
+            assertFalse(viewModel.locationTermsChecked)
+            assertTrue(viewModel.uiState.value.isOnboardingFormLoading)
+            assertFalse(viewModel.uiState.value.isServerFormLoaded)
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+        assertTrue(viewModel.uiState.value.isServerFormLoaded)
+        assertFalse(viewModel.uiState.value.isOnboardingFormLoading)
+        assertTrue(viewModel.serviceTermsChecked)
+        assertTrue(viewModel.privacyTermsChecked)
+        assertFalse(viewModel.locationTermsChecked)
+    }
+
+    @Test
+    fun `서버 폼 응답을 기다려도 복원된 닉네임 단계의 닉네임을 생성한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            saveOnboardingProfileUseCase = save,
+            savedProgress = EntryProgress(step = EntryProgressStep.NICKNAME),
+        )
+        try {
+            runCurrent()
+
+            assertTrue(viewModel.nickname.isNotBlank())
+            assertTrue(viewModel.isRestored)
+            assertEquals(EntryStep.NICKNAME, viewModel.step)
+            assertTrue(viewModel.uiState.value.isOnboardingFormLoading)
+            coVerify { save(match { it.nickname.isNotBlank() }) }
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+    }
+
+    @Test
+    fun `복원된 경력 화면은 서버 폼 응답 전까지 모든 노출 상태에서 로딩을 유지한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            saveOnboardingProfileUseCase = save,
+            savedProgress = EntryProgress(step = EntryProgressStep.CAREER),
+            savedProfile = OnboardingProfile(drivingPeriod = DrivingPeriod.MONTHS_1_2),
+        )
+        val observed = mutableListOf<EntryUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(observed) }
+        try {
+            runCurrent()
+
+            assertTrue(observed.any { it.isRestored && it.step == EntryStep.CAREER })
+            assertFalse(observed.any { it.isRestored && !it.isOnboardingFormLoading })
+            assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
+            assertFalse(viewModel.isCareerStepValid)
+            coVerify(exactly = 0) { save.submit(any(), any()) }
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+        assertTrue(viewModel.uiState.value.isServerFormLoaded)
+        assertFalse(viewModel.uiState.value.isOnboardingFormLoading)
+        assertTrue(viewModel.isCareerStepValid)
     }
 
     private fun remoteForm(): OnboardingForm = localOnboardingForm().let { form ->

@@ -75,8 +75,8 @@ class EntryViewModel @Inject constructor(
                 restoreProgress(progress)
                 restoreOnboardingProfile(getOnboardingProfileUseCase().first())
                 applyMode(progress.mode)
-                if (progress.mode != EntryMode.GUEST_BROWSE) loadOnboardingForm()
                 if (uiState.value.step == EntryStep.NICKNAME) generateNicknameIfNeeded()
+                if (progress.mode != EntryMode.GUEST_BROWSE) loadOnboardingForm()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -117,32 +117,32 @@ class EntryViewModel @Inject constructor(
         }
     }
 
-    fun retryOnboardingForm() {
-        if (uiState.value.isOnboardingFormLoading) return
-        viewModelScope.launch { loadOnboardingForm() }
-    }
+    fun retryOnboardingForm() = loadOnboardingForm()
 
-    private suspend fun loadOnboardingForm() {
+    private fun loadOnboardingForm() {
+        if (uiState.value.isOnboardingFormLoading) return
         _uiState.update { it.copy(isOnboardingFormLoading = true, hasOnboardingFormError = false) }
-        val result = getOnboardingFormUseCase()
-        result.fold(
-            onSuccess = { form ->
-                _uiState.update { state ->
-                    if (form == null) state.copy(isOnboardingFormLoading = false)
-                    else {
-                        val normalized = state.profile.conformTo(form)
-                        val maxGoalLength = form.steps.flatMap { it.questions }
-                            .firstOrNull { it.code == "drivingGoal" }?.maxLength ?: MAX_GOAL_LENGTH
-                        state.copy(onboardingForm = form, isOnboardingFormLoading = false, isServerFormLoaded = true)
-                            .withProfile(normalized.copy(goal = normalized.goal.takeGraphemes(maxGoalLength)))
+        viewModelScope.launch {
+            val result = getOnboardingFormUseCase()
+            result.fold(
+                onSuccess = { form ->
+                    _uiState.update { state ->
+                        if (form == null) state.copy(isOnboardingFormLoading = false)
+                        else {
+                            val normalized = state.profile.conformTo(form)
+                            val maxGoalLength = form.steps.flatMap { it.questions }
+                                .firstOrNull { it.code == "drivingGoal" }?.maxLength ?: MAX_GOAL_LENGTH
+                            state.copy(onboardingForm = form, isOnboardingFormLoading = false, isServerFormLoaded = true)
+                                .withProfile(normalized.copy(goal = normalized.goal.takeGraphemes(maxGoalLength)))
+                        }
                     }
-                }
-                persistOnboardingProfile()
-            },
-            onFailure = {
-                _uiState.update { it.copy(isOnboardingFormLoading = false, hasOnboardingFormError = true) }
-            },
-        )
+                    persistOnboardingProfile()
+                },
+                onFailure = {
+                    _uiState.update { it.copy(isOnboardingFormLoading = false, hasOnboardingFormError = true) }
+                },
+            )
+        }
     }
 
     fun selectDrivingPeriod(value: DrivingPeriod) = selectOption("drivingPeriod", value.answerCode())
