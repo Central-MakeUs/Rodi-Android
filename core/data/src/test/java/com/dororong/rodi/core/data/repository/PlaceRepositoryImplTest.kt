@@ -171,7 +171,7 @@ class PlaceRepositoryImplTest {
     }
 
     @Test
-    fun `장소 목록은 디버그 장소를 주입해 서버 totalCount와 어긋나지 않는다`() = runTest {
+    fun `장소 목록은 디버그 장소를 주입하지 않아 서버 totalCount를 유지한다`() = runTest {
         val api = mockk<PlaceApi>()
         val tokenStore = mockk<AuthTokenStore>()
         val query = viewportQuery().copy(southWest = GeoPoint(36.0, 128.0), northEast = GeoPoint(37.0, 129.0))
