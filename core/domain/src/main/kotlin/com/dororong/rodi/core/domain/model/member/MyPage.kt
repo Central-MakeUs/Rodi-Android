@@ -29,6 +29,7 @@ data class PracticeRecordItem(
     val visitedAt: java.time.Instant?,
     val hasReview: Boolean,
     val status: PracticeStatus = PracticeStatus.PLANNED,
+    val isDeleted: Boolean = false,
 )
 
 data class MyReview(

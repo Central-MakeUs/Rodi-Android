@@ -11,6 +11,7 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
@@ -69,7 +70,8 @@ class MemberMapperTest {
               "status": "VISITED",
               "visitCount": 1,
               "lastActivityAt": "$OFFSET_LESS",
-              "hasReview": false
+              "hasReview": false,
+              "isDeleted": false
             }
             """.trimIndent(),
         )
@@ -92,6 +94,35 @@ class MemberMapperTest {
         }
     }
 
+    @Test
+    fun `삭제된 코스의 연습기록도 보존하고 삭제 상태를 매핑한다`() {
+        val response = Json { ignoreUnknownKeys = true }.decodeFromString<PracticeItemResponse>(
+            """
+            {
+              "practiceId": 1,
+              "placeId": 10,
+              "placeName": "삭제된 연습 코스",
+              "practiceTypes": ["ROUNDABOUT"],
+              "status": "VISITED",
+              "visitCount": 3,
+              "lastActivityAt": "$OFFSET_LESS",
+              "hasReview": true,
+              "isDeleted": true
+            }
+            """.trimIndent(),
+        )
+
+        val result = response.toDomain()
+
+        assertTrue(result.isDeleted)
+        assertEquals(1L, result.practiceId)
+        assertEquals(10L, result.placeId)
+        assertEquals("삭제된 연습 코스", result.placeName)
+        assertEquals(3, result.visitCount)
+        assertEquals(parseServerTimestamp(OFFSET_LESS), result.visitedAt)
+        assertTrue(result.hasReview)
+    }
+
     private fun practiceItem(lastActivityAt: String?, status: String = "PLANNED") = PracticeItemResponse(
         practiceId = 1,
         placeId = 10,
@@ -101,6 +132,7 @@ class MemberMapperTest {
         lastActivityAt = lastActivityAt,
         hasReview = false,
         status = status,
+        isDeleted = false,
     )
 
     private fun myPage(level: String) = MyPageResponse(

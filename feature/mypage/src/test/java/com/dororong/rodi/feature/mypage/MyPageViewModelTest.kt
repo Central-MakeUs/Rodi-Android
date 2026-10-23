@@ -123,6 +123,31 @@ class MyPageViewModelTest {
     }
 
     @Test
+    fun `마이페이지 미리보기는 삭제된 코스의 방문 기록과 삭제 상태를 유지한다`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val deleted = com.dororong.rodi.core.domain.model.member.PracticeRecordItem(
+            practiceId = 10,
+            placeId = 106,
+            placeName = "삭제된 코스",
+            practiceTypes = emptyList(),
+            visitCount = 3,
+            visitedAt = java.time.Instant.EPOCH,
+            hasReview = true,
+            status = com.dororong.rodi.core.domain.model.practice.PracticeStatus.VISITED,
+            isDeleted = true,
+        )
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(listOf(deleted), false, null, 1))
+        coEvery { getMyPage() } returns Result.success(MyPage("로디", OnboardingLevel.ROOKIE, emptyList(), null, 0))
+
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals(listOf(deleted), viewModel.uiState.value.practiceRecords)
+    }
+
+    @Test
     fun `연습 기록은 서버가 준 순서를 유지한다`() = runTest(dispatcher) {
         val getMyPage = mockk<GetMyPageUseCase>()
         val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()

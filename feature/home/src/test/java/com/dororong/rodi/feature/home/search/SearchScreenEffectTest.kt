@@ -14,6 +14,7 @@ import com.dororong.rodi.core.domain.usecase.search.DeleteAllRecentSearchesUseCa
 import com.dororong.rodi.core.domain.usecase.search.DeleteRecentSearchUseCase
 import com.dororong.rodi.core.domain.usecase.search.GetRecentSearchesUseCase
 import com.dororong.rodi.core.domain.usecase.search.RegisterRecentSearchUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceFilterUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetRelatedSearchUseCase
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
 import com.dororong.rodi.core.ui.theme.RodiTheme
@@ -46,6 +47,7 @@ class SearchScreenEffectTest {
             getRelatedSearchUseCase = GetRelatedSearchUseCase(placeRepository),
             searchPlacesUseCase = SearchPlacesUseCase(placeRepository),
             registerRecentSearchUseCase = RegisterRecentSearchUseCase(recentRepository),
+            getPlaceFilterUseCase = mockk<GetPlaceFilterUseCase>(),
         )
         val openedPlaces = mutableListOf<Long>()
         composeRule.setContent {

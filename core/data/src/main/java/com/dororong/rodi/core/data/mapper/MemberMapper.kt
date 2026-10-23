@@ -49,6 +49,7 @@ fun PracticeItemResponse.toDomain() = PracticeRecordItem(
     visitedAt = lastActivityAt?.let(::parseServerTimestamp),
     hasReview = hasReview,
     status = status.toMemberPracticeStatus(),
+    isDeleted = isDeleted,
 )
 
 fun CursorPageMyReviewItemResponse.toDomain() = CursorPage(

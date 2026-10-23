@@ -19,7 +19,7 @@ interface MemberRepository {
     suspend fun getMyReviews(cursor: String?, size: Int): CursorPage<MyReview>
     suspend fun getBlockedMembers(cursor: String?, size: Int): CursorPage<BlockedMember>
     suspend fun updateDrivingGoal(drivingGoal: String)
-    suspend fun updateFilterTags(filterTags: List<PracticeType>)
+    suspend fun updateSortTags(sortTags: List<PracticeType>)
     suspend fun blockMember(memberId: Long)
     suspend fun unblockMember(memberId: Long)
     suspend fun withdraw()

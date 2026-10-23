@@ -1,6 +1,9 @@
 package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.mapper.toRequest
+import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingForm
+import com.dororong.rodi.core.domain.usecase.onboarding.isReadyForSubmission
 import com.dororong.rodi.core.data.source.local.datastore.OnboardingPreferences
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
@@ -28,6 +31,16 @@ class OnboardingRepositoryImpl @Inject constructor(
     override val isSyncAuthorized: Flow<Boolean> = prefs.isSyncAuthorized
     override val isInitialFilterTagsApplied: Flow<Boolean> = prefs.isInitialFilterTagsApplied
 
+    override suspend fun getForm(): OnboardingForm? {
+        if (tokenStore.getTokens() == null) return null
+        val response = onboardingApi.getForm()
+        if (!response.isSuccess) {
+            if (response.code.contains("401")) throw AuthException.NotAuthenticated(response.message)
+            throw AuthException.Unknown(response.message)
+        }
+        return requireNotNull(response.data) { "Missing onboarding form" }.toDomain()
+    }
+
     override suspend fun saveProfile(profile: OnboardingProfile) = prefs.saveProfile(profile)
     override suspend fun savePendingProfile(profile: OnboardingProfile) = prefs.savePendingProfile(profile)
     override suspend fun authorizeSync() = prefs.authorizeSync()
@@ -39,6 +52,7 @@ class OnboardingRepositoryImpl @Inject constructor(
         profile: OnboardingProfile,
         level: OnboardingLevel,
     ): OnboardingSubmissionResult {
+        if (!profile.isReadyForSubmission) return OnboardingSubmissionResult.InvalidProfile
         val tokens = tokenStore.getTokens()
         if (tokens == null) {
             Timber.w("Onboarding submit skipped: missing auth session.")

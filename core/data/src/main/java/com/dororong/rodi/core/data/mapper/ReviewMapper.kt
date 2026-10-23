@@ -41,7 +41,7 @@ fun ReviewDraft.toRequest() = ReviewRequest(
     caution = caution,
 )
 
-fun ReportSubmission.toRequest() = ReportRequest(reason, detail, detailConsistent)
+fun ReportSubmission.toRequest() = ReportRequest(reason, detail)
 
 fun CursorPageReviewResponse.toDomain() = CursorPage(
     items = items.map(ReviewResponse::toDomain),
