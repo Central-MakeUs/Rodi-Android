@@ -21,6 +21,20 @@
   - 규범 점검 `.github/scripts/check-conventions.sh` (ripgrep 필요, CI에서 병렬 job으로 실행)
 - 테스트 컨벤션: `docs/TESTING.md` 참고
 
+### 서버 환경 선택
+
+같은 프로젝트에서 Build Variant로 서버를 선택한다. Android Studio의 Build Variants에서
+`:app`을 `dev`로 선택하거나 `./gradlew :app:assembleDev`로 개발용 APK를 만든다.
+
+| Variant | API | 설치 앱 |
+|---|---|---|
+| `dev` | `https://dev-api.stillstar.store/api/v1/` | `로디 개발` · `com.dororong.rodi.dev` |
+| `debug`, `release` | `https://api.stillstar.store/api/v1/` | `Rodi` · `com.dororong.rodi` |
+
+서버 주소는 app의 `RODI_BASE_URL`을 통해 인증·비인증 요청에 함께 적용한다. 개발 앱은
+운영 앱과 함께 설치하며 로그인 토큰·캐시를 별도로 저장한다. 카카오 SDK는 같은 Native App Key를
+사용하므로 카카오 Developers에서 개발 패키지명과 해당 서명 키 해시의 허용 여부를 확인한다.
+
 ## `:app`에 남은 것
 - `MainActivity`(엔트리 포인트), `RodiApplication`(Kakao SDK·Clarity 초기화)
 - `ui/`: `RodiApp`(Navigation3 `NavDisplay` 기반 게이트→홈 라우팅), `MainScreen`(feature 간 back stack 조정),
