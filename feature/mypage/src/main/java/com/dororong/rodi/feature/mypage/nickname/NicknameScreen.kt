@@ -134,21 +134,23 @@ internal fun NicknameContent(
                 NicknameInput(
                     nickname = uiState.nickname,
                     onNicknameChange = onNicknameChange,
-                    onValidate = { if (!uiState.isChangeRestricted) onValidate() },
+                    onValidate = onValidate,
                     focusRequester = focusRequester,
                     enabled = !uiState.isSaving,
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
                     text = when {
-                        uiState.isChangeRestricted -> "닉네임은 30일 후에 다시 바꿀 수 있어요."
+                        uiState.canSave -> "사용 가능한 닉네임이에요."
+                        uiState.isChangeRestricted -> NICKNAME_CHANGE_GUIDANCE
                         uiState.isChecking -> "닉네임을 확인하고 있어요."
                         uiState.rejection != null -> uiState.rejection.guidance()
                         uiState.validatedNickname != null -> "사용 가능한 닉네임이에요."
-                        else -> "닉네임을 바꾸면 30일 후에 다시 바꿀 수 있어요."
+                        else -> NICKNAME_CHANGE_GUIDANCE
                     },
                     style = RodiTheme.typography.caption1SemiBold,
                     color = when {
+                        uiState.canSave -> RodiTheme.colors.infoApproval
                         uiState.isChangeRestricted -> RodiTheme.colors.gray500
                         uiState.rejection != null -> RodiTheme.colors.infoCancel
                         uiState.validatedNickname != null -> RodiTheme.colors.infoApproval
@@ -230,7 +232,10 @@ private fun NicknameRejection.guidance(): String = when (this) {
     NicknameRejection.CHARACTERS -> "한글, 영문, 숫자와 _만 사용할 수 있어요."
     NicknameRejection.PROHIBITED_WORD -> "사용할 수 없는 단어가 포함되어 있어요."
     NicknameRejection.DUPLICATE -> "이미 사용 중인 닉네임이에요."
+    NicknameRejection.CHANGE_RESTRICTED -> NICKNAME_CHANGE_GUIDANCE
 }
+
+private const val NICKNAME_CHANGE_GUIDANCE = "닉네임은 변경 후 30일 동안 다시 바꿀 수 없어요."
 
 @Preview(showBackground = true, widthDp = 375, heightDp = 812)
 @Composable

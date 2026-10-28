@@ -18,9 +18,11 @@ import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import timber.log.Timber
+import java.time.LocalDateTime
 
 fun MyPageResponse.toDomain() = MyPage(
     nickname = nickname,
+    nicknameChangeableAt = nicknameChangeableAt?.let(LocalDateTime::parse),
     level = level.toOnboardingLevel(),
     recommendationTags = recommendationTags,
     drivingGoal = drivingGoal,

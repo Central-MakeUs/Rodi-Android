@@ -10,6 +10,7 @@ data class MyPageResponse(
     val drivingGoal: String? = null,
     val savedPlaceCount: Long,
     val levelProgress: LevelProgressResponse,
+    val nicknameChangeableAt: String? = null,
 )
 
 @Serializable

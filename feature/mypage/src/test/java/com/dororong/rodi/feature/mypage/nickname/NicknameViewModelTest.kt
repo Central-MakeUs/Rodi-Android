@@ -5,6 +5,8 @@ import com.dororong.rodi.core.domain.model.member.MyPage
 import com.dororong.rodi.core.domain.model.member.NicknameAvailability
 import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
 import com.dororong.rodi.core.domain.model.member.NicknameRejection
+import com.dororong.rodi.core.domain.model.member.NicknameUpdate
+import java.time.LocalDateTime
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.usecase.member.CheckNicknameAvailabilityUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
@@ -118,7 +120,7 @@ class NicknameViewModelTest {
 
     @Test
     fun `저장에는 서버 정규화 값을 쓰고 중복 저장과 저장 중 편집을 막는다`() = runTest(dispatcher) {
-        val response = CompletableDeferred<Result<Unit>>()
+        val response = CompletableDeferred<Result<NicknameUpdate>>()
         coEvery { check(" 새닉네임 ") } returns Result.success(NicknameAvailability("새닉네임", true, null))
         coEvery { update("새닉네임") } coAnswers { response.await() }
         val vm = NicknameViewModel(getMyPage, check, update)
@@ -133,7 +135,7 @@ class NicknameViewModelTest {
         assertEquals(" 새닉네임 ", vm.uiState.value.nickname)
         assertTrue(vm.uiState.value.isSaving)
         coVerify(exactly = 1) { update("새닉네임") }
-        response.complete(Result.success(Unit))
+        response.complete(Result.success(NicknameUpdate("새닉네임")))
         advanceUntilIdle()
         assertTrue(vm.uiState.value.saveSucceeded)
         vm.save()
@@ -157,7 +159,7 @@ class NicknameViewModelTest {
         assertEquals("새_닉네임", vm.uiState.value.nickname)
         assertFalse(vm.uiState.value.saveSucceeded)
         assertTrue(vm.uiState.value.canSave)
-        coEvery { update(any()) } returns Result.success(Unit)
+        coEvery { update(any()) } returns Result.success(NicknameUpdate("새_닉네임"))
         vm.save()
         advanceUntilIdle()
         assertTrue(vm.uiState.value.saveSucceeded)
@@ -191,4 +193,346 @@ class NicknameViewModelTest {
         vm.save()
         coVerify(exactly = 0) { update(any()) }
     }
+    @Test
+    fun `현재와 같은 닉네임은 검증 요청과 저장을 하지 않는다`() = runTest(dispatcher) {
+        coEvery { check("기존_닉네임") } returns Result.success(NicknameAvailability("기존_닉네임", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+
+        vm.validate()
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { check(any()) }
+        assertFalse(vm.uiState.value.canSave)
+        vm.save()
+        coVerify(exactly = 0) { update(any()) }
+    }
+
+    @Test
+    fun `검증 API의 도메인 거절은 입력 안내로 표시하고 일반 오류를 보내지 않는다`() = runTest(dispatcher) {
+        coEvery { check("다른_닉네임") } returns Result.failure(NicknameRejectedException(NicknameRejection.DUPLICATE))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("다른_닉네임")
+
+        vm.effect.test {
+            vm.validate()
+            advanceUntilIdle()
+
+            assertEquals(NicknameRejection.DUPLICATE, vm.uiState.value.rejection)
+            assertFalse(vm.uiState.value.canSave)
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `프로필의 과거 제한 시각도 클라이언트에서 만료 계산 없이 제한으로 보존한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2000, 1, 2, 3, 4)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+
+        assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+        assertTrue(vm.uiState.value.isChangeRestricted)
+        assertFalse(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `프로필의 제한 시각이 null이면 새 후보를 검증하고 저장할 수 있다`() = runTest(dispatcher) {
+        coEvery { getMyPage() } returns Result.success(page(null))
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `제한 중 대소문자만 다른 후보의 허용은 기존 제한 시각을 해제하지 않는다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("rodi_user") } returns Result.success(NicknameAvailability("rodi_user", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("rodi_user")
+        vm.validate()
+        advanceUntilIdle()
+
+        assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+        assertTrue(vm.uiState.value.isChangeRestricted)
+        assertTrue(vm.uiState.value.canSave)
+        coVerify(exactly = 1) { check("rodi_user") }
+        vm.changeNickname("Different")
+        assertTrue(vm.uiState.value.isChangeRestricted)
+        assertFalse(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `제한 중 허용된 대소문자 변경은 같은 입력을 다시 검증하지 않는다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("rodi_user") } returns Result.success(NicknameAvailability("rodi_user", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("rodi_user")
+        vm.validate()
+        advanceUntilIdle()
+
+        vm.validate()
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { check("rodi_user") }
+        assertTrue(vm.uiState.value.canSave)
+        assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `제한 중 새 후보를 서버가 허용하면 제한 시각을 해제한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2000, 1, 2, 3, 4)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `사용 가능 여부의 제한 거절 후 같은 입력을 다시 검증해 해제할 수 있다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { check("Different") } returnsMany listOf(
+            Result.success(NicknameAvailability("Different", false, NicknameRejection.CHANGE_RESTRICTED, restriction)),
+            Result.success(NicknameAvailability("Different", true, null)),
+        )
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.effect.test {
+            vm.validate()
+            advanceUntilIdle()
+            assertEquals(NicknameRejection.CHANGE_RESTRICTED, vm.uiState.value.rejection)
+            assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+            assertTrue(vm.uiState.value.isChangeRestricted)
+            assertNull(vm.uiState.value.validatedNickname)
+            assertFalse(vm.uiState.value.canSave)
+            expectNoEvents()
+
+            vm.validate()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.canSave)
+            assertFalse(vm.uiState.value.isChangeRestricted)
+            assertNull(vm.uiState.value.nicknameChangeableAt)
+            coVerify(exactly = 2) { check("Different") }
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `검증 API의 제한 예외는 일반 오류 없이 시각을 보존하고 같은 후보의 재검증을 허용한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { check("Different") } returnsMany listOf(
+            Result.failure(NicknameRejectedException(NicknameRejection.CHANGE_RESTRICTED, restriction)),
+            Result.success(NicknameAvailability("Different", true, null)),
+        )
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.effect.test {
+            vm.validate()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isChangeRestricted)
+            assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+            assertNull(vm.uiState.value.validatedNickname)
+            assertFalse(vm.uiState.value.canSave)
+            expectNoEvents()
+
+            vm.validate()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.canSave)
+            coVerify(exactly = 2) { check("Different") }
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `저장 API의 제한 예외는 일반 오류 없이 저장을 막고 재검증으로 복구한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        coEvery { update("Different") } returnsMany listOf(
+            Result.failure(NicknameRejectedException(NicknameRejection.CHANGE_RESTRICTED, restriction)),
+            Result.success(NicknameUpdate("Different", restriction)),
+        )
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        vm.effect.test {
+            vm.save()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.isChangeRestricted)
+            assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+            assertNull(vm.uiState.value.validatedNickname)
+            assertFalse(vm.uiState.value.canSave)
+            expectNoEvents()
+            vm.save()
+            coVerify(exactly = 1) { update("Different") }
+
+            vm.validate()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.canSave)
+            vm.save()
+            advanceUntilIdle()
+            assertTrue(vm.uiState.value.saveSucceeded)
+            assertEquals("Different", vm.uiState.value.initialNickname)
+            assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+            coVerify(exactly = 2) { update("Different") }
+            expectNoEvents()
+        }
+    }
+
+    @Test
+    fun `시각 없는 제한 예외도 입력을 바꾼 뒤 제한 안내를 유지한다`() = runTest(dispatcher) {
+        coEvery { check("Different") } returns Result.failure(NicknameRejectedException(NicknameRejection.CHANGE_RESTRICTED))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        vm.changeNickname("Another")
+
+        assertTrue(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+        assertFalse(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `이전 후보의 늦은 제한 응답은 현재 후보와 제한 상태를 덮지 않는다`() = runTest(dispatcher) {
+        val response = CompletableDeferred<Result<NicknameAvailability>>()
+        coEvery { check("First") } coAnswers { withContext(NonCancellable) { response.await() } }
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("First")
+        vm.validate()
+        runCurrent()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        response.complete(Result.failure(NicknameRejectedException(NicknameRejection.CHANGE_RESTRICTED, LocalDateTime.of(2026, 11, 20, 12, 30))))
+        advanceUntilIdle()
+
+        assertEquals("Different", vm.uiState.value.nickname)
+        assertTrue(vm.uiState.value.canSave)
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `늦은 프로필 응답은 새로 조회한 닉네임과 제한 상태를 되돌리지 않는다`() = runTest(dispatcher) {
+        val first = CompletableDeferred<Result<MyPage>>()
+        coEvery { getMyPage() } coAnswers { first.await() }
+        val vm = NicknameViewModel(getMyPage, check, update)
+        runCurrent()
+        coEvery { getMyPage() } returns Result.success(page(null).copy(nickname = "Fresh"))
+        vm.load()
+        runCurrent()
+        first.complete(Result.success(page(LocalDateTime.of(2026, 11, 20, 12, 30))))
+        advanceUntilIdle()
+
+        assertEquals("Fresh", vm.uiState.value.nickname)
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `서버 저장 이름과 제한 시각을 보존하고 재진입에서 같은 값을 조회한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2026, 11, 20, 12, 30)
+        coEvery { getMyPage() } returns Result.success(page(null))
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        coEvery { update("Different") } returns Result.success(NicknameUpdate("Canonical", restriction))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.saveSucceeded)
+        assertEquals("Canonical", vm.uiState.value.nickname)
+        assertEquals("Canonical", vm.uiState.value.initialNickname)
+        assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+        assertTrue(vm.uiState.value.isChangeRestricted)
+
+        coEvery { getMyPage() } returns Result.success(page(restriction).copy(nickname = "Canonical"))
+        val reentered = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        assertEquals(vm.uiState.value.nickname, reentered.uiState.value.nickname)
+        assertEquals(restriction, reentered.uiState.value.nicknameChangeableAt)
+        assertTrue(reentered.uiState.value.isChangeRestricted)
+    }
+
+    @Test
+    fun `제한 거절 뒤 같은 새 후보의 중복 응답은 계정 제한을 해제하고 중복 사유를 보존한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2000, 1, 2, 3, 4)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("Different") } returnsMany listOf(
+            Result.success(NicknameAvailability("Different", false, NicknameRejection.CHANGE_RESTRICTED, restriction)),
+            Result.success(NicknameAvailability("Different", false, NicknameRejection.DUPLICATE)),
+        )
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.isChangeRestricted)
+
+        vm.validate()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+        assertEquals(NicknameRejection.DUPLICATE, vm.uiState.value.rejection)
+        assertFalse(vm.uiState.value.canSave)
+        coVerify(exactly = 2) { check("Different") }
+    }
+
+    @Test
+    fun `새 후보의 비제한 도메인 거절도 기존 계정 제한을 해제한다`() = runTest(dispatcher) {
+        val restriction = LocalDateTime.of(2000, 1, 2, 3, 4)
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("Different") } returns Result.failure(NicknameRejectedException(NicknameRejection.DUPLICATE))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+
+        vm.validate()
+        advanceUntilIdle()
+
+        assertFalse(vm.uiState.value.isChangeRestricted)
+        assertNull(vm.uiState.value.nicknameChangeableAt)
+        assertEquals(NicknameRejection.DUPLICATE, vm.uiState.value.rejection)
+        assertFalse(vm.uiState.value.canSave)
+    }
+
+    private fun page(restriction: LocalDateTime?) = MyPage(
+        nickname = "Rodi_user",
+        level = OnboardingLevel.SEED,
+        recommendationTags = emptyList(),
+        drivingGoal = null,
+        savedPlaceCount = 0,
+        nicknameChangeableAt = restriction,
+    )
+
 }

@@ -21,4 +21,14 @@ class NicknameUiStateTest {
         assertFalse(restricted.canSave)
         assertTrue(restricted.copy(isChangeRestricted = false).canSave)
     }
+    @Test
+    fun `제한 중에는 서버가 검증한 대소문자 변경만 저장한다`() {
+        val state = NicknameUiState(initialNickname = "Rodi_user", nickname = "rodi_user",
+            validatedNickname = "rodi_user", normalizedNickname = "rodi_user", isLoading = false, isChangeRestricted = true)
+        assertTrue(state.canSave)
+        assertFalse(state.copy(validatedNickname = null).canSave)
+        assertFalse(state.copy(nickname = "Different", validatedNickname = "Different", normalizedNickname = "Different").canSave)
+        assertFalse(state.copy(nickname = "Rodi_user", validatedNickname = "Rodi_user", normalizedNickname = "Rodi_user").canSave)
+    }
+
 }
