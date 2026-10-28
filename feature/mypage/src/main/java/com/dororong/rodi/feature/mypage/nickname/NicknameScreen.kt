@@ -142,17 +142,18 @@ internal fun NicknameContent(
                 Text(
                     text = when {
                         uiState.canSave -> "사용 가능한 닉네임이에요."
-                        uiState.isChangeRestricted -> NICKNAME_CHANGE_GUIDANCE
                         uiState.isChecking -> "닉네임을 확인하고 있어요."
                         uiState.rejection != null -> uiState.rejection.guidance()
+                        uiState.isChangeRestricted -> NICKNAME_CHANGE_GUIDANCE
                         uiState.validatedNickname != null -> "사용 가능한 닉네임이에요."
                         else -> NICKNAME_CHANGE_GUIDANCE
                     },
                     style = RodiTheme.typography.caption1SemiBold,
                     color = when {
                         uiState.canSave -> RodiTheme.colors.infoApproval
+                        uiState.isChecking -> RodiTheme.colors.gray500
+                        uiState.rejection != null && uiState.rejection != NicknameRejection.CHANGE_RESTRICTED -> RodiTheme.colors.infoCancel
                         uiState.isChangeRestricted -> RodiTheme.colors.gray500
-                        uiState.rejection != null -> RodiTheme.colors.infoCancel
                         uiState.validatedNickname != null -> RodiTheme.colors.infoApproval
                         else -> RodiTheme.colors.gray500
                     },

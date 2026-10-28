@@ -114,8 +114,8 @@ class NicknameContentTest {
             .performTouchInput { click() }
         capture("restricted")
         rule.runOnIdle { state.value = state.value.copy(isChecking = true, rejection = NicknameRejection.DUPLICATE) }
-        rule.onNodeWithText(restrictedHint).assertIsDisplayed()
-        rule.onNodeWithText("닉네임을 확인하고 있어요.").assertDoesNotExist()
+        rule.onNodeWithText(restrictedHint).assertDoesNotExist()
+        rule.onNodeWithText("닉네임을 확인하고 있어요.").assertIsDisplayed()
         rule.onNodeWithText("이미 사용 중인 닉네임이에요.").assertDoesNotExist()
         rule.onNode(hasSetTextAction()).performTextReplacement("교체_닉네임")
         rule.onNode(hasSetTextAction()).performImeAction()

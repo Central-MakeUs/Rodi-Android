@@ -526,6 +526,48 @@ class NicknameViewModelTest {
         assertFalse(vm.uiState.value.canSave)
     }
 
+    @Test
+    fun `중복으로 거절된 입력은 수정 없이 다시 검증하고 사용 가능해질 수 있다`() = runTest(dispatcher) {
+        coEvery { check("Different") } returnsMany listOf(
+            Result.success(NicknameAvailability("Different", false, NicknameRejection.DUPLICATE)),
+            Result.success(NicknameAvailability("Different", true, null)),
+        )
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        assertEquals(NicknameRejection.DUPLICATE, vm.uiState.value.rejection)
+
+        vm.validate()
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { check("Different") }
+        assertNull(vm.uiState.value.rejection)
+        assertTrue(vm.uiState.value.canSave)
+    }
+
+    @Test
+    fun `저장 중 중복으로 거절된 입력도 수정 없이 다시 검증할 수 있다`() = runTest(dispatcher) {
+        coEvery { check("Different") } returns Result.success(NicknameAvailability("Different", true, null))
+        coEvery { update("Different") } returns Result.failure(NicknameRejectedException(NicknameRejection.DUPLICATE))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        advanceUntilIdle()
+        vm.changeNickname("Different")
+        vm.validate()
+        advanceUntilIdle()
+        vm.save()
+        advanceUntilIdle()
+        assertEquals(NicknameRejection.DUPLICATE, vm.uiState.value.rejection)
+
+        vm.validate()
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { check("Different") }
+        assertNull(vm.uiState.value.rejection)
+        assertTrue(vm.uiState.value.canSave)
+    }
+
     private fun page(restriction: LocalDateTime?) = MyPage(
         nickname = "Rodi_user",
         level = OnboardingLevel.SEED,

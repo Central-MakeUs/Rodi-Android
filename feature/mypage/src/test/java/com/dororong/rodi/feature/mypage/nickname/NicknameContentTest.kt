@@ -171,6 +171,24 @@ class NicknameContentTest {
         rule.onNodeWithContentDescription("완료").assertIsEnabled()
     }
 
+    @Test
+    fun `변경 제한 중 대소문자 변경이 금칙어로 거절되면 제한을 유지하며 금칙어를 안내한다`() {
+        coEvery { getMyPage() } returns Result.success(page(restriction))
+        coEvery { check("rodi_user") } returns Result.success(NicknameAvailability("rodi_user", true, null))
+        coEvery { update("rodi_user") } returns Result.failure(NicknameRejectedException(NicknameRejection.PROHIBITED_WORD))
+        val vm = NicknameViewModel(getMyPage, check, update)
+        rule.setContent { RodiTheme { NicknameScreen(onBack = {}, viewModel = vm) } }
+        rule.onNode(hasSetTextAction()).performTextReplacement("rodi_user")
+        rule.onNode(hasSetTextAction()).performImeAction()
+        rule.onNodeWithContentDescription("완료").assertIsEnabled().performTouchInput { click() }
+
+        rule.onNodeWithText("사용할 수 없는 단어가 포함되어 있어요.").assertIsDisplayed()
+        rule.onNodeWithText(GUIDANCE).assertDoesNotExist()
+        rule.onNodeWithContentDescription("완료").assertIsNotEnabled()
+        assertTrue(vm.uiState.value.isChangeRestricted)
+        assertEquals(restriction, vm.uiState.value.nicknameChangeableAt)
+    }
+
     private fun page(changeableAt: LocalDateTime?) = MyPage(
         nickname = "Rodi_user",
         level = OnboardingLevel.SEED,

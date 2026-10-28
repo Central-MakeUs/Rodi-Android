@@ -86,7 +86,7 @@ class NicknameViewModel @Inject constructor(
                         !availability.nickname.equals(state.initialNickname, ignoreCase = true)
                     state.copy(
                         isChecking = false,
-                        validatedNickname = current.nickname.takeUnless { restricted },
+                        validatedNickname = current.nickname.takeIf { availability.isAvailable },
                         normalizedNickname = availability.nickname.takeIf { availability.isAvailable },
                         rejection = availability.rejection,
                         nicknameChangeableAt = if (restrictionCleared) null else availability.nicknameChangeableAt ?: state.nicknameChangeableAt,
@@ -143,7 +143,7 @@ class NicknameViewModel @Inject constructor(
             it.copy(
                 isChecking = false,
                 isSaving = false,
-                validatedNickname = nickname.takeUnless { restricted },
+                validatedNickname = null,
                 normalizedNickname = null,
                 rejection = error.rejection,
                 nicknameChangeableAt = if (restrictionCleared) null else error.nicknameChangeableAt ?: it.nicknameChangeableAt,
