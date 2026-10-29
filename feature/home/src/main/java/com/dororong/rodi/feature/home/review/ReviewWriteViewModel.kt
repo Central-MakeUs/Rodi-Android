@@ -15,10 +15,12 @@ import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReviewIssueFormUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,6 +33,7 @@ class ReviewWriteViewModel @Inject constructor(
     private val updateReview: UpdateReviewUseCase,
     private val getReview: GetReviewUseCase,
     private val savedStateHandle: SavedStateHandle,
+    private val getReviewIssueForm: GetReviewIssueFormUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(ReviewWriteUiState())
     val uiState: StateFlow<ReviewWriteUiState> = _uiState.asStateFlow()
@@ -54,8 +57,23 @@ class ReviewWriteViewModel @Inject constructor(
             caution = initial?.caution.orEmpty(),
             practiceMethod = initial?.practiceMethod,
             content = initial?.content.orEmpty(),
+            courseIssues = initial?.courseIssues.orEmpty(),
+            courseIssueDetail = initial?.courseIssueDetail.orEmpty(),
+            isInitializing = true,
         ).restoredWith(restored)
-        saveDraft()
+        initializationJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            getReviewIssueForm(placeId)
+                .onSuccess { form ->
+                    _uiState.update { it.copy(issueForm = form, isInitializing = false) }
+                    saveDraft()
+                }
+                .onFailure { error ->
+                    restorableDraft = restored
+                    _uiState.update {
+                        it.copy(isInitializing = false, initializationErrorMessage = error.userMessage("후기 작성 화면을 불러오지 못했어요."))
+                    }
+                }
+        }
     }
 
     fun startForReviewId(placeId: Long, placeName: String, reviewId: Long) {
@@ -68,6 +86,15 @@ class ReviewWriteViewModel @Inject constructor(
             isInitializing = true,
         )
         initializationJob = viewModelScope.launch {
+            val formResult = getReviewIssueForm(placeId)
+            if (formResult.isFailure) {
+                restorableDraft = restored
+                _uiState.update {
+                    it.copy(isInitializing = false, initializationErrorMessage = formResult.exceptionOrNull().userMessage("후기 작성 화면을 불러오지 못했어요."))
+                }
+                return@launch
+            }
+            val issueForm = formResult.getOrNull()
             getReview(reviewId)
                 .onSuccess { review ->
                     val initial = review.toInitialValues()
@@ -80,6 +107,9 @@ class ReviewWriteViewModel @Inject constructor(
                             caution = initial.caution.orEmpty(),
                             practiceMethod = initial.practiceMethod,
                             content = initial.content.orEmpty(),
+                            courseIssues = initial.courseIssues,
+                            courseIssueDetail = initial.courseIssueDetail.orEmpty(),
+                            issueForm = issueForm,
                             isInitializing = false,
                             initializationErrorMessage = null,
                         ).restoredWith(restored)
@@ -104,6 +134,18 @@ class ReviewWriteViewModel @Inject constructor(
     fun selectPracticeMethod(value: PracticeMethod) = edit { it.copy(practiceMethod = value) }
     fun updateCaution(value: String) = edit { it.copy(caution = value.takeGraphemes(50)) }
     fun updateContent(value: String) = edit { it.copy(content = value.takeGraphemes(150)) }
+    fun toggleCourseIssue(code: String) = edit { current ->
+        val options = current.issueForm?.options ?: return@edit current
+        if (options.none { it.code == code }) return@edit current
+        val selected = if (code in current.courseIssues) current.courseIssues - code else current.courseIssues + code
+        val known = options.map { it.code }
+        current.copy(courseIssues = known.filter { it in selected } + selected.filterNot { it in known })
+    }
+    fun updateCourseIssueDetail(value: String) = edit { current ->
+        val max = current.issueForm?.options?.firstOrNull { it.requiresTextInput && it.code in current.courseIssues }
+            ?.textInputMaxLength ?: return@edit current
+        current.copy(courseIssueDetail = value.takeGraphemes(max))
+    }
     fun next() { if (_uiState.value.canGoNext) edit { it.copy(step = ReviewWriteStep.Detail) } }
     fun back() = edit { it.copy(step = ReviewWriteStep.Basics) }
 
@@ -193,6 +235,8 @@ class ReviewWriteViewModel @Inject constructor(
                 caution = draft.caution,
                 practiceMethod = draft.practiceMethod,
                 content = draft.content,
+                courseIssues = draft.courseIssues,
+                courseIssueDetail = draft.courseIssueDetail,
             )
         }
 
@@ -212,6 +256,8 @@ class ReviewWriteViewModel @Inject constructor(
         caution = caution,
         practiceMethod = practiceMethod,
         content = content,
+        courseIssues = courseIssues.orEmpty(),
+        courseIssueDetail = courseIssueDetail,
     )
 
     private fun Throwable.reviewErrorMessage(): String = when (this) {
