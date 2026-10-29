@@ -54,15 +54,32 @@ data class ReviewDetail(
     val isHidden: Boolean,
     val isVerifiedVisit: Boolean,
     val createdAt: Instant,
+    val courseIssues: List<String>? = null,
+    val courseIssueDetail: String? = null,
 )
 
 data class ReviewDraft(
     val isRecommended: Boolean,
-    val difficulty: ReviewDifficulty,
-    val congestion: ReviewCongestion,
+    val difficulty: ReviewDifficulty?,
+    val congestion: ReviewCongestion?,
     val practiceMethod: PracticeMethod,
     val content: String?,
     val caution: String?,
+    val courseIssues: List<String>? = null,
+    val courseIssueDetail: String? = null,
+)
+
+data class ReviewIssueForm(
+    val title: String,
+    val options: List<ReviewIssueOption>,
+)
+
+data class ReviewIssueOption(
+    val code: String,
+    val label: String,
+    val requiresTextInput: Boolean,
+    val textInputPlaceholder: String?,
+    val textInputMaxLength: Int?,
 )
 
 data class ReviewSummary(

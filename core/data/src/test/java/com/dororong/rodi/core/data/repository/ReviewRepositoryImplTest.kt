@@ -21,11 +21,34 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import retrofit2.HttpException
+import retrofit2.Response
 
 class ReviewRepositoryImplTest {
+    @Test
+    fun `후기 폼 API가 없으면 기존 후기 입력을 사용한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(404)
+        assertNull(repository(api).getReviewIssueForm(7))
+    }
+
+    @Test
+    fun `후기 폼 서버 오류는 기존 입력으로 숨기지 않고 전달한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(500)
+        assertThrowsSuspend<ReviewException.Unexpected> { repository(api).getReviewIssueForm(7) }
+    }
+
+    private fun httpException(code: Int) = HttpException(
+        Response.error<Any>(code, "{}".toResponseBody("application/json".toMediaType())),
+    )
+
     @Test
     fun `후기 목록 항목과 커서 정보를 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()

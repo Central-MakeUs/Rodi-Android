@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.mapper.toQueryValue
+import com.dororong.rodi.core.data.mapper.toIssueForm
 import com.dororong.rodi.core.data.mapper.toRequest
 import com.dororong.rodi.core.data.source.local.datastore.ReportedReviewPreferences
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
@@ -14,6 +15,7 @@ import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
@@ -50,6 +52,16 @@ class ReviewRepositoryImpl @Inject constructor(
 
     override suspend fun getReview(reviewId: Long): ReviewDetail = authenticatedRequest {
         api.getReview(reviewId).requireData().toDomain()
+    }
+
+    override suspend fun getReviewIssueForm(placeId: Long): ReviewIssueForm? = authenticatedRequest {
+        val response = try {
+            api.getReviewForm(placeId)
+        } catch (error: HttpException) {
+            if (error.code() == 404) return@authenticatedRequest null
+            throw error
+        }
+        response.requireData().toIssueForm()
     }
 
     override suspend fun createReview(placeId: Long, draft: ReviewDraft): Long =

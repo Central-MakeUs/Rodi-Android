@@ -5,11 +5,13 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class ReviewRequest(
     val isRecommended: Boolean,
-    val difficulty: String,
-    val congestion: String,
+    val difficulty: String? = null,
+    val congestion: String? = null,
     val practiceMethod: String,
     val content: String? = null,
     val caution: String? = null,
+    val courseIssues: List<String>? = null,
+    val courseIssueDetail: String? = null,
 )
 
 @Serializable
@@ -60,6 +62,8 @@ data class ReviewDetailResponse(
     val isHidden: Boolean,
     val isVerifiedVisit: Boolean,
     val createdAt: String,
+    val courseIssues: List<String>? = null,
+    val courseIssueDetail: String? = null,
 )
 
 @Serializable
