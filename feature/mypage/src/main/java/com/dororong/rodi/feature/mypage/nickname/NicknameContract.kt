@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.mypage.nickname
 
 import com.dororong.rodi.core.domain.model.member.NicknameRejection
+import java.time.LocalDateTime
 
 data class NicknameUiState(
     val initialNickname: String = "",
@@ -14,10 +15,13 @@ data class NicknameUiState(
     val isSaving: Boolean = false,
     val saveSucceeded: Boolean = false,
     val isChangeRestricted: Boolean = false,
+    val nicknameChangeableAt: LocalDateTime? = null,
 ) {
     val canSave: Boolean
-        get() = !isChangeRestricted && validatedNickname == nickname && normalizedNickname != null && rejection == null &&
-            normalizedNickname != initialNickname && !isLoading && !loadFailed && !isChecking && !isSaving && !saveSucceeded
+        get() = validatedNickname == nickname && normalizedNickname != null && rejection == null &&
+            normalizedNickname != initialNickname &&
+            (!isChangeRestricted || normalizedNickname.equals(initialNickname, ignoreCase = true)) &&
+            !isLoading && !loadFailed && !isChecking && !isSaving && !saveSucceeded
 }
 
 sealed interface NicknameEffect {

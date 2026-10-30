@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameAvailabilityResponse
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
+import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
 import com.dororong.rodi.core.data.source.remote.model.member.SortTagsRequest
@@ -29,7 +30,7 @@ interface MemberApi {
     @PATCH("members/me")
     suspend fun updateNickname(
         @Body request: NicknameUpdateRequest,
-    ): ApiEnvelope<JsonObject>
+    ): ApiEnvelope<MemberUpdateResponse>
 
     @PATCH("members/me/course-tutorial")
     suspend fun completeCourseTutorial(
