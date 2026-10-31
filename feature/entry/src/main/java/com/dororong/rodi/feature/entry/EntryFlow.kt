@@ -31,6 +31,7 @@ import com.dororong.rodi.feature.entry.components.EntryResumeBanner
 import com.dororong.rodi.feature.entry.components.OnboardingAnalysisDialog
 import com.dororong.rodi.feature.entry.components.LocalStepProgressAnimationState
 import com.dororong.rodi.feature.entry.components.rememberStepProgressAnimationState
+import com.dororong.rodi.feature.entry.content.OnboardingFormUnavailableContent
 import com.dororong.rodi.feature.entry.content.CareerContent
 import com.dororong.rodi.feature.entry.content.DrivingPrecautionsContent
 import com.dororong.rodi.feature.entry.content.LocationPermissionContent
@@ -128,34 +129,36 @@ fun EntryFlow(
                         onNext = viewModel::next,
                     )
 
-                    EntryStep.CAREER -> CareerContent(
-                        drivingPeriod = state.drivingPeriod,
-                        recentFrequency = state.recentFrequency,
-                        roadExperiences = state.roadExperiences,
-                        soloDrivingRange = state.soloDrivingRange,
-                        soloParkingLevel = state.soloParkingLevel,
-                        nextEnabled = state.isCareerStepValid,
-                        onDrivingPeriodSelect = viewModel::selectDrivingPeriod,
-                        onRecentFrequencySelect = viewModel::selectRecentFrequency,
-                        onRoadExperienceToggle = viewModel::toggleRoadExperience,
-                        onSoloDrivingRangeSelect = viewModel::selectSoloDrivingRange,
-                        onSoloParkingLevelSelect = viewModel::selectSoloParkingLevel,
-                        onBack = { viewModel.back() },
-                        onNext = viewModel::continueAfterCareer,
-                    )
-
-                    EntryStep.PREFERENCE -> PreferenceContent(
-                        practiceSituations = state.practiceSituations,
-                        vehicleType = state.vehicleType,
-                        goal = state.goal,
-                        nextEnabled = state.isPreferenceNextEnabled,
-                        onPracticeSituationToggle = viewModel::togglePracticeSituation,
-                        onVehicleTypeSelect = viewModel::selectVehicleType,
-                        onGoalChange = viewModel::updateGoal,
-                        onBack = { viewModel.back() },
-                        onSkip = viewModel::startOnboardingAnalysis,
-                        onNext = viewModel::startOnboardingAnalysis,
-                    )
+                    EntryStep.CAREER, EntryStep.PREFERENCE -> {
+                        if (state.isOnboardingFormLoading || state.hasOnboardingFormError) {
+                            OnboardingFormUnavailableContent(
+                                isLoading = state.isOnboardingFormLoading,
+                                onBack = { viewModel.back() },
+                                onRetry = viewModel::retryOnboardingForm,
+                            )
+                        } else if (state.step == EntryStep.CAREER) {
+                            CareerContent(
+                                form = state.onboardingForm,
+                                profile = state.profile,
+                                nextEnabled = state.isCareerStepValid,
+                                onOptionSelect = viewModel::selectOption,
+                                onGoalChange = viewModel::updateGoal,
+                                onBack = { viewModel.back() },
+                                onNext = viewModel::continueAfterCareer,
+                            )
+                        } else {
+                            PreferenceContent(
+                                form = state.onboardingForm,
+                                profile = state.profile,
+                                nextEnabled = state.isPreferenceNextEnabled,
+                                onOptionSelect = viewModel::selectOption,
+                                onGoalChange = viewModel::updateGoal,
+                                onBack = { viewModel.back() },
+                                onSkip = viewModel::skipPreference,
+                                onNext = viewModel::startOnboardingAnalysis,
+                            )
+                        }
+                    }
 
                     EntryStep.TERMS_WEBVIEW -> TermsWebView(
                         url = state.webViewUrl,

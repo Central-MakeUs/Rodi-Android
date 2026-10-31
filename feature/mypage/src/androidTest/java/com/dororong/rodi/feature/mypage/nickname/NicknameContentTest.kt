@@ -81,7 +81,7 @@ class NicknameContentTest {
     }
 
     @Test
-    fun `변경 제한 안내가 검증 결과보다 우선하고 완료와 검증 요청을 막으며 뒤로갈 수 있다`() {
+    fun `변경 제한 안내가 검증 결과보다 우선하고 완료를 막되 입력과 검증과 뒤로가기를 허용한다`() {
         val state = mutableStateOf(
             NicknameUiState(
                 initialNickname = "운전하는_고양이",
@@ -107,22 +107,22 @@ class NicknameContentTest {
                 )
             }
         }
-        val restrictedHint = "닉네임은 30일 후에 다시 바꿀 수 있어요."
+        val restrictedHint = "닉네임은 변경 후 30일 동안 다시 바꿀 수 없어요."
         rule.onNodeWithText(restrictedHint).assertIsDisplayed()
         rule.onNodeWithText("사용 가능한 닉네임이에요.").assertDoesNotExist()
         rule.onNodeWithContentDescription("완료").assertIsNotEnabled()
             .performTouchInput { click() }
         capture("restricted")
         rule.runOnIdle { state.value = state.value.copy(isChecking = true, rejection = NicknameRejection.DUPLICATE) }
-        rule.onNodeWithText(restrictedHint).assertIsDisplayed()
-        rule.onNodeWithText("닉네임을 확인하고 있어요.").assertDoesNotExist()
+        rule.onNodeWithText(restrictedHint).assertDoesNotExist()
+        rule.onNodeWithText("닉네임을 확인하고 있어요.").assertIsDisplayed()
         rule.onNodeWithText("이미 사용 중인 닉네임이에요.").assertDoesNotExist()
         rule.onNode(hasSetTextAction()).performTextReplacement("교체_닉네임")
         rule.onNode(hasSetTextAction()).performImeAction()
         rule.onNodeWithContentDescription("뒤로가기").performClick()
         rule.runOnIdle {
             assertEquals("교체_닉네임", state.value.nickname)
-            assertEquals(0, checks)
+            assertEquals(1, checks)
             assertEquals(0, saves)
             assertEquals(1, backs)
             state.value = state.value.copy(

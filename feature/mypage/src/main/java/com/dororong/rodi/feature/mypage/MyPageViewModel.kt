@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
 import kotlin.math.roundToInt
 
 @HiltViewModel
@@ -47,7 +46,6 @@ class MyPageViewModel @Inject constructor(
                 val recordsResult = recordsDeferred.await()
                 val records = recordsResult.getOrNull()?.items.orEmpty()
                     .filter { it.status == PracticeStatus.VISITED }
-                    .map { it.toFeatureModel() }
                 val recordsErrorMessage = recordsResult.exceptionOrNull()
                     ?.userMessage("연습기록을 불러오지 못했어요.")
                 profileDeferred.await()
@@ -99,18 +97,4 @@ private fun MyPage.toUiProfile() = MyPageProfile(
     savedPlaceCount = savedPlaceCount,
     progress = (levelProgress.progressPercent / 100f).coerceIn(0f, 1f),
     distanceLabel = "${levelProgress.totalDistanceKm.roundToInt()}km",
-)
-
-// PracticeRecord는 PracticeRecordItem의 typealias라 이 매핑은 항등 복사다. 필드별로 나열해두면
-// 도메인 모델에 필드가 추가될 때(status가 그랬다) 여기 반영을 잊어도 컴파일이 통과해 조용히
-// 기본값으로 떨어진다 — 실제로 status 누락으로 마이페이지 카드가 계속 "방문 예정"을 보여줬다.
-private fun com.dororong.rodi.core.domain.model.member.PracticeRecordItem.toFeatureModel() = PracticeRecord(
-    practiceId = practiceId,
-    placeId = placeId,
-    placeName = placeName,
-    practiceTypes = practiceTypes,
-    visitCount = visitCount,
-    visitedAt = visitedAt,
-    hasReview = hasReview,
-    status = status,
 )

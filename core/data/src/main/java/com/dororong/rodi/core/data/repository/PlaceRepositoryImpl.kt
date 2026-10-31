@@ -2,17 +2,18 @@ package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.BuildConfig
 import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.data.mapper.toApiValue
 import com.dororong.rodi.core.data.mock.LocalTestPlaces
 import com.dororong.rodi.core.data.source.local.datastore.SavedPlaceLocalDataSource
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.remote.api.PlaceApi
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
-import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
-import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceException
+import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
@@ -33,39 +34,32 @@ class PlaceRepositoryImpl @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val json: Json,
 ) : PlaceRepository {
-    override suspend fun getCoordinates(): List<PlaceCoordinate> {
-        val coordinates = publicRequest {
-            api.getCoordinates().requireData().map { it.toDomain() }
-        }
-        return if (BuildConfig.DEBUG) coordinates + LocalTestPlaces.coordinate() else coordinates
+    override suspend fun getClusters(query: PlaceViewportQuery): PlaceMarkerClusters = publicRequest {
+        api.getClusters(
+            swLat = query.southWest.lat,
+            swLng = query.southWest.lng,
+            neLat = query.northEast.lat,
+            neLng = query.northEast.lng,
+            practiceTypes = query.practiceTypes.map(PracticeType::toApiValue),
+        ).requireData().toDomain()
     }
 
     override suspend fun getPlaces(
         query: PlaceViewportQuery,
         cursor: String?,
         size: Int,
-    ): CursorPage<PlaceSummary> {
-        val page = optionalAuthenticatedRequest {
-            api.getPlaces(
-                swLat = query.southWest.lat,
-                swLng = query.southWest.lng,
-                neLat = query.northEast.lat,
-                neLng = query.northEast.lng,
-                lat = query.origin.lat,
-                lng = query.origin.lng,
-                size = size,
-                cursor = cursor,
-            ).requireData().toDomain()
-        }
-        val includeTestPlace = BuildConfig.DEBUG && cursor == null && LocalTestPlaces.containedIn(query)
-        return if (includeTestPlace) {
-            page.copy(
-                items = listOf(LocalTestPlaces.summary()) + page.items,
-                totalCount = page.totalCount?.plus(1),
-            )
-        } else {
-            page
-        }
+    ): CursorPage<PlaceSummary> = optionalAuthenticatedRequest {
+        api.getPlaces(
+            swLat = query.southWest.lat,
+            swLng = query.southWest.lng,
+            neLat = query.northEast.lat,
+            neLng = query.northEast.lng,
+            lat = query.origin.lat,
+            lng = query.origin.lng,
+            size = size,
+            cursor = cursor,
+            practiceTypes = query.practiceTypes.map(PracticeType::toApiValue),
+        ).requireData().toDomain()
     }
 
     override suspend fun searchPlaces(
@@ -73,6 +67,7 @@ class PlaceRepositoryImpl @Inject constructor(
         origin: GeoPoint,
         cursor: String?,
         size: Int,
+        practiceTypes: Set<PracticeType>,
     ): CursorPage<PlaceSummary> = authenticatedRequest {
         api.searchPlaces(
             keyword = keyword,
@@ -80,6 +75,7 @@ class PlaceRepositoryImpl @Inject constructor(
             lng = origin.lng,
             size = size,
             cursor = cursor,
+            practiceTypes = practiceTypes.map(PracticeType::toApiValue),
         ).requireData().toDomain()
     }
 

@@ -3,15 +3,18 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.mapper.toAuthException
 import com.dororong.rodi.core.data.mapper.toDomain
+import com.dororong.rodi.core.data.mapper.toApiValue
 import com.dororong.rodi.core.data.mapper.toNicknameRejection
+import com.dororong.rodi.core.data.mapper.toNicknameRejectedException
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
 import com.dororong.rodi.core.domain.model.member.NicknameAvailability
+import com.dororong.rodi.core.domain.model.member.NicknameUpdate
 import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
-import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.SortTagsRequest
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.domain.model.auth.AuthException
 import com.dororong.rodi.core.domain.model.member.MyPage
@@ -27,6 +30,8 @@ import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.HttpException
 
 class MemberRepositoryImpl @Inject constructor(
@@ -37,29 +42,30 @@ class MemberRepositoryImpl @Inject constructor(
     private val sessionCoordinator: AuthSessionCoordinator,
 ) : MemberRepository {
     override suspend fun checkNicknameAvailability(nickname: String): NicknameAvailability = authenticatedRequest {
-        val response = memberApi.checkNicknameAvailability(nickname).requireData()
-        val rejection = response.reason?.toNicknameRejection()
-        check(response.available || rejection != null) { "Unknown nickname rejection" }
-        NicknameAvailability(response.nickname, response.available, rejection)
+        memberApi.checkNicknameAvailability(nickname).requireData().toDomain()
     }
 
-    override suspend fun updateNickname(nickname: String) {
-        authenticatedRequest {
-            try {
-                val response = memberApi.updateNickname(NicknameUpdateRequest(nickname))
-                if (!response.isSuccess) {
-                    response.code.toNicknameRejection()?.let { throw NicknameRejectedException(it) }
+    override suspend fun updateNickname(nickname: String): NicknameUpdate = authenticatedRequest {
+        try {
+            val response = memberApi.updateNickname(NicknameUpdateRequest(nickname))
+            if (!response.isSuccess) {
+                response.code.toNicknameRejection()?.let { rejection ->
+                    throw rejection.toNicknameRejectedException(response.data?.nicknameChangeableAt)
                 }
-                response.requireSuccess()
-            } catch (error: HttpException) {
-                if (error.code() !in setOf(400, 409)) throw error
-                val body = error.response()?.errorBody()?.string()
-                val envelope = runCatching {
-                    body?.let { json.decodeFromString<ApiEnvelope<JsonObject>>(it) }
-                }.getOrNull()
-                envelope?.code?.toNicknameRejection()?.let { throw NicknameRejectedException(it) }
-                throw error.toAuthException(json, body)
             }
+            response.requireData().toDomain()
+        } catch (error: HttpException) {
+            if (error.code() !in setOf(400, 409)) throw error
+            val body = error.response()?.errorBody()?.string()
+            val envelope = runCatching {
+                body?.let { json.decodeFromString<ApiEnvelope<JsonObject>>(it) }
+            }.getOrNull()
+            envelope?.code?.toNicknameRejection()?.let { rejection ->
+                throw rejection.toNicknameRejectedException(
+                    envelope.data?.get("nicknameChangeableAt")?.jsonPrimitive?.contentOrNull,
+                )
+            }
+            throw error.toAuthException(json, body)
         }
     }
 
@@ -143,10 +149,10 @@ class MemberRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateFilterTags(filterTags: List<PracticeType>) {
+    override suspend fun updateSortTags(sortTags: List<PracticeType>) {
         authenticatedRequest {
-            memberApi.updateFilterTags(
-                request = FilterTagsRequest(filterTags.map(PracticeType::name)),
+            memberApi.updateSortTags(
+                request = SortTagsRequest(sortTags.map(PracticeType::toApiValue)),
             ).requireSuccess()
         }
     }

@@ -12,9 +12,8 @@ import com.dororong.rodi.core.domain.model.place.PlaceWaypointType
 import com.dororong.rodi.core.domain.model.place.PracticeType
 
 /**
- * 서버에 없는, 실기기 실측 전용 테스트 코스. 디버그 빌드에서만 PlaceRepositoryImpl이 붙여
- * 서버 응답과 함께 반환한다 — 릴리스 빌드 바이너리에도 포함되지만 `BuildConfig.DEBUG` 분기로만
- * 실행된다.
+ * 서버에 없는 실기기 실측 전용 코스. 디버그 빌드의 직접 상세 조회에서만 사용한다.
+ * 서버 클러스터와 목록에는 주입하지 않아 필터·단계별 수와 totalCount를 보존한다.
  *
  * 실제 서버 id와 겹치지 않도록 큰 양수를 쓴다(음수는 PlaceCacheDao가 레거시 샘플로 간주해
  * 매 조회마다 지워버린다).

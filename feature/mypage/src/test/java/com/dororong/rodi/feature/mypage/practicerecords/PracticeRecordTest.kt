@@ -39,6 +39,22 @@ class PracticeRecordTest {
     }
 
     @Test
+    fun `삭제된 기록은 후기와 주차장 여부에 관계없이 삭제 상태로 표시하고 후기를 열 수 없다`() {
+        listOf(false, true).forEach { hasReview ->
+            listOf(PracticeType.ROUNDABOUT, PracticeType.PARKING).forEach { practiceType ->
+                val action = courseRecord().copy(
+                    hasReview = hasReview,
+                    practiceTypes = listOf(practiceType),
+                    isDeleted = true,
+                ).reviewAction
+
+                assertFalse(action.isEnabled)
+                assertEquals("삭제된 코스", action.label)
+            }
+        }
+    }
+
+    @Test
     fun `방문 기록에 날짜가 있으면 운전 날짜를 보여준다`() {
         val dateLabel = courseRecord()
             .copy(visitedAt = Instant.parse("2026-05-10T12:00:00Z"))

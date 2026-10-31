@@ -15,9 +15,18 @@ import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
 import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
+import com.dororong.rodi.core.domain.model.onboarding.answerCode
+import com.dororong.rodi.core.domain.model.onboarding.answers
+import com.dororong.rodi.core.domain.model.onboarding.withAnswers
+import com.dororong.rodi.core.domain.model.onboarding.conformTo
+import com.dororong.rodi.core.domain.model.onboarding.normalizeRoadExperiences
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingQuestionType
+import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingFormUseCase
+import com.dororong.rodi.core.domain.usecase.onboarding.isReadyForSubmission
+import com.dororong.rodi.core.ui.text.takeGraphemes
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.domain.model.onboarding.calculateLevel
 import com.dororong.rodi.core.domain.model.onboarding.analysisCopy
-import com.dororong.rodi.core.domain.model.onboarding.isNavigatorLevel
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.ApplyInitialFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
@@ -50,6 +59,7 @@ class EntryViewModel @Inject constructor(
     private val saveEntryProgressUseCase: SaveEntryProgressUseCase,
     private val getOnboardingProfileUseCase: GetOnboardingProfileUseCase,
     private val applyInitialFilterTagsUseCase: ApplyInitialFilterTagsUseCase,
+    private val getOnboardingFormUseCase: GetOnboardingFormUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EntryUiState())
@@ -66,6 +76,7 @@ class EntryViewModel @Inject constructor(
                 restoreOnboardingProfile(getOnboardingProfileUseCase().first())
                 applyMode(progress.mode)
                 if (uiState.value.step == EntryStep.NICKNAME) generateNicknameIfNeeded()
+                if (progress.mode != EntryMode.GUEST_BROWSE) loadOnboardingForm()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Throwable) {
@@ -106,65 +117,70 @@ class EntryViewModel @Inject constructor(
         }
     }
 
-    fun selectDrivingPeriod(value: DrivingPeriod) {
-        _uiState.update {
-            if (value.isNavigatorLevel) {
-                it.copy(
-                    drivingPeriod = value,
-                    recentFrequency = null,
-                    roadExperiences = emptyList(),
-                    soloDrivingRange = null,
-                    soloParkingLevel = null,
-                )
-            } else {
-                it.copy(drivingPeriod = value)
-            }
-        }
-        persistOnboardingProfile()
-    }
+    fun retryOnboardingForm() = loadOnboardingForm()
 
-    fun selectRecentFrequency(value: RecentDrivingFrequency) =
-        updateOnboardingProfile { it.copy(recentFrequency = value) }
-
-    fun toggleRoadExperience(value: RoadExperience) {
-        _uiState.update {
-            val roadExperiences = if (value in it.roadExperiences) {
-                it.roadExperiences - value
-            } else {
-                it.roadExperiences + value
-            }
-            it.copy(
-                roadExperiences = roadExperiences,
-                soloDrivingRange = it.soloDrivingRange.takeIf { RoadExperience.SOLO in roadExperiences },
-                soloParkingLevel = it.soloParkingLevel.takeIf { RoadExperience.SOLO in roadExperiences },
+    private fun loadOnboardingForm() {
+        if (uiState.value.isOnboardingFormLoading) return
+        _uiState.update { it.copy(isOnboardingFormLoading = true, hasOnboardingFormError = false) }
+        viewModelScope.launch {
+            val result = getOnboardingFormUseCase()
+            result.fold(
+                onSuccess = { form ->
+                    _uiState.update { state ->
+                        if (form == null) state.copy(isOnboardingFormLoading = false)
+                        else {
+                            val normalized = state.profile.conformTo(form)
+                            val maxGoalLength = form.steps.flatMap { it.questions }
+                                .firstOrNull { it.code == "drivingGoal" }?.maxLength ?: MAX_GOAL_LENGTH
+                            state.copy(onboardingForm = form, isOnboardingFormLoading = false, isServerFormLoaded = true)
+                                .withProfile(normalized.copy(goal = normalized.goal.takeGraphemes(maxGoalLength)))
+                        }
+                    }
+                    persistOnboardingProfile()
+                },
+                onFailure = {
+                    _uiState.update { it.copy(isOnboardingFormLoading = false, hasOnboardingFormError = true) }
+                },
             )
         }
-        persistOnboardingProfile()
     }
 
-    fun selectSoloDrivingRange(value: SoloDrivingRange) =
-        updateOnboardingProfile { it.copy(soloDrivingRange = value) }
+    fun selectDrivingPeriod(value: DrivingPeriod) = selectOption("drivingPeriod", value.answerCode())
+    fun selectRecentFrequency(value: RecentDrivingFrequency) = selectOption("recentFrequency", value.answerCode())
+    fun toggleRoadExperience(value: RoadExperience) = selectOption("roadExperiences", value.answerCode())
+    fun selectSoloDrivingRange(value: SoloDrivingRange) = selectOption("soloDrivingRange", value.answerCode())
+    fun selectSoloParkingLevel(value: SoloParkingLevel) = selectOption("soloParkingLevel", value.answerCode())
+    fun togglePracticeSituation(value: PracticeSituation) = selectOption("practiceTypes", value.answerCode())
+    fun selectVehicleType(value: VehicleType) = selectOption("carType", value.answerCode())
 
-    fun selectSoloParkingLevel(value: SoloParkingLevel) =
-        updateOnboardingProfile { it.copy(soloParkingLevel = value) }
-
-    fun togglePracticeSituation(value: PracticeSituation) {
-        _uiState.update {
-            val practiceSituations = when {
-                value in it.practiceSituations -> it.practiceSituations - value
-                it.practiceSituations.size >= 3 -> it.practiceSituations
-                else -> it.practiceSituations + value
+    fun selectOption(questionCode: String, optionCode: String) {
+        _uiState.update { state ->
+            val question = state.onboardingForm.steps.flatMap { it.questions }.firstOrNull { it.code == questionCode }
+                ?: return@update state
+            val option = question.options.firstOrNull { it.code == optionCode } ?: return@update state
+            val selected = state.profile.answers(questionCode)
+            val answers = when {
+                question.type == OnboardingQuestionType.SINGLE_SELECT -> listOf(optionCode)
+                optionCode in selected -> selected - optionCode
+                option.exclusive || (questionCode == "roadExperiences" && optionCode == "NONE") -> listOf(optionCode)
+                else -> {
+                    val ordinary = selected.filter { code ->
+                        question.options.none { it.code == code && it.exclusive } &&
+                            (questionCode != "roadExperiences" || code != "NONE")
+                    }
+                    if (ordinary.size >= (question.maxSelect ?: Int.MAX_VALUE)) selected else ordinary + optionCode
+                }
             }
-            it.copy(practiceSituations = practiceSituations)
+            state.withProfile(state.profile.withAnswers(questionCode, answers).conformTo(state.onboardingForm))
         }
         persistOnboardingProfile()
     }
 
-    fun selectVehicleType(value: VehicleType) =
-        updateOnboardingProfile { it.copy(vehicleType = value) }
-
-    fun updateGoal(value: String) =
-        updateOnboardingProfile { it.copy(goal = value.take(MAX_GOAL_LENGTH)) }
+    fun updateGoal(value: String) = updateOnboardingProfile {
+        val maxLength = it.onboardingForm.steps.flatMap { step -> step.questions }
+            .firstOrNull { question -> question.code == "drivingGoal" }?.maxLength ?: MAX_GOAL_LENGTH
+        it.copy(goal = value.takeGraphemes(maxLength))
+    }
 
     fun next() {
         val previousNickname = uiState.value.nickname
@@ -198,7 +214,8 @@ class EntryViewModel @Inject constructor(
     }
 
     fun continueAfterCareer() {
-        if (uiState.value.drivingPeriod?.isNavigatorLevel == true) {
+        if (!uiState.value.isCareerStepValid) return
+        if (uiState.value.onboardingForm.skipsFollowUps(uiState.value.onboardingForm.steps.first(), currentOnboardingProfile())) {
             startOnboardingAnalysis()
         } else {
             next()
@@ -229,10 +246,35 @@ class EntryViewModel @Inject constructor(
         return true
     }
 
-    fun startOnboardingAnalysis() {
+    fun skipPreference() {
+        val state = uiState.value
+        if (!state.onboardingForm.steps.last().skippable) return
+        val emptyPreference = state.onboardingForm.steps.last().questions.fold(state.profile) { profile, question ->
+            profile.withAnswers(question.code, emptyList())
+        }
+        _uiState.update { it.withProfile(emptyPreference) }
+        persistOnboardingProfile()
+        startOnboardingAnalysis(skipPreference = true)
+    }
+
+    fun startOnboardingAnalysis() = startOnboardingAnalysis(skipPreference = false)
+
+    private fun startOnboardingAnalysis(skipPreference: Boolean) {
         if (uiState.value.onboardingAnalysisState != null) return
 
+        val state = uiState.value
         val profile = currentOnboardingProfile()
+        val formValid = !state.isServerFormLoaded || state.onboardingForm.steps.all { step ->
+            (step.skippable && (skipPreference || state.step != EntryStep.PREFERENCE)) || state.onboardingForm.isStepValid(step, profile)
+        }
+        val textValid = state.onboardingForm.steps.flatMap { it.questions }.all { question ->
+            val maxLength = question.maxLength
+            maxLength == null || profile.answers(question.code).all { it.graphemeLength() <= maxLength }
+        }
+        if (state.isOnboardingFormLoading || state.hasOnboardingFormError || !profile.isReadyForSubmission || !formValid || !textValid) {
+            viewModelScope.launch { _effect.send(EntryEffect.ShowSubmissionError("입력 정보를 확인해주세요.", canRetry = false)) }
+            return
+        }
         val level = profile.calculateLevel()
         _uiState.update {
             it.copy(
@@ -330,19 +372,9 @@ class EntryViewModel @Inject constructor(
     }
 
     private fun restoreOnboardingProfile(profile: OnboardingProfile) {
-        _uiState.update {
-            it.copy(
-                nickname = profile.nickname,
-                drivingPeriod = profile.drivingPeriod,
-                recentFrequency = profile.recentFrequency,
-                roadExperiences = profile.roadExperiences,
-                soloDrivingRange = profile.soloDrivingRange,
-                soloParkingLevel = profile.soloParkingLevel,
-                practiceSituations = profile.practiceSituations,
-                vehicleType = profile.vehicleType,
-                goal = profile.goal,
-            )
-        }
+        val normalized = profile.normalizeRoadExperiences()
+        _uiState.update { it.withProfile(normalized) }
+        if (normalized != profile) persistOnboardingProfile()
     }
 
     private suspend fun applyMode(mode: EntryMode) {
@@ -423,20 +455,8 @@ class EntryViewModel @Inject constructor(
             )
         }
 
-    private fun currentOnboardingProfile(): OnboardingProfile =
-        uiState.value.let {
-            OnboardingProfile(
-                nickname = it.nickname,
-                drivingPeriod = it.drivingPeriod,
-                recentFrequency = it.recentFrequency,
-                roadExperiences = it.roadExperiences,
-                soloDrivingRange = it.soloDrivingRange,
-                soloParkingLevel = it.soloParkingLevel,
-                practiceSituations = it.practiceSituations,
-                vehicleType = it.vehicleType,
-                goal = it.goal,
-            )
-        }
+    private fun currentOnboardingProfile(): OnboardingProfile = uiState.value.profile
+
 }
 
 private fun OnboardingSubmissionResult.toSubmissionError(): EntryEffect.ShowSubmissionError = when (this) {

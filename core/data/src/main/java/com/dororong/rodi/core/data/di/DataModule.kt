@@ -8,6 +8,7 @@ import com.dororong.rodi.core.data.repository.CourseDraftRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseLocationRepositoryImpl
 import com.dororong.rodi.core.data.repository.EntryRepositoryImpl
 import com.dororong.rodi.core.data.repository.OnboardingRepositoryImpl
+import com.dororong.rodi.core.data.repository.PlaceFilterRepositoryImpl
 import com.dororong.rodi.core.data.repository.CachedPlaceRepository
 import com.dororong.rodi.core.data.repository.LiveUpdateRepositoryImpl
 import com.dororong.rodi.core.data.repository.NaviPreferenceRepositoryImpl
@@ -27,6 +28,7 @@ import com.dororong.rodi.core.domain.repository.LiveUpdateRepository
 import com.dororong.rodi.core.domain.repository.NaviPreferenceRepository
 import com.dororong.rodi.core.domain.repository.MemberRepository
 import com.dororong.rodi.core.domain.repository.OnboardingRepository
+import com.dororong.rodi.core.domain.repository.PlaceFilterRepository
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.repository.ReviewRepository
@@ -80,6 +82,11 @@ abstract class DataModule {
     abstract fun bindMemberRepository(impl: MemberRepositoryImpl): MemberRepository
 
     @Binds
+    @Singleton
+    abstract fun bindPlaceFilterRepository(impl: PlaceFilterRepositoryImpl): PlaceFilterRepository
+
+    @Binds
+    @Singleton
     abstract fun bindPlaceRepository(impl: CachedPlaceRepository): PlaceRepository
 
     @Binds

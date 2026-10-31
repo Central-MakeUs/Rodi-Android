@@ -10,9 +10,12 @@ import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewException
+import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
+import com.dororong.rodi.core.domain.model.review.ReviewIssueOption
 import com.dororong.rodi.core.domain.model.review.ReviewSubmissionResult
 import com.dororong.rodi.core.domain.usecase.review.CreateReviewUseCase
 import com.dororong.rodi.core.domain.usecase.review.GetReviewUseCase
+import com.dororong.rodi.core.domain.usecase.review.GetReviewIssueFormUseCase
 import com.dororong.rodi.core.domain.usecase.review.UpdateReviewUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -42,9 +45,13 @@ class ReviewWriteViewModelTest {
     private val createReview = mockk<CreateReviewUseCase>()
     private val updateReview = mockk<UpdateReviewUseCase>()
     private val getReview = mockk<GetReviewUseCase>()
+    private val getReviewIssueForm = mockk<GetReviewIssueFormUseCase>()
 
     @BeforeEach
-    fun setUp() = Dispatchers.setMain(dispatcher)
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+        coEvery { getReviewIssueForm(any()) } returns Result.success(null)
+    }
 
     @AfterEach
     fun tearDown() = Dispatchers.resetMain()
@@ -496,12 +503,128 @@ class ReviewWriteViewModelTest {
         assertFalse(afterClose.uiState.value.isDirty)
     }
 
+    @Test
+    fun `비추천 이유는 복수 선택과 기타 내용을 모두 충족해야 다음으로 이동한다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        coEvery { createReview(PLACE_ID, any()) } returns Result.success(31L)
+        val vm = viewModel()
+        vm.start(PLACE_ID, PLACE_NAME)
+        vm.selectRecommend(false)
+        assertFalse(vm.uiState.value.canGoNext)
+
+        vm.toggleCourseIssue("ROAD_INFO_MISMATCH")
+        vm.toggleCourseIssue("OTHER")
+        assertFalse(vm.uiState.value.canGoNext)
+        vm.updateCourseIssueDetail("😊".repeat(31))
+        assertEquals(30, vm.uiState.value.courseIssueDetail.graphemeLength())
+        assertTrue(vm.uiState.value.canGoNext)
+        vm.next()
+        vm.selectPracticeMethod(PracticeMethod.SOLO)
+        val expected = ReviewDraft(false, null, null, PracticeMethod.SOLO, null, null,
+            listOf("ROAD_INFO_MISMATCH", "OTHER"), "😊".repeat(30))
+        assertEquals(expected, vm.uiState.value.draftOrNull())
+        vm.back()
+        vm.selectRecommend(true)
+        assertFalse(vm.uiState.value.canGoNext)
+        vm.selectRecommend(false)
+        assertTrue(vm.uiState.value.canGoNext)
+        assertEquals(listOf("ROAD_INFO_MISMATCH", "OTHER"), vm.uiState.value.courseIssues)
+        vm.next()
+        vm.submit()
+        advanceUntilIdle()
+        coVerify(exactly = 1) { createReview(PLACE_ID, expected) }
+        assertTrue(vm.uiState.value.isSubmitted)
+    }
+
+    @Test
+    fun `폼에 없는 기존 문제 항목은 다른 항목을 선택해도 유실하거나 제출하지 않는다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail().copy(
+            isRecommended = false, difficulty = null, congestion = null,
+            courseIssues = listOf("UNRECOGNIZED"),
+        ))
+        val vm = viewModel()
+        vm.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+        vm.toggleCourseIssue("ROAD_INFO_MISMATCH")
+        assertEquals(listOf("ROAD_INFO_MISMATCH", "UNRECOGNIZED"), vm.uiState.value.courseIssues)
+        assertFalse(vm.uiState.value.canGoNext)
+    }
+
+    @Test
+    fun `비추천 작성 중 재생성하면 선택 항목과 기타 내용을 복원한다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        before.selectRecommend(false)
+        before.toggleCourseIssue("OTHER")
+        before.updateCourseIssueDetail("진입로가 막혔어요")
+        before.next()
+
+        val after = viewModel(recreatedFrom(handle))
+        after.start(PLACE_ID, PLACE_NAME)
+        assertEquals(ReviewWriteStep.Detail, after.uiState.value.step)
+        assertEquals(listOf("OTHER"), after.uiState.value.courseIssues)
+        assertEquals("진입로가 막혔어요", after.uiState.value.courseIssueDetail)
+        assertTrue(after.uiState.value.canGoNext)
+    }
+
+    @Test
+    fun `비추천 후기 수정은 서버의 문제 선택과 기타 내용을 복원한다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail().copy(
+            isRecommended = false,
+            difficulty = null,
+            congestion = null,
+            courseIssues = listOf("OTHER"),
+            courseIssueDetail = "공사 중이에요",
+        ))
+        val vm = viewModel()
+        vm.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        assertEquals(listOf("OTHER"), vm.uiState.value.courseIssues)
+        assertEquals("공사 중이에요", vm.uiState.value.courseIssueDetail)
+        assertTrue(vm.uiState.value.canGoNext)
+        assertFalse(vm.uiState.value.isDirty)
+    }
+
+    @Test
+    fun `폼 조회가 실패하면 구형 폼으로 바꾸지 않고 복원할 입력을 유지한다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        val handle = SavedStateHandle()
+        val before = viewModel(handle)
+        before.start(PLACE_ID, PLACE_NAME)
+        before.selectRecommend(false)
+        before.toggleCourseIssue("OTHER")
+        before.updateCourseIssueDetail("공사 중")
+
+        val after = viewModel(recreatedFrom(handle))
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.failure(IllegalStateException("network"))
+        after.start(PLACE_ID, PLACE_NAME)
+        assertNotNull(after.uiState.value.initializationErrorMessage)
+        assertFalse(after.uiState.value.canGoNext)
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        after.start(PLACE_ID, PLACE_NAME)
+        assertEquals(listOf("OTHER"), after.uiState.value.courseIssues)
+        assertEquals("공사 중", after.uiState.value.courseIssueDetail)
+    }
+
+    private fun issueForm() = ReviewIssueForm(
+        title = "해당 코스에 어떤 문제가 있나요?",
+        options = listOf(
+            ReviewIssueOption("ROAD_INFO_MISMATCH", "도로 정보가 실제와 달라요", false, null, null),
+            ReviewIssueOption("OTHER", "기타", true, "이유를 작성해주세요.", 30),
+        ),
+    )
+
     /** 프로세스 재생성 뒤처럼, 저장된 키·값만 가진 새 핸들을 만든다. */
     private fun recreatedFrom(handle: SavedStateHandle) =
         SavedStateHandle(handle.keys().associateWith { key -> handle.get<Any?>(key) })
 
     private fun viewModel(savedStateHandle: SavedStateHandle = SavedStateHandle()) =
-        ReviewWriteViewModel(createReview, updateReview, getReview, savedStateHandle)
+        ReviewWriteViewModel(createReview, updateReview, getReview, savedStateHandle, getReviewIssueForm)
 
     private fun completeBasics(viewModel: ReviewWriteViewModel) {
         viewModel.selectRecommend(true)

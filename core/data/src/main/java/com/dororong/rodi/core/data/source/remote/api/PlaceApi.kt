@@ -1,7 +1,7 @@
 package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.model.place.CursorPagePlaceResponse
-import com.dororong.rodi.core.data.source.remote.model.place.PlaceCoordinateResponse
+import com.dororong.rodi.core.data.source.remote.model.place.PlaceMarkerClustersResponse
 import com.dororong.rodi.core.data.source.remote.model.place.PlaceDetailResponse
 import com.dororong.rodi.core.data.source.remote.model.place.RelatedSearchResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -19,8 +19,14 @@ interface PlaceApi {
         @Query("cursor") cursor: String?,
     ): ApiEnvelope<CursorPagePlaceResponse>
 
-    @GET("places/coordinates")
-    suspend fun getCoordinates(): ApiEnvelope<List<PlaceCoordinateResponse>>
+    @GET("places/clusters")
+    suspend fun getClusters(
+        @Query("swLat") swLat: Double,
+        @Query("swLng") swLng: Double,
+        @Query("neLat") neLat: Double,
+        @Query("neLng") neLng: Double,
+        @Query("practiceTypes") practiceTypes: List<String> = emptyList(),
+    ): ApiEnvelope<PlaceMarkerClustersResponse>
 
     @GET("places")
     suspend fun getPlaces(
@@ -32,6 +38,7 @@ interface PlaceApi {
         @Query("lng") lng: Double,
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
+        @Query("practiceTypes") practiceTypes: List<String> = emptyList(),
     ): ApiEnvelope<CursorPagePlaceResponse>
 
     @GET("places/search")
@@ -41,6 +48,7 @@ interface PlaceApi {
         @Query("lng") lng: Double,
         @Query("size") size: Int,
         @Query("cursor") cursor: String?,
+        @Query("practiceTypes") practiceTypes: List<String> = emptyList(),
     ): ApiEnvelope<CursorPagePlaceResponse>
 
     @GET("places/related-search")

@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.mypage.nickname
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
+import com.dororong.rodi.core.domain.model.member.NicknameRejection
 import com.dororong.rodi.core.domain.usecase.member.CheckNicknameAvailabilityUseCase
 import com.dororong.rodi.core.domain.usecase.member.GetMyPageUseCase
 import com.dororong.rodi.core.domain.usecase.member.UpdateNicknameUseCase
@@ -33,13 +34,20 @@ class NicknameViewModel @Inject constructor(
     init { load() }
 
     fun load() {
-        _uiState.update { it.copy(isLoading = true, loadFailed = false) }
+        if (_uiState.value.isSaving || _uiState.value.saveSucceeded) return
+        val requestRevision = ++revision
+        checkJob?.cancel()
+        _uiState.update { it.copy(isLoading = true, loadFailed = false, isChecking = false) }
         viewModelScope.launch {
-            getMyPage().onSuccess { page ->
+            val result = getMyPage()
+            if (requestRevision != revision) return@launch
+            result.onSuccess { page ->
                 _uiState.value = NicknameUiState(
                     initialNickname = page.nickname,
                     nickname = page.nickname,
                     isLoading = false,
+                    nicknameChangeableAt = page.nicknameChangeableAt,
+                    isChangeRestricted = page.nicknameChangeableAt != null,
                 )
             }.onFailure {
                 _uiState.update { it.copy(isLoading = false, loadFailed = true) }
@@ -61,9 +69,10 @@ class NicknameViewModel @Inject constructor(
 
     fun validate() {
         val current = _uiState.value
-        if (current.isChangeRestricted || current.isLoading || current.loadFailed ||
+        if (current.isLoading || current.loadFailed ||
             current.isSaving || current.saveSucceeded || current.isChecking ||
-            current.validatedNickname == current.nickname || current.nickname == current.initialNickname
+            current.validatedNickname == current.nickname ||
+            current.nickname == current.initialNickname
         ) return
         val requestRevision = revision
         _uiState.update { it.copy(isChecking = true) }
@@ -71,17 +80,27 @@ class NicknameViewModel @Inject constructor(
             val result = checkAvailability(current.nickname)
             if (requestRevision != revision) return@launch
             result.onSuccess { availability ->
-                _uiState.update {
-                    it.copy(
+                _uiState.update { state ->
+                    val restricted = availability.rejection == NicknameRejection.CHANGE_RESTRICTED
+                    val restrictionCleared = !restricted &&
+                        !availability.nickname.equals(state.initialNickname, ignoreCase = true)
+                    state.copy(
                         isChecking = false,
-                        validatedNickname = current.nickname,
+                        validatedNickname = current.nickname.takeIf { availability.isAvailable },
                         normalizedNickname = availability.nickname.takeIf { availability.isAvailable },
                         rejection = availability.rejection,
+                        nicknameChangeableAt = if (restrictionCleared) null else availability.nicknameChangeableAt ?: state.nicknameChangeableAt,
+                        isChangeRestricted = !restrictionCleared &&
+                            (state.isChangeRestricted || restricted || availability.nicknameChangeableAt != null),
                     )
                 }
-            }.onFailure {
-                _uiState.update { it.copy(isChecking = false) }
-                _effect.send(NicknameEffect.CheckFailed)
+            }.onFailure { error ->
+                if (error is NicknameRejectedException) {
+                    applyRejection(error, current.nickname)
+                } else {
+                    _uiState.update { it.copy(isChecking = false) }
+                    _effect.send(NicknameEffect.CheckFailed)
+                }
             }
         }
     }
@@ -92,18 +111,45 @@ class NicknameViewModel @Inject constructor(
         val nickname = current.normalizedNickname ?: return
         _uiState.update { it.copy(isSaving = true) }
         viewModelScope.launch {
-            updateNickname(nickname).onSuccess {
-                _uiState.update { it.copy(isSaving = false, saveSucceeded = true) }
-            }.onFailure { error ->
+            updateNickname(nickname).onSuccess { saved ->
                 _uiState.update {
-                    if (error is NicknameRejectedException) {
-                        it.copy(isSaving = false, rejection = error.rejection, normalizedNickname = null)
-                    } else {
-                        it.copy(isSaving = false)
-                    }
+                    it.copy(
+                        initialNickname = saved.nickname,
+                        nickname = saved.nickname,
+                        validatedNickname = saved.nickname,
+                        normalizedNickname = saved.nickname,
+                        nicknameChangeableAt = saved.nicknameChangeableAt,
+                        isChangeRestricted = saved.nicknameChangeableAt != null,
+                        rejection = null,
+                        isSaving = false,
+                        saveSucceeded = true,
+                    )
                 }
-                if (error !is NicknameRejectedException) _effect.send(NicknameEffect.SaveFailed)
+            }.onFailure { error ->
+                if (error is NicknameRejectedException) {
+                    applyRejection(error, current.nickname)
+                } else {
+                    _uiState.update { it.copy(isSaving = false) }
+                    _effect.send(NicknameEffect.SaveFailed)
+                }
             }
+        }
+    }
+
+    private fun applyRejection(error: NicknameRejectedException, nickname: String) {
+        _uiState.update {
+            val restricted = error.rejection == NicknameRejection.CHANGE_RESTRICTED
+            val restrictionCleared = !restricted && !nickname.trim().equals(it.initialNickname, ignoreCase = true)
+            it.copy(
+                isChecking = false,
+                isSaving = false,
+                validatedNickname = null,
+                normalizedNickname = null,
+                rejection = error.rejection,
+                nicknameChangeableAt = if (restrictionCleared) null else error.nicknameChangeableAt ?: it.nicknameChangeableAt,
+                isChangeRestricted = !restrictionCleared &&
+                    (it.isChangeRestricted || restricted || error.nicknameChangeableAt != null),
+            )
         }
     }
 }

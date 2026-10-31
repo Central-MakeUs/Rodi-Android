@@ -31,17 +31,19 @@ fun ReviewLevelFilter.toQueryValue(): String? = when (this) {
 
 fun ReviewDraft.toRequest() = ReviewRequest(
     isRecommended = isRecommended,
-    difficulty = difficulty.name,
-    congestion = congestion.name,
+    difficulty = difficulty?.name,
+    congestion = congestion?.name,
     practiceMethod = when (practiceMethod) {
         PracticeMethod.SOLO -> "SOLO"
         PracticeMethod.WITH_COMPANION -> "ACCOMPANIED"
     },
     content = content,
     caution = caution,
+    courseIssues = courseIssues,
+    courseIssueDetail = courseIssueDetail,
 )
 
-fun ReportSubmission.toRequest() = ReportRequest(reason, detail, detailConsistent)
+fun ReportSubmission.toRequest() = ReportRequest(reason, detail)
 
 fun CursorPageReviewResponse.toDomain() = CursorPage(
     items = items.map(ReviewResponse::toDomain),
@@ -82,6 +84,8 @@ fun ReviewDetailResponse.toDomain() = ReviewDetail(
     isHidden = isHidden,
     isVerifiedVisit = isVerifiedVisit,
     createdAt = parseServerTimestamp(createdAt),
+    courseIssues = courseIssues,
+    courseIssueDetail = courseIssueDetail,
 )
 
 fun ReviewSummaryResponse.toDomain() = ReviewSummary(

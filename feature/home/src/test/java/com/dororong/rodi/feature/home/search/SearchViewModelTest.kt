@@ -5,14 +5,17 @@ import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.place.CursorPage
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
 import com.dororong.rodi.core.domain.repository.PlaceRepository
+import com.dororong.rodi.core.domain.repository.PlaceFilterRepository
 import com.dororong.rodi.core.domain.repository.RecentSearchRepository
 import com.dororong.rodi.core.domain.usecase.place.GetRelatedSearchUseCase
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceFilterUseCase
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteAllRecentSearchesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteRecentSearchUseCase
@@ -34,6 +37,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -48,8 +52,8 @@ class SearchViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     @Test
-    fun `검색어는 지연 후 연관 검색을 하고 다음 장소 페이지를 불러온다`() = runTest(dispatcher) {
-        val dependencies = Dependencies()
+    fun `연관 검색과 다음 추천 페이지는 저장 필터를 조회하지 않고 검색어로 조회한다`() = runTest(dispatcher) {
+        val dependencies = Dependencies(practiceTypes = setOf(PracticeType.PARKING))
         coEvery {
             dependencies.placeRepository.relatedSearch("강남", null, 20)
         } returns related(regions = listOf("서울 강남구"), places = listOf(suggestion(1)), hasNext = true, nextCursor = "next")
@@ -72,6 +76,9 @@ class SearchViewModelTest {
 
         assertEquals(listOf(1L, 2L), viewModel.uiState.value.places.map { it.placeId })
         assertEquals(false, viewModel.uiState.value.hasNextPage)
+        coVerify(exactly = 0) { dependencies.filterRepository.getPracticeTypes() }
+        coVerify(exactly = 1) { dependencies.placeRepository.relatedSearch("강남", null, 20) }
+        coVerify(exactly = 1) { dependencies.placeRepository.relatedSearch("강남", "next", 20) }
     }
 
     @Test
@@ -186,11 +193,12 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun `장소가 있는 지역 추천을 고르면 지도 결과로 이동한다`() = runTest(dispatcher) {
-        val dependencies = Dependencies()
+    fun `지역 추천을 고르면 저장한 필터로 조회한 장소와 함께 지도로 이동한다`() = runTest(dispatcher) {
+        val filters = setOf(PracticeType.PARKING, PracticeType.MERGING)
+        val dependencies = Dependencies(practiceTypes = filters)
         val origin = GeoPoint(37.5, 126.9)
         coEvery {
-            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
+            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20, filters)
         } returns CursorPage(listOf(place(1)), false, null, 1)
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         val viewModel = dependencies.viewModel()
@@ -205,6 +213,9 @@ class SearchViewModelTest {
         advanceUntilIdle()
 
         assertEquals(SearchEffect.NavigateRegion(region, listOf(place(1))), effect.await())
+        coVerify(exactly = 1) {
+            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20, filters)
+        }
         coVerify {
             dependencies.recentRepository.registerRecentSearch(
                 RecentSearchRegistration(SearchTargetType.REGION, "서울 중구"),
@@ -217,7 +228,7 @@ class SearchViewModelTest {
         val dependencies = Dependencies()
         val origin = GeoPoint(37.5, 126.9)
         coEvery {
-            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20)
+            dependencies.placeRepository.searchPlaces("서울 중구", origin, null, 20, emptySet())
         } returns CursorPage(emptyList(), false, null, 0)
         coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
         coEvery { dependencies.recentRepository.getRecentSearches() } returnsMany listOf(
@@ -235,6 +246,28 @@ class SearchViewModelTest {
 
         assertEquals(SearchResultState.RegionEmpty, viewModel.uiState.value.resultState)
         assertEquals(listOf("서울 중구"), viewModel.uiState.value.recentSearches.map { it.keyword })
+    }
+
+    @Test
+    fun `지역 검색의 저장 필터를 읽지 못하면 필터 없는 결과로 대체하지 않는다`() = runTest(dispatcher) {
+        val dependencies = Dependencies()
+        coEvery { dependencies.filterRepository.getPracticeTypes() } throws IllegalStateException("저장소 오류")
+        coEvery { dependencies.recentRepository.registerRecentSearch(any()) } returns Unit
+        val viewModel = dependencies.viewModel()
+        viewModel.initialize(GeoPoint(37.5, 126.9))
+        advanceUntilIdle()
+
+        viewModel.effect.test {
+            viewModel.onIntent(SearchIntent.RegionSuggestionClicked(
+                requireNotNull(RegionOfficeLocationResolver.find("서울 중구")),
+            ))
+            advanceUntilIdle()
+
+            assertEquals(SearchResultState.Error, viewModel.uiState.value.resultState)
+            assertTrue(awaitItem() is SearchEffect.ShowSnackbar)
+        }
+        coVerify(exactly = 1) { dependencies.filterRepository.getPracticeTypes() }
+        coVerify(exactly = 0) { dependencies.placeRepository.searchPlaces(any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -290,11 +323,14 @@ class SearchViewModelTest {
 
     private class Dependencies(
         recentSearches: List<RecentSearch> = emptyList(),
+        practiceTypes: Set<PracticeType> = emptySet(),
     ) {
         val recentRepository = mockk<RecentSearchRepository>()
         val placeRepository = mockk<PlaceRepository>()
+        val filterRepository = mockk<PlaceFilterRepository>()
 
         init {
+            coEvery { filterRepository.getPracticeTypes() } returns practiceTypes
             coEvery { recentRepository.getRecentSearches() } returns recentSearches
         }
 
@@ -305,6 +341,7 @@ class SearchViewModelTest {
             getRelatedSearchUseCase = GetRelatedSearchUseCase(placeRepository),
             searchPlacesUseCase = SearchPlacesUseCase(placeRepository),
             registerRecentSearchUseCase = RegisterRecentSearchUseCase(recentRepository),
+            getPlaceFilterUseCase = GetPlaceFilterUseCase(filterRepository),
         )
     }
 }

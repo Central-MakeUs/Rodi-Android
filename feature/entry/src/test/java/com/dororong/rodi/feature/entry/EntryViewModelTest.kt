@@ -14,6 +14,9 @@ import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
 import com.dororong.rodi.core.domain.model.onboarding.SoloDrivingRange
 import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
+import com.dororong.rodi.core.domain.model.onboarding.OnboardingForm
+import com.dororong.rodi.core.domain.model.onboarding.localOnboardingForm
+import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingFormUseCase
 import com.dororong.rodi.core.domain.usecase.entry.GetEntryProgressUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.ApplyInitialFilterTagsUseCase
 import com.dororong.rodi.core.domain.usecase.onboarding.GetOnboardingProfileUseCase
@@ -24,11 +27,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -467,6 +474,7 @@ class EntryViewModelTest {
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
         runCurrent()
         advanceTimeBy(2_999)
@@ -502,6 +510,7 @@ class EntryViewModelTest {
             OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
         advanceTimeBy(3_000)
         runCurrent()
@@ -524,6 +533,7 @@ class EntryViewModelTest {
             advanceUntilIdle()
 
             viewModel.effect.test {
+                prepareSubmission(viewModel)
                 viewModel.startOnboardingAnalysis()
                 runCurrent()
                 advanceTimeBy(2_999)
@@ -553,6 +563,7 @@ class EntryViewModelTest {
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.AlreadyCompleted
         advanceUntilIdle()
 
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
         advanceTimeBy(3_000)
         runCurrent()
@@ -573,6 +584,7 @@ class EntryViewModelTest {
         coEvery { applyInitialFilterTags(OnboardingLevel.SEED) } returns Result.success(Unit)
         advanceUntilIdle()
 
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
         advanceTimeBy(3_000)
         runCurrent()
@@ -593,6 +605,7 @@ class EntryViewModelTest {
         advanceUntilIdle()
 
         viewModel.effect.test {
+            prepareSubmission(viewModel)
             viewModel.startOnboardingAnalysis()
             advanceTimeBy(3_000)
             runCurrent()
@@ -622,6 +635,7 @@ class EntryViewModelTest {
         advanceUntilIdle()
 
         viewModel.effect.test {
+            prepareSubmission(viewModel)
             viewModel.startOnboardingAnalysis()
             advanceTimeBy(3_000)
             runCurrent()
@@ -639,6 +653,7 @@ class EntryViewModelTest {
         advanceUntilIdle()
 
         viewModel.effect.test {
+            prepareSubmission(viewModel)
             viewModel.startOnboardingAnalysis()
             advanceTimeBy(3_000)
             runCurrent()
@@ -659,6 +674,7 @@ class EntryViewModelTest {
         advanceUntilIdle()
 
         viewModel.effect.test {
+            prepareSubmission(viewModel)
             viewModel.startOnboardingAnalysis()
             advanceTimeBy(3_000)
             runCurrent()
@@ -681,7 +697,9 @@ class EntryViewModelTest {
         coEvery { saveOnboardingProfileUseCase.submit(any(), any()) } returns OnboardingSubmissionResult.Submitted
         advanceUntilIdle()
 
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
+        prepareSubmission(viewModel)
         viewModel.startOnboardingAnalysis()
         advanceTimeBy(3_000)
         runCurrent()
@@ -751,6 +769,259 @@ class EntryViewModelTest {
         }
     }
 
+    @Test
+    fun `없음을 선택하면 다른 도로 경험과 혼자 운전 응답을 제거한다`() = runTest(testDispatcher) {
+        val viewModel = testViewModel()
+        advanceUntilIdle()
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
+        viewModel.toggleRoadExperience(RoadExperience.SOLO)
+        viewModel.selectSoloDrivingRange(SoloDrivingRange.FAMILIAR_ROAD)
+        viewModel.selectSoloParkingLevel(SoloParkingLevel.FAMILIAR_SPOT)
+
+        viewModel.toggleRoadExperience(RoadExperience.NONE)
+
+        assertEquals(listOf(RoadExperience.NONE), viewModel.roadExperiences)
+        assertEquals(null, viewModel.soloDrivingRange)
+        assertEquals(null, viewModel.soloParkingLevel)
+    }
+
+    @Test
+    fun `없음 다음 다른 도로 경험을 선택하면 없음만 제거한다`() = runTest(testDispatcher) {
+        val viewModel = testViewModel()
+        advanceUntilIdle()
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
+        viewModel.toggleRoadExperience(RoadExperience.NONE)
+
+        viewModel.toggleRoadExperience(RoadExperience.WITH_COMPANION)
+
+        assertEquals(listOf(RoadExperience.WITH_COMPANION), viewModel.roadExperiences)
+    }
+
+    @Test
+    fun `없음과 혼자 연습이 함께 저장된 프로필은 없음을 제거하고 복원한다`() = runTest(testDispatcher) {
+        val viewModel = testViewModel(savedProfile = OnboardingProfile(
+            roadExperiences = listOf(RoadExperience.NONE, RoadExperience.SOLO),
+            soloDrivingRange = SoloDrivingRange.FAMILIAR_ROAD,
+            soloParkingLevel = SoloParkingLevel.FAMILIAR_SPOT,
+        ))
+
+        advanceUntilIdle()
+
+        assertEquals(listOf(RoadExperience.SOLO), viewModel.roadExperiences)
+        assertEquals(SoloDrivingRange.FAMILIAR_ROAD, viewModel.soloDrivingRange)
+    }
+
+    @Test
+    fun `서버 폼의 선택 문항은 비워도 경력 단계에서 다음으로 간다`() = runTest(testDispatcher) {
+        val form = remoteForm()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } returns Result.success(form) }
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm)
+        advanceUntilIdle()
+        viewModel.next()
+        viewModel.next()
+        viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
+
+        assertTrue(viewModel.isCareerStepValid)
+        viewModel.continueAfterCareer()
+
+        assertEquals(EntryStep.PREFERENCE, viewModel.step)
+        assertTrue(viewModel.uiState.value.isPreferenceNextEnabled)
+        viewModel.back()
+        assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
+        assertEquals(EntryStep.CAREER, viewModel.step)
+    }
+
+    @Test
+    fun `서버 폼을 불러오지 못하면 제출을 막고 재조회 후 복구한다`() = runTest(testDispatcher) {
+        val getForm = mockk<GetOnboardingFormUseCase>()
+        coEvery { getForm() } returnsMany listOf(Result.failure(IllegalStateException("offline")), Result.success(remoteForm()))
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm, saveOnboardingProfileUseCase = save,
+            savedProfile = OnboardingProfile(drivingPeriod = DrivingPeriod.MONTHS_1_2))
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.hasOnboardingFormError)
+        assertFalse(viewModel.isCareerStepValid)
+        viewModel.startOnboardingAnalysis()
+        runCurrent()
+        coVerify(exactly = 0) { save.submit(any(), any()) }
+
+        viewModel.retryOnboardingForm()
+        viewModel.retryOnboardingForm()
+        advanceUntilIdle()
+
+        coVerify(exactly = 2) { getForm() }
+        assertFalse(viewModel.uiState.value.hasOnboardingFormError)
+        assertTrue(viewModel.uiState.value.isServerFormLoaded)
+        assertTrue(viewModel.isCareerStepValid)
+        assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
+    }
+
+    @Test
+    fun `둘러보기에서는 보호된 온보딩 폼을 조회하지 않는다`() = runTest(testDispatcher) {
+        val getForm = mockk<GetOnboardingFormUseCase>()
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm, mode = EntryMode.GUEST_BROWSE)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isServerFormLoaded)
+        coVerify(exactly = 0) { getForm() }
+    }
+
+    @Test
+    fun `서버가 선택 개수를 줄이면 복원과 새 선택 모두 최대 개수를 지킨다`() = runTest(testDispatcher) {
+        val original = remoteForm()
+        val step = original.steps.last().copy(questions = original.steps.last().questions.map {
+            if (it.code == "practiceTypes") it.copy(maxSelect = 2) else it
+        })
+        val form = original.copy(steps = listOf(original.steps.first(), step))
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } returns Result.success(form) }
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm, savedProfile = OnboardingProfile(
+            practiceSituations = listOf(PracticeSituation.TURN, PracticeSituation.PARKING, PracticeSituation.U_TURN)))
+        advanceUntilIdle()
+        assertEquals(listOf(PracticeSituation.TURN, PracticeSituation.PARKING), viewModel.practiceSituations)
+
+        viewModel.togglePracticeSituation(PracticeSituation.LANE_CHANGE)
+        assertEquals(listOf(PracticeSituation.TURN, PracticeSituation.PARKING), viewModel.practiceSituations)
+        viewModel.togglePracticeSituation(PracticeSituation.TURN)
+        viewModel.togglePracticeSituation(PracticeSituation.LANE_CHANGE)
+        assertEquals(listOf(PracticeSituation.PARKING, PracticeSituation.LANE_CHANGE), viewModel.practiceSituations)
+    }
+
+    @Test
+    fun `서버가 건너뛰기를 막으면 선호 입력을 지우거나 제출하지 않는다`() = runTest(testDispatcher) {
+        val original = remoteForm()
+        val form = original.copy(steps = listOf(original.steps.first(), original.steps.last().copy(skippable = false)))
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } returns Result.success(form) }
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm, saveOnboardingProfileUseCase = save,
+            savedProfile = OnboardingProfile(drivingPeriod = DrivingPeriod.MONTHS_1_2, practiceSituations = listOf(PracticeSituation.PARKING)))
+        advanceUntilIdle()
+
+        viewModel.skipPreference()
+        advanceUntilIdle()
+
+        assertEquals(listOf(PracticeSituation.PARKING), viewModel.practiceSituations)
+        coVerify(exactly = 0) { save.submit(any(), any()) }
+    }
+
+    @Test
+    fun `서버의 목표 글자 제한은 이모지를 쪼개지 않고 적용한다`() = runTest(testDispatcher) {
+        val original = remoteForm()
+        val last = original.steps.last().copy(questions = original.steps.last().questions.map {
+            if (it.code == "drivingGoal") it.copy(maxLength = 2) else it
+        })
+        val getForm = mockk<GetOnboardingFormUseCase> {
+            coEvery { this@mockk() } returns Result.success(original.copy(steps = listOf(original.steps.first(), last)))
+        }
+        val viewModel = testViewModel(getOnboardingFormUseCase = getForm)
+        advanceUntilIdle()
+
+        viewModel.updateGoal("😁😁😁")
+
+        assertEquals("😁😁", viewModel.goal)
+    }
+
+    @Test
+    fun `서버 폼 응답을 기다려도 저장된 약관 화면 복원은 완료한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            savedProgress = EntryProgress(
+                serviceTermsChecked = true,
+                privacyTermsChecked = true,
+                locationTermsChecked = false,
+            ),
+        )
+        try {
+            runCurrent()
+
+            assertTrue(viewModel.isRestored)
+            assertEquals(EntryStep.TERMS, viewModel.step)
+            assertTrue(viewModel.serviceTermsChecked)
+            assertTrue(viewModel.privacyTermsChecked)
+            assertFalse(viewModel.locationTermsChecked)
+            assertTrue(viewModel.uiState.value.isOnboardingFormLoading)
+            assertFalse(viewModel.uiState.value.isServerFormLoaded)
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+        assertTrue(viewModel.uiState.value.isServerFormLoaded)
+        assertFalse(viewModel.uiState.value.isOnboardingFormLoading)
+        assertTrue(viewModel.serviceTermsChecked)
+        assertTrue(viewModel.privacyTermsChecked)
+        assertFalse(viewModel.locationTermsChecked)
+    }
+
+    @Test
+    fun `서버 폼 응답을 기다려도 복원된 닉네임 단계의 닉네임을 생성한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            saveOnboardingProfileUseCase = save,
+            savedProgress = EntryProgress(step = EntryProgressStep.NICKNAME),
+        )
+        try {
+            runCurrent()
+
+            assertTrue(viewModel.nickname.isNotBlank())
+            assertTrue(viewModel.isRestored)
+            assertEquals(EntryStep.NICKNAME, viewModel.step)
+            assertTrue(viewModel.uiState.value.isOnboardingFormLoading)
+            coVerify { save(match { it.nickname.isNotBlank() }) }
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+    }
+
+    @Test
+    fun `복원된 경력 화면은 서버 폼 응답 전까지 모든 노출 상태에서 로딩을 유지한다`() = runTest(testDispatcher) {
+        val formResponse = CompletableDeferred<Result<OnboardingForm?>>()
+        val getForm = mockk<GetOnboardingFormUseCase> { coEvery { this@mockk() } coAnswers { formResponse.await() } }
+        val save = testSaveOnboardingProfileUseCase()
+        val viewModel = testViewModel(
+            getOnboardingFormUseCase = getForm,
+            saveOnboardingProfileUseCase = save,
+            savedProgress = EntryProgress(step = EntryProgressStep.CAREER),
+            savedProfile = OnboardingProfile(drivingPeriod = DrivingPeriod.MONTHS_1_2),
+        )
+        val observed = mutableListOf<EntryUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(observed) }
+        try {
+            runCurrent()
+
+            assertTrue(observed.any { it.isRestored && it.step == EntryStep.CAREER })
+            assertFalse(observed.any { it.isRestored && !it.isOnboardingFormLoading })
+            assertEquals(DrivingPeriod.MONTHS_1_2, viewModel.drivingPeriod)
+            assertFalse(viewModel.isCareerStepValid)
+            coVerify(exactly = 0) { save.submit(any(), any()) }
+        } finally {
+            formResponse.complete(Result.success(remoteForm()))
+            advanceUntilIdle()
+        }
+        assertTrue(viewModel.uiState.value.isServerFormLoaded)
+        assertFalse(viewModel.uiState.value.isOnboardingFormLoading)
+        assertTrue(viewModel.isCareerStepValid)
+    }
+
+    private fun remoteForm(): OnboardingForm = localOnboardingForm().let { form ->
+        form.copy(steps = form.steps.map { step ->
+            step.copy(questions = step.questions.map { question -> question.copy(required = question.code == "drivingPeriod", showWhen = question.showWhen.takeIf {
+                question.code == "soloDrivingRange" || question.code == "soloParkingLevel"
+            }) })
+        })
+    }
+
+    private fun prepareSubmission(viewModel: EntryViewModel) {
+        if (viewModel.drivingPeriod == null) {
+            viewModel.selectDrivingPeriod(DrivingPeriod.MONTHS_1_2)
+            viewModel.selectRecentFrequency(RecentDrivingFrequency.RARELY)
+            viewModel.toggleRoadExperience(RoadExperience.NONE)
+        }
+    }
+
     private fun testViewModel(
         setEntryCompletedUseCase: SetEntryCompletedUseCase = testSetEntryCompletedUseCase(),
         saveOnboardingProfileUseCase: SaveOnboardingProfileUseCase = testSaveOnboardingProfileUseCase(),
@@ -758,6 +1029,7 @@ class EntryViewModelTest {
         saveEntryProgressUseCase: SaveEntryProgressUseCase = testSaveEntryProgressUseCase(),
         getOnboardingProfileUseCase: GetOnboardingProfileUseCase = testGetOnboardingProfileUseCase(),
         applyInitialFilterTagsUseCase: ApplyInitialFilterTagsUseCase = testApplyInitialFilterTagsUseCase(),
+        getOnboardingFormUseCase: GetOnboardingFormUseCase = mockk { coEvery { this@mockk() } returns Result.success(null) },
         savedProgress: EntryProgress = EntryProgress(),
         savedProfile: OnboardingProfile = OnboardingProfile(),
         mode: EntryMode = EntryMode.AUTHENTICATED,
@@ -777,6 +1049,7 @@ class EntryViewModelTest {
             saveEntryProgressUseCase = saveEntryProgressUseCase,
             getOnboardingProfileUseCase = getOnboardingProfileUseCase,
             applyInitialFilterTagsUseCase = applyInitialFilterTagsUseCase,
+            getOnboardingFormUseCase = getOnboardingFormUseCase,
         )
     }
 

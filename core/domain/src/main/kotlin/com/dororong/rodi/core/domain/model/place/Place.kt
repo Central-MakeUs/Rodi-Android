@@ -58,6 +58,7 @@ data class PlaceViewportQuery(
     val southWest: GeoPoint,
     val northEast: GeoPoint,
     val origin: GeoPoint,
+    val practiceTypes: Set<PracticeType> = emptySet(),
 )
 
 data class PlaceDetail(

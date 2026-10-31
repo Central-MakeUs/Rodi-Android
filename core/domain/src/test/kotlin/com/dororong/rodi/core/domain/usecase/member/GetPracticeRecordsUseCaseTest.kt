@@ -58,6 +58,17 @@ class GetPracticeRecordsUseCaseTest {
         coVerify(exactly = 0) { repository.getPracticeRecords("cursor-5", 1) }
     }
 
+    @Test
+    fun `삭제된 코스의 방문 기록도 이력에 남긴다`() = kotlinx.coroutines.test.runTest {
+        val deleted = record(1L, PracticeStatus.VISITED).copy(isDeleted = true)
+        coEvery { repository.getPracticeRecords(null, 20) } returns CursorPage(listOf(deleted), false, null, 1)
+
+        val result = useCase().getOrThrow()
+
+        assertEquals(listOf(deleted), result.items)
+        assertEquals(1L, result.totalCount)
+    }
+
     private fun record(id: Long, status: PracticeStatus) = PracticeRecordItem(
         practiceId = id,
         placeId = id,

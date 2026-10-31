@@ -8,7 +8,7 @@ import android.graphics.Path
 import android.graphics.Typeface
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
-import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PlaceBounds
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.feature.home.R
@@ -20,20 +20,14 @@ import com.kakao.vectormap.label.LabelStyle
 import com.kakao.vectormap.label.LabelStyles
 
 sealed interface BrowseLabelTag {
-    data class Cluster(
-        val point: GeoPoint,
-        val targetZoom: Int,
-        val memberIds: Set<Long>,
-        val memberPoints: List<GeoPoint>,
-    ) : BrowseLabelTag
+    data class Cluster(val bounds: PlaceBounds) : BrowseLabelTag
 
     data class Place(val id: Long) : BrowseLabelTag
 }
 
 internal fun KakaoMap.renderClusters(
     context: Context,
-    clusters: List<MapCluster>,
-    placesById: Map<Long, PlaceCoordinate>,
+    markers: List<BrowseMapMarker>,
     style: MapBitmapStyle,
 ) {
     clearBrowseLabels()
@@ -41,29 +35,24 @@ internal fun KakaoMap.renderClusters(
     val layer = browseLabelLayer() ?: return
     val parkingStyles by lazy { manager.parkingMarkerStyles(context, R.drawable.ic_pin_parking_default) }
 
-    clusters.forEach { cluster ->
-        if (cluster.isClusterMarker) {
+    markers.forEach { marker ->
+        if (marker is BrowseMapMarker.Cluster) {
             val bitmap = createClusterTooltipBitmap(
-                count = cluster.count,
+                count = marker.count,
                 density = context.resources.displayMetrics.density,
                 style = style,
             )
             val styles = manager.addLabelStyles(LabelStyles.from(LabelStyle.from(bitmap)))
             layer.addLabel(
-                LabelOptions.from(LatLng.from(cluster.representativePoint.lat, cluster.representativePoint.lng))
+                LabelOptions.from(LatLng.from(marker.point.lat, marker.point.lng))
                     .setStyles(styles)
                     .setClickable(true)
                     .setTag(
-                        BrowseLabelTag.Cluster(
-                            point = cluster.representativePoint,
-                            targetZoom = cluster.targetZoom,
-                            memberIds = cluster.memberIds.toSet(),
-                            memberPoints = cluster.memberIds.mapNotNull(placesById::get).map { it.point },
-                        ),
+                        BrowseLabelTag.Cluster(marker.bounds),
                     ),
             )
         } else {
-            val place = placesById[cluster.memberIds.single()] ?: return@forEach
+            val place = (marker as BrowseMapMarker.Place).place
             val styles = if (place.type == PlaceType.PARKING) {
                 parkingStyles
             } else {
@@ -135,26 +124,6 @@ fun KakaoMap.renderSelectedParkingMarker(context: Context, parking: PlaceCoordin
                 manager.parkingMarkerStyles(context, R.drawable.ic_pin_parking_selected),
             )
             .setTag(BrowseLabelTag.Place(parking.id)),
-    )
-}
-
-internal fun KakaoMap.renderIndividualMarkers(
-    context: Context,
-    places: List<PlaceCoordinate>,
-    style: MapBitmapStyle,
-) {
-    val clusters = places.map { place ->
-        MapCluster(
-            memberIds = listOf(place.id),
-            representativePoint = place.point,
-            targetZoom = 14,
-        )
-    }
-    renderClusters(
-        context = context,
-        clusters = clusters,
-        placesById = places.associateBy(PlaceCoordinate::id),
-        style = style,
     )
 }
 
