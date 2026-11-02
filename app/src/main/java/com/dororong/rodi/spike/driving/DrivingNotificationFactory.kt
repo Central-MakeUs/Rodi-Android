@@ -46,6 +46,9 @@ internal object DrivingNotificationStylePolicy {
 
 internal object DrivingNotificationFactory {
     const val NOTIFICATION_ID = 4_210
+
+    /** 진행 알림 제거가 늦어질 때 완료 알림을 지워지지 않게 올리는 ID. 테스트 메뉴 미리보기(+1)와 겹치지 않는다. */
+    const val ARRIVAL_FALLBACK_NOTIFICATION_ID = NOTIFICATION_ID + 2
     const val ONGOING_CHANNEL_ID = "driving_tracking"
     private const val ARRIVAL_CHANNEL_ID = "driving_arrival"
     private const val PROGRESS_MAX = 100
