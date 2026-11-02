@@ -6,7 +6,16 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import android.os.Build
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
@@ -192,8 +201,41 @@ internal object DrivingNotificationFactory {
         }
     }
 
-    private fun brandIcon(context: Context) =
-        BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+    /**
+     * 큰 아이콘용으로 로고 영역만 잘라 원형으로 그린다. 삼성 잠금화면 알약이 그리는 아이콘은 이 비트맵이
+     * 아니라 매니페스트의 앱 아이콘이므로, 알약 모양은 여기서 바꿀 수 없다.
+     */
+    private fun brandIcon(context: Context): Bitmap {
+        val source = BitmapFactory.decodeResource(context.resources, R.drawable.ic_rodi_brand)
+        val pixels = IntArray(source.width * source.height)
+        source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+        val contentBounds = Rect()
+        pixels.forEachIndexed { index, pixel ->
+            if (Color.alpha(pixel) == 255) {
+                val x = index % source.width
+                val y = index / source.width
+                contentBounds.union(x, y, x + 1, y + 1)
+            }
+        }
+        val bounds = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
+        val shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+            setLocalMatrix(Matrix().apply {
+                setRectToRect(RectF(contentBounds), bounds, Matrix.ScaleToFit.FILL)
+            })
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            this.shader = shader
+        }
+        val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        result.density = source.density
+        Canvas(result).drawCircle(
+            bounds.centerX(),
+            bounds.centerY(),
+            minOf(bounds.width(), bounds.height()) / 2f,
+            paint,
+        )
+        return result
+    }
 
     private fun progressTrackerIcon(context: Context): IconCompat =
         IconCompat.createWithResource(context, R.drawable.ic_driving_progress_tracker)
