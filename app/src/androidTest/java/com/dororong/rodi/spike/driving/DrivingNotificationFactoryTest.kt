@@ -73,16 +73,19 @@ class DrivingNotificationFactoryTest {
             assertTrue(ContextCompat.getDrawable(context, resource) is BitmapDrawable)
         }
         val smallIcon = requireNotNull(ContextCompat.getDrawable(context, R.drawable.ic_notification)).toBitmap()
+        var visiblePixelCount = 0
         for (y in 0 until smallIcon.height) {
             for (x in 0 until smallIcon.width) {
                 val pixel = smallIcon.getPixel(x, y)
                 if (Color.alpha(pixel) > 0) {
+                    visiblePixelCount++
                     assertEquals(255, Color.red(pixel))
                     assertEquals(255, Color.green(pixel))
                     assertEquals(255, Color.blue(pixel))
                 }
             }
         }
+        assertTrue(visiblePixelCount > 0)
     }
 
     @Test
@@ -123,6 +126,10 @@ class DrivingNotificationFactoryTest {
                         notification.extras.getInt(Notification.EXTRA_PROGRESS),
                         notification.publicVersion.extras.getInt(Notification.EXTRA_PROGRESS),
                     )
+                }
+                // 진행 스타일 경로는 EXTRA_PROGRESS를 채우지 않으므로 기본 setProgress 경로에서만 값을 본다.
+                if (!liveUpdates && distance == 2_750.0) {
+                    assertEquals(55, notification.extras.getInt(Notification.EXTRA_PROGRESS))
                 }
             }
         }
