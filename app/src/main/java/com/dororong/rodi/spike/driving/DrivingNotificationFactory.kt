@@ -112,7 +112,7 @@ internal object DrivingNotificationFactory {
             .setShowWhen(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(
-                R.drawable.ic_launcher_foreground,
+                R.drawable.ic_notification,
                 "운전 종료",
                 stopServiceIntent(context, session.id),
             )
@@ -162,7 +162,7 @@ internal object DrivingNotificationFactory {
             .setWhen(session.arrivedAtEpochMillis ?: System.currentTimeMillis())
             .setShowWhen(true)
             .addAction(
-                R.drawable.ic_launcher_foreground,
+                R.drawable.ic_notification,
                 "기록하러 가기",
                 openAppIntent(context),
             )
