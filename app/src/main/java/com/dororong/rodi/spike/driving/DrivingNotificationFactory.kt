@@ -113,6 +113,7 @@ internal object DrivingNotificationFactory {
             .setColor(progressColor)
             .setContentIntent(openAppIntent(context))
             .setOngoing(true)
+            .setAutoCancel(false)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
@@ -147,7 +148,7 @@ internal object DrivingNotificationFactory {
                 builder.setProgress(PROGRESS_MAX, progress ?: 0, false)
             }
         }
-        return builder.build()
+        return builder.buildWithPublicContent()
     }
 
     fun arrival(
@@ -167,6 +168,7 @@ internal object DrivingNotificationFactory {
             .setAutoCancel(true)
             .setOngoing(false)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(false)
             .setWhen(session.arrivedAtEpochMillis ?: System.currentTimeMillis())
             .setShowWhen(true)
@@ -175,7 +177,13 @@ internal object DrivingNotificationFactory {
                 "기록하러 가기",
                 openAppIntent(context),
             )
-            .build()
+            .buildWithPublicContent()
+    }
+
+    /** 잠금화면의 공개 대체 알림에도 같은 PNG 로고와 현재 상태를 전달한다. */
+    private fun NotificationCompat.Builder.buildWithPublicContent(): Notification {
+        val publicContent = build()
+        return setPublicVersion(publicContent).build()
     }
 
     private fun progressSegments(progress: Int): List<NotificationCompat.ProgressStyle.Segment> {
