@@ -374,7 +374,7 @@ internal class DrivingTrackingService : Service() {
         )
         if (activeSession?.id != session.id) return
         activeSession = null
-        stopForeground(STOP_FOREGROUND_DETACH)
+        stopForeground(STOP_FOREGROUND_REMOVE)
         notificationManager.notify(
             DrivingNotificationFactory.NOTIFICATION_ID,
             DrivingNotificationFactory.arrival(this, arrivedSession),
