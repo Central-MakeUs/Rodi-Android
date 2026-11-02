@@ -59,6 +59,8 @@ private const val NOTIFICATION_UPDATE_DISTANCE_METERS = 20.0
 private const val SETTINGS_READ_TIMEOUT_MILLIS = 500L
 private const val NOTIFICATION_UPDATE_INTERVAL_MILLIS = 15_000L
 private const val PRACTICE_OBSERVE_RETRY_DELAY_MILLIS = 1_000L
+private const val NOTIFICATION_REMOVAL_TIMEOUT_MILLIS = 1_000L
+private const val NOTIFICATION_REMOVAL_POLL_MILLIS = 20L
 
 // 목적지 반경 도달을 완료 조건으로 같이 쓰되, 출발-도착이 가까운 순환/왕복 코스에서
 // 출발하자마자 "도착"으로 잡히는 걸 막기 위한 안전장치. 코스 길이 자체가 짧으면 반경
@@ -375,12 +377,25 @@ internal class DrivingTrackingService : Service() {
         if (activeSession?.id != session.id) return
         activeSession = null
         stopForeground(STOP_FOREGROUND_REMOVE)
+        awaitNotificationRemoved(DrivingNotificationFactory.NOTIFICATION_ID)
         notificationManager.notify(
             DrivingNotificationFactory.NOTIFICATION_ID,
             DrivingNotificationFactory.arrival(this, arrivedSession),
         )
         cancelTracking(session.id)
         stopSelf(lastStartId)
+    }
+
+    /**
+     * 포그라운드 알림 제거는 시스템 서버에서 비동기로 처리된다. 끝나기 전에 같은 ID로 완료 알림을 게시하면
+     * 늦게 실행된 제거가 새 알림까지 지울 수 있어, 제거가 반영될 때까지 기다린 뒤 게시한다.
+     */
+    private suspend fun awaitNotificationRemoved(notificationId: Int) {
+        withTimeoutOrNull(NOTIFICATION_REMOVAL_TIMEOUT_MILLIS) {
+            while (notificationManager.activeNotifications.any { it.id == notificationId }) {
+                delay(NOTIFICATION_REMOVAL_POLL_MILLIS)
+            }
+        }
     }
 
     private suspend fun confirmPracticeArrival(placeId: Long) {
