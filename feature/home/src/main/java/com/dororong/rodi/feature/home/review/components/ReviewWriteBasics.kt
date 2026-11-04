@@ -73,7 +73,7 @@ internal fun CourseIssuesBlock(
     detail: String,
     onToggle: (String) -> Unit,
     onDetail: (String) -> Unit,
-    showRequiredMarker: Boolean = true,
+    useHeadingStyle: Boolean = false,
     selectionRole: Role = Role.Checkbox,
     optionTextStyle: TextStyle? = null,
 ) {
@@ -82,10 +82,10 @@ internal fun CourseIssuesBlock(
         ImageLoader.Builder(context).components { add(SvgDecoder.Factory()) }.build()
     }
     Column {
-        if (showRequiredMarker) {
-            RodiFieldLabel(form.title, required = true)
-        } else {
+        if (useHeadingStyle) {
             Text(form.title, style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
+        } else {
+            RodiFieldLabel(form.title, required = true, showRequirement = false)
         }
         Spacer(Modifier.height(16.dp))
         Column {
@@ -147,7 +147,7 @@ private fun <T> ReviewScale(
     onSelect: (T) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel(label, required = true)
+        RodiFieldLabel(label, required = true, showRequirement = false)
         ScalePicker(values, selected, display, onSelect)
     }
 }
@@ -159,7 +159,7 @@ private fun ReviewChoiceBlock(
     hasIssueForm: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true)
+        RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true, showRequirement = false)
         ChoicePairRow(if (hasIssueForm) "별로에요" else "별로예요", "추천해요", selected, onSelect)
     }
 }
@@ -170,7 +170,7 @@ private fun CautionBlock(
     onCaution: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("주의사항", required = false)
+        RodiFieldLabel("주의사항", required = false, showRequirement = false)
         ReviewTextField(
             value = caution,
             onValueChange = onCaution,

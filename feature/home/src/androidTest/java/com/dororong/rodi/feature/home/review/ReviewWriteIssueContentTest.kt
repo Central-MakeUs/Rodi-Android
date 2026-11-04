@@ -51,8 +51,9 @@ class ReviewWriteIssueContentTest {
             }
         }
         rule.onNodeWithText("난이도", substring = true).assertDoesNotExist()
+        rule.onNodeWithText("이 코스를 다른 초보 운전자에게 추천하시겠어요?").assertIsDisplayed()
         rule.onNodeWithText("별로에요").performClick()
-        rule.onNodeWithText("해당 코스에 어떤 문제가 있나요?", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("해당 코스에 어떤 문제가 있나요?").assertIsDisplayed()
         rule.onNodeWithText("다음").assertIsNotEnabled()
         rule.runOnIdle { state.value = state.value.copy(courseIssues = listOf("OTHER")) }
         rule.onNodeWithText("이유를 작성해주세요.").assertIsDisplayed()
@@ -63,11 +64,15 @@ class ReviewWriteIssueContentTest {
         rule.onNodeWithText("기타").performClick()
         rule.onNode(hasSetTextAction()).performTextReplacement("공사 중")
         rule.onNodeWithText("다음").assertIsEnabled().performClick()
-        rule.onNodeWithText("연습 방법", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("연습 방법").assertIsDisplayed()
+        rule.onNodeWithText("후기 작성").assertIsDisplayed()
+        rule.onNodeWithText("완료").assertIsNotEnabled()
         rule.onNodeWithContentDescription("이전 단계").performClick()
         rule.onNodeWithText("공사 중").assertIsDisplayed()
         rule.onNodeWithText("추천해요").performClick()
-        rule.onNodeWithText("난이도", substring = true).assertIsDisplayed()
+        rule.onNodeWithText("난이도").assertIsDisplayed()
+        rule.onNodeWithText("혼잡도").assertIsDisplayed()
+        rule.onNodeWithText("주의사항").assertIsDisplayed()
         rule.onNodeWithText("별로에요").performClick()
         rule.onNodeWithText("공사 중").assertIsDisplayed()
     }

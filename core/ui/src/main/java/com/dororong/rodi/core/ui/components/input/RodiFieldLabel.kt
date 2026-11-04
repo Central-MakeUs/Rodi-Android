@@ -19,15 +19,16 @@ fun RodiFieldLabel(
     required: Boolean,
     modifier: Modifier = Modifier,
     assistiveText: String? = null,
+    showRequirement: Boolean = true,
 ) {
     Text(
         text = buildAnnotatedString {
             append(text)
-            if (required) {
+            if (showRequirement && required) {
                 withStyle(RodiTheme.typography.body1SemiBold.toSpanStyle().copy(color = RodiTheme.colors.primary600)) {
                     append("\u00A0*")
                 }
-            } else {
+            } else if (showRequirement) {
                 withStyle(RodiTheme.typography.body3Medium.toSpanStyle().copy(color = RodiTheme.colors.gray600)) {
                     append("\u00A0(선\u2060택)")
                 }
