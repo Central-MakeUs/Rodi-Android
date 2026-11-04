@@ -12,6 +12,7 @@ import com.dororong.rodi.core.domain.model.place.CursorPage
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import java.time.LocalDateTime
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +38,30 @@ class MyPageViewModelTest {
 
     @BeforeEach fun setUp() = Dispatchers.setMain(dispatcher)
     @AfterEach fun tearDown() = Dispatchers.resetMain()
+
+    @Test
+    fun `변경 제한 중에는 수정 진입 대신 서버의 변경 가능 날짜를 안내한다`() = runTest(dispatcher) {
+        val getMyPage = mockk<GetMyPageUseCase>()
+        val getPracticeRecords = mockk<GetPracticeRecordsUseCase>()
+        val changeableAt = LocalDateTime.of(2026, 11, 21, 15, 0)
+        val page = MyPage("서버 닉네임", OnboardingLevel.ROOKIE, emptyList(), null, 0)
+        coEvery { getPracticeRecords(any(), any()) } returns Result.success(CursorPage(emptyList(), false, null, 0))
+        coEvery { getMyPage() } returnsMany listOf(
+            Result.success(page.copy(nicknameChangeableAt = changeableAt)),
+            Result.success(page),
+        )
+        val viewModel = MyPageViewModel(getMyPage, getPracticeRecords, mockk<HardDeleteAccountUseCase>())
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        viewModel.onNicknameClick()
+        assertEquals(MyPageEffect.NicknameChangeRestricted(changeableAt.toLocalDate()), viewModel.effect.first())
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        viewModel.onNicknameClick()
+        assertEquals(MyPageEffect.OpenNicknameEditor, viewModel.effect.first())
+    }
 
     @Test
     fun `서버의 진행률로 프로필 게이지를 채운다`() = runTest(dispatcher) {

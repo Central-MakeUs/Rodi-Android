@@ -1,6 +1,7 @@
 package com.dororong.rodi.feature.mypage
 
 import com.dororong.rodi.feature.mypage.practicerecords.PracticeRecord
+import java.time.LocalDate
 
 data class MyPageUiState(
     val profile: MyPageProfile = MyPageProfile(),
@@ -13,4 +14,6 @@ data class MyPageUiState(
 
 sealed interface MyPageEffect {
     data class ShowError(val message: String) : MyPageEffect
+    data object OpenNicknameEditor : MyPageEffect
+    data class NicknameChangeRestricted(val changeableOn: LocalDate) : MyPageEffect
 }

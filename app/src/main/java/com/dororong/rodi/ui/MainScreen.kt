@@ -251,7 +251,9 @@ fun MainScreen(
                         MyPageScreen(
                             onSettingsClick = { backStack.add(SettingsRoute) },
                             onGoalClick = { backStack.add(DrivingGoalRoute) },
-                            onNicknameClick = { backStack.add(NicknameRoute) },
+                            onNicknameClick = {
+                                if (backStack.lastOrNull() == MyPageRoute) backStack.add(NicknameRoute)
+                            },
                             onSavedCoursesClick = { backStack.add(SavedCoursesRoute) },
                             onPracticeRecordsClick = { backStack.add(PracticeRecordsRoute) },
                             onMyPostsClick = { backStack.add(MyPostsRoute) },

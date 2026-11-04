@@ -71,6 +71,19 @@ class MyPageViewModel @Inject constructor(
         }
     }
 
+    fun onNicknameClick() {
+        val state = _uiState.value
+        if (state.isLoading || state.profile.nickname.isBlank()) return
+
+        val changeableAt = state.profile.nicknameChangeableAt
+        val effect = if (changeableAt == null) {
+            MyPageEffect.OpenNicknameEditor
+        } else {
+            MyPageEffect.NicknameChangeRestricted(changeableAt.toLocalDate())
+        }
+        _effect.trySend(effect)
+    }
+
     fun hardDelete() {
         if (_uiState.value.isHardDeleteSubmitting) return
         _uiState.update { it.copy(isHardDeleteSubmitting = true) }
@@ -97,4 +110,5 @@ private fun MyPage.toUiProfile() = MyPageProfile(
     savedPlaceCount = savedPlaceCount,
     progress = (levelProgress.progressPercent / 100f).coerceIn(0f, 1f),
     distanceLabel = "${levelProgress.totalDistanceKm.roundToInt()}km",
+    nicknameChangeableAt = nicknameChangeableAt,
 )
