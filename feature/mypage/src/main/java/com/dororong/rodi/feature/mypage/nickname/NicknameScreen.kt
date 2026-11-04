@@ -49,6 +49,7 @@ import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.components.error.RodiRetryError
 import com.dororong.rodi.core.ui.components.input.rememberGraphemeTextFieldState
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
@@ -83,6 +84,7 @@ fun NicknameScreen(
                     NicknameEffect.SaveFailed -> "닉네임을 저장하지 못했어요. 잠시 후 다시 시도해주세요."
                 },
                 icon = errorIcon,
+                duration = RodiSnackbarDuration.Medium,
             ),
         )
     }
