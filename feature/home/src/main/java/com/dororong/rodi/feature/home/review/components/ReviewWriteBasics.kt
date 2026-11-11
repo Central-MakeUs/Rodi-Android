@@ -74,7 +74,6 @@ internal fun CourseIssuesBlock(
     onToggle: (String) -> Unit,
     onDetail: (String) -> Unit,
     useHeadingStyle: Boolean = false,
-    selectionRole: Role = Role.Checkbox,
     optionTextStyle: TextStyle? = null,
 ) {
     val context = LocalContext.current
@@ -95,7 +94,7 @@ internal fun CourseIssuesBlock(
                     Row(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp).toggleable(
                             value = isSelected,
-                            role = selectionRole,
+                            role = Role.Checkbox,
                             onValueChange = { onToggle(option.code) },
                         ),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
