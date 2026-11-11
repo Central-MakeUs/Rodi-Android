@@ -168,13 +168,6 @@ private fun ReviewChoiceBlock(
             onSelect = onSelect,
             startEnabled = !isRecommendOnly,
         )
-        if (isRecommendOnly) {
-            Text(
-                text = "주차장 후기는 '추천해요'로만 수정할 수 있어요.",
-                style = RodiTheme.typography.body3Medium,
-                color = RodiTheme.colors.gray600,
-            )
-        }
     }
 }
 

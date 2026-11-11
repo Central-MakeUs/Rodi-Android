@@ -156,10 +156,12 @@ private fun ApiEnvelope<*>.toReviewException(operation: ReviewOperation): Review
 private fun Throwable.toReviewException(operation: ReviewOperation): ReviewException = when (this) {
     is ReviewException -> this
     is HttpException -> when (code()) {
-        400 -> if (errorCode() == CODE_PLACE_NOT_REVIEWABLE) {
-            ReviewException.PlaceNotReviewable(PLACE_NOT_REVIEWABLE_MESSAGE, this)
-        } else {
-            ReviewException.InvalidRequest(message(), this)
+        400 -> errorEnvelope().let { (code, serverMessage) ->
+            if (code == CODE_PLACE_NOT_REVIEWABLE) {
+                ReviewException.PlaceNotReviewable(serverMessage ?: message(), this)
+            } else {
+                ReviewException.InvalidRequest(message(), this)
+            }
         }
         401 -> ReviewException.AuthenticationRequired(message(), this)
         403 -> ReviewException.Forbidden(message(), this)
@@ -175,11 +177,9 @@ private fun Throwable.toReviewException(operation: ReviewOperation): ReviewExcep
     else -> ReviewException.Unexpected("후기 요청에 실패했습니다.", this)
 }
 
-private fun HttpException.errorCode(): String? = runCatching {
-    response()?.errorBody()?.string()?.let { body ->
-        Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.contentOrNull
-    }
-}.getOrNull()
+private fun HttpException.errorEnvelope(): Pair<String?, String?> = runCatching {
+    val body = Json.parseToJsonElement(response()?.errorBody()?.string().orEmpty()).jsonObject
+    body["code"]?.jsonPrimitive?.contentOrNull to body["message"]?.jsonPrimitive?.contentOrNull
+}.getOrDefault(null to null)
 
 private const val CODE_PLACE_NOT_REVIEWABLE = "REVIEW_400_2"
-private const val PLACE_NOT_REVIEWABLE_MESSAGE = "주차장에는 후기를 남길 수 없어요."

@@ -52,7 +52,8 @@ class ReviewRepositoryImplTest {
             400,
             """{"isSuccess":false,"code":"REVIEW_400_2","message":"주차장에는 후기를 작성할 수 없습니다.","data":null}""",
         )
-        assertThrowsSuspend<ReviewException.PlaceNotReviewable> { repository(api).getReviewIssueForm(7) }
+        val error = assertThrowsSuspend<ReviewException.PlaceNotReviewable> { repository(api).getReviewIssueForm(7) }
+        assertEquals("주차장에는 후기를 작성할 수 없습니다.", error.userMessage)
     }
 
     @Test
