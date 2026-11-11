@@ -45,8 +45,28 @@ class ReviewRepositoryImplTest {
         assertThrowsSuspend<ReviewException.Unexpected> { repository(api).getReviewIssueForm(7) }
     }
 
-    private fun httpException(code: Int) = HttpException(
-        Response.error<Any>(code, "{}".toResponseBody("application/json".toMediaType())),
+    @Test
+    fun `주차장 후기 폼 거절은 후기를 받지 않는 장소로 알린다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(
+            400,
+            """{"isSuccess":false,"code":"REVIEW_400_2","message":"주차장에는 후기를 작성할 수 없습니다.","data":null}""",
+        )
+        assertThrowsSuspend<ReviewException.PlaceNotReviewable> { repository(api).getReviewIssueForm(7) }
+    }
+
+    @Test
+    fun `다른 400 오류는 잘못된 요청으로 유지한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(
+            400,
+            """{"isSuccess":false,"code":"COMMON_400","message":"잘못된 요청","data":null}""",
+        )
+        assertThrowsSuspend<ReviewException.InvalidRequest> { repository(api).getReviewIssueForm(7) }
+    }
+
+    private fun httpException(code: Int, body: String = "{}") = HttpException(
+        Response.error<Any>(code, body.toResponseBody("application/json".toMediaType())),
     )
 
     @Test

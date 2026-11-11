@@ -87,7 +87,9 @@ class ReviewWriteViewModel @Inject constructor(
         )
         initializationJob = viewModelScope.launch {
             val formResult = getReviewIssueForm(placeId)
-            if (formResult.isFailure) {
+            // 주차장 후기는 서버가 폼을 거절하지만 '추천해요'로의 수정은 받는다.
+            val isRecommendOnly = formResult.exceptionOrNull() is ReviewException.PlaceNotReviewable
+            if (formResult.isFailure && !isRecommendOnly) {
                 restorableDraft = restored
                 _uiState.update {
                     it.copy(isInitializing = false, initializationErrorMessage = formResult.exceptionOrNull().userMessage("후기 작성 화면을 불러오지 못했어요."))
@@ -110,6 +112,7 @@ class ReviewWriteViewModel @Inject constructor(
                             courseIssues = initial.courseIssues,
                             courseIssueDetail = initial.courseIssueDetail.orEmpty(),
                             issueForm = issueForm,
+                            isRecommendOnly = isRecommendOnly,
                             isInitializing = false,
                             initializationErrorMessage = null,
                         ).restoredWith(restored)
@@ -128,7 +131,7 @@ class ReviewWriteViewModel @Inject constructor(
         }
     }
 
-    fun selectRecommend(value: Boolean) = edit { it.copy(isRecommended = value) }
+    fun selectRecommend(value: Boolean) = edit { if (it.isRecommendOnly && !value) it else it.copy(isRecommended = value) }
     fun selectDifficulty(value: ReviewDifficulty) = edit { it.copy(difficulty = value) }
     fun selectCongestion(value: ReviewCongestion) = edit { it.copy(congestion = value) }
     fun selectPracticeMethod(value: PracticeMethod) = edit { it.copy(practiceMethod = value) }

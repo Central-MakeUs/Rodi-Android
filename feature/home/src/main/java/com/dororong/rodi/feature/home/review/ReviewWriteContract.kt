@@ -34,6 +34,7 @@ data class ReviewWriteUiState(
     val practiceMethod: PracticeMethod? = null,
     val content: String = "",
     val issueForm: ReviewIssueForm? = null,
+    val isRecommendOnly: Boolean = false,
     val courseIssues: List<String> = emptyList(),
     val courseIssueDetail: String = "",
     val isInitializing: Boolean = false,
@@ -47,6 +48,7 @@ data class ReviewWriteUiState(
     val canGoNext: Boolean
         get() {
             if (isInitializing || initializationErrorMessage != null) return false
+            if (isRecommendOnly && isRecommended != true) return false
             return when (isRecommended) {
                 null -> false
                 false -> if (issueForm == null) {

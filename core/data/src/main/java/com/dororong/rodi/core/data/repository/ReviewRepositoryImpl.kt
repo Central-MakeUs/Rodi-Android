@@ -24,6 +24,10 @@ import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.HttpException
 
 class ReviewRepositoryImpl @Inject constructor(
@@ -139,6 +143,7 @@ private fun ApiEnvelope<*>.requireSuccess(operation: ReviewOperation = ReviewOpe
 }
 
 private fun ApiEnvelope<*>.toReviewException(operation: ReviewOperation): ReviewException = when {
+    code == CODE_PLACE_NOT_REVIEWABLE -> ReviewException.PlaceNotReviewable(message)
     code.contains("400") -> ReviewException.InvalidRequest(message)
     code.contains("401") -> ReviewException.AuthenticationRequired(message)
     code.contains("403") -> ReviewException.Forbidden(message)
@@ -151,7 +156,11 @@ private fun ApiEnvelope<*>.toReviewException(operation: ReviewOperation): Review
 private fun Throwable.toReviewException(operation: ReviewOperation): ReviewException = when (this) {
     is ReviewException -> this
     is HttpException -> when (code()) {
-        400 -> ReviewException.InvalidRequest(message(), this)
+        400 -> if (errorCode() == CODE_PLACE_NOT_REVIEWABLE) {
+            ReviewException.PlaceNotReviewable(PLACE_NOT_REVIEWABLE_MESSAGE, this)
+        } else {
+            ReviewException.InvalidRequest(message(), this)
+        }
         401 -> ReviewException.AuthenticationRequired(message(), this)
         403 -> ReviewException.Forbidden(message(), this)
         404 -> ReviewException.NotFound(message(), this)
@@ -165,3 +174,12 @@ private fun Throwable.toReviewException(operation: ReviewOperation): ReviewExcep
     is IOException -> ReviewException.Network("네트워크 연결을 확인해주세요.", this)
     else -> ReviewException.Unexpected("후기 요청에 실패했습니다.", this)
 }
+
+private fun HttpException.errorCode(): String? = runCatching {
+    response()?.errorBody()?.string()?.let { body ->
+        Json.parseToJsonElement(body).jsonObject["code"]?.jsonPrimitive?.contentOrNull
+    }
+}.getOrNull()
+
+private const val CODE_PLACE_NOT_REVIEWABLE = "REVIEW_400_2"
+private const val PLACE_NOT_REVIEWABLE_MESSAGE = "주차장에는 후기를 남길 수 없어요."

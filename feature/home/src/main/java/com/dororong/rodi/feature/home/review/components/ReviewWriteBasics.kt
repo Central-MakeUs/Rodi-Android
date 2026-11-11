@@ -55,7 +55,7 @@ fun ReviewWriteBasics(
             text = reviewHeading(state.placeName),
             style = RodiTheme.typography.heading2,
         )
-        ReviewChoiceBlock(state.isRecommended, onRecommend, state.issueForm != null)
+        ReviewChoiceBlock(state.isRecommended, onRecommend, state.issueForm != null, state.isRecommendOnly)
         if (state.isRecommended == false && state.issueForm != null) {
             CourseIssuesBlock(state.issueForm, state.courseIssues, state.courseIssueDetail, onCourseIssue, onCourseIssueDetail)
         } else if (state.issueForm == null || state.isRecommended == true) {
@@ -157,10 +157,24 @@ private fun ReviewChoiceBlock(
     selected: Boolean?,
     onSelect: (Boolean) -> Unit,
     hasIssueForm: Boolean,
+    isRecommendOnly: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true, showRequirement = false)
-        ChoicePairRow(if (hasIssueForm) "별로에요" else "별로예요", "추천해요", selected, onSelect)
+        ChoicePairRow(
+            startLabel = if (hasIssueForm || isRecommendOnly) "별로에요" else "별로예요",
+            endLabel = "추천해요",
+            selected = selected,
+            onSelect = onSelect,
+            startEnabled = !isRecommendOnly,
+        )
+        if (isRecommendOnly) {
+            Text(
+                text = "주차장 후기는 '추천해요'로만 수정할 수 있어요.",
+                style = RodiTheme.typography.body3Medium,
+                color = RodiTheme.colors.gray600,
+            )
+        }
     }
 }
 
@@ -212,6 +226,21 @@ private fun ReviewWriteBasicsSelectedPreview() = RodiTheme {
 private fun ReviewWriteBasicsCautionPreview() = RodiTheme {
     ReviewWriteBasics(
         ReviewWriteUiState(placeName = "강남역 코스", caution = "자전거가 자주 지나가요."),
+        {}, {}, {}, {},
+    )
+}
+
+@Preview(name = "후기 기본 - 주차장 추천만", showBackground = true, widthDp = 375)
+@Composable
+private fun ReviewWriteBasicsRecommendOnlyPreview() = RodiTheme {
+    ReviewWriteBasics(
+        ReviewWriteUiState(
+            placeName = "강남역 공영주차장",
+            isRecommendOnly = true,
+            isRecommended = true,
+            difficulty = ReviewDifficulty.EASY,
+            congestion = ReviewCongestion.NORMAL,
+        ),
         {}, {}, {}, {},
     )
 }

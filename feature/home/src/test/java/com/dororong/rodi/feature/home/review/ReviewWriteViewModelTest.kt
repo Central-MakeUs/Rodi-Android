@@ -591,6 +591,52 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
+    fun `주차장 후기는 폼이 거절돼도 추천해요로만 수정할 수 있게 연다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns
+            Result.failure(ReviewException.PlaceNotReviewable("주차장에는 후기를 남길 수 없어요."))
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail())
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.initializationErrorMessage)
+        assertTrue(state.isRecommendOnly)
+        assertNull(state.issueForm)
+        assertTrue(state.canGoNext)
+        viewModel.selectRecommend(false)
+        assertEquals(true, viewModel.uiState.value.isRecommended)
+    }
+
+    @Test
+    fun `추천만 가능한 후기가 별로에요 상태로 열리면 다음 단계로 넘어가지 않는다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns
+            Result.failure(ReviewException.PlaceNotReviewable("주차장에는 후기를 남길 수 없어요."))
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail().copy(isRecommended = false))
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.canGoNext)
+
+        viewModel.selectRecommend(true)
+        assertTrue(viewModel.uiState.value.canGoNext)
+    }
+
+    @Test
+    fun `새 후기 작성에서 장소가 후기를 받지 않으면 화면을 열지 않는다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns
+            Result.failure(ReviewException.PlaceNotReviewable("주차장에는 후기를 남길 수 없어요."))
+        val viewModel = viewModel()
+
+        viewModel.start(PLACE_ID, PLACE_NAME)
+
+        assertEquals("주차장에는 후기를 남길 수 없어요.", viewModel.uiState.value.initializationErrorMessage)
+        assertFalse(viewModel.uiState.value.canGoNext)
+    }
+
+    @Test
     fun `폼 조회가 실패하면 구형 폼으로 바꾸지 않고 복원할 입력을 유지한다`() = runTest(dispatcher) {
         coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
         val handle = SavedStateHandle()
