@@ -328,6 +328,7 @@ internal fun HomeContent(
                             onBookmarkClick = { onIntent(HomeIntent.BookmarkClicked) },
                             onNavigate = actions.onNavigate,
                             onSheetHeightChanged = actions.onCourseDetailSheetHeightChanged,
+                            onReportClick = { overlay.courseToReport = selectedPlace.id },
                             reviewContent = { sheetScrollState ->
                                 LaunchedEffect(selectedPlace.id) { actions.onLoadReviews(selectedPlace.id) }
                                 if (!reviewState.isGuest) {

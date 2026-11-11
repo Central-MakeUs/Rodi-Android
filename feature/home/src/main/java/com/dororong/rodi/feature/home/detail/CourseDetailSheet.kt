@@ -2,7 +2,9 @@ package com.dororong.rodi.feature.home.detail
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
 import androidx.compose.foundation.gestures.Orientation
@@ -28,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,20 +42,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.ui.components.button.RodiButton
 import com.dororong.rodi.core.ui.components.button.RodiIconButton
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.feature.home.HomePreviewData
+import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.detail.components.BookmarkButton
 import com.dororong.rodi.feature.home.detail.components.CourseDetailContent
 import com.dororong.rodi.feature.home.layoutHeightPx
@@ -80,6 +88,7 @@ fun CourseDetailSheet(
     onSheetHeightChanged: (Int) -> Unit,
     reviewContent: @Composable (ScrollState) -> Unit,
     modifier: Modifier = Modifier,
+    onReportClick: () -> Unit = {},
 ) {
     if (place.course == null) {
         LaunchedEffect(place.id) { onDismiss() }
@@ -202,6 +211,7 @@ fun CourseDetailSheet(
                     expandedHeightPx = expandedTopBarHeightPx,
                     isExpanded = isExpanded,
                     onCollapse = { scope.launch { sheetState.animateTo(CourseSheetAnchor.Collapsed) } },
+                    onReportClick = onReportClick,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .anchoredDraggable(
@@ -286,8 +296,12 @@ private fun SheetTopBar(
     expandedHeightPx: Int,
     isExpanded: Boolean,
     onCollapse: () -> Unit,
+    onReportClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var isMenuOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(isExpanded) { if (!isExpanded) isMenuOpen = false }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -331,9 +345,81 @@ private fun SheetTopBar(
                     enabled = isExpanded,
                     modifier = Modifier.padding(start = 16.dp),
                 )
+                Spacer(Modifier.weight(1f))
+                Box(Modifier.padding(end = 16.dp)) {
+                    RodiIconButton(
+                        painter = painterResource(R.drawable.ic_more_horizontal),
+                        onClick = { isMenuOpen = true },
+                        contentDescription = "코스 더보기",
+                        tint = RodiTheme.colors.black,
+                        enabled = isExpanded,
+                    )
+                    CourseMoreMenu(
+                        expanded = isMenuOpen,
+                        onReportClick = {
+                            isMenuOpen = false
+                            onReportClick()
+                        },
+                        onDismissRequest = { isMenuOpen = false },
+                    )
+                }
             }
         }
     }
+}
+
+/** 더보기 아이콘 바로 아래에, 오른쪽 끝을 아이콘보다 조금 바깥으로 맞춰 띄운다. */
+@Composable
+private fun CourseMoreMenu(
+    expanded: Boolean,
+    onReportClick: () -> Unit,
+    onDismissRequest: () -> Unit,
+) {
+    if (!expanded) return
+    if (LocalInspectionMode.current) {
+        CourseMoreMenuContent(onReportClick)
+        return
+    }
+    val offset = with(LocalDensity.current) { IntOffset(MenuEndOverhang.roundToPx(), MoreIconSize.roundToPx()) }
+    Popup(
+        alignment = Alignment.TopEnd,
+        offset = offset,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        CourseMoreMenuContent(onReportClick)
+    }
+}
+
+@Composable
+private fun CourseMoreMenuContent(onReportClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    Surface(
+        modifier = Modifier
+            .size(width = 94.dp, height = 42.dp)
+            .clip(shape)
+            .clickable(onClick = onReportClick),
+        shape = shape,
+        color = RodiTheme.colors.white,
+        border = BorderStroke(1.dp, RodiTheme.colors.gray300),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = "신고하기",
+                style = RodiTheme.typography.button1,
+                color = RodiTheme.colors.gray800,
+            )
+        }
+    }
+}
+
+private val MoreIconSize = 24.dp
+private val MenuEndOverhang = 4.dp
+
+@Preview(name = "코스 상세 더보기 메뉴", showBackground = true, widthDp = 160)
+@Composable
+private fun CourseMoreMenuPreview() {
+    RodiTheme { CourseMoreMenuContent(onReportClick = {}) }
 }
 
 @Preview(name = "코스 상세 시트 - collapsed", showBackground = true, widthDp = 375, heightDp = 812)

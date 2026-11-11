@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,44 @@ class CourseDetailSheetInteractionTest {
 
     @Test
     fun `시트 손잡이를 밀어 올리면 코스 상세 내용이 펼쳐진다`() {
+        setSheet()
+
+        composeRule.onNodeWithText("주행거리").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("닫기").assertIsEnabled()
+        val routeInfoNode = composeRule.onNodeWithText("경로 정보")
+        val bottomActionNode = composeRule.onNodeWithText("연습하러 가기")
+        assertTrue(
+            routeInfoNode.getUnclippedBoundsInRoot().bottom >
+                bottomActionNode.getUnclippedBoundsInRoot().top,
+        )
+
+        expandSheet()
+
+        composeRule.onNodeWithContentDescription("닫기").assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("접기").assertIsEnabled()
+        assertTrue(
+            routeInfoNode.getUnclippedBoundsInRoot().bottom <
+                bottomActionNode.getUnclippedBoundsInRoot().top,
+        )
+        routeInfoNode.assertIsDisplayed()
+    }
+
+    @Test
+    fun `펼친 상세의 더보기에서 신고하기를 고르면 신고 화면을 연다`() {
+        var reportClicks = 0
+        setSheet(onReportClick = { reportClicks++ })
+        composeRule.onNodeWithContentDescription("코스 더보기").assertIsNotEnabled()
+
+        expandSheet()
+        composeRule.onNodeWithContentDescription("코스 더보기").assertIsEnabled().performClick()
+        composeRule.onNodeWithText("신고하기").assertIsDisplayed().performClick()
+        composeRule.waitForIdle()
+
+        assertTrue(reportClicks == 1)
+        composeRule.onNodeWithText("신고하기").assertDoesNotExist()
+    }
+
+    private fun setSheet(onReportClick: () -> Unit = {}) {
         composeRule.setContent {
             RodiTheme {
                 Surface(Modifier.fillMaxSize()) {
@@ -43,19 +82,14 @@ class CourseDetailSheetInteractionTest {
                         onNavigate = {},
                         onSheetHeightChanged = {},
                         reviewContent = {},
+                        onReportClick = onReportClick,
                     )
                 }
             }
         }
+    }
 
-        composeRule.onNodeWithText("주행거리").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("닫기").assertIsEnabled()
-        val routeInfoNode = composeRule.onNodeWithText("경로 정보")
-        val bottomActionNode = composeRule.onNodeWithText("연습하러 가기")
-        assertTrue(
-            routeInfoNode.getUnclippedBoundsInRoot().bottom >
-                bottomActionNode.getUnclippedBoundsInRoot().top,
-        )
+    private fun expandSheet() {
         val closeButtonBounds = composeRule
             .onNodeWithContentDescription("닫기")
             .getUnclippedBoundsInRoot()
@@ -75,13 +109,5 @@ class CourseDetailSheetInteractionTest {
             )
         }
         composeRule.waitForIdle()
-
-        composeRule.onNodeWithContentDescription("닫기").assertIsNotEnabled()
-        composeRule.onNodeWithContentDescription("접기").assertIsEnabled()
-        assertTrue(
-            routeInfoNode.getUnclippedBoundsInRoot().bottom <
-                bottomActionNode.getUnclippedBoundsInRoot().top,
-        )
-        routeInfoNode.assertIsDisplayed()
     }
 }
