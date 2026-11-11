@@ -3,6 +3,7 @@ package com.dororong.rodi.core.data.di
 import com.dororong.rodi.core.data.repository.AuthRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRegistrationRepositoryImpl
+import com.dororong.rodi.core.data.repository.CourseReportRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseRegistrationRouteRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseDraftRepositoryImpl
 import com.dororong.rodi.core.data.repository.CourseLocationRepositoryImpl
@@ -20,6 +21,7 @@ import com.dororong.rodi.core.data.source.local.datastore.ActivePracticeSessionS
 import com.dororong.rodi.core.domain.repository.AuthRepository
 import com.dororong.rodi.core.domain.repository.CourseRepository
 import com.dororong.rodi.core.domain.repository.CourseRegistrationRepository
+import com.dororong.rodi.core.domain.repository.CourseReportRepository
 import com.dororong.rodi.core.domain.repository.CourseRegistrationRouteRepository
 import com.dororong.rodi.core.domain.repository.CourseDraftRepository
 import com.dororong.rodi.core.domain.repository.CourseLocationRepository
@@ -50,6 +52,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindCourseRegistrationRepository(impl: CourseRegistrationRepositoryImpl): CourseRegistrationRepository
+
+    @Binds
+    abstract fun bindCourseReportRepository(impl: CourseReportRepositoryImpl): CourseReportRepository
 
     @Binds
     abstract fun bindCourseRegistrationRouteRepository(
