@@ -64,7 +64,7 @@ class ReviewWriteViewModel @Inject constructor(
         initializationJob = viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
             getReviewIssueForm(placeId)
                 .onSuccess { form ->
-                    _uiState.update { it.copy(issueForm = form, isInitializing = false) }
+                    _uiState.update { it.copy(issueForm = form, isInitializing = false).withKnownCourseIssues() }
                     saveDraft()
                 }
                 .onFailure { error ->
@@ -115,7 +115,7 @@ class ReviewWriteViewModel @Inject constructor(
                             isRecommendOnly = isRecommendOnly,
                             isInitializing = false,
                             initializationErrorMessage = null,
-                        ).restoredWith(restored)
+                        ).restoredWith(restored).withKnownCourseIssues()
                     }
                     saveDraft()
                 }
@@ -141,8 +141,7 @@ class ReviewWriteViewModel @Inject constructor(
         val options = current.issueForm?.options ?: return@edit current
         if (options.none { it.code == code }) return@edit current
         val selected = if (code in current.courseIssues) current.courseIssues - code else current.courseIssues + code
-        val known = options.map { it.code }
-        current.copy(courseIssues = known.filter { it in selected } + selected.filterNot { it in known })
+        current.copy(courseIssues = options.map { it.code }.filter { it in selected })
     }
     fun updateCourseIssueDetail(value: String) = edit { current ->
         val max = current.issueForm?.options?.firstOrNull { it.requiresTextInput && it.code in current.courseIssues }
@@ -242,6 +241,30 @@ class ReviewWriteViewModel @Inject constructor(
                 courseIssueDetail = draft.courseIssueDetail,
             )
         }
+
+    /**
+     * 서버 폼에서 빠진 문제 항목은 화면에 체크박스가 없어 해제할 수 없고 다음 단계도 막는다.
+     * 폼이 정본이므로 폼에 있는 항목만 남기고, 직접 입력 항목이 빠지면 입력값도 비운다.
+     */
+    private fun ReviewWriteUiState.withKnownCourseIssues(): ReviewWriteUiState {
+        val options = issueForm?.options ?: return this
+        val known = options.map { it.code }
+        fun List<String>.known() = known.filter { it in this }
+        fun detailFor(issues: List<String>, detail: String?) =
+            detail.takeIf { options.any { option -> option.requiresTextInput && option.code in issues } }
+        val issues = courseIssues.known()
+        val originalIssues = original?.courseIssues?.known()
+        return copy(
+            courseIssues = issues,
+            courseIssueDetail = detailFor(issues, courseIssueDetail).orEmpty(),
+            original = original?.let { initial ->
+                initial.copy(
+                    courseIssues = originalIssues.orEmpty(),
+                    courseIssueDetail = detailFor(originalIssues.orEmpty(), initial.courseIssueDetail),
+                )
+            },
+        )
+    }
 
     private fun Review.toInitialValues() = ReviewWriteInitialValues(
         isRecommended = isRecommended,

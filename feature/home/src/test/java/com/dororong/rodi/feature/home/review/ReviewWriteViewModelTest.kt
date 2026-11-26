@@ -537,21 +537,6 @@ class ReviewWriteViewModelTest {
     }
 
     @Test
-    fun `폼에 없는 기존 문제 항목은 다른 항목을 선택해도 유실하거나 제출하지 않는다`() = runTest(dispatcher) {
-        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
-        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail().copy(
-            isRecommended = false, difficulty = null, congestion = null,
-            courseIssues = listOf("UNRECOGNIZED"),
-        ))
-        val vm = viewModel()
-        vm.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
-        advanceUntilIdle()
-        vm.toggleCourseIssue("ROAD_INFO_MISMATCH")
-        assertEquals(listOf("ROAD_INFO_MISMATCH", "UNRECOGNIZED"), vm.uiState.value.courseIssues)
-        assertFalse(vm.uiState.value.canGoNext)
-    }
-
-    @Test
     fun `비추천 작성 중 재생성하면 선택 항목과 기타 내용을 복원한다`() = runTest(dispatcher) {
         coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
         val handle = SavedStateHandle()
@@ -655,6 +640,26 @@ class ReviewWriteViewModelTest {
         after.start(PLACE_ID, PLACE_NAME)
         assertEquals(listOf("OTHER"), after.uiState.value.courseIssues)
         assertEquals("공사 중", after.uiState.value.courseIssueDetail)
+    }
+
+    @Test
+    fun `서버 폼에서 빠진 문제 항목은 수정 화면에서 지워 다음 단계로 넘어갈 수 있다`() = runTest(dispatcher) {
+        coEvery { getReviewIssueForm(PLACE_ID) } returns Result.success(issueForm())
+        coEvery { getReview(REVIEW_ID) } returns Result.success(reviewDetail().copy(
+            isRecommended = false,
+            difficulty = null,
+            congestion = null,
+            courseIssues = listOf("REMOVED_CODE", "ROAD_INFO_MISMATCH"),
+        ))
+        val viewModel = viewModel()
+
+        viewModel.startForReviewId(PLACE_ID, PLACE_NAME, REVIEW_ID)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(listOf("ROAD_INFO_MISMATCH"), state.courseIssues)
+        assertTrue(state.canGoNext)
+        assertFalse(state.isDirty)
     }
 
     private fun issueForm() = ReviewIssueForm(
