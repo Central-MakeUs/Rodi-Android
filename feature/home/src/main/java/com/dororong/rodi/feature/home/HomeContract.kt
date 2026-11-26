@@ -68,6 +68,8 @@ data class HomeUiState(
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
     val appliedFilterPracticeTypes: Set<PracticeType> = emptySet(),
+    /** 지금 지도 마커를 받을 때 쓴 유형 필터. 목록 조회 결과와 따로 관리해야 다른 필터의 마커가 남지 않는다. */
+    val markerPracticeTypes: Set<PracticeType>? = null,
     val isFilterSaving: Boolean = false,
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,

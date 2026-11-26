@@ -293,8 +293,8 @@ class HomeViewModel @Inject constructor(
                 hasNextPage = false,
                 nextCursor = null,
                 totalCount = null,
-                markerClusters = if (it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) null else it.markerClusters,
-                coordinates = if (it.searchedQuery?.practiceTypes != filteredQuery.practiceTypes) emptyList() else it.coordinates,
+                markerClusters = if (it.markerPracticeTypes != filteredQuery.practiceTypes) null else it.markerClusters,
+                coordinates = if (it.markerPracticeTypes != filteredQuery.practiceTypes) emptyList() else it.coordinates,
                 isMarkersLoading = true,
             )
         }
@@ -321,6 +321,7 @@ class HomeViewModel @Inject constructor(
                             it.copy(
                                 coordinates = clusters.places,
                                 markerClusters = clusters,
+                                markerPracticeTypes = filteredQuery.practiceTypes,
                                 isMarkersLoading = false,
                             )
                         }

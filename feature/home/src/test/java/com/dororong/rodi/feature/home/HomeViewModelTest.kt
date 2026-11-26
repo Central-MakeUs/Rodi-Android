@@ -1070,6 +1070,38 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `목록 조회가 실패해도 마커는 받은 필터 기준으로 유지하거나 비운다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val straight = query().copy(practiceTypes = setOf(PracticeType.STRAIGHT))
+        val unfilteredMarkers = PlaceMarkerClusters(listOf(coordinate(1)), emptyList())
+        val straightMarkers = PlaceMarkerClusters(listOf(coordinate(2)), emptyList())
+        coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
+        coEvery { deps.getPlaces(straight, null, 20) } returns Result.failure(IllegalStateException("오프라인"))
+        coEvery { deps.refreshClusters(query()) } returnsMany listOf(
+            Result.success(unfilteredMarkers),
+            Result.failure(PlaceException.Network("지도를 불러오지 못했어요.")),
+        )
+        coEvery { deps.refreshClusters(straight) } returns Result.success(straightMarkers)
+        val vm = deps.viewModel()
+        vm.onIntent(HomeIntent.ViewportSettled(query()))
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.FilterOpened)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
+        advanceUntilIdle()
+        assertEquals(straightMarkers, vm.uiState.value.markerClusters)
+
+        vm.onIntent(HomeIntent.FilterOpened)
+        vm.onIntent(HomeIntent.FilterPracticeOptionToggled(FilterPracticeOption.STRAIGHT))
+        vm.onIntent(HomeIntent.FilterApplyClicked)
+        advanceUntilIdle()
+
+        assertNull(vm.uiState.value.markerClusters)
+        assertTrue(vm.uiState.value.coordinates.isEmpty())
+    }
+
+    @Test
     fun `이전 지도 영역의 늦은 클러스터 응답은 새 영역 마커를 덮지 않는다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val older = CompletableDeferred<Result<PlaceMarkerClusters>>()
