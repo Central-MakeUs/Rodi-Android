@@ -6,11 +6,14 @@ import com.dororong.rodi.core.domain.model.course.CourseFeatures
 import com.dororong.rodi.core.domain.model.course.Waypoint
 import com.dororong.rodi.core.domain.model.course.WaypointType
 import com.kakao.vectormap.LatLng
+import com.dororong.rodi.core.domain.model.course.CoursePoint
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 
 class CourseRepositoryImplTest {
@@ -32,6 +35,40 @@ class CourseRepositoryImplTest {
         assertEquals(37.1, result.points.single().lat)
         assertEquals(127.2, result.snappedPoints.single().lng)
     }
+
+    @Test
+    fun `같은 경유지 경로는 길찾기를 한 번만 부른다`() = runTest {
+        val directionsClient = mockk<KakaoDirectionsClient>()
+        coEvery { directionsClient.getRoute(start, emptyList(), end) } returns route(isRealRoute = true)
+        val repository = CourseRepositoryImpl(directionsClient = directionsClient)
+
+        repository.getRoute(start, emptyList(), end)
+        repository.getRoute(start, emptyList(), end)
+
+        coVerify(exactly = 1) { directionsClient.getRoute(start, emptyList(), end) }
+    }
+
+    @Test
+    fun `직선으로 대신 그린 경로는 담지 않고 다음에 다시 길찾기를 부른다`() = runTest {
+        val directionsClient = mockk<KakaoDirectionsClient>()
+        coEvery { directionsClient.getRoute(start, emptyList(), end) } returns route(isRealRoute = false)
+        val repository = CourseRepositoryImpl(directionsClient = directionsClient)
+
+        assertFalse(repository.getRoute(start, emptyList(), end).isRealRoute)
+        repository.getRoute(start, emptyList(), end)
+
+        coVerify(exactly = 2) { directionsClient.getRoute(start, emptyList(), end) }
+    }
+
+    private val start = CoursePoint("출발", 37.0, 127.0)
+    private val end = CoursePoint("도착", 37.1, 127.1)
+
+    private fun route(isRealRoute: Boolean) = KakaoDirectionsClient.RouteResult(
+        points = listOf(LatLng.from(37.0, 127.0)),
+        isRealRoute = isRealRoute,
+        totalDistanceMeters = 100,
+        snappedPoints = emptyList(),
+    )
 }
 
 private fun testCourse() = Course(

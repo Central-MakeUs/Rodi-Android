@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.repository.PlaceRepository
+import java.time.Clock
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -20,7 +21,11 @@ import timber.log.Timber
 class CachedPlaceRepository @Inject constructor(
     private val delegate: PlaceRepositoryImpl,
     private val placeCache: PlaceCacheLocalDataSource,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : PlaceRepository {
+    private val detailCacheMutex = Mutex()
+    private val detailCache = HashMap<Long, Pair<Long, PlaceDetail>>()
+
     private val clusterCacheMutex = Mutex()
     private var clusterCache: Pair<PlaceViewportQuery, PlaceMarkerClusters>? = null
     private var clusterRefreshVersion = 0L
@@ -120,11 +125,25 @@ class CachedPlaceRepository @Inject constructor(
         size: Int,
     ): RelatedSearch = delegate.relatedSearch(keyword, cursor, size)
 
-    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = delegate.getPlaceDetail(placeId)
+    /** 같은 장소를 짧은 시간 안에 다시 열면 서버를 다시 부르지 않는다. 저장 상태를 바꾸면 버린다. */
+    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
+        val now = clock.millis()
+        detailCacheMutex.withLock {
+            detailCache[placeId]?.takeIf { (cachedAt, _) -> now - cachedAt < DETAIL_CACHE_TTL_MILLIS }
+                ?.let { (_, detail) -> return detail }
+        }
+        val detail = delegate.getPlaceDetail(placeId)
+        detailCacheMutex.withLock { detailCache[placeId] = clock.millis() to detail }
+        return detail
+    }
 
     override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
         delegate.getSavedPlaces(cursor, size)
 
-    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) =
+    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
+        detailCacheMutex.withLock { detailCache.remove(place.id) }
         delegate.setBookmarked(place, bookmarked)
+    }
 }
+
+private const val DETAIL_CACHE_TTL_MILLIS = 5 * 60 * 1000L

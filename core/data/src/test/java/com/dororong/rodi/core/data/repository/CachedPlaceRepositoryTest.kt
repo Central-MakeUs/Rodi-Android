@@ -7,12 +7,16 @@ import com.dororong.rodi.core.domain.model.place.PlaceException
 import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
+import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
@@ -269,6 +273,68 @@ class CachedPlaceRepositoryTest {
             assertSame(error, assertThrows<Throwable> { repository.refreshClusters(query) })
         }
     }
+
+    @Test
+    fun `같은 장소 상세를 5분 안에 다시 열면 서버를 다시 부르지 않는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val clock = MutableClock()
+        coEvery { remote.getPlaceDetail(7) } returns detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), clock)
+
+        repository.getPlaceDetail(7)
+        clock.advance(4 * 60 * 1000L)
+        repository.getPlaceDetail(7)
+
+        coVerify(exactly = 1) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
+    fun `5분이 지나면 장소 상세를 다시 받는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val clock = MutableClock()
+        coEvery { remote.getPlaceDetail(7) } returns detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), clock)
+
+        repository.getPlaceDetail(7)
+        clock.advance(5 * 60 * 1000L)
+        repository.getPlaceDetail(7)
+
+        coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
+    fun `저장 상태를 바꾸면 다음 상세는 서버에서 새로 받는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        coEvery { remote.getPlaceDetail(7) } returns detail(7)
+        coEvery { remote.setBookmarked(any(), any()) } returns Unit
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        val first = repository.getPlaceDetail(7)
+        repository.setBookmarked(first, bookmarked = true)
+        repository.getPlaceDetail(7)
+
+        coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
+    private class MutableClock(private var millis: Long = 1_000L) : Clock() {
+        fun advance(delta: Long) { millis += delta }
+        override fun getZone() = ZoneOffset.UTC
+        override fun withZone(zone: java.time.ZoneId?) = this
+        override fun instant(): Instant = Instant.ofEpochMilli(millis)
+    }
+
+    private fun detail(id: Long) = PlaceDetail(
+        id = id,
+        type = PlaceType.PARKING,
+        name = "주차장",
+        address = "서울",
+        point = GeoPoint(37.0, 127.0),
+        practiceTypes = listOf(PracticeType.PARKING),
+        bookmarkCount = 0,
+        isBookmarked = false,
+        course = null,
+        parking = null,
+    )
 
     private fun coordinate(id: Long) = PlaceCoordinate(
         id = id,
