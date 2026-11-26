@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home
 
+import com.dororong.rodi.feature.home.map.expandedForMarkers
 import app.cash.turbine.test
 import com.dororong.rodi.core.domain.model.auth.AccountRestoreResult
 import com.dororong.rodi.core.domain.model.auth.AuthSession
@@ -327,14 +328,14 @@ class HomeViewModelTest {
         val pageResult = CompletableDeferred<Result<CursorPage<PlaceSummary>>>()
         val clusterResult = CompletableDeferred<Result<PlaceMarkerClusters>>()
         coEvery { deps.getPlaces(query(), null, 20) } coAnswers { pageResult.await() }
-        coEvery { deps.refreshClusters(query()) } coAnswers { clusterResult.await() }
+        coEvery { deps.refreshClusters(query().expandedForMarkers()) } coAnswers { clusterResult.await() }
         val vm = deps.viewModel()
 
         vm.effect.test {
             vm.onIntent(HomeIntent.ViewportSettled(query()))
             runCurrent()
             coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
-            coVerify(exactly = 1) { deps.refreshClusters(query()) }
+            coVerify(exactly = 1) { deps.refreshClusters(query().expandedForMarkers()) }
             assertTrue(vm.uiState.value.isMarkersLoading)
 
             pageResult.complete(Result.failure(PlaceException.Network("목록을 불러오지 못했어요.")))
@@ -354,7 +355,7 @@ class HomeViewModelTest {
         val deps = Dependencies()
         val page = CursorPage(listOf(summary(1)), false, null, 1)
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(page)
-        coEvery { deps.refreshClusters(query()) } returns Result.failure(PlaceException.Network("지도를 불러오지 못했어요."))
+        coEvery { deps.refreshClusters(query().expandedForMarkers()) } returns Result.failure(PlaceException.Network("지도를 불러오지 못했어요."))
         val vm = deps.viewModel()
 
         vm.effect.test {
@@ -370,7 +371,7 @@ class HomeViewModelTest {
         assertFalse(vm.uiState.value.isMarkersLoading)
         assertTrue(vm.uiState.value.isMapSearchDirty)
         coVerify(exactly = 1) { deps.getPlaces(query(), null, 20) }
-        coVerify(exactly = 1) { deps.refreshClusters(query()) }
+        coVerify(exactly = 1) { deps.refreshClusters(query().expandedForMarkers()) }
     }
 
     @Test
@@ -1042,7 +1043,7 @@ class HomeViewModelTest {
         assertEquals(saved, vm.uiState.value.selectedFilterPracticeTypes)
         assertEquals(restoredQuery, vm.uiState.value.searchedQuery)
         coVerify(exactly = 1) { deps.getPlaces(restoredQuery, null, 20) }
-        coVerify(exactly = 1) { deps.refreshClusters(restoredQuery) }
+        coVerify(exactly = 1) { deps.refreshClusters(restoredQuery.expandedForMarkers()) }
     }
 
     @Test
@@ -1066,7 +1067,7 @@ class HomeViewModelTest {
         assertFalse(vm.uiState.value.hasNextPage)
         assertNull(vm.uiState.value.nextCursor)
         coVerify(exactly = 1) { deps.getPlaces(filtered, null, 20) }
-        coVerify(exactly = 1) { deps.refreshClusters(filtered) }
+        coVerify(exactly = 1) { deps.refreshClusters(filtered.expandedForMarkers()) }
     }
 
     @Test
@@ -1108,8 +1109,8 @@ class HomeViewModelTest {
         val recentMarkers = PlaceMarkerClusters(listOf(coordinate(2)), emptyList())
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
         coEvery { deps.getPlaces(query(2.0), null, 20) } returns Result.success(CursorPage(listOf(summary(2)), false, null, 1))
-        coEvery { deps.refreshClusters(query()) } coAnswers { withContext(NonCancellable) { older.await() } }
-        coEvery { deps.refreshClusters(query(2.0)) } returns Result.success(recentMarkers)
+        coEvery { deps.refreshClusters(query().expandedForMarkers()) } coAnswers { withContext(NonCancellable) { older.await() } }
+        coEvery { deps.refreshClusters(query(2.0).expandedForMarkers()) } returns Result.success(recentMarkers)
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.ViewportSettled(query()))
         runCurrent()
@@ -1149,7 +1150,7 @@ class HomeViewModelTest {
         assertEquals(filtered, vm.uiState.value.searchedQuery)
         assertEquals(listOf(2L, 3L), vm.uiState.value.places.map { it.id })
         coVerify(exactly = 1) { deps.getPlaces(filtered, null, 20) }
-        coVerify(exactly = 1) { deps.refreshClusters(filtered) }
+        coVerify(exactly = 1) { deps.refreshClusters(filtered.expandedForMarkers()) }
         coVerify(exactly = 1) { deps.refreshPlaces(filtered, "next", 20) }
         coVerify(exactly = 0) { deps.refreshPlaces(any(), null, any()) }
     }
