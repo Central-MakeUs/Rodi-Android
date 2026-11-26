@@ -21,7 +21,9 @@ class CourseRepositoryImplTest {
     fun `경로 탐색 결과를 도메인 경로로 매핑한다`() = runTest {
         val directionsClient = mockk<KakaoDirectionsClient>()
         val course = testCourse()
-        coEvery { directionsClient.getRoute(course) } returns KakaoDirectionsClient.RouteResult(
+        coEvery {
+            directionsClient.getRoute(course.origin, course.waypointPoints, course.destination)
+        } returns KakaoDirectionsClient.RouteResult(
             points = listOf(LatLng.from(37.1, 127.1)),
             isRealRoute = true,
             totalDistanceMeters = 1_200,
@@ -46,6 +48,23 @@ class CourseRepositoryImplTest {
         repository.getRoute(start, emptyList(), end)
 
         coVerify(exactly = 1) { directionsClient.getRoute(start, emptyList(), end) }
+    }
+
+    @Test
+    fun `같은 코스의 경로는 코스로 조회해도 길찾기를 한 번만 부른다`() = runTest {
+        val directionsClient = mockk<KakaoDirectionsClient>()
+        val course = testCourse()
+        coEvery {
+            directionsClient.getRoute(course.origin, course.waypointPoints, course.destination)
+        } returns route(isRealRoute = true)
+        val repository = CourseRepositoryImpl(directionsClient = directionsClient)
+
+        repository.getRoute(course)
+        repository.getRoute(course)
+
+        coVerify(exactly = 1) {
+            directionsClient.getRoute(course.origin, course.waypointPoints, course.destination)
+        }
     }
 
     @Test

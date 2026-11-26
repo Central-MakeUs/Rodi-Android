@@ -19,7 +19,8 @@ class CourseRepositoryImpl @Inject constructor(
             size > ROUTE_CACHE_SIZE
     }
 
-    override suspend fun getRoute(course: Course): RouteResult = directionsClient.getRoute(course).toDomain()
+    override suspend fun getRoute(course: Course): RouteResult =
+        getRoute(course.origin, course.waypointPoints, course.destination)
 
     /** 같은 경유지 경로는 다시 길찾기를 부르지 않는다. 직선으로 대신 그린 결과는 다음에 다시 시도하도록 담지 않는다. */
     override suspend fun getRoute(
