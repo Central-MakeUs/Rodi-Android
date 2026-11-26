@@ -201,6 +201,10 @@ class HomeViewModel @Inject constructor(
                 }
             }
             HomeIntent.FilterApplyClicked -> applyFilter()
+            HomeIntent.EmptyListBrowseMoreClicked -> if (_uiState.value.appliedFilterPracticeTypes.isNotEmpty()) {
+                _uiState.update { it.copy(selectedFilterPracticeTypes = emptySet()) }
+                applyFilter()
+            }
             HomeIntent.FilterDismissed -> dismissFilter()
             HomeIntent.LoginDismissed -> _uiState.update { it.copy(pendingAction = null, isLoginInProgress = false) }
             is HomeIntent.KakaoLoginSucceeded -> loginWithKakao(intent.accessToken)

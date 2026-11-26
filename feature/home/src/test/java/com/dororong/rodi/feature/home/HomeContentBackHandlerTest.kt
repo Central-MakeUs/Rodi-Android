@@ -117,7 +117,7 @@ class HomeContentBackHandlerTest {
             }
 
             composeRule.onNodeWithText(
-                if (listState == HomeListState.Empty) "추천할 수 있는 연습 코스를 찾지 못했어요."
+                if (listState == HomeListState.Empty) "연습 코스를 찾지 못했어요"
                 else "장소를 불러오지 못했어요.",
             ).assertIsDisplayed()
             composeRule.onNodeWithContentDescription("필터")

@@ -271,6 +271,8 @@ internal fun HomeContent(
                                 isEmptySheet -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
                                     onRetry = actions.onRetryPlaces,
+                                    onBrowseMore = { onIntent(HomeIntent.EmptyListBrowseMoreClicked) }
+                                        .takeIf { state.appliedFilterPracticeTypes.isNotEmpty() },
                                     dragHandleModifier = listSheetDrag,
                                 )
 

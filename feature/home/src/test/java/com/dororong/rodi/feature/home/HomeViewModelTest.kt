@@ -940,6 +940,33 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `빈 목록에서 더 많은 코스 둘러보기를 누르면 적용한 필터를 풀고 저장한다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        coEvery { deps.getPlaceFilter() } returns Result.success(setOf(PracticeType.PARKING))
+        val vm = deps.viewModel()
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.EmptyListBrowseMoreClicked)
+        advanceUntilIdle()
+
+        assertTrue(vm.uiState.value.appliedFilterPracticeTypes.isEmpty())
+        assertTrue(vm.uiState.value.selectedFilterPracticeTypes.isEmpty())
+        coVerify(exactly = 1) { deps.setPlaceFilter(emptySet()) }
+    }
+
+    @Test
+    fun `적용한 필터가 없으면 더 많은 코스 둘러보기는 저장하지 않는다`() = runTest(dispatcher) {
+        val deps = Dependencies()
+        val vm = deps.viewModel()
+        advanceUntilIdle()
+
+        vm.onIntent(HomeIntent.EmptyListBrowseMoreClicked)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { deps.setPlaceFilter(any()) }
+    }
+
+    @Test
     fun `필터 시트를 닫으면 저장하지 않은 변경을 버리고 적용 필터를 복원한다`() = runTest(dispatcher) {
         val deps = Dependencies()
         val saved = setOf(PracticeType.PARKING)

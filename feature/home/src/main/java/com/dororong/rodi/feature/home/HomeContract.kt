@@ -122,6 +122,7 @@ sealed interface HomeIntent {
     data class FilterCategorySelected(val category: FilterCategory) : HomeIntent
     data class FilterPracticeOptionToggled(val option: FilterPracticeOption) : HomeIntent
     data object FilterResetClicked : HomeIntent
+    data object EmptyListBrowseMoreClicked : HomeIntent
     data object FilterApplyClicked : HomeIntent
     data object FilterDismissed : HomeIntent
     data object LoginDismissed : HomeIntent
