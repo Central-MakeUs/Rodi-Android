@@ -1078,11 +1078,11 @@ class HomeViewModelTest {
         val straightMarkers = PlaceMarkerClusters(listOf(coordinate(2)), emptyList())
         coEvery { deps.getPlaces(query(), null, 20) } returns Result.success(CursorPage(listOf(summary(1)), false, null, 1))
         coEvery { deps.getPlaces(straight, null, 20) } returns Result.failure(IllegalStateException("오프라인"))
-        coEvery { deps.refreshClusters(query()) } returnsMany listOf(
+        coEvery { deps.refreshClusters(query().expandedForMarkers()) } returnsMany listOf(
             Result.success(unfilteredMarkers),
             Result.failure(PlaceException.Network("지도를 불러오지 못했어요.")),
         )
-        coEvery { deps.refreshClusters(straight) } returns Result.success(straightMarkers)
+        coEvery { deps.refreshClusters(straight.expandedForMarkers()) } returns Result.success(straightMarkers)
         val vm = deps.viewModel()
         vm.onIntent(HomeIntent.ViewportSettled(query()))
         advanceUntilIdle()
