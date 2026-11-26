@@ -109,10 +109,18 @@ internal fun KakaoMap.forgetBrowseRenderState() {
     browseRenderStates.remove(this)
 }
 
-fun KakaoMap.selectParkingMarker(context: Context, parkingId: Long): Boolean =
-    changeParkingMarkerStyle(context, parkingId, R.drawable.ic_pin_parking_selected).also { selected ->
-        if (selected) browseRenderStates[this]?.selectedParkingId = parkingId
+/** 마커를 다시 만들지 않고 재사용하므로, 다른 주차장으로 바꿀 때 이전 선택을 직접 되돌린다. */
+fun KakaoMap.selectParkingMarker(context: Context, parkingId: Long): Boolean {
+    val state = browseRenderStates[this]
+    val previousId = state?.selectedParkingId
+    if (previousId != null && previousId != parkingId) {
+        changeParkingMarkerStyle(context, previousId, R.drawable.ic_pin_parking_default)
+        state.selectedParkingId = null
     }
+    return changeParkingMarkerStyle(context, parkingId, R.drawable.ic_pin_parking_selected).also { selected ->
+        state?.selectedParkingId = if (selected) parkingId else null
+    }
+}
 
 fun KakaoMap.deselectParkingMarker(
     context: Context,
