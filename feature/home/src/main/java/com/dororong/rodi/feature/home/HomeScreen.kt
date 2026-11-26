@@ -710,6 +710,15 @@ fun HomeScreen(
         )
     }
 
+    // 코스 상세는 경로를 강조하려고 다른 마커를 숨긴다. 시트 높이·경로가 준비될 때까지 기다리면
+    // 주변 마커가 한참 뒤에 사라져 보이므로 상세에 들어가는 즉시 숨긴다.
+    LaunchedEffect(kakaoMap, state.surfaceState, state.selectedPlace?.id, state.selectedPlace?.type) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        if (state.surfaceState == HomeSurfaceState.Detail && state.selectedPlace?.type == PlaceType.COURSE) {
+            map.clearBrowseLabels()
+        }
+    }
+
     LaunchedEffect(
         kakaoMap,
         state.surfaceState,
