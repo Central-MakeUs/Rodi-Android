@@ -25,6 +25,7 @@ class CachedPlaceRepository @Inject constructor(
 ) : PlaceRepository {
     private val detailCacheMutex = Mutex()
     private val detailCache = HashMap<Long, Pair<Long, PlaceDetail>>()
+    private val detailGenerations = HashMap<Long, Long>()
 
     private val clusterCacheMutex = Mutex()
     private var clusterCache: Pair<PlaceViewportQuery, PlaceMarkerClusters>? = null
@@ -125,15 +126,21 @@ class CachedPlaceRepository @Inject constructor(
         size: Int,
     ): RelatedSearch = delegate.relatedSearch(keyword, cursor, size)
 
-    /** 같은 장소를 짧은 시간 안에 다시 열면 서버를 다시 부르지 않는다. 저장 상태를 바꾸면 버린다. */
+    /**
+     * 같은 장소를 짧은 시간 안에 다시 열면 서버를 다시 부르지 않는다. 저장 상태를 바꾸면 버린다.
+     * 저장 상태 변경과 겹친 조회는 바뀌기 전 값을 받았을 수 있어 캐시에 남기지 않는다.
+     */
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
         val now = clock.millis()
-        detailCacheMutex.withLock {
+        val generation = detailCacheMutex.withLock {
             detailCache[placeId]?.takeIf { (cachedAt, _) -> now - cachedAt < DETAIL_CACHE_TTL_MILLIS }
                 ?.let { (_, detail) -> return detail }
+            detailGenerations[placeId] ?: 0L
         }
         val detail = delegate.getPlaceDetail(placeId)
-        detailCacheMutex.withLock { detailCache[placeId] = clock.millis() to detail }
+        detailCacheMutex.withLock {
+            if ((detailGenerations[placeId] ?: 0L) == generation) detailCache[placeId] = clock.millis() to detail
+        }
         return detail
     }
 
@@ -143,6 +150,10 @@ class CachedPlaceRepository @Inject constructor(
     override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
         detailCacheMutex.withLock { detailCache.remove(place.id) }
         delegate.setBookmarked(place, bookmarked)
+        detailCacheMutex.withLock {
+            detailGenerations[place.id] = (detailGenerations[place.id] ?: 0L) + 1
+            detailCache.remove(place.id)
+        }
     }
 }
 

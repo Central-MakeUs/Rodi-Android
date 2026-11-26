@@ -316,6 +316,27 @@ class CachedPlaceRepositoryTest {
         coVerify(exactly = 2) { remote.getPlaceDetail(7) }
     }
 
+    @Test
+    fun `저장 상태 변경과 겹친 상세 조회 결과는 캐시에 남기지 않는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        val staleResponse = CompletableDeferred<PlaceDetail>()
+        var detailCalls = 0
+        coEvery { remote.getPlaceDetail(7) } coAnswers {
+            if (++detailCalls == 1) staleResponse.await() else detail(7)
+        }
+        coEvery { remote.setBookmarked(any(), any()) } returns Unit
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        val staleRead = async { repository.getPlaceDetail(7) }
+        runCurrent()
+        repository.setBookmarked(detail(7), bookmarked = true)
+        staleResponse.complete(detail(7))
+        staleRead.await()
+        repository.getPlaceDetail(7)
+
+        coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
     private class MutableClock(private var millis: Long = 1_000L) : Clock() {
         fun advance(delta: Long) { millis += delta }
         override fun getZone() = ZoneOffset.UTC
