@@ -1,5 +1,6 @@
 package com.dororong.rodi.feature.home.review.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,10 +13,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -24,9 +24,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.ImageLoader
-import coil3.compose.AsyncImage
-import coil3.svg.SvgDecoder
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
@@ -34,6 +31,7 @@ import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.feature.home.detail.components.label
+import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState
 
 @Composable
@@ -76,10 +74,6 @@ internal fun CourseIssuesBlock(
     useHeadingStyle: Boolean = false,
     optionTextStyle: TextStyle? = null,
 ) {
-    val context = LocalContext.current
-    val imageLoader = remember(context) {
-        ImageLoader.Builder(context).components { add(SvgDecoder.Factory()) }.build()
-    }
     Column {
         if (useHeadingStyle) {
             Text(form.title, style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
@@ -100,9 +94,10 @@ internal fun CourseIssuesBlock(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        AsyncImage(
-                            model = if (isSelected) "file:///android_asset/review_issue_selected.svg" else "file:///android_asset/review_issue_default.svg",
-                            imageLoader = imageLoader,
+                        Image(
+                            painter = painterResource(
+                                if (isSelected) R.drawable.ic_review_issue_selected else R.drawable.ic_review_issue_default,
+                            ),
                             contentDescription = null,
                             modifier = Modifier.size(24.dp),
                         )
