@@ -55,7 +55,7 @@ fun ReviewWriteBasics(
             text = reviewHeading(state.placeName),
             style = RodiTheme.typography.heading2,
         )
-        ReviewChoiceBlock(state.isRecommended, onRecommend, state.issueForm != null, state.isRecommendOnly)
+        ReviewChoiceBlock(state.isRecommended, onRecommend, state.isRecommendOnly)
         if (state.isRecommended == false && state.issueForm != null) {
             CourseIssuesBlock(state.issueForm, state.courseIssues, state.courseIssueDetail, onCourseIssue, onCourseIssueDetail)
         } else if (state.issueForm == null || state.isRecommended == true) {
@@ -155,13 +155,12 @@ private fun <T> ReviewScale(
 private fun ReviewChoiceBlock(
     selected: Boolean?,
     onSelect: (Boolean) -> Unit,
-    hasIssueForm: Boolean,
     isRecommendOnly: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true, showRequirement = false)
         ChoicePairRow(
-            startLabel = if (hasIssueForm || isRecommendOnly) "별로에요" else "별로예요",
+            startLabel = "별로에요",
             endLabel = "추천해요",
             selected = selected,
             onSelect = onSelect,
