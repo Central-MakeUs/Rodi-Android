@@ -32,9 +32,12 @@ class CourseReportViewModel @Inject constructor(
         _uiState.value = CourseReportUiState(courseId = courseId, isLoading = true)
         loadJob = viewModelScope.launch {
             getReportForm()
-                .onSuccess { form -> _uiState.update { it.copy(form = form, isLoading = false) } }
+                .onSuccess { form ->
+                    _uiState.update { if (it.courseId == courseId) it.copy(form = form, isLoading = false) else it }
+                }
                 .onFailure { error ->
                     _uiState.update {
+                        if (it.courseId != courseId) return@update it
                         it.copy(isLoading = false, loadErrorMessage = error.userMessage("신고 사유를 불러오지 못했어요."))
                     }
                 }
@@ -70,9 +73,12 @@ class CourseReportViewModel @Inject constructor(
         _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
         viewModelScope.launch {
             reportCourse(courseId, CourseReportSubmission(current.selected, current.submittedDetail))
-                .onSuccess { _uiState.update { it.copy(isSubmitting = false, isSubmitted = true) } }
+                .onSuccess {
+                    _uiState.update { if (it.courseId == courseId) it.copy(isSubmitting = false, isSubmitted = true) else it }
+                }
                 .onFailure { error ->
                     _uiState.update {
+                        if (it.courseId != courseId) return@update it
                         it.copy(isSubmitting = false, errorMessage = error.userMessage("신고하지 못했어요."))
                     }
                 }

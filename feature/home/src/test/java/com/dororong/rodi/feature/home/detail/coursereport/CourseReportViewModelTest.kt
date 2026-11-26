@@ -14,6 +14,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -129,6 +130,25 @@ class CourseReportViewModelTest {
         assertEquals(emptyList<String>(), viewModel.uiState.value.selected)
     }
 
+    @Test
+    fun `다른 코스로 바뀐 뒤 도착한 이전 신고 결과는 새 코스 화면에 반영하지 않는다`() = runTest(dispatcher) {
+        val pending = kotlinx.coroutines.CompletableDeferred<Result<Unit>>()
+        coEvery { reportCourse(COURSE_ID, any()) } coAnswers { pending.await() }
+        val viewModel = loaded()
+        viewModel.toggle("CONSTRUCTION")
+        viewModel.submit()
+        runCurrent()
+
+        viewModel.load(OTHER_COURSE_ID)
+        advanceUntilIdle()
+        pending.complete(Result.success(Unit))
+        advanceUntilIdle()
+
+        assertEquals(OTHER_COURSE_ID, viewModel.uiState.value.courseId)
+        assertFalse(viewModel.uiState.value.isSubmitted)
+        assertFalse(viewModel.uiState.value.isSubmitting)
+    }
+
     private fun kotlinx.coroutines.test.TestScope.loaded(): CourseReportViewModel {
         val viewModel = CourseReportViewModel(getReportForm, reportCourse)
         viewModel.load(COURSE_ID)
@@ -147,5 +167,6 @@ class CourseReportViewModelTest {
 
     private companion object {
         const val COURSE_ID = 9L
+        const val OTHER_COURSE_ID = 10L
     }
 }
