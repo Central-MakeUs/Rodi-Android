@@ -82,19 +82,16 @@ import com.dororong.rodi.feature.home.location.rememberDeviceHeading
 import com.dororong.rodi.feature.home.map.BrowseLabelTag
 import com.dororong.rodi.feature.home.map.centerPoint
 import com.dororong.rodi.core.ui.network.networkAvailabilityFlow
-import com.dororong.rodi.feature.home.map.ClusterPolicy
 import com.dororong.rodi.feature.home.map.DEFAULT_ZOOM
 import com.dororong.rodi.feature.home.map.CameraSettleAction
 import com.dororong.rodi.feature.home.map.InitialViewportSearchPolicy
 import com.dororong.rodi.feature.home.map.InitialLocationState
-import com.dororong.rodi.feature.home.map.MapClusterer
 import com.dororong.rodi.feature.home.map.MapBitmapStyle
 import com.dororong.rodi.feature.home.map.MapBitmapTextStyle
 import com.dororong.rodi.feature.home.map.MapSearchMoveReason
 import com.dororong.rodi.feature.home.map.rememberHomeMapState
 import com.dororong.rodi.feature.home.map.rememberMapLoadStatus
 import com.dororong.rodi.feature.home.map.MapViewport
-import com.dororong.rodi.feature.home.map.ProjectedMapItem
 import com.dororong.rodi.feature.home.map.SEOUL
 import com.dororong.rodi.feature.home.map.clearBrowseLabels
 import com.dororong.rodi.feature.home.map.clearCourse
@@ -105,11 +102,10 @@ import com.dororong.rodi.feature.home.map.focusOn
 import com.dororong.rodi.feature.home.map.hasLoadedMapInSession
 import com.dororong.rodi.feature.home.map.initialMapCenter
 import com.dororong.rodi.feature.home.map.markMapLoaded
-import com.dororong.rodi.feature.home.map.markerViewportOrNull
 import com.dororong.rodi.feature.home.map.rememberMapViewWithLifecycle
+import com.dororong.rodi.feature.home.map.markersForLongitudeSpan
 import com.dororong.rodi.feature.home.map.renderClusters
 import com.dororong.rodi.feature.home.map.renderCurrentLocationMarker
-import com.dororong.rodi.feature.home.map.renderIndividualMarkers
 import com.dororong.rodi.feature.home.map.renderPlaceCourse
 import com.dororong.rodi.feature.home.map.renderPlaceCourseMarkers
 import com.dororong.rodi.feature.home.map.RouteLineColors
@@ -117,8 +113,6 @@ import com.dororong.rodi.feature.home.map.renderSelectedParkingMarker
 import com.dororong.rodi.feature.home.map.selectParkingMarker
 import com.dororong.rodi.feature.home.map.viewportOrNull
 import com.dororong.rodi.feature.home.map.viewportAboveBottomInsetOrNull
-import com.dororong.rodi.feature.home.map.visibleViewportOrNull
-import com.dororong.rodi.feature.home.map.boundsOrNull
 import com.dororong.rodi.feature.home.map.applyMapContentPadding
 import com.dororong.rodi.feature.home.navi.KakaoMapLauncher
 import com.dororong.rodi.feature.home.navi.KakaoNaviLauncher
@@ -140,7 +134,6 @@ import com.dororong.rodi.core.ui.R as CoreUiR
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 
-private const val CLUSTER_DISTANCE_DP = 56
 private const val CLUSTER_FIT_PADDING_DP = 64
 private const val SURFACE_ANIMATION_MILLIS = 300
 private val LIST_SHEET_PEEK_HEIGHT = 380.dp
@@ -195,7 +188,6 @@ fun HomeScreen(
     var bottomNavigationHeightPx by remember { mutableIntStateOf(0) }
     var restoredViewportMap by remember { mutableStateOf<KakaoMap?>(null) }
     val deviceHeading = rememberDeviceHeading()
-    val clusterDistancePx = with(density) { CLUSTER_DISTANCE_DP.dp.roundToPx() }
     val colors = RodiTheme.colors
     val typography = RodiTheme.typography
     val courseChipTypeface = remember(context) {
@@ -697,52 +689,25 @@ fun HomeScreen(
 
     LaunchedEffect(
         kakaoMap,
-        state.coordinates,
+        state.markerClusters,
         state.surfaceState,
-        mapState.zoomLevel,
-        mapState.mapViewSize,
-        mapContentBottomPaddingPx,
         mapBitmapStyle,
         mapState.currentViewport,
-        state.searchedQuery,
-        mapState.activeClusterMemberIds,
     ) {
         val map = kakaoMap ?: return@LaunchedEffect
         if (state.surfaceState == HomeSurfaceState.Detail) return@LaunchedEffect
         map.clearCourse()
-        val markerViewport = markerViewportOrNull(mapState.currentViewport, state.searchedQuery)
-        if (state.coordinates.isEmpty() || markerViewport == null) {
+        val clusters = state.markerClusters
+        val viewport = mapState.currentViewport
+        if (clusters == null || viewport == null) {
             map.clearBrowseLabels()
             return@LaunchedEffect
         }
-        val clusterScopedCoordinates = mapState.activeClusterMemberIds?.let { memberIds ->
-            state.coordinates.filter { it.id in memberIds }
-        } ?: state.coordinates
-        val visibleCoordinates = clusterScopedCoordinates.filter { markerViewport.contains(it.point) }
-        when (val policy = ClusterPolicy.forZoom(mapState.zoomLevel)) {
-            null -> {
-                map.renderIndividualMarkers(context, visibleCoordinates, mapBitmapStyle)
-            }
-
-            else -> {
-                val clusters = MapClusterer.clusterByScreenDistance(
-                    items = visibleCoordinates.mapNotNull { place ->
-                        val point = map.toScreenPoint(LatLng.from(place.point.lat, place.point.lng))
-                            ?: return@mapNotNull null
-                        ProjectedMapItem(place.id, place.point, point.x, point.y)
-                    },
-                    viewport = map.visibleViewportOrNull(mapState.mapViewSize)?.screen ?: return@LaunchedEffect,
-                    minimumDistancePx = clusterDistancePx,
-                    targetZoom = policy.targetZoom,
-                )
-                map.renderClusters(
-                    context = context,
-                    clusters = clusters,
-                    placesById = visibleCoordinates.associateBy { it.id },
-                    style = mapBitmapStyle,
-                )
-            }
-        }
+        map.renderClusters(
+            context = context,
+            markers = clusters.markersForLongitudeSpan(viewport.northEast.lng - viewport.southWest.lng),
+            style = mapBitmapStyle,
+        )
     }
 
     LaunchedEffect(
@@ -968,36 +933,17 @@ fun HomeScreen(
                                     map.setOnLabelClickListener { _, _, label ->
                                         when (val tag = label.tag) {
                                             is BrowseLabelTag.Cluster -> {
-                                                mapState.hasUserChosenMapViewport = true
-                                                val memberPoints = tag.memberPoints.distinct()
-                                                val memberBounds = memberPoints.boundsOrNull()
-                                                val target = memberBounds?.let {
-                                                    GeoPoint(
-                                                        lat = (it.northEast.lat + it.southWest.lat) / 2.0,
-                                                        lng = (it.northEast.lng + it.southWest.lng) / 2.0,
+                                                mapState.moveWithoutSearch {
+                                                    map.moveCamera(
+                                                        CameraUpdateFactory.fitMapPoints(
+                                                            arrayOf(
+                                                                LatLng.from(tag.bounds.southWest.lat, tag.bounds.southWest.lng),
+                                                                LatLng.from(tag.bounds.northEast.lat, tag.bounds.northEast.lng),
+                                                            ),
+                                                            clusterFitPaddingPx,
+                                                        ),
+                                                        CameraAnimation.from(350),
                                                     )
-                                                } ?: tag.point
-                                                val canFitBounds = memberPoints.size >= 2 && memberBounds != null &&
-                                                    (memberBounds.northEast != memberBounds.southWest)
-                                                val cameraUpdate = if (canFitBounds) {
-                                                    CameraUpdateFactory.fitMapPoints(
-                                                        memberPoints.map { LatLng.from(it.lat, it.lng) }.toTypedArray(),
-                                                        clusterFitPaddingPx,
-                                                    )
-                                                } else {
-                                                    CameraUpdateFactory.newCenterPosition(
-                                                        LatLng.from(target.lat, target.lng),
-                                                        tag.targetZoom,
-                                                    )
-                                                }
-                                                mapState.moveWithSearch(
-                                                    target = target,
-                                                    targetZoom = tag.targetZoom.takeUnless { canFitBounds },
-                                                    reason = MapSearchMoveReason.CLUSTER,
-                                                    requiredBounds = memberBounds.takeIf { canFitBounds },
-                                                    clusterMemberIds = tag.memberIds,
-                                                ) {
-                                                    map.moveCamera(cameraUpdate, CameraAnimation.from(350))
                                                 }
                                             }
 

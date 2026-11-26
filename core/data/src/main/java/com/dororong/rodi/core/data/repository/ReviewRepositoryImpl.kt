@@ -2,6 +2,7 @@ package com.dororong.rodi.core.data.repository
 
 import com.dororong.rodi.core.data.mapper.toDomain
 import com.dororong.rodi.core.data.mapper.toQueryValue
+import com.dororong.rodi.core.data.mapper.toIssueForm
 import com.dororong.rodi.core.data.mapper.toRequest
 import com.dororong.rodi.core.data.source.local.datastore.ReportedReviewPreferences
 import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
@@ -14,6 +15,7 @@ import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
 import com.dororong.rodi.core.domain.model.review.ReviewException
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
@@ -22,6 +24,10 @@ import java.io.IOException
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import retrofit2.HttpException
 
 class ReviewRepositoryImpl @Inject constructor(
@@ -50,6 +56,16 @@ class ReviewRepositoryImpl @Inject constructor(
 
     override suspend fun getReview(reviewId: Long): ReviewDetail = authenticatedRequest {
         api.getReview(reviewId).requireData().toDomain()
+    }
+
+    override suspend fun getReviewIssueForm(placeId: Long): ReviewIssueForm? = authenticatedRequest {
+        val response = try {
+            api.getReviewForm(placeId)
+        } catch (error: HttpException) {
+            if (error.code() == 404) return@authenticatedRequest null
+            throw error
+        }
+        response.requireData().toIssueForm()
     }
 
     override suspend fun createReview(placeId: Long, draft: ReviewDraft): Long =
@@ -127,6 +143,7 @@ private fun ApiEnvelope<*>.requireSuccess(operation: ReviewOperation = ReviewOpe
 }
 
 private fun ApiEnvelope<*>.toReviewException(operation: ReviewOperation): ReviewException = when {
+    code == CODE_PLACE_NOT_REVIEWABLE -> ReviewException.PlaceNotReviewable(message)
     code.contains("400") -> ReviewException.InvalidRequest(message)
     code.contains("401") -> ReviewException.AuthenticationRequired(message)
     code.contains("403") -> ReviewException.Forbidden(message)
@@ -139,7 +156,13 @@ private fun ApiEnvelope<*>.toReviewException(operation: ReviewOperation): Review
 private fun Throwable.toReviewException(operation: ReviewOperation): ReviewException = when (this) {
     is ReviewException -> this
     is HttpException -> when (code()) {
-        400 -> ReviewException.InvalidRequest(message(), this)
+        400 -> errorEnvelope().let { (code, serverMessage) ->
+            if (code == CODE_PLACE_NOT_REVIEWABLE) {
+                ReviewException.PlaceNotReviewable(serverMessage ?: message(), this)
+            } else {
+                ReviewException.InvalidRequest(message(), this)
+            }
+        }
         401 -> ReviewException.AuthenticationRequired(message(), this)
         403 -> ReviewException.Forbidden(message(), this)
         404 -> ReviewException.NotFound(message(), this)
@@ -153,3 +176,10 @@ private fun Throwable.toReviewException(operation: ReviewOperation): ReviewExcep
     is IOException -> ReviewException.Network("네트워크 연결을 확인해주세요.", this)
     else -> ReviewException.Unexpected("후기 요청에 실패했습니다.", this)
 }
+
+private fun HttpException.errorEnvelope(): Pair<String?, String?> = runCatching {
+    val body = Json.parseToJsonElement(response()?.errorBody()?.string().orEmpty()).jsonObject
+    body["code"]?.jsonPrimitive?.contentOrNull to body["message"]?.jsonPrimitive?.contentOrNull
+}.getOrDefault(null to null)
+
+private const val CODE_PLACE_NOT_REVIEWABLE = "REVIEW_400_2"

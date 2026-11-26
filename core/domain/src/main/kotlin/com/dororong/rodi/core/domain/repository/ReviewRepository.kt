@@ -6,6 +6,7 @@ import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import com.dororong.rodi.core.domain.model.review.Review
 import com.dororong.rodi.core.domain.model.review.ReviewDetail
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
+import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
 import com.dororong.rodi.core.domain.model.review.ReviewLevelFilter
 import com.dororong.rodi.core.domain.model.review.ReviewSummary
 
@@ -23,6 +24,7 @@ interface ReviewRepository {
     ): ReviewSummary
 
     suspend fun getReview(reviewId: Long): ReviewDetail
+    suspend fun getReviewIssueForm(placeId: Long): ReviewIssueForm?
     suspend fun createReview(placeId: Long, draft: ReviewDraft): Long
     suspend fun updateReview(reviewId: Long, draft: ReviewDraft)
     suspend fun deleteReview(reviewId: Long)

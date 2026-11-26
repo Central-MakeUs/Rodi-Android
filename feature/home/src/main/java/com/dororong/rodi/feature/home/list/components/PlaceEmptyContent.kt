@@ -1,12 +1,18 @@
 package com.dororong.rodi.feature.home.list.components
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -22,6 +28,7 @@ fun PlaceEmptyContent(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
     dragHandleModifier: Modifier = Modifier,
+    onBrowseMore: (() -> Unit)? = null,
 ) {
     // 목록이 비었을 땐 헤더(ListSheetHeader) 대신 이 컴포넌트가 바로 오므로 전체 영역을
     // 드래그할 수 있게 한다. 재시도 버튼의 탭은 anchoredDraggable이 이동으로 인식하지 않는다.
@@ -39,7 +46,7 @@ fun PlaceEmptyContent(
             topPadding = 68.dp,
             painter = painterResource(R.drawable.illust_course_empty),
             imageSize = 80.dp,
-            title = if (isInitialError) "장소를 불러오지 못했어요." else "추천할 수 있는 연습 코스를 찾지 못했어요.",
+            title = if (isInitialError) "장소를 불러오지 못했어요." else "연습 코스를 찾지 못했어요",
             description = if (isInitialError) {
                 "네트워크 연결을 확인하고\n잠시 후 다시 시도해주세요."
             } else {
@@ -53,10 +60,35 @@ fun PlaceEmptyContent(
                         onClick = onRetry,
                         fillMaxWidth = false,
                     )
+                } else if (onBrowseMore != null) {
+                    Spacer(Modifier.height(16.dp))
+                    BrowseMoreButton(onClick = onBrowseMore)
                 }
             },
         )
     }
+}
+
+/** 필터 때문에 목록이 비었을 때 필터를 풀어 전체 코스를 다시 보여준다. */
+@Composable
+private fun BrowseMoreButton(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(8.dp)
+    Text(
+        text = "더 많은 코스 둘러보기",
+        style = RodiTheme.typography.body3Medium,
+        color = RodiTheme.colors.primary600,
+        modifier = Modifier
+            .clip(shape)
+            .border(1.dp, RodiTheme.colors.primary600, shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 7.dp),
+    )
+}
+
+@Preview(name = "Place empty - filtered", showBackground = true, widthDp = 375, heightDp = 380)
+@Composable
+private fun PlaceEmptyFilteredPreview() {
+    RodiTheme { PlaceEmptyContent(isInitialError = false, onRetry = {}, onBrowseMore = {}) }
 }
 
 @Preview(name = "Place empty", showBackground = true, widthDp = 375, heightDp = 380)

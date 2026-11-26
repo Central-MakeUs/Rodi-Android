@@ -361,7 +361,7 @@ private fun ReportDetailInput(
 }
 
 @Composable
-private fun ReportSubmittedDialog(onConfirm: () -> Unit) {
+internal fun ReportSubmittedDialog(onConfirm: () -> Unit) {
     Dialog(
         onDismissRequest = onConfirm,
         properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true),

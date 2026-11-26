@@ -28,9 +28,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Named
 import javax.inject.Singleton
 
-// 로그인/토큰 API 서버. Notion "카카오 로그인 API 연동 가이드" 기준.
-private const val BASE_URL = "https://api.stillstar.store/api/v1/"
-
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
@@ -91,9 +88,13 @@ object NetworkModule {
     /** 로그인·재발급용. 토큰을 본문으로 주고받으므로 인증을 붙이지 않는다. */
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, json: Json): Retrofit =
+    fun provideRetrofit(
+        okHttpClient: OkHttpClient,
+        json: Json,
+        @Named("rodiBaseUrl") baseUrl: String,
+    ): Retrofit =
         Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
             .build()
@@ -104,8 +105,9 @@ object NetworkModule {
     fun provideAuthenticatedRetrofit(
         @Named("authenticated") okHttpClient: OkHttpClient,
         json: Json,
+        @Named("rodiBaseUrl") baseUrl: String,
     ): Retrofit = Retrofit.Builder()
-        .baseUrl(BASE_URL)
+        .baseUrl(baseUrl)
         .client(okHttpClient)
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()

@@ -36,6 +36,12 @@ interface PlaceCacheDao {
     @Query("DELETE FROM place_summaries WHERE id < 0")
     suspend fun deleteSampleSummaries()
 
+    @Query("DELETE FROM place_summaries WHERE id IN (:ids)")
+    suspend fun deleteSummariesByIds(ids: List<Long>)
+
+    @Query("DELETE FROM place_coordinates WHERE id IN (:ids)")
+    suspend fun deleteCoordinatesByIds(ids: List<Long>)
+
     @Transaction
     suspend fun replaceCoordinates(items: List<PlaceCoordinateEntity>) {
         deleteCoordinates()
@@ -52,7 +58,10 @@ interface PlaceCacheDao {
     suspend fun upsertSummariesWithCoordinates(
         summaries: List<PlaceSummaryEntity>,
         coordinates: List<PlaceCoordinateEntity>,
+        deletedIds: List<Long>,
     ) {
+        deleteSummariesByIds(deletedIds)
+        deleteCoordinatesByIds(deletedIds)
         upsertSummaries(summaries)
         upsertCoordinates(coordinates)
     }

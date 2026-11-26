@@ -20,6 +20,7 @@ import com.dororong.rodi.feature.home.components.LoginRequiredDialog
 import com.dororong.rodi.feature.home.components.NaviPickerMode
 import com.dororong.rodi.feature.home.components.NaviPickerSheet
 import com.dororong.rodi.feature.home.detail.CourseReviewUiState
+import com.dororong.rodi.feature.home.detail.coursereport.CourseReportScreen
 import com.dororong.rodi.feature.home.detail.levelreviews.LevelReviewsOverlay
 import com.dororong.rodi.feature.home.detail.reviewactions.BlockMemberDialog
 import com.dororong.rodi.feature.home.detail.reviewactions.ReviewReportScreen
@@ -42,6 +43,7 @@ internal class HomeOverlayState {
     var reviewToBlock by mutableStateOf<Review?>(null)
     var reviewToDelete by mutableStateOf<Review?>(null)
     var reviewToWrite by mutableStateOf<ReviewWriteTarget?>(null)
+    var courseToReport by mutableStateOf<Long?>(null)
     var naviPlaceId by mutableStateOf<Long?>(null)
     var installNaviPlaceId by mutableStateOf<Long?>(null)
     var ownReviewActionToastMessage by mutableStateOf<String?>(null)
@@ -128,6 +130,13 @@ internal fun HomeOverlayHost(
             onClose = { overlay.reviewToReport = null },
             modifier = Modifier.fillMaxSize(),
             onReported = reviewActions.onReviewReported,
+        )
+    }
+    overlay.courseToReport?.let { courseId ->
+        CourseReportScreen(
+            courseId = courseId,
+            onClose = { overlay.courseToReport = null },
+            modifier = Modifier.fillMaxSize(),
         )
     }
     overlay.reviewToWrite?.let { target ->

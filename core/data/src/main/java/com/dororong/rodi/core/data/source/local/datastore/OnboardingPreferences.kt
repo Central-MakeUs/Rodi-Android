@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.dororong.rodi.core.domain.model.onboarding.normalizeRoadExperiences
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
 import com.dororong.rodi.core.domain.model.onboarding.PracticeSituation
@@ -51,12 +52,10 @@ class OnboardingPreferences @Inject constructor(
                         .toEnumList<RoadExperience>(),
                     soloDrivingRange = prefs[KEY_SOLO_DRIVING_RANGE].toEnumOrNull<SoloDrivingRange>(),
                     soloParkingLevel = prefs[KEY_SOLO_PARKING_LEVEL].toEnumOrNull<SoloParkingLevel>(),
-                    practiceSituations = prefs
-                        .readStringSet(KEY_PRACTICE_SITUATIONS, LEGACY_PRACTICE_SITUATIONS_KEY)
-                        .toEnumList<PracticeSituation>(),
+                    practiceSituations = prefs.readPracticeSituations(),
                     vehicleType = prefs[KEY_VEHICLE_TYPE].toEnumOrNull<VehicleType>(),
                     goal = prefs[KEY_GOAL].orEmpty(),
-                )
+                ).normalizeRoadExperiences()
             }
 
     val isSyncPending: Flow<Boolean> =
@@ -81,12 +80,12 @@ class OnboardingPreferences @Inject constructor(
             .map { it[KEY_INITIAL_FILTER_TAGS_APPLIED] ?: false }
 
     suspend fun saveProfile(profile: OnboardingProfile) {
-        context.onboardingDataStore.edit { it.writeProfile(profile) }
+        context.onboardingDataStore.edit { it.writeProfile(profile.normalizeRoadExperiences()) }
     }
 
     suspend fun savePendingProfile(profile: OnboardingProfile) {
         context.onboardingDataStore.edit {
-            it.writeProfile(profile)
+            it.writeProfile(profile.normalizeRoadExperiences())
             it[KEY_SYNC_PENDING] = true
         }
     }
@@ -120,6 +119,7 @@ class OnboardingPreferences @Inject constructor(
         profile.soloParkingLevel?.let { this[KEY_SOLO_PARKING_LEVEL] = it.name }
             ?: remove(KEY_SOLO_PARKING_LEVEL)
         this[KEY_PRACTICE_SITUATIONS] = profile.practiceSituations.map { it.name }.toSet()
+        this[KEY_PRACTICE_SITUATION_ORDER] = profile.practiceSituations.joinToString(",") { it.name }
         profile.vehicleType?.let { this[KEY_VEHICLE_TYPE] = it.name } ?: remove(KEY_VEHICLE_TYPE)
         this[KEY_GOAL] = profile.goal
     }
@@ -132,6 +132,7 @@ class OnboardingPreferences @Inject constructor(
         val KEY_SOLO_DRIVING_RANGE = stringPreferencesKey("solo_driving_range")
         val KEY_SOLO_PARKING_LEVEL = stringPreferencesKey("solo_parking_level")
         val KEY_PRACTICE_SITUATIONS = stringSetPreferencesKey("practice_situation_set")
+        val KEY_PRACTICE_SITUATION_ORDER = stringPreferencesKey("practice_situation_order")
         val KEY_VEHICLE_TYPE = stringPreferencesKey("vehicle_type")
         val KEY_GOAL = stringPreferencesKey("goal")
         val KEY_SYNC_PENDING = booleanPreferencesKey("onboarding_sync_pending")
@@ -172,4 +173,13 @@ private inline fun <reified T : Enum<T>> String?.toEnumOrNull(): T? =
 private inline fun <reified T : Enum<T>> Set<String>.toEnumList(): List<T> {
     val values = this
     return enumValues<T>().filter { values.contains(it.name) }
+}
+
+internal fun Preferences.readPracticeSituations(): List<PracticeSituation> {
+    val ordered = this[stringPreferencesKey("practice_situation_order")]
+    if (ordered != null) {
+        return ordered.split(',').mapNotNull { it.toEnumOrNull<PracticeSituation>() }.distinct().take(3)
+    }
+    return readStringSet(stringSetPreferencesKey("practice_situation_set"), "practice_situations")
+        .toEnumList<PracticeSituation>().take(3)
 }

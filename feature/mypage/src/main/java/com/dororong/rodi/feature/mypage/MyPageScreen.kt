@@ -50,6 +50,7 @@ import com.dororong.rodi.core.ui.components.dialog.LevelUpDialog
 import com.dororong.rodi.core.ui.components.dialog.RodiAlertDialog
 import com.dororong.rodi.core.ui.components.RodiSkeleton
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarData
+import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarDuration
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHost
 import com.dororong.rodi.core.ui.components.snackbar.RodiSnackbarHostState
 import com.dororong.rodi.core.ui.effect.CollectEffect
@@ -60,6 +61,7 @@ import com.dororong.rodi.feature.mypage.testmenu.TestMenuSection
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
 import java.time.Instant
+import java.time.LocalDateTime
 
 data class MyPageProfile(
     val nickname: String = "",
@@ -69,6 +71,7 @@ data class MyPageProfile(
     val savedPlaceCount: Long = 0,
     val progress: Float = 0f,
     val distanceLabel: String = "0km",
+    val nicknameChangeableAt: LocalDateTime? = null,
 )
 
 @Composable
@@ -127,6 +130,19 @@ fun MyPageScreen(
             is MyPageEffect.ShowError -> snackbarHostState.show(
                 RodiSnackbarData(message = effect.message),
             )
+            MyPageEffect.OpenNicknameEditor -> onNicknameClick()
+            is MyPageEffect.NicknameChangeRestricted -> {
+                val date = effect.changeableOn
+                val noticeId = "nickname-change-restricted"
+                snackbarHostState.dismiss(noticeId)
+                snackbarHostState.show(
+                    RodiSnackbarData(
+                        id = noticeId,
+                        message = "${date.monthValue}/${date.dayOfMonth}일부터 닉네임 변경이 가능해요.",
+                        duration = RodiSnackbarDuration.Medium,
+                    ),
+                )
+            }
         }
     }
 
@@ -149,7 +165,7 @@ fun MyPageScreen(
                 profile = uiState.profile,
                 onSettingsClick = onSettingsClick,
                 onGoalClick = onGoalClick,
-                onNicknameClick = onNicknameClick,
+                onNicknameClick = viewModel::onNicknameClick,
                 onSavedCoursesClick = onSavedCoursesClick,
                 onPracticeRecordsClick = onPracticeRecordsClick,
                 onMyPostsClick = onMyPostsClick,

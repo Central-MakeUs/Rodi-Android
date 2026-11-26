@@ -32,6 +32,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:common"))
     implementation(libs.bundles.kakao.navigation)
+    implementation(libs.bundles.svg.images)
     implementation(libs.play.services.location)
     testImplementation(libs.bundles.unit.test)
     testRuntimeOnly(libs.junit.platform.launcher)

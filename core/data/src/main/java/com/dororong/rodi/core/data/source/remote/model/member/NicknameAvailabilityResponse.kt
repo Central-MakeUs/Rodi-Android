@@ -8,7 +8,14 @@ data class NicknameAvailabilityResponse(
     val available: Boolean,
     val reason: String? = null,
     val message: String? = null,
+    val nicknameChangeableAt: String? = null,
 )
 
 @Serializable
 data class NicknameUpdateRequest(val nickname: String)
+
+@Serializable
+data class MemberUpdateResponse(
+    val nickname: String? = null,
+    val nicknameChangeableAt: String? = null,
+)

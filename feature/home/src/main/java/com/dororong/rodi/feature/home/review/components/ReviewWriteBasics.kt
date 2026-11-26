@@ -1,21 +1,37 @@
 package com.dororong.rodi.feature.home.review.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
+import com.dororong.rodi.core.domain.model.review.ReviewIssueForm
+import com.dororong.rodi.core.ui.text.graphemeLength
 import com.dororong.rodi.core.ui.theme.RodiTheme
 import com.dororong.rodi.core.ui.components.input.RodiFieldLabel
 import com.dororong.rodi.feature.home.detail.components.label
+import com.dororong.rodi.feature.home.R
 import com.dororong.rodi.feature.home.review.ReviewWriteUiState
 
 @Composable
@@ -25,6 +41,8 @@ fun ReviewWriteBasics(
     onDifficulty: (ReviewDifficulty) -> Unit,
     onCongestion: (ReviewCongestion) -> Unit,
     onCaution: (String) -> Unit,
+    onCourseIssue: (String) -> Unit = {},
+    onCourseIssueDetail: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -35,10 +53,72 @@ fun ReviewWriteBasics(
             text = reviewHeading(state.placeName),
             style = RodiTheme.typography.heading2,
         )
-        ReviewChoiceBlock(state.isRecommended, onRecommend)
-        ReviewScale("난이도", ReviewDifficulty.entries, state.difficulty, { it.label }, onDifficulty)
-        ReviewScale("혼잡도", ReviewCongestion.entries, state.congestion, ReviewCongestion::label, onCongestion)
-        CautionBlock(state.caution, onCaution)
+        ReviewChoiceBlock(state.isRecommended, onRecommend, state.isRecommendOnly)
+        if (state.isRecommended == false && state.issueForm != null) {
+            CourseIssuesBlock(state.issueForm, state.courseIssues, state.courseIssueDetail, onCourseIssue, onCourseIssueDetail)
+        } else if (state.issueForm == null || state.isRecommended == true) {
+            ReviewScale("난이도", ReviewDifficulty.entries, state.difficulty, { it.label }, onDifficulty)
+            ReviewScale("혼잡도", ReviewCongestion.entries, state.congestion, ReviewCongestion::label, onCongestion)
+            CautionBlock(state.caution, onCaution)
+        }
+    }
+}
+
+@Composable
+internal fun CourseIssuesBlock(
+    form: ReviewIssueForm,
+    selected: List<String>,
+    detail: String,
+    onToggle: (String) -> Unit,
+    onDetail: (String) -> Unit,
+    useHeadingStyle: Boolean = false,
+    optionTextStyle: TextStyle? = null,
+) {
+    Column {
+        if (useHeadingStyle) {
+            Text(form.title, style = RodiTheme.typography.heading2, color = RodiTheme.colors.black)
+        } else {
+            RodiFieldLabel(form.title, required = true, showRequirement = false)
+        }
+        Spacer(Modifier.height(16.dp))
+        Column {
+            form.options.forEach { option ->
+                val isSelected = option.code in selected
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 40.dp).toggleable(
+                            value = isSelected,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggle(option.code) },
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Image(
+                            painter = painterResource(
+                                if (isSelected) R.drawable.ic_review_issue_selected else R.drawable.ic_review_issue_default,
+                            ),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Text(option.label, style = optionTextStyle ?: RodiTheme.typography.body3Medium, color = RodiTheme.colors.black)
+                    }
+                    if (isSelected && option.requiresTextInput) {
+                        val max = option.textInputMaxLength ?: 30
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            ReviewTextField(detail, onDetail, option.textInputPlaceholder ?: "이유를 작성해주세요.", false, max)
+                            Text(
+                                text = "${detail.graphemeLength()}/$max",
+                                modifier = Modifier.fillMaxWidth(),
+                                style = RodiTheme.typography.body3Medium,
+                                color = RodiTheme.colors.gray600,
+                                textAlign = TextAlign.End,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -61,7 +141,7 @@ private fun <T> ReviewScale(
     onSelect: (T) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel(label, required = true)
+        RodiFieldLabel(label, required = true, showRequirement = false)
         ScalePicker(values, selected, display, onSelect)
     }
 }
@@ -70,10 +150,17 @@ private fun <T> ReviewScale(
 private fun ReviewChoiceBlock(
     selected: Boolean?,
     onSelect: (Boolean) -> Unit,
+    isRecommendOnly: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true)
-        ChoicePairRow("별로예요", "추천해요", selected, onSelect)
+        RodiFieldLabel("이 코스를 다른 초보 운전자에게 추천하시겠어요?", required = true, showRequirement = false)
+        ChoicePairRow(
+            startLabel = "별로에요",
+            endLabel = "추천해요",
+            selected = selected,
+            onSelect = onSelect,
+            startEnabled = !isRecommendOnly,
+        )
     }
 }
 
@@ -83,7 +170,7 @@ private fun CautionBlock(
     onCaution: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("주의사항", required = false)
+        RodiFieldLabel("주의사항", required = false, showRequirement = false)
         ReviewTextField(
             value = caution,
             onValueChange = onCaution,
@@ -125,6 +212,21 @@ private fun ReviewWriteBasicsSelectedPreview() = RodiTheme {
 private fun ReviewWriteBasicsCautionPreview() = RodiTheme {
     ReviewWriteBasics(
         ReviewWriteUiState(placeName = "강남역 코스", caution = "자전거가 자주 지나가요."),
+        {}, {}, {}, {},
+    )
+}
+
+@Preview(name = "후기 기본 - 주차장 추천만", showBackground = true, widthDp = 375)
+@Composable
+private fun ReviewWriteBasicsRecommendOnlyPreview() = RodiTheme {
+    ReviewWriteBasics(
+        ReviewWriteUiState(
+            placeName = "강남역 공영주차장",
+            isRecommendOnly = true,
+            isRecommended = true,
+            difficulty = ReviewDifficulty.EASY,
+            congestion = ReviewCongestion.NORMAL,
+        ),
         {}, {}, {}, {},
     )
 }

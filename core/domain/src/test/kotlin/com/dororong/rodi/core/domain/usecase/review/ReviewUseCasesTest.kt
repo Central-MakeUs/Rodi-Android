@@ -80,7 +80,7 @@ class ReviewUseCasesTest {
 
     @Test
     fun `후기 신고를 저장소에 한 번 위임한다`() = runTest {
-        val submission = ReportSubmission("SPAM", null, true)
+        val submission = ReportSubmission("SPAM", null)
         coEvery { repository.reportReview(3, submission) } returns Unit
 
         val result = ReportReviewUseCase(repository)(3, submission)

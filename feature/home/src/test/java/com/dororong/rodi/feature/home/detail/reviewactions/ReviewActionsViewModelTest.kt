@@ -45,7 +45,7 @@ class ReviewActionsViewModelTest {
         coEvery {
             reportReview(
                 REVIEW_ID,
-                ReportSubmission(reason = "ABUSE", detail = null, detailConsistent = true),
+                ReportSubmission(reason = "ABUSE", detail = null),
             )
         } returns Result.success(Unit)
 
@@ -60,7 +60,7 @@ class ReviewActionsViewModelTest {
         coVerify(exactly = 1) {
             reportReview(
                 REVIEW_ID,
-                ReportSubmission(reason = "ABUSE", detail = null, detailConsistent = true),
+                ReportSubmission(reason = "ABUSE", detail = null),
             )
         }
     }
@@ -71,7 +71,7 @@ class ReviewActionsViewModelTest {
         coEvery {
             reportReview(
                 REVIEW_ID,
-                ReportSubmission(reason = "OTHER", detail = "추가 설명", detailConsistent = true),
+                ReportSubmission(reason = "OTHER", detail = "추가 설명"),
             )
         } returns Result.success(Unit)
 
@@ -79,6 +79,13 @@ class ReviewActionsViewModelTest {
         viewModel.loadReportForm(REVIEW_ID)
         advanceUntilIdle()
         viewModel.selectReportOption(reportForm().options[2])
+        viewModel.submitReport()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isReportSubmitted)
+        coVerify(exactly = 0) { reportReview(any(), any()) }
+
+        viewModel.updateReportDetail("   ")
         viewModel.submitReport()
         advanceUntilIdle()
 

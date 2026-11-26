@@ -6,6 +6,7 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.OnboardingApi
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import com.dororong.rodi.core.data.test.assertThrowsSuspend
+import com.dororong.rodi.core.domain.model.onboarding.RoadExperience
 import com.dororong.rodi.core.domain.model.onboarding.DrivingPeriod
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingProfile
@@ -190,6 +191,50 @@ class OnboardingRepositoryImplTest {
         assertThrowsSuspend<CancellationException> {
             repository.submit(profile(), OnboardingLevel.ROOKIE)
         }
+    }
+
+    @Test
+    fun `혼합된 없음 응답은 동기화를 허용하거나 서버에 보내지 않는다`() = runTest {
+        val api = mockk<OnboardingApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        val prefs = preferences()
+        val repository = repository(api, tokenStore, prefs = prefs)
+        val invalid = profile().copy(roadExperiences = listOf(RoadExperience.NONE, RoadExperience.SOLO))
+
+        assertEquals(OnboardingSubmissionResult.InvalidProfile, repository.submit(invalid, OnboardingLevel.ROOKIE))
+        coVerify(exactly = 0) { api.submit(any()) }
+        coVerify(exactly = 0) { prefs.authorizeSync() }
+        coVerify(exactly = 0) { tokenStore.getTokens() }
+    }
+
+    @Test
+    fun `세션 없는 로컬 온보딩은 보호된 서버 폼을 호출하지 않는다`() = runTest {
+        val api = mockk<OnboardingApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns null
+
+        assertEquals(null, repository(api, tokenStore).getForm())
+        coVerify(exactly = 0) { api.getForm() }
+    }
+
+    @Test
+    fun `서버 폼의 성공 응답에 데이터가 없으면 빈 폼으로 대체하지 않는다`() = runTest {
+        val api = mockk<OnboardingApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { api.getForm() } returns ApiEnvelope(true, "COMMON_200", "성공")
+
+        assertThrowsSuspend<IllegalArgumentException> { repository(api, tokenStore).getForm() }
+    }
+
+    @Test
+    fun `서버 폼 조회 취소는 그대로 전파한다`() = runTest {
+        val api = mockk<OnboardingApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns tokens()
+        coEvery { api.getForm() } throws CancellationException("cancelled")
+
+        assertThrowsSuspend<CancellationException> { repository(api, tokenStore).getForm() }
     }
 
     private fun repository(

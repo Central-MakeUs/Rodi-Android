@@ -40,7 +40,7 @@ private fun PracticeMethodBlock(
     onPracticeMethod: (PracticeMethod) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("연습 방법", required = true)
+        RodiFieldLabel("연습 방법", required = true, showRequirement = false)
         ChoicePairRow(
             startLabel = "혼자 연습",
             endLabel = "동승자와 연습",
@@ -63,7 +63,7 @@ private fun ReviewContentBlock(
     isEditing: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        RodiFieldLabel("후기 작성", required = false)
+        RodiFieldLabel("후기 작성", required = false, showRequirement = false)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(4.dp),

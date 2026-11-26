@@ -30,18 +30,19 @@ fun ChoicePairRow(
     selected: Boolean?,
     onSelect: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    startEnabled: Boolean = true,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Choice(label = startLabel, selected = selected == false) { onSelect(false) }
-        Choice(label = endLabel, selected = selected == true) { onSelect(true) }
+        Choice(label = startLabel, selected = selected == false, enabled = startEnabled) { onSelect(false) }
+        Choice(label = endLabel, selected = selected == true, enabled = true) { onSelect(true) }
     }
 }
 
 @Composable
-private fun RowScope.Choice(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun RowScope.Choice(label: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = Modifier
@@ -49,16 +50,21 @@ private fun RowScope.Choice(label: String, selected: Boolean, onClick: () -> Uni
             .height(32.dp)
             .clip(shape)
             .background(
-                color = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.white,
+                color = when {
+                    !enabled -> RodiTheme.colors.gray100
+                    selected -> RodiTheme.colors.primary600
+                    else -> RodiTheme.colors.white
+                },
                 shape = shape,
             )
             .border(
                 width = 1.dp,
-                color = if (selected) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
+                color = if (selected && enabled) RodiTheme.colors.primary600 else RodiTheme.colors.gray300,
                 shape = shape,
             )
             .selectable(
                 selected = selected,
+                enabled = enabled,
                 interactionSource = null,
                 indication = ripple(bounded = true),
                 role = Role.RadioButton,
@@ -69,7 +75,11 @@ private fun RowScope.Choice(label: String, selected: Boolean, onClick: () -> Uni
         Text(
             text = label,
             style = RodiTheme.typography.body3Medium,
-            color = if (selected) RodiTheme.colors.white else RodiTheme.colors.gray800,
+            color = when {
+                !enabled -> RodiTheme.colors.gray500
+                selected -> RodiTheme.colors.white
+                else -> RodiTheme.colors.gray800
+            },
             textAlign = TextAlign.Center,
         )
     }
@@ -91,4 +101,10 @@ private fun ChoicePairStartPreview() = RodiTheme {
 @Composable
 private fun ChoicePairEndPreview() = RodiTheme {
     ChoicePairRow("추천해요", "아쉬워요", true, {})
+}
+
+@Preview(name = "선택 쌍 - 왼쪽 비활성", showBackground = true, widthDp = 375)
+@Composable
+private fun ChoicePairStartDisabledPreview() = RodiTheme {
+    ChoicePairRow("별로에요", "추천해요", true, {}, startEnabled = false)
 }

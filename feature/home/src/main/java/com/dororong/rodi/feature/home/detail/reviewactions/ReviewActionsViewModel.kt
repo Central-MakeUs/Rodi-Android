@@ -102,7 +102,6 @@ class ReviewActionsViewModel @Inject constructor(
                 submission = ReportSubmission(
                     reason = option.code,
                     detail = current.reportDetail.takeIf { option.requiresTextInput },
-                    detailConsistent = true,
                 ),
             ).onSuccess {
                 _uiState.update { it.copy(isReportSubmitting = false, isReportSubmitted = true) }

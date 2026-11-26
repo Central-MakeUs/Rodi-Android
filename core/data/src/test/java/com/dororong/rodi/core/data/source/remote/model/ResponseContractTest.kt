@@ -140,6 +140,16 @@ class ResponseContractTest {
         }
     }
 
+    @Test
+    fun `연습기록의 삭제 여부는 true 값을 유지하고 누락되면 파싱에 실패한다`() {
+        val deleted = PRACTICE_PAGE.replaceFirst("\"isDeleted\":false", "\"isDeleted\":true")
+
+        assertTrue(decode<CursorPagePracticeItemResponse>(deleted).toDomain().items.single().isDeleted)
+        assertThrows<SerializationException> {
+            decode<CursorPagePracticeItemResponse>(PRACTICE_PAGE.replaceFirst(",\"isDeleted\":false", ""))
+        }
+    }
+
     private inline fun <reified T> decode(data: String): T =
         requireNotNull(json.decodeFromString<ApiEnvelope<T>>(envelope(data)).data)
 

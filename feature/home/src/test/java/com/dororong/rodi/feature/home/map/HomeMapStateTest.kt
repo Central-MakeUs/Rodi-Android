@@ -45,6 +45,31 @@ class HomeMapStateTest {
     }
 
     @Test
+    fun `검색 없는 클러스터 확대는 기존 대기 검색을 지우고 새 검색을 예약하지 않는다`() {
+        val state = HomeMapState(hasCenteredInitialLocation = true)
+        state.moveWithSearch(center, 13, MapSearchMoveReason.CLUSTER, clusterMemberIds = setOf(1L)) {}
+        state.isInitialLocationCameraMovePending = true
+        val generation = state.searchGeneration
+        var cameraMoved = false
+
+        state.moveWithoutSearch {
+            assertNull(state.pendingMapSearch)
+            cameraMoved = true
+        }
+
+        assertTrue(cameraMoved)
+        assertNull(state.pendingMapSearch)
+        assertNull(state.activeClusterMemberIds)
+        assertFalse(state.isInitialLocationCameraMovePending)
+        assertEquals(generation, state.searchGeneration)
+        assertTrue(state.hasUserChosenMapViewport)
+        assertEquals(
+            CameraSettleAction.ViewportSettled,
+            state.onCameraMoveEnd(viewport, 14, InitialLocationState.Ready, hasCurrentLocation = true),
+        )
+    }
+
+    @Test
     fun `사용자 제스처는 대기 검색을 취소하고 사용자가 고른 화면 영역으로 표시한다`() {
         val state = HomeMapState()
         state.moveWithSearch(center, 13, MapSearchMoveReason.CLUSTER, clusterMemberIds = setOf(1L)) {}

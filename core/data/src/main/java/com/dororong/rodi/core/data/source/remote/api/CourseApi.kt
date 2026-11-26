@@ -1,9 +1,11 @@
 package com.dororong.rodi.core.data.source.remote.api
 
 import com.dororong.rodi.core.data.source.remote.model.course.CoursePageResponse
+import com.dororong.rodi.core.data.source.remote.model.course.CourseReportRequest
 import com.dororong.rodi.core.data.source.remote.model.course.CourseRegisterRequest
 import com.dororong.rodi.core.data.source.remote.model.course.CourseRegisterResponse
 import com.dororong.rodi.core.data.source.remote.model.course.CourseRegistrationFormResponse
+import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
 import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
@@ -33,5 +35,15 @@ interface CourseApi {
     @DELETE("courses/{courseId}")
     suspend fun deleteCourse(
         @Path("courseId") courseId: Long,
+    ): ApiEnvelope<JsonObject>
+
+    @GET("courses/report-form")
+    suspend fun getReportForm(
+    ): ApiEnvelope<ReportFormResponse>
+
+    @POST("courses/{courseId}/report")
+    suspend fun reportCourse(
+        @Path("courseId") courseId: Long,
+        @Body request: CourseReportRequest,
     ): ApiEnvelope<JsonObject>
 }

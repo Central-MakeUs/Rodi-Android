@@ -10,6 +10,7 @@ data class MyPageResponse(
     val drivingGoal: String? = null,
     val savedPlaceCount: Long,
     val levelProgress: LevelProgressResponse,
+    val nicknameChangeableAt: String? = null,
 )
 
 @Serializable
@@ -38,6 +39,7 @@ data class PracticeItemResponse(
     val visitCount: Int,
     val lastActivityAt: String? = null,
     val hasReview: Boolean,
+    val isDeleted: Boolean,
 )
 
 @Serializable
@@ -81,8 +83,8 @@ data class MemberUpdateRequest(
 )
 
 @Serializable
-data class FilterTagsRequest(
-    val filterTags: List<String>,
+data class SortTagsRequest(
+    val sortTags: List<String>,
 )
 
 @Serializable

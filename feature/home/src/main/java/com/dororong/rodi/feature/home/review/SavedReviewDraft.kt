@@ -19,6 +19,8 @@ internal data class SavedReviewDraft(
     val caution: String,
     val practiceMethod: PracticeMethod?,
     val content: String,
+    val courseIssues: List<String>,
+    val courseIssueDetail: String,
 ) {
     fun write(handle: SavedStateHandle) {
         handle[KEY_PLACE_ID] = placeId
@@ -30,6 +32,8 @@ internal data class SavedReviewDraft(
         handle[KEY_CAUTION] = caution
         handle[KEY_PRACTICE_METHOD] = practiceMethod?.name
         handle[KEY_CONTENT] = content
+        handle[KEY_COURSE_ISSUES] = ArrayList(courseIssues)
+        handle[KEY_COURSE_ISSUE_DETAIL] = courseIssueDetail
     }
 
     companion object {
@@ -42,6 +46,8 @@ internal data class SavedReviewDraft(
         private const val KEY_CAUTION = "review_draft_caution"
         private const val KEY_PRACTICE_METHOD = "review_draft_practice_method"
         private const val KEY_CONTENT = "review_draft_content"
+        private const val KEY_COURSE_ISSUES = "review_draft_course_issues"
+        private const val KEY_COURSE_ISSUE_DETAIL = "review_draft_course_issue_detail"
         private val KEYS = listOf(
             KEY_PLACE_ID,
             KEY_REVIEW_ID,
@@ -52,6 +58,8 @@ internal data class SavedReviewDraft(
             KEY_CAUTION,
             KEY_PRACTICE_METHOD,
             KEY_CONTENT,
+            KEY_COURSE_ISSUES,
+            KEY_COURSE_ISSUE_DETAIL,
         )
 
         fun from(state: ReviewWriteUiState) = SavedReviewDraft(
@@ -64,6 +72,8 @@ internal data class SavedReviewDraft(
             caution = state.caution,
             practiceMethod = state.practiceMethod,
             content = state.content,
+            courseIssues = state.courseIssues,
+            courseIssueDetail = state.courseIssueDetail,
         )
 
         fun read(handle: SavedStateHandle): SavedReviewDraft? {
@@ -79,6 +89,8 @@ internal data class SavedReviewDraft(
                 caution = handle.get<String>(KEY_CAUTION).orEmpty(),
                 practiceMethod = PracticeMethod.entries.firstOrNull { it.name == handle.get<String>(KEY_PRACTICE_METHOD) },
                 content = handle.get<String>(KEY_CONTENT).orEmpty(),
+                courseIssues = handle.get<ArrayList<String>>(KEY_COURSE_ISSUES).orEmpty(),
+                courseIssueDetail = handle.get<String>(KEY_COURSE_ISSUE_DETAIL).orEmpty(),
             )
         }
 

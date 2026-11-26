@@ -11,6 +11,7 @@ import com.dororong.rodi.core.domain.model.onboarding.SoloParkingLevel
 import com.dororong.rodi.core.domain.model.onboarding.VehicleType
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class OnboardingMapperTest {
     @Test
@@ -53,4 +54,13 @@ class OnboardingMapperTest {
             assertEquals(wireValue, request.drivingPeriod)
         }
     }
+    @Test
+    fun `없음과 다른 도로 경험의 혼합 요청을 만들지 않는다`() {
+        val profile = OnboardingProfile(
+            drivingPeriod = DrivingPeriod.MONTHS_1_2,
+            roadExperiences = listOf(RoadExperience.NONE, RoadExperience.SOLO),
+        )
+        assertThrows<IllegalArgumentException> { profile.toRequest(OnboardingLevel.SEED) }
+    }
+
 }

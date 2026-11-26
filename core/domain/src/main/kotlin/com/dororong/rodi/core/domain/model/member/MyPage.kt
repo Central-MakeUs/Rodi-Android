@@ -3,6 +3,7 @@ package com.dororong.rodi.core.domain.model.member
 import com.dororong.rodi.core.domain.model.onboarding.OnboardingLevel
 import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.practice.PracticeStatus
+import java.time.LocalDateTime
 
 data class MyPage(
     val nickname: String,
@@ -11,6 +12,7 @@ data class MyPage(
     val drivingGoal: String?,
     val savedPlaceCount: Long,
     val levelProgress: LevelProgress = LevelProgress(),
+    val nicknameChangeableAt: LocalDateTime? = null,
 )
 
 data class LevelProgress(
@@ -29,6 +31,7 @@ data class PracticeRecordItem(
     val visitedAt: java.time.Instant?,
     val hasReview: Boolean,
     val status: PracticeStatus = PracticeStatus.PLANNED,
+    val isDeleted: Boolean = false,
 )
 
 data class MyReview(

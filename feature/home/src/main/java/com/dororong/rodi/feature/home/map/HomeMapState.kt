@@ -78,6 +78,14 @@ internal class HomeMapState(
         moveCamera()
     }
 
+    fun moveWithoutSearch(moveCamera: () -> Unit) {
+        pendingMapSearch = null
+        activeClusterMemberIds = null
+        isInitialLocationCameraMovePending = false
+        hasUserChosenMapViewport = true
+        moveCamera()
+    }
+
     /** 사용자가 손으로 지도를 움직이면 코드가 예약한 이동·클러스터 범위는 의미가 없어진다. */
     fun onUserGesture() {
         isAtCurrentLocation = false

@@ -3,6 +3,7 @@ package com.dororong.rodi.feature.home
 import com.dororong.rodi.core.domain.model.navi.NaviApp
 import com.dororong.rodi.core.domain.model.course.GeoPoint
 import com.dororong.rodi.core.domain.model.course.RouteResult
+import com.dororong.rodi.core.domain.model.place.PlaceMarkerClusters
 import com.dororong.rodi.core.domain.model.place.PlaceCoordinate
 import com.dororong.rodi.core.domain.model.place.PlaceDetail
 import com.dororong.rodi.core.domain.model.place.PlaceSummary
@@ -38,6 +39,8 @@ enum class HomeListState {
 
 data class HomeUiState(
     val coordinates: List<PlaceCoordinate> = emptyList(),
+    val markerClusters: PlaceMarkerClusters? = null,
+    val isMarkersLoading: Boolean = false,
     val places: List<PlaceSummary> = emptyList(),
     val listState: HomeListState = HomeListState.Idle,
     val surfaceState: HomeSurfaceState = HomeSurfaceState.Navigation,
@@ -64,6 +67,9 @@ data class HomeUiState(
     val isFilterSheetVisible: Boolean = false,
     val activeFilterCategory: FilterCategory? = FilterCategory.BASIC_DRIVING,
     val selectedFilterPracticeTypes: Set<PracticeType> = emptySet(),
+    val appliedFilterPracticeTypes: Set<PracticeType> = emptySet(),
+    /** 지금 지도 마커를 받을 때 쓴 유형 필터. 목록 조회 결과와 따로 관리해야 다른 필터의 마커가 남지 않는다. */
+    val markerPracticeTypes: Set<PracticeType>? = null,
     val isFilterSaving: Boolean = false,
     val searchKeyword: String? = null,
     val regionSearch: RegionOfficeLocation? = null,
@@ -118,6 +124,7 @@ sealed interface HomeIntent {
     data class FilterCategorySelected(val category: FilterCategory) : HomeIntent
     data class FilterPracticeOptionToggled(val option: FilterPracticeOption) : HomeIntent
     data object FilterResetClicked : HomeIntent
+    data object EmptyListBrowseMoreClicked : HomeIntent
     data object FilterApplyClicked : HomeIntent
     data object FilterDismissed : HomeIntent
     data object LoginDismissed : HomeIntent
@@ -188,5 +195,4 @@ sealed interface PendingHomeAction {
     data object OpenMyPage : PendingHomeAction
     data object OpenCourseRegistration : PendingHomeAction
     data class OpenSearch(val origin: GeoPoint) : PendingHomeAction
-    data class SaveFilterTags(val filterTags: Set<PracticeType>) : PendingHomeAction
 }

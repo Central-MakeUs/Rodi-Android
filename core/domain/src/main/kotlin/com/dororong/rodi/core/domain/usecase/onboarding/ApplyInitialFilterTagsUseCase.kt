@@ -15,7 +15,7 @@ class ApplyInitialFilterTagsUseCase @Inject constructor(
     suspend operator fun invoke(level: OnboardingLevel): Result<Unit> {
         if (onboardingRepository.isInitialFilterTagsApplied.first()) return Result.success(Unit)
         return runSuspendCatching {
-            memberRepository.updateFilterTags(level.initialFilterTags.toList())
+            memberRepository.updateSortTags(level.initialFilterTags.toList())
             onboardingRepository.markInitialFilterTagsApplied()
         }
     }

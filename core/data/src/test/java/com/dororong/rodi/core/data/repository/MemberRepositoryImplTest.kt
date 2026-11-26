@@ -3,8 +3,11 @@ package com.dororong.rodi.core.data.repository
 import com.dororong.rodi.core.data.cache.PracticeRecordPresenceCache
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameAvailabilityResponse
 import com.dororong.rodi.core.data.source.remote.model.member.NicknameUpdateRequest
+import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateResponse
 import com.dororong.rodi.core.domain.model.member.NicknameRejection
 import com.dororong.rodi.core.domain.model.member.NicknameRejectedException
+import com.dororong.rodi.core.domain.model.member.NicknameUpdate
+import java.time.LocalDateTime
 import android.content.Context
 import com.dororong.rodi.core.data.source.local.datastore.AuthTokenDataStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokenMutationResult
@@ -12,7 +15,7 @@ import com.dororong.rodi.core.data.source.local.security.AuthTokenStore
 import com.dororong.rodi.core.data.source.local.security.AuthTokens
 import com.dororong.rodi.core.data.source.remote.api.MemberApi
 import com.dororong.rodi.core.data.source.remote.model.member.MemberUpdateRequest
-import com.dororong.rodi.core.data.source.remote.model.member.FilterTagsRequest
+import com.dororong.rodi.core.data.source.remote.model.member.SortTagsRequest
 import com.dororong.rodi.core.data.source.remote.model.member.CursorPagePracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.PracticeItemResponse
 import com.dororong.rodi.core.data.source.remote.model.member.LevelProgressResponse
@@ -73,6 +76,7 @@ class MemberRepositoryImplTest {
         val available = repository.checkNicknameAvailability(" 새_닉네임 ")
         assertEquals("새_닉네임", available.nickname)
         assertTrue(available.isAvailable)
+        assertNull(available.nicknameChangeableAt)
         val rejections = mapOf(
             "MEMBER_400_2" to NicknameRejection.LENGTH,
             "MEMBER_400_3" to NicknameRejection.CHARACTERS,
@@ -147,6 +151,143 @@ class MemberRepositoryImplTest {
         val exception = assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
 
         assertEquals("인증 요청이 거부되었습니다.", exception.message)
+    }
+
+    @Test
+    fun `닉네임 검증의 변경 제한 사유를 도메인 사유로 보존한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.checkNicknameAvailability("새_닉네임") } returns ApiEnvelope(
+            true, "COMMON_200", "성공",
+            NicknameAvailabilityResponse("새_닉네임", false, "MEMBER_400_5", nicknameChangeableAt = "2026-11-27T15:00:00.123456"),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        val availability = repository.checkNicknameAvailability("새_닉네임")
+
+        assertEquals(NicknameRejection.CHANGE_RESTRICTED, availability.rejection)
+        assertEquals(LocalDateTime.of(2026, 11, 27, 15, 0, 0, 123456000), availability.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `닉네임 저장의 변경 제한 envelope를 도메인 거절 사유로 전달한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(any()) } returns ApiEnvelope(
+            false, "MEMBER_400_5", "변경 제한",
+            MemberUpdateResponse(nicknameChangeableAt = "2026-11-27T15:00:00.123456"),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        val exception = assertThrowsSuspend<NicknameRejectedException> { repository.updateNickname("새_닉네임") }
+
+        assertEquals(NicknameRejection.CHANGE_RESTRICTED, exception.rejection)
+        assertEquals(LocalDateTime.of(2026, 11, 27, 15, 0, 0, 123456000), exception.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `닉네임 저장의 HTTP 변경 제한 오류를 도메인 거절 사유로 전달한다`() = runTest {
+        val repository = nicknameRepositoryWithHttpError(400, """
+            {"isSuccess":false,"code":"MEMBER_400_5","message":"변경 제한","data":{"nicknameChangeableAt":"2026-11-27T15:00:00.123456"}}
+        """.trimIndent())
+
+        val exception = assertThrowsSuspend<NicknameRejectedException> { repository.updateNickname("새_닉네임") }
+
+        assertEquals(NicknameRejection.CHANGE_RESTRICTED, exception.rejection)
+        assertEquals(LocalDateTime.of(2026, 11, 27, 15, 0, 0, 123456000), exception.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `닉네임 수정 성공은 서버 닉네임과 변경 가능 wall-clock 시각을 반환한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(NicknameUpdateRequest("요청_닉네임")) } returns ApiEnvelope(
+            true, "COMMON_200", "성공",
+            MemberUpdateResponse("서버_닉네임", "2026-11-27T15:00:00"),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        val updated = repository.updateNickname("요청_닉네임")
+
+        assertEquals(NicknameUpdate("서버_닉네임", LocalDateTime.of(2026, 11, 27, 15, 0)), updated)
+    }
+
+    @Test
+    fun `닉네임 수정 성공의 제한 시각이 null이면 클라이언트가 30일을 계산하지 않는다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(any()) } returns ApiEnvelope(
+            true, "COMMON_200", "성공", MemberUpdateResponse("새_닉네임"),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        assertEquals(NicknameUpdate("새_닉네임", null), repository.updateNickname("새_닉네임"))
+    }
+
+    @Test
+    fun `닉네임 수정 성공의 필수 닉네임이나 data가 없거나 시각이 잘못되면 성공으로 반환하지 않는다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(any()) } returnsMany listOf(
+            ApiEnvelope(true, "COMMON_200", "성공", MemberUpdateResponse(nicknameChangeableAt = "2026-11-27T15:00:00")),
+            ApiEnvelope(true, "COMMON_200", "성공", MemberUpdateResponse("새_닉네임", "잘못된 시각")),
+            ApiEnvelope(true, "COMMON_200", "성공"),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        repeat(3) {
+            assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
+        }
+    }
+
+    @Test
+    fun `닉네임 검증의 제한 시각 누락과 잘못된 시각은 정상 제한 상태로 숨기지 않는다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.checkNicknameAvailability(any()) } returnsMany listOf(
+            ApiEnvelope(true, "COMMON_200", "성공", NicknameAvailabilityResponse("새_닉네임", false, "MEMBER_400_5")),
+            ApiEnvelope(true, "COMMON_200", "성공", NicknameAvailabilityResponse(
+                "새_닉네임", false, "MEMBER_400_5", nicknameChangeableAt = "2026-02-30T15:00:00",
+            )),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        repeat(2) {
+            assertThrowsSuspend<AuthException.Unknown> { repository.checkNicknameAvailability("새_닉네임") }
+        }
+    }
+
+    @Test
+    fun `닉네임 저장의 변경 제한 envelope에 시각이 없거나 잘못되면 명시적으로 실패한다`() = runTest {
+        val memberApi = mockk<MemberApi>()
+        val tokenStore = mockk<AuthTokenStore>()
+        coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
+        coEvery { memberApi.updateNickname(any()) } returnsMany listOf(
+            ApiEnvelope(false, "MEMBER_400_5", "변경 제한"),
+            ApiEnvelope(false, "MEMBER_400_5", "변경 제한", MemberUpdateResponse(nicknameChangeableAt = "잘못된 시각")),
+        )
+        val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
+
+        repeat(2) {
+            assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
+        }
+    }
+
+    @Test
+    fun `닉네임 저장의 HTTP 변경 제한 응답에 시각이 없거나 잘못되면 명시적으로 실패한다`() = runTest {
+        listOf("null", "\"잘못된 시각\"").forEach { rawTimestamp ->
+            val repository = nicknameRepositoryWithHttpError(400, """
+                {"isSuccess":false,"code":"MEMBER_400_5","message":"변경 제한","data":{"nicknameChangeableAt":$rawTimestamp}}
+            """.trimIndent())
+
+            assertThrowsSuspend<AuthException.Unknown> { repository.updateNickname("새_닉네임") }
+        }
     }
 
     private fun nicknameRepositoryWithHttpError(status: Int, body: String): MemberRepositoryImpl {
@@ -227,19 +368,19 @@ class MemberRepositoryImplTest {
         val tokenStore = mockk<AuthTokenStore>()
         coEvery { tokenStore.getTokens() } returns AuthTokens("access", "refresh", "kakao")
         coEvery {
-            memberApi.updateFilterTags(
-                FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
+            memberApi.updateSortTags(
+                SortTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
             )
         } returns ApiEnvelope(isSuccess = true, code = "COMMON_200", message = "성공")
         val repository = MemberRepositoryImpl(memberApi, tokenStore, json, PracticeRecordPresenceCache(), coordinator(tokenStore))
 
-        repository.updateFilterTags(
+        repository.updateSortTags(
             listOf(PracticeType.STRAIGHT, PracticeType.PARKING, PracticeType.INTERSECTION),
         )
 
         coVerify {
-            memberApi.updateFilterTags(
-                FilterTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
+            memberApi.updateSortTags(
+                SortTagsRequest(listOf("STRAIGHT", "PARKING", "INTERSECTION")),
             )
         }
     }
@@ -444,7 +585,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
                 totalCount = 1,
             ),
@@ -489,7 +630,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -513,7 +654,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = true,
                 nextCursor = "next",
             ),
@@ -523,7 +664,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(2, 2, "방문 장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(2, 2, "방문 장소", practiceTypes = emptyList(), status = "VISITED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -565,7 +706,7 @@ class MemberRepositoryImplTest {
             code = "COMMON_200",
             message = "성공",
             data = CursorPagePracticeItemResponse(
-                items = listOf(PracticeItemResponse(3, 3, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+                items = listOf(PracticeItemResponse(3, 3, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
                 hasNext = false,
             ),
         )
@@ -682,7 +823,7 @@ class MemberRepositoryImplTest {
         code = "COMMON_200",
         message = "성공",
         data = CursorPagePracticeItemResponse(
-            items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false)),
+            items = listOf(PracticeItemResponse(1, 1, "예정 장소", practiceTypes = emptyList(), status = "PLANNED", visitCount = 0, hasReview = false, isDeleted = false)),
             hasNext = true,
             nextCursor = nextCursor,
         ),

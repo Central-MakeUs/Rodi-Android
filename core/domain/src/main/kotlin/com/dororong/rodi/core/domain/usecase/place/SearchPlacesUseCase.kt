@@ -2,6 +2,7 @@ package com.dororong.rodi.core.domain.usecase.place
 
 import com.dororong.rodi.core.common.runSuspendCatching
 import com.dororong.rodi.core.domain.model.course.GeoPoint
+import com.dororong.rodi.core.domain.model.place.PracticeType
 import com.dororong.rodi.core.domain.model.search.normalizeSearchKeyword
 import com.dororong.rodi.core.domain.repository.PlaceRepository
 import javax.inject.Inject
@@ -14,8 +15,9 @@ class SearchPlacesUseCase @Inject constructor(
         origin: GeoPoint,
         cursor: String? = null,
         size: Int = 20,
+        practiceTypes: Set<PracticeType> = emptySet(),
     ) = runSuspendCatching {
         val normalizedKeyword = keyword.normalizeSearchKeyword()
-        repository.searchPlaces(normalizedKeyword, origin, cursor, size)
+        repository.searchPlaces(normalizedKeyword, origin, cursor, size, practiceTypes)
     }
 }

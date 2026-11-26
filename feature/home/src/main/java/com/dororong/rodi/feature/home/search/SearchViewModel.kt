@@ -8,6 +8,7 @@ import com.dororong.rodi.core.domain.model.search.PlaceSuggestion
 import com.dororong.rodi.core.domain.model.search.RecentSearch
 import com.dororong.rodi.core.domain.model.search.RecentSearchRegistration
 import com.dororong.rodi.core.domain.model.search.SearchTargetType
+import com.dororong.rodi.core.domain.usecase.place.GetPlaceFilterUseCase
 import com.dororong.rodi.core.domain.usecase.place.GetRelatedSearchUseCase
 import com.dororong.rodi.core.domain.usecase.place.SearchPlacesUseCase
 import com.dororong.rodi.core.domain.usecase.search.DeleteAllRecentSearchesUseCase
@@ -38,6 +39,7 @@ class SearchViewModel @Inject constructor(
     private val getRelatedSearchUseCase: GetRelatedSearchUseCase,
     private val searchPlacesUseCase: SearchPlacesUseCase,
     private val registerRecentSearchUseCase: RegisterRecentSearchUseCase,
+    private val getPlaceFilterUseCase: GetPlaceFilterUseCase,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
@@ -223,7 +225,16 @@ class SearchViewModel @Inject constructor(
             )
         }
         searchJob = viewModelScope.launch {
-            searchPlacesUseCase(region.displayName, origin, cursor = null, size = SEARCH_PAGE_SIZE)
+            val filters = getPlaceFilterUseCase().getOrElse { error ->
+                if (generation == searchGeneration) {
+                    _uiState.update { it.copy(resultState = SearchResultState.Error) }
+                    _effect.send(SearchEffect.ShowSnackbar(error.userMessage()))
+                }
+                return@launch
+            }
+            searchPlacesUseCase(
+                region.displayName, origin, cursor = null, size = SEARCH_PAGE_SIZE, practiceTypes = filters,
+            )
                 .onSuccess { page ->
                     if (generation != searchGeneration) return@onSuccess
                     if (page.items.isEmpty()) {

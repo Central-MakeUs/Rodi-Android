@@ -8,14 +8,29 @@ import com.dororong.rodi.core.domain.model.review.ReviewDifficulty
 import com.dororong.rodi.core.domain.model.review.ReviewDraft
 import com.dororong.rodi.core.domain.model.review.ReviewCongestion
 import com.dororong.rodi.core.domain.model.review.PracticeMethod
+import com.dororong.rodi.core.domain.model.review.ReportSubmission
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 class ReviewMapperTest {
     private val json = Json { ignoreUnknownKeys = true }
+
+    @Test
+    fun `신고 요청은 사유와 추가 설명만 JSON으로 전송한다`() {
+        val request = ReportSubmission("OTHER", "신고 사유").toRequest()
+
+        val body = json.parseToJsonElement(json.encodeToString(request)).jsonObject
+
+        assertEquals(setOf("reason", "detail"), body.keys)
+        assertEquals("OTHER", body["reason"]?.jsonPrimitive?.content)
+        assertEquals("신고 사유", body["detail"]?.jsonPrimitive?.content)
+    }
 
     @Test
     fun `알 수 없는 난이도 집계 키는 제외한다`() {

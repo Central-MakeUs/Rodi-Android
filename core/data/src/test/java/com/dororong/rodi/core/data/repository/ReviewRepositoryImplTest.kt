@@ -21,11 +21,55 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
+import retrofit2.HttpException
+import retrofit2.Response
 
 class ReviewRepositoryImplTest {
+    @Test
+    fun `후기 폼 API가 없으면 기존 후기 입력을 사용한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(404)
+        assertNull(repository(api).getReviewIssueForm(7))
+    }
+
+    @Test
+    fun `후기 폼 서버 오류는 기존 입력으로 숨기지 않고 전달한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(500)
+        assertThrowsSuspend<ReviewException.Unexpected> { repository(api).getReviewIssueForm(7) }
+    }
+
+    @Test
+    fun `주차장 후기 폼 거절은 후기를 받지 않는 장소로 알린다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(
+            400,
+            """{"isSuccess":false,"code":"REVIEW_400_2","message":"주차장에는 후기를 작성할 수 없습니다.","data":null}""",
+        )
+        val error = assertThrowsSuspend<ReviewException.PlaceNotReviewable> { repository(api).getReviewIssueForm(7) }
+        assertEquals("주차장에는 후기를 작성할 수 없습니다.", error.userMessage)
+    }
+
+    @Test
+    fun `다른 400 오류는 잘못된 요청으로 유지한다`() = runTest {
+        val api = mockk<ReviewApi>()
+        coEvery { api.getReviewForm(7) } throws httpException(
+            400,
+            """{"isSuccess":false,"code":"COMMON_400","message":"잘못된 요청","data":null}""",
+        )
+        assertThrowsSuspend<ReviewException.InvalidRequest> { repository(api).getReviewIssueForm(7) }
+    }
+
+    private fun httpException(code: Int, body: String = "{}") = HttpException(
+        Response.error<Any>(code, body.toResponseBody("application/json".toMediaType())),
+    )
+
     @Test
     fun `후기 목록 항목과 커서 정보를 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
@@ -105,12 +149,12 @@ class ReviewRepositoryImplTest {
     @Test
     fun `후기 신고의 잘못된 요청은 InvalidRequest로 매핑한다`() = runTest {
         val api = mockk<ReviewApi>()
-        val request = ReportRequest("SELF", null, true)
+        val request = ReportRequest("SELF", null)
         coEvery { api.reportReview(1, request) } returns failureEnvelope("COMMON_400")
         val repository = repository(api)
 
         assertThrowsSuspend<ReviewException.InvalidRequest> {
-            repository.reportReview(1, ReportSubmission("SELF", null, true))
+            repository.reportReview(1, ReportSubmission("SELF", null))
         }
     }
 

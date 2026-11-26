@@ -36,9 +36,11 @@ class PlaceCacheLocalDataSource @Inject constructor(
     }
 
     suspend fun upsertSummaries(items: List<PlaceSummary>) {
+        val activeItems = items.filterNot(PlaceSummary::isDeleted)
         dao.upsertSummariesWithCoordinates(
-            summaries = items.map(PlaceSummary::toEntity),
-            coordinates = items.map(PlaceSummary::toCoordinateEntity),
+            summaries = activeItems.map(PlaceSummary::toEntity),
+            coordinates = activeItems.map(PlaceSummary::toCoordinateEntity),
+            deletedIds = items.filter(PlaceSummary::isDeleted).map(PlaceSummary::id),
         )
     }
 }

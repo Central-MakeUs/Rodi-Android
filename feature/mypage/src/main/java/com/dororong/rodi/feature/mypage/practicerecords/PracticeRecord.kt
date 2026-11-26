@@ -15,10 +15,12 @@ internal enum class PracticeRecordReviewAction(
     WRITE_REVIEW("후기 작성", true),
     REVIEW_COMPLETED("작성 완료", false),
     PARKING_UNAVAILABLE("작성 불가", false),
+    DELETED_UNAVAILABLE("삭제된 코스", false),
 }
 
 internal val PracticeRecord.reviewAction: PracticeRecordReviewAction
     get() = when {
+        isDeleted -> PracticeRecordReviewAction.DELETED_UNAVAILABLE
         practiceTypes.singleOrNull() == PracticeType.PARKING -> PracticeRecordReviewAction.PARKING_UNAVAILABLE
         hasReview -> PracticeRecordReviewAction.REVIEW_COMPLETED
         else -> PracticeRecordReviewAction.WRITE_REVIEW

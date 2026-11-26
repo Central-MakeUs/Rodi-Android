@@ -77,7 +77,8 @@ fun ReviewWriteScreen(
             RodiAlertDialog(
                 confirmText = "다시 시도",
                 onConfirm = {
-                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) } ?: close()
+                    editingReviewId?.let { viewModel.startForReviewId(placeId, placeName, it) }
+                        ?: viewModel.start(placeId, placeName)
                 },
                 dismissText = "닫기",
                 onDismiss = close,
@@ -95,6 +96,8 @@ fun ReviewWriteScreen(
                 onDifficulty = viewModel::selectDifficulty,
                 onCongestion = viewModel::selectCongestion,
                 onCaution = viewModel::updateCaution,
+                onCourseIssue = viewModel::toggleCourseIssue,
+                onCourseIssueDetail = viewModel::updateCourseIssueDetail,
                 onPracticeMethod = viewModel::selectPracticeMethod,
                 onContent = viewModel::updateContent,
                 onNext = viewModel::next,
@@ -137,7 +140,7 @@ fun ReviewWriteScreen(
 }
 
 @Composable
-private fun ReviewWriteContent(
+internal fun ReviewWriteContent(
     state: ReviewWriteUiState,
     onBack: () -> Unit,
     onClose: () -> Unit,
@@ -145,6 +148,8 @@ private fun ReviewWriteContent(
     onDifficulty: (com.dororong.rodi.core.domain.model.review.ReviewDifficulty) -> Unit,
     onCongestion: (com.dororong.rodi.core.domain.model.review.ReviewCongestion) -> Unit,
     onCaution: (String) -> Unit,
+    onCourseIssue: (String) -> Unit = {},
+    onCourseIssueDetail: (String) -> Unit = {},
     onPracticeMethod: (com.dororong.rodi.core.domain.model.review.PracticeMethod) -> Unit,
     onContent: (String) -> Unit,
     onNext: () -> Unit,
@@ -172,7 +177,7 @@ private fun ReviewWriteContent(
                 .padding(horizontal = 16.dp),
         ) {
             if (state.step == ReviewWriteStep.Basics) {
-                ReviewWriteBasics(state, onRecommend, onDifficulty, onCongestion, onCaution)
+                ReviewWriteBasics(state, onRecommend, onDifficulty, onCongestion, onCaution, onCourseIssue, onCourseIssueDetail)
             } else {
                 ReviewWriteDetail(state, onPracticeMethod, onContent, isEditing = isEditing)
             }

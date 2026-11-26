@@ -11,7 +11,10 @@ import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.time.LocalDateTime
+import java.time.format.DateTimeParseException
 
 /**
  * 서버가 `format: date-time`으로 선언해두고 오프셋 없이 내려보내던 값이 예외를 던져
@@ -69,7 +72,8 @@ class MemberMapperTest {
               "status": "VISITED",
               "visitCount": 1,
               "lastActivityAt": "$OFFSET_LESS",
-              "hasReview": false
+              "hasReview": false,
+              "isDeleted": false
             }
             """.trimIndent(),
         )
@@ -92,6 +96,63 @@ class MemberMapperTest {
         }
     }
 
+    @Test
+    fun `삭제된 코스의 연습기록도 보존하고 삭제 상태를 매핑한다`() {
+        val response = Json { ignoreUnknownKeys = true }.decodeFromString<PracticeItemResponse>(
+            """
+            {
+              "practiceId": 1,
+              "placeId": 10,
+              "placeName": "삭제된 연습 코스",
+              "practiceTypes": ["ROUNDABOUT"],
+              "status": "VISITED",
+              "visitCount": 3,
+              "lastActivityAt": "$OFFSET_LESS",
+              "hasReview": true,
+              "isDeleted": true
+            }
+            """.trimIndent(),
+        )
+
+        val result = response.toDomain()
+
+        assertTrue(result.isDeleted)
+        assertEquals(1L, result.practiceId)
+        assertEquals(10L, result.placeId)
+        assertEquals("삭제된 연습 코스", result.placeName)
+        assertEquals(3, result.visitCount)
+        assertEquals(parseServerTimestamp(OFFSET_LESS), result.visitedAt)
+        assertTrue(result.hasReview)
+    }
+
+    @Test
+    fun `프로필 닉네임 제한 시각은 시간대 변환 없이 서버 wall-clock 값을 보존한다`() {
+        val expected = LocalDateTime.of(2026, 11, 27, 15, 10, 20, 123456000)
+
+        val result = myPage("ROOKIE").copy(nicknameChangeableAt = "2026-11-27T15:10:20.123456").toDomain()
+
+        assertEquals(expected, result.nicknameChangeableAt)
+    }
+
+    @Test
+    fun `프로필 닉네임 제한 시각이 null이면 null을 보존한다`() {
+        assertNull(myPage("ROOKIE").copy(nicknameChangeableAt = null).toDomain().nicknameChangeableAt)
+    }
+
+    @Test
+    fun `프로필의 잘못된 제한 날짜를 변경 가능 null로 대체하지 않는다`() {
+        assertThrows(DateTimeParseException::class.java) {
+            myPage("ROOKIE").copy(nicknameChangeableAt = "2026-02-30T15:00:00").toDomain()
+        }
+    }
+
+    @Test
+    fun `프로필 제한 시각에 오프셋이 섞이면 임의 시간대로 변환하지 않고 실패한다`() {
+        assertThrows(DateTimeParseException::class.java) {
+            myPage("ROOKIE").copy(nicknameChangeableAt = "2026-11-27T15:00:00+09:00").toDomain()
+        }
+    }
+
     private fun practiceItem(lastActivityAt: String?, status: String = "PLANNED") = PracticeItemResponse(
         practiceId = 1,
         placeId = 10,
@@ -101,6 +162,7 @@ class MemberMapperTest {
         lastActivityAt = lastActivityAt,
         hasReview = false,
         status = status,
+        isDeleted = false,
     )
 
     private fun myPage(level: String) = MyPageResponse(

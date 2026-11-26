@@ -5,6 +5,7 @@ import com.dororong.rodi.core.data.source.remote.model.review.ReportFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReportRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewCreatedResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewDetailResponse
+import com.dororong.rodi.core.data.source.remote.model.review.ReviewFormResponse
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewRequest
 import com.dororong.rodi.core.data.source.remote.model.review.ReviewSummaryResponse
 import com.dororong.rodi.core.data.source.remote.network.ApiEnvelope
@@ -18,6 +19,9 @@ import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface ReviewApi {
+    @GET("places/{placeId}/review-form")
+    suspend fun getReviewForm(@Path("placeId") placeId: Long): ApiEnvelope<ReviewFormResponse>
+
     @GET("places/{placeId}/reviews")
     suspend fun getReviews(
         @Path("placeId") placeId: Long,

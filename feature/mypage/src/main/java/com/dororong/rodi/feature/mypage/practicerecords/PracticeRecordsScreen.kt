@@ -88,7 +88,7 @@ fun PracticeRecordsScreen(
 }
 
 @Composable
-private fun PracticeRecordsContent(
+internal fun PracticeRecordsContent(
     state: PracticeRecordsUiState,
     onBack: () -> Unit,
     onRetry: () -> Unit,

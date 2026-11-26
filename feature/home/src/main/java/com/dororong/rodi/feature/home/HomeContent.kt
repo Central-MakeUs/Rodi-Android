@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -270,6 +271,8 @@ internal fun HomeContent(
                                 isEmptySheet -> PlaceEmptyContent(
                                     isInitialError = state.showInitialError,
                                     onRetry = actions.onRetryPlaces,
+                                    onBrowseMore = { onIntent(HomeIntent.EmptyListBrowseMoreClicked) }
+                                        .takeIf { state.appliedFilterPracticeTypes.isNotEmpty() },
                                     dragHandleModifier = listSheetDrag,
                                 )
 
@@ -289,6 +292,30 @@ internal fun HomeContent(
                                 }
                             }
                         }
+                        if (isEmptySheet) {
+                            Box(modifier = Modifier.fillMaxWidth().height(PARTIAL_LIST_HEADER_HEIGHT)) {
+                                IconButton(
+                                    onClick = { onIntent(HomeIntent.ListCollapseRequested) },
+                                    modifier = Modifier.align(Alignment.CenterStart).padding(start = 4.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(CoreUiR.drawable.ic_chevron_left),
+                                        contentDescription = "뒤로가기",
+                                        tint = RodiTheme.colors.black,
+                                    )
+                                }
+                                FilterHeaderIconButton(
+                                    painter = painterResource(R.drawable.ic_filter),
+                                    iconSize = 16.dp,
+                                    visualSize = 23.dp,
+                                    visualBottomInset = 1.dp,
+                                    backgroundColor = RodiTheme.colors.gray100,
+                                    onClick = { onIntent(HomeIntent.FilterOpened) },
+                                    enabled = true,
+                                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 4.dp),
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -303,6 +330,7 @@ internal fun HomeContent(
                             onBookmarkClick = { onIntent(HomeIntent.BookmarkClicked) },
                             onNavigate = actions.onNavigate,
                             onSheetHeightChanged = actions.onCourseDetailSheetHeightChanged,
+                            onReportClick = { overlay.courseToReport = selectedPlace.id },
                             reviewContent = { sheetScrollState ->
                                 LaunchedEffect(selectedPlace.id) { actions.onLoadReviews(selectedPlace.id) }
                                 if (!reviewState.isGuest) {
