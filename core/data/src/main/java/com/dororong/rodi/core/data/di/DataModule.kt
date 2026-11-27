@@ -48,6 +48,7 @@ import java.time.Clock
 @InstallIn(SingletonComponent::class)
 abstract class DataModule {
     @Binds
+    @Singleton
     abstract fun bindCourseRepository(impl: CourseRepositoryImpl): CourseRepository
 
     @Binds

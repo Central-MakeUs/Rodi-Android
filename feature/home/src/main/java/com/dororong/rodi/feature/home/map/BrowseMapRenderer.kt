@@ -14,10 +14,12 @@ import com.dororong.rodi.core.domain.model.place.PlaceType
 import com.dororong.rodi.feature.home.R
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
+import com.kakao.vectormap.label.Label
 import com.kakao.vectormap.label.LabelManager
 import com.kakao.vectormap.label.LabelOptions
 import com.kakao.vectormap.label.LabelStyle
 import com.kakao.vectormap.label.LabelStyles
+import java.util.WeakHashMap
 
 sealed interface BrowseLabelTag {
     data class Cluster(val bounds: PlaceBounds) : BrowseLabelTag
@@ -25,61 +27,100 @@ sealed interface BrowseLabelTag {
     data class Place(val id: Long) : BrowseLabelTag
 }
 
+/**
+ * 카메라가 멈출 때마다 호출된다. 전부 지우고 다시 그리면 마커가 깜빡이므로, 이미 그린 마커는 두고
+ * 사라진 것만 지우고 새로 생긴 것만 더한다. 마커 이미지도 같은 내용이면 다시 만들지 않는다.
+ */
 internal fun KakaoMap.renderClusters(
     context: Context,
     markers: List<BrowseMapMarker>,
     style: MapBitmapStyle,
 ) {
-    clearBrowseLabels()
     val manager = labelManager ?: return
     val layer = browseLabelLayer() ?: return
-    val parkingStyles by lazy { manager.parkingMarkerStyles(context, R.drawable.ic_pin_parking_default) }
+    var state = browseRenderStates[this]
+    if (state == null || state.style != style || state.labels.values.any { !layer.hasLabel(it) }) {
+        layer.removeAll()
+        state = BrowseRenderState(style)
+        browseRenderStates[this] = state
+    }
+    state.selectedParkingId?.let { parkingId ->
+        changeParkingMarkerStyle(context, parkingId, R.drawable.ic_pin_parking_default)
+        state.selectedParkingId = null
+    }
 
-    markers.forEach { marker ->
-        if (marker is BrowseMapMarker.Cluster) {
-            val bitmap = createClusterTooltipBitmap(
-                count = marker.count,
-                density = context.resources.displayMetrics.density,
-                style = style,
-            )
-            val styles = manager.addLabelStyles(LabelStyles.from(LabelStyle.from(bitmap)))
-            layer.addLabel(
-                LabelOptions.from(LatLng.from(marker.point.lat, marker.point.lng))
-                    .setStyles(styles)
-                    .setClickable(true)
-                    .setTag(
-                        BrowseLabelTag.Cluster(marker.bounds),
-                    ),
-            )
-        } else {
-            val place = (marker as BrowseMapMarker.Place).place
-            val styles = if (place.type == PlaceType.PARKING) {
-                parkingStyles
-            } else {
-                manager.addLabelStyles(
-                    LabelStyles.from(
-                        LabelStyle.from(
-                            createCourseChipBitmap(
-                                text = place.name,
-                                density = context.resources.displayMetrics.density,
-                                style = style,
-                            ),
-                        ),
-                    ),
+    val desired = markers.toSet()
+    val removed = state.labels.keys.filterNot(desired::contains)
+    removed.forEach { marker -> state.labels.remove(marker)?.let { label -> layer.remove(label) } }
+
+    val density = context.resources.displayMetrics.density
+    markers.filterNot(state.labels::containsKey).forEach { marker ->
+        val label = when (marker) {
+            is BrowseMapMarker.Cluster -> {
+                val styles = state.clusterStyles.getOrPut(marker.count) {
+                    manager.addLabelStyles(
+                        LabelStyles.from(LabelStyle.from(createClusterTooltipBitmap(marker.count, density, style))),
+                    )
+                }
+                layer.addLabel(
+                    LabelOptions.from(LatLng.from(marker.point.lat, marker.point.lng))
+                        .setStyles(styles)
+                        .setClickable(true)
+                        .setTag(BrowseLabelTag.Cluster(marker.bounds)),
                 )
             }
-            layer.addLabel(
-                LabelOptions.from(LatLng.from(place.point.lat, place.point.lng))
-                    .setStyles(styles)
-                    .setClickable(true)
-                    .setTag(BrowseLabelTag.Place(place.id)),
-            )
+
+            is BrowseMapMarker.Place -> {
+                val place = marker.place
+                val styles = if (place.type == PlaceType.PARKING) {
+                    state.parkingStyles ?: manager.parkingMarkerStyles(context, R.drawable.ic_pin_parking_default)
+                        .also { state.parkingStyles = it }
+                } else {
+                    state.courseChipStyles.getOrPut(place.name) {
+                        manager.addLabelStyles(
+                            LabelStyles.from(LabelStyle.from(createCourseChipBitmap(place.name, density, style))),
+                        )
+                    }
+                }
+                layer.addLabel(
+                    LabelOptions.from(LatLng.from(place.point.lat, place.point.lng))
+                        .setStyles(styles)
+                        .setClickable(true)
+                        .setTag(BrowseLabelTag.Place(place.id)),
+                )
+            }
         }
+        if (label != null) state.labels[marker] = label
     }
 }
 
-fun KakaoMap.selectParkingMarker(context: Context, parkingId: Long): Boolean =
-    changeParkingMarkerStyle(context, parkingId, R.drawable.ic_pin_parking_selected)
+/** 지도마다 지금 그려 둔 탐색 마커와 재사용할 마커 이미지를 기억한다. */
+private class BrowseRenderState(val style: MapBitmapStyle) {
+    val labels = LinkedHashMap<BrowseMapMarker, Label>()
+    val clusterStyles = HashMap<Int, LabelStyles?>()
+    val courseChipStyles = HashMap<String, LabelStyles?>()
+    var parkingStyles: LabelStyles? = null
+    var selectedParkingId: Long? = null
+}
+
+private val browseRenderStates = WeakHashMap<KakaoMap, BrowseRenderState>()
+
+internal fun KakaoMap.forgetBrowseRenderState() {
+    browseRenderStates.remove(this)
+}
+
+/** 마커를 다시 만들지 않고 재사용하므로, 다른 주차장으로 바꿀 때 이전 선택을 직접 되돌린다. */
+fun KakaoMap.selectParkingMarker(context: Context, parkingId: Long): Boolean {
+    val state = browseRenderStates[this]
+    val previousId = state?.selectedParkingId
+    if (previousId != null && previousId != parkingId) {
+        changeParkingMarkerStyle(context, previousId, R.drawable.ic_pin_parking_default)
+        state.selectedParkingId = null
+    }
+    return changeParkingMarkerStyle(context, parkingId, R.drawable.ic_pin_parking_selected).also { selected ->
+        state?.selectedParkingId = if (selected) parkingId else null
+    }
+}
 
 fun KakaoMap.deselectParkingMarker(
     context: Context,

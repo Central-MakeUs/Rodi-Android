@@ -37,6 +37,7 @@ import com.dororong.rodi.core.domain.usecase.practice.RegisterPracticeUseCase
 import com.dororong.rodi.core.domain.usecase.practice.SaveActivePracticeSessionUseCase
 import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
+import com.dororong.rodi.feature.home.map.expandedForMarkers
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
 import com.dororong.rodi.feature.home.filter.practiceTypes
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -300,7 +301,7 @@ class HomeViewModel @Inject constructor(
         }
         firstPageJob = viewModelScope.launch {
             coroutineScope {
-                val markerResult = async { refreshPlaceClustersUseCase(filteredQuery) }
+                val markerResult = async { refreshPlaceClustersUseCase(filteredQuery.expandedForMarkers()) }
                 val pageResult = getPlacesUseCase(filteredQuery, cursor = null, size = PLACE_PAGE_SIZE)
                 pageResult
                     .onSuccess { page ->

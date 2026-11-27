@@ -87,6 +87,24 @@ class HomeMapStateTest {
     }
 
     @Test
+    fun `목록 시트가 열려 카메라 중심이 위로 올라가도 현위치 이동이 끝나면 검색을 보낸다`() {
+        val state = HomeMapState(hasCenteredInitialLocation = true)
+        val location = GeoPoint(37.6, 127.0)
+        state.moveWithSearch(location, 13, MapSearchMoveReason.CURRENT_LOCATION) {}
+
+        val action = state.onCameraMoveEnd(
+            viewport,
+            zoomLevel = 13,
+            InitialLocationState.Ready,
+            hasCurrentLocation = true,
+            cameraCenter = location,
+        )
+
+        assertEquals(CameraSettleAction.ProgrammaticSearch, action)
+        assertNull(state.pendingMapSearch)
+    }
+
+    @Test
     fun `카메라가 대기 목표에 도착하면 프로그램 검색을 보낸다`() {
         val state = HomeMapState()
         state.isInitialLocationCameraMovePending = true

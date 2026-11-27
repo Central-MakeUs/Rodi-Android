@@ -710,6 +710,20 @@ fun HomeScreen(
         )
     }
 
+    // 코스 상세는 경로를 강조하려고 다른 마커를 숨긴다. 시트 높이·경로가 준비될 때까지 기다리면
+    // 주변 마커가 한참 뒤에 사라져 보이므로, 상세 응답 전이라도 지도·목록에서 코스임을 알면 바로 숨긴다.
+    val selectedPlaceType = state.selectedPlaceId?.let { id ->
+        state.coordinates.firstOrNull { it.id == id }?.type
+            ?: state.places.firstOrNull { it.id == id }?.type
+            ?: state.selectedPlace?.takeIf { it.id == id }?.type
+    }
+    LaunchedEffect(kakaoMap, state.surfaceState, selectedPlaceType) {
+        val map = kakaoMap ?: return@LaunchedEffect
+        if (state.surfaceState == HomeSurfaceState.Detail && selectedPlaceType == PlaceType.COURSE) {
+            map.clearBrowseLabels()
+        }
+    }
+
     LaunchedEffect(
         kakaoMap,
         state.surfaceState,
@@ -906,13 +920,16 @@ fun HomeScreen(
                                             vm.onIntent(HomeIntent.MapGestured)
                                         }
                                     }
-                                    map.setOnCameraMoveEndListener { movedMap, _, _ ->
+                                    map.setOnCameraMoveEndListener { movedMap, cameraPosition, _ ->
                                         val viewport = movedMap.viewportOrNull(mapState.mapViewSize)
                                         val action = mapState.onCameraMoveEnd(
                                             viewport = viewport,
                                             zoomLevel = movedMap.zoomLevel,
                                             locationState = initialLocationState,
                                             hasCurrentLocation = currentLocation != null,
+                                            cameraCenter = cameraPosition.position.let {
+                                                GeoPoint(it.latitude, it.longitude)
+                                            },
                                         )
                                         if (viewport != null) {
                                             when (action) {

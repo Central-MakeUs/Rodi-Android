@@ -11,16 +11,24 @@ import com.dororong.rodi.core.domain.model.place.PlaceSummary
 import com.dororong.rodi.core.domain.model.place.PlaceViewportQuery
 import com.dororong.rodi.core.domain.model.search.RelatedSearch
 import com.dororong.rodi.core.domain.repository.PlaceRepository
+import java.time.Clock
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 
 class CachedPlaceRepository @Inject constructor(
     private val delegate: PlaceRepositoryImpl,
     private val placeCache: PlaceCacheLocalDataSource,
+    private val clock: Clock = Clock.systemDefaultZone(),
 ) : PlaceRepository {
+    private val detailCacheMutex = Mutex()
+    private val detailCache = HashMap<Long, CachedDetail>()
+    private val detailGenerations = HashMap<Long, Long>()
+
     private val clusterCacheMutex = Mutex()
     private var clusterCache: Pair<PlaceViewportQuery, PlaceMarkerClusters>? = null
     private var clusterRefreshVersion = 0L
@@ -120,11 +128,55 @@ class CachedPlaceRepository @Inject constructor(
         size: Int,
     ): RelatedSearch = delegate.relatedSearch(keyword, cursor, size)
 
-    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail = delegate.getPlaceDetail(placeId)
+    /**
+     * 같은 장소를 짧은 시간 안에 다시 열면 서버를 다시 부르지 않는다. 저장 상태를 바꾸면 버린다.
+     * 저장 상태 변경과 겹친 조회는 바뀌기 전 값을 받았을 수 있어 캐시에 남기지 않는다.
+     * 저장 상태는 사용자마다 다르므로 로그아웃·재로그인 뒤에는 이전 세션의 값을 쓰지 않고,
+     * 조회 중에 세션이 바뀌면 어느 세션의 응답인지 알 수 없어 캐시에 남기지 않는다.
+     * 비로그인은 세션으로 구분할 수 없어 캐시하지 않는다(그사이 로그인했다 나간 응답이 섞일 수 있다).
+     */
+    override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
+        val sessionId = delegate.currentSessionId() ?: return delegate.getPlaceDetail(placeId)
+        val now = clock.millis()
+        val generation = detailCacheMutex.withLock {
+            detailCache[placeId]
+                ?.takeIf { it.sessionId == sessionId && now - it.cachedAt < DETAIL_CACHE_TTL_MILLIS }
+                ?.let { return it.detail }
+            detailGenerations[placeId] ?: 0L
+        }
+        val detail = delegate.getPlaceDetail(placeId)
+        if (delegate.currentSessionId() != sessionId) return detail
+        detailCacheMutex.withLock {
+            if ((detailGenerations[placeId] ?: 0L) == generation) {
+                detailCache[placeId] = CachedDetail(sessionId, clock.millis(), detail)
+            }
+        }
+        return detail
+    }
 
     override suspend fun getSavedPlaces(cursor: String?, size: Int): CursorPage<PlaceSummary> =
         delegate.getSavedPlaces(cursor, size)
 
-    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) =
-        delegate.setBookmarked(place, bookmarked)
+    /** 서버 반영 뒤 로컬 저장이 실패하거나 취소돼도, 겹친 조회가 바뀌기 전 값을 캐시에 남기지 않게 한다. */
+    override suspend fun setBookmarked(place: PlaceDetail, bookmarked: Boolean) {
+        detailCacheMutex.withLock { detailCache.remove(place.id) }
+        try {
+            delegate.setBookmarked(place, bookmarked)
+        } finally {
+            withContext(NonCancellable) {
+                detailCacheMutex.withLock {
+                    detailGenerations[place.id] = (detailGenerations[place.id] ?: 0L) + 1
+                    detailCache.remove(place.id)
+                }
+            }
+        }
+    }
 }
+
+private data class CachedDetail(
+    val sessionId: String,
+    val cachedAt: Long,
+    val detail: PlaceDetail,
+)
+
+private const val DETAIL_CACHE_TTL_MILLIS = 5 * 60 * 1000L

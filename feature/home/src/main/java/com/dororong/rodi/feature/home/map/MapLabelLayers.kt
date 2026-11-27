@@ -34,6 +34,7 @@ internal fun KakaoMap.currentLocationLabelLayer(): LabelLayer? = labelManager?.l
 
 fun KakaoMap.clearBrowseLabels() {
     labelManager?.getLayer(BROWSE_LAYER_ID)?.removeAll()
+    forgetBrowseRenderState()
 }
 
 fun KakaoMap.clearCurrentLocationMarker() {
