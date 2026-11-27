@@ -920,13 +920,16 @@ fun HomeScreen(
                                             vm.onIntent(HomeIntent.MapGestured)
                                         }
                                     }
-                                    map.setOnCameraMoveEndListener { movedMap, _, _ ->
+                                    map.setOnCameraMoveEndListener { movedMap, cameraPosition, _ ->
                                         val viewport = movedMap.viewportOrNull(mapState.mapViewSize)
                                         val action = mapState.onCameraMoveEnd(
                                             viewport = viewport,
                                             zoomLevel = movedMap.zoomLevel,
                                             locationState = initialLocationState,
                                             hasCurrentLocation = currentLocation != null,
+                                            cameraCenter = cameraPosition.position.let {
+                                                GeoPoint(it.latitude, it.longitude)
+                                            },
                                         )
                                         if (viewport != null) {
                                             when (action) {

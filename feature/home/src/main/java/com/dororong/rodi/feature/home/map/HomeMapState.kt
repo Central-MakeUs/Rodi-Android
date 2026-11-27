@@ -101,13 +101,14 @@ internal class HomeMapState(
         zoomLevel: Int,
         locationState: InitialLocationState,
         hasCurrentLocation: Boolean,
+        cameraCenter: GeoPoint? = null,
     ): CameraSettleAction {
         this.zoomLevel = zoomLevel
         viewport ?: return CameraSettleAction.None
         currentViewport = viewport
         val pending = pendingMapSearch
         return when {
-            pending != null && PendingMapSearchMatcher.matches(pending, viewport, zoomLevel) -> {
+            pending != null && PendingMapSearchMatcher.matches(pending, viewport, zoomLevel, cameraCenter) -> {
                 pendingMapSearch = null
                 isInitialLocationCameraMovePending = false
                 CameraSettleAction.ProgrammaticSearch

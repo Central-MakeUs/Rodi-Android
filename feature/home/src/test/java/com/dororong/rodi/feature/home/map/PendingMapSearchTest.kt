@@ -42,6 +42,24 @@ class PendingMapSearchTest {
     }
 
     @Test
+    fun `시트 여백으로 카메라 중심이 화면 한가운데와 달라도 카메라 중심이 목표면 검색을 완료한다`() {
+        val target = GeoPoint(37.5, 127.0)
+        val pending = pending(target = target, zoom = 13)
+
+        assertFalse(PendingMapSearchMatcher.matches(pending, viewport, zoomLevel = 13))
+        assertTrue(PendingMapSearchMatcher.matches(pending, viewport, zoomLevel = 13, cameraCenter = target))
+    }
+
+    @Test
+    fun `카메라 중심이 목표에서 벗어나 있으면 화면 한가운데가 맞아도 검색을 완료하지 않는다`() {
+        val pending = pending(target = GeoPoint(37.0, 127.0), zoom = 13)
+
+        assertFalse(
+            PendingMapSearchMatcher.matches(pending, viewport, zoomLevel = 13, cameraCenter = GeoPoint(37.5, 127.0)),
+        )
+    }
+
+    @Test
     fun `fit bounds 이동은 모든 멤버 좌표가 viewport 안에 들어오면 완료된다`() {
         val pending = PendingMapSearch(
             generation = 1,
