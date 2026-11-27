@@ -10,11 +10,14 @@ import com.dororong.rodi.core.domain.model.course.CoursePoint
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class CourseRepositoryImplTest {
     @Test
@@ -65,6 +68,19 @@ class CourseRepositoryImplTest {
         coVerify(exactly = 1) {
             directionsClient.getRoute(course.origin, course.waypointPoints, course.destination)
         }
+    }
+
+    @Test
+    fun `길찾기가 취소되면 그대로 전달하고 다음 조회에서 다시 길찾기를 부른다`() = runTest {
+        val directionsClient = mockk<KakaoDirectionsClient>()
+        val cancellation = CancellationException("cancelled")
+        coEvery { directionsClient.getRoute(start, emptyList(), end) } throws cancellation andThen route(isRealRoute = true)
+        val repository = CourseRepositoryImpl(directionsClient = directionsClient)
+
+        assertSame(cancellation, assertThrows<CancellationException> { repository.getRoute(start, emptyList(), end) })
+        assertTrue(repository.getRoute(start, emptyList(), end).isRealRoute)
+
+        coVerify(exactly = 2) { directionsClient.getRoute(start, emptyList(), end) }
     }
 
     @Test
