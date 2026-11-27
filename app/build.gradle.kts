@@ -31,8 +31,8 @@ android {
 
     defaultConfig {
         applicationId = "com.dororong.rodi"
-        versionCode = 27
-        versionName = "1.5.0-alpha04"
+        versionCode = 28
+        versionName = "1.5.0-alpha05"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
