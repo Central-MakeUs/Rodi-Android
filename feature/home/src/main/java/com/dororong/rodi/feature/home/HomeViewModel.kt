@@ -39,7 +39,6 @@ import com.dororong.rodi.feature.home.search.RegionOfficeLocation
 import com.dororong.rodi.feature.home.filter.FilterCategory
 import com.dororong.rodi.feature.home.map.expandedForMarkers
 import com.dororong.rodi.feature.home.filter.FilterPracticeOption
-import com.dororong.rodi.feature.home.map.expandedForMarkers
 import com.dororong.rodi.feature.home.filter.practiceTypes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
