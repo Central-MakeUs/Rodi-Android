@@ -360,6 +360,25 @@ class CachedPlaceRepositoryTest {
     }
 
     @Test
+    fun `조회 중에 로그인 세션이 바뀌면 받은 상세를 캐시에 남기지 않는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        var session: String? = null
+        coEvery { remote.currentSessionId() } coAnswers { session }
+        coEvery { remote.getPlaceDetail(7) } coAnswers {
+            session = SESSION_A
+            detail(7).copy(isBookmarked = true)
+        } andThen detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        repository.getPlaceDetail(7)
+        session = null
+        val guestDetail = repository.getPlaceDetail(7)
+
+        assertEquals(false, guestDetail.isBookmarked)
+        coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
     fun `장소 상세 조회 실패와 취소는 그대로 전달하고 다음 조회에서 다시 받는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         coEvery { remote.currentSessionId() } returns SESSION_A
