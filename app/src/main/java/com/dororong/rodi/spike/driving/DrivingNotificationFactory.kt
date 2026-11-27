@@ -6,7 +6,16 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.RectF
+import android.graphics.Shader
 import android.os.Build
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
@@ -37,6 +46,9 @@ internal object DrivingNotificationStylePolicy {
 
 internal object DrivingNotificationFactory {
     const val NOTIFICATION_ID = 4_210
+
+    /** 진행 알림 제거가 늦어질 때 완료 알림을 지워지지 않게 올리는 ID. 테스트 메뉴 미리보기(+1)와 겹치지 않는다. */
+    const val ARRIVAL_FALLBACK_NOTIFICATION_ID = NOTIFICATION_ID + 2
     const val ONGOING_CHANNEL_ID = "driving_tracking"
     private const val ARRIVAL_CHANNEL_ID = "driving_arrival"
     private const val PROGRESS_MAX = 100
@@ -104,6 +116,7 @@ internal object DrivingNotificationFactory {
             .setColor(progressColor)
             .setContentIntent(openAppIntent(context))
             .setOngoing(true)
+            .setAutoCancel(false)
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
@@ -112,7 +125,7 @@ internal object DrivingNotificationFactory {
             .setShowWhen(true)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .addAction(
-                R.drawable.ic_launcher_foreground,
+                R.drawable.ic_notification,
                 "운전 종료",
                 stopServiceIntent(context, session.id),
             )
@@ -138,7 +151,7 @@ internal object DrivingNotificationFactory {
                 builder.setProgress(PROGRESS_MAX, progress ?: 0, false)
             }
         }
-        return builder.build()
+        return builder.buildWithPublicContent()
     }
 
     fun arrival(
@@ -158,15 +171,22 @@ internal object DrivingNotificationFactory {
             .setAutoCancel(true)
             .setOngoing(false)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setOnlyAlertOnce(false)
             .setWhen(session.arrivedAtEpochMillis ?: System.currentTimeMillis())
             .setShowWhen(true)
             .addAction(
-                R.drawable.ic_launcher_foreground,
+                R.drawable.ic_notification,
                 "기록하러 가기",
                 openAppIntent(context),
             )
-            .build()
+            .buildWithPublicContent()
+    }
+
+    /** 잠금화면의 공개 대체 알림에도 같은 PNG 로고와 현재 상태를 전달한다. */
+    private fun NotificationCompat.Builder.buildWithPublicContent(): Notification {
+        val publicContent = build()
+        return setPublicVersion(publicContent).build()
     }
 
     private fun progressSegments(progress: Int): List<NotificationCompat.ProgressStyle.Segment> {
@@ -192,8 +212,41 @@ internal object DrivingNotificationFactory {
         }
     }
 
-    private fun brandIcon(context: Context) =
-        BitmapFactory.decodeResource(context.resources, R.mipmap.ic_launcher)
+    /**
+     * 큰 아이콘용으로 로고 영역만 잘라 원형으로 그린다. 삼성 잠금화면 알약이 그리는 아이콘은 이 비트맵이
+     * 아니라 매니페스트의 앱 아이콘이므로, 알약 모양은 여기서 바꿀 수 없다.
+     */
+    private fun brandIcon(context: Context): Bitmap {
+        val source = BitmapFactory.decodeResource(context.resources, R.drawable.ic_rodi_brand)
+        val pixels = IntArray(source.width * source.height)
+        source.getPixels(pixels, 0, source.width, 0, 0, source.width, source.height)
+        val contentBounds = Rect()
+        pixels.forEachIndexed { index, pixel ->
+            if (Color.alpha(pixel) == 255) {
+                val x = index % source.width
+                val y = index / source.width
+                contentBounds.union(x, y, x + 1, y + 1)
+            }
+        }
+        val bounds = RectF(0f, 0f, source.width.toFloat(), source.height.toFloat())
+        val shader = BitmapShader(source, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+            setLocalMatrix(Matrix().apply {
+                setRectToRect(RectF(contentBounds), bounds, Matrix.ScaleToFit.FILL)
+            })
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            this.shader = shader
+        }
+        val result = Bitmap.createBitmap(source.width, source.height, Bitmap.Config.ARGB_8888)
+        result.density = source.density
+        Canvas(result).drawCircle(
+            bounds.centerX(),
+            bounds.centerY(),
+            minOf(bounds.width(), bounds.height()) / 2f,
+            paint,
+        )
+        return result
+    }
 
     private fun progressTrackerIcon(context: Context): IconCompat =
         IconCompat.createWithResource(context, R.drawable.ic_driving_progress_tracker)
