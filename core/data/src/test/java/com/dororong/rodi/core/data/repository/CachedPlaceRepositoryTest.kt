@@ -278,6 +278,7 @@ class CachedPlaceRepositoryTest {
     fun `같은 장소 상세를 5분 안에 다시 열면 서버를 다시 부르지 않는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val clock = MutableClock()
+        coEvery { remote.currentSessionId() } returns SESSION_A
         coEvery { remote.getPlaceDetail(7) } returns detail(7)
         val repository = CachedPlaceRepository(remote, mockk(relaxed = true), clock)
 
@@ -292,6 +293,7 @@ class CachedPlaceRepositoryTest {
     fun `5분이 지나면 장소 상세를 다시 받는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val clock = MutableClock()
+        coEvery { remote.currentSessionId() } returns SESSION_A
         coEvery { remote.getPlaceDetail(7) } returns detail(7)
         val repository = CachedPlaceRepository(remote, mockk(relaxed = true), clock)
 
@@ -305,6 +307,7 @@ class CachedPlaceRepositoryTest {
     @Test
     fun `저장 상태를 바꾸면 다음 상세는 서버에서 새로 받는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
+        coEvery { remote.currentSessionId() } returns SESSION_A
         coEvery { remote.getPlaceDetail(7) } returns detail(7)
         coEvery { remote.setBookmarked(any(), any()) } returns Unit
         val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
@@ -321,6 +324,7 @@ class CachedPlaceRepositoryTest {
         val remote = mockk<PlaceRepositoryImpl>()
         val staleResponse = CompletableDeferred<PlaceDetail>()
         var detailCalls = 0
+        coEvery { remote.currentSessionId() } returns SESSION_A
         coEvery { remote.getPlaceDetail(7) } coAnswers {
             if (++detailCalls == 1) staleResponse.await() else detail(7)
         }
@@ -335,6 +339,65 @@ class CachedPlaceRepositoryTest {
         repository.getPlaceDetail(7)
 
         coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
+    fun `로그인 세션이 바뀌면 이전 세션의 장소 상세를 쓰지 않는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        var session: String? = SESSION_A
+        coEvery { remote.currentSessionId() } coAnswers { session }
+        coEvery { remote.getPlaceDetail(7) } returns detail(7).copy(isBookmarked = true) andThen detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        repository.getPlaceDetail(7)
+        session = null
+        val guestDetail = repository.getPlaceDetail(7)
+        session = SESSION_B
+        repository.getPlaceDetail(7)
+
+        assertEquals(false, guestDetail.isBookmarked)
+        coVerify(exactly = 3) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
+    fun `장소 상세 조회 실패와 취소는 그대로 전달하고 다음 조회에서 다시 받는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        coEvery { remote.currentSessionId() } returns SESSION_A
+        val failure = IllegalStateException("서버 오류")
+        val cancellation = CancellationException("cancelled")
+        coEvery { remote.getPlaceDetail(7) } throws failure andThenThrows cancellation andThen detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        assertSame(failure, assertThrows<IllegalStateException> { repository.getPlaceDetail(7) })
+        assertSame(cancellation, assertThrows<CancellationException> { repository.getPlaceDetail(7) })
+        repository.getPlaceDetail(7)
+
+        coVerify(exactly = 3) { remote.getPlaceDetail(7) }
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `저장 상태 변경이 실패하거나 취소돼도 겹친 상세 조회 결과는 캐시에 남기지 않는다`() = runTest {
+        listOf(IllegalStateException("로컬 저장 실패"), CancellationException("cancelled")).forEach { error ->
+            val remote = mockk<PlaceRepositoryImpl>()
+            val staleResponse = CompletableDeferred<PlaceDetail>()
+            var detailCalls = 0
+            coEvery { remote.currentSessionId() } returns SESSION_A
+            coEvery { remote.getPlaceDetail(7) } coAnswers {
+                if (++detailCalls == 1) staleResponse.await() else detail(7)
+            }
+            coEvery { remote.setBookmarked(any(), any()) } throws error
+            val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+            val staleRead = async { repository.getPlaceDetail(7) }
+            runCurrent()
+            assertSame(error, assertThrows<Throwable> { repository.setBookmarked(detail(7), bookmarked = true) })
+            staleResponse.complete(detail(7))
+            staleRead.await()
+            repository.getPlaceDetail(7)
+
+            coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+        }
     }
 
     private class MutableClock(private var millis: Long = 1_000L) : Clock() {
@@ -386,3 +449,6 @@ class CachedPlaceRepositoryTest {
         origin = GeoPoint(37.5, 126.5),
     )
 }
+
+private const val SESSION_A = "session-a"
+private const val SESSION_B = "session-b"

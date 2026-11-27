@@ -123,6 +123,9 @@ class PlaceRepositoryImpl @Inject constructor(
         savedPlaceLocalDataSource.setBookmarked(place, bookmarked)
     }
 
+    /** 로그인 세션마다 저장 상태가 다르므로, 캐시가 다른 세션의 값을 돌려주지 않게 세션을 구분한다. */
+    internal suspend fun currentSessionId(): String? = tokenStore.getTokens()?.sessionId
+
     /**
      * 토큰 주입과 401 재발급은 OkHttp의 AuthHeaderInterceptor·TokenAuthenticator가 한다.
      * 여기서는 로그인 여부만 확인하고, 남은 실패를 도메인 예외로 바꾼다.
