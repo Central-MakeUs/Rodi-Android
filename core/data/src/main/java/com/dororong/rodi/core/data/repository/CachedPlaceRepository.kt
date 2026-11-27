@@ -133,9 +133,10 @@ class CachedPlaceRepository @Inject constructor(
      * 저장 상태 변경과 겹친 조회는 바뀌기 전 값을 받았을 수 있어 캐시에 남기지 않는다.
      * 저장 상태는 사용자마다 다르므로 로그아웃·재로그인 뒤에는 이전 세션의 값을 쓰지 않고,
      * 조회 중에 세션이 바뀌면 어느 세션의 응답인지 알 수 없어 캐시에 남기지 않는다.
+     * 비로그인은 세션으로 구분할 수 없어 캐시하지 않는다(그사이 로그인했다 나간 응답이 섞일 수 있다).
      */
     override suspend fun getPlaceDetail(placeId: Long): PlaceDetail {
-        val sessionId = delegate.currentSessionId()
+        val sessionId = delegate.currentSessionId() ?: return delegate.getPlaceDetail(placeId)
         val now = clock.millis()
         val generation = detailCacheMutex.withLock {
             detailCache[placeId]
@@ -173,7 +174,7 @@ class CachedPlaceRepository @Inject constructor(
 }
 
 private data class CachedDetail(
-    val sessionId: String?,
+    val sessionId: String,
     val cachedAt: Long,
     val detail: PlaceDetail,
 )

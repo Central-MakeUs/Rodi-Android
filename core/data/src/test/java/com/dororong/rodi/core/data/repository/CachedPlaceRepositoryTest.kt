@@ -379,6 +379,26 @@ class CachedPlaceRepositoryTest {
     }
 
     @Test
+    fun `비로그인 상태의 장소 상세는 응답 전에 로그인했다 나가도 캐시에 남기지 않는다`() = runTest {
+        val remote = mockk<PlaceRepositoryImpl>()
+        var session: String? = null
+        coEvery { remote.currentSessionId() } coAnswers { session }
+        coEvery { remote.getPlaceDetail(7) } coAnswers {
+            session = SESSION_A
+            val signedInDetail = detail(7).copy(isBookmarked = true)
+            session = null
+            signedInDetail
+        } andThen detail(7)
+        val repository = CachedPlaceRepository(remote, mockk(relaxed = true), MutableClock())
+
+        repository.getPlaceDetail(7)
+        val guestDetail = repository.getPlaceDetail(7)
+
+        assertEquals(false, guestDetail.isBookmarked)
+        coVerify(exactly = 2) { remote.getPlaceDetail(7) }
+    }
+
+    @Test
     fun `장소 상세 조회 실패와 취소는 그대로 전달하고 다음 조회에서 다시 받는다`() = runTest {
         val remote = mockk<PlaceRepositoryImpl>()
         coEvery { remote.currentSessionId() } returns SESSION_A
